@@ -90,6 +90,7 @@ describe("App", () => {
     expect(screen.getByText(/Missing required:/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
+    expect(screen.getByText("16 files")).toBeInTheDocument();
   });
 
   it("does not lose intake data when switching stages", async () => {
@@ -107,5 +108,20 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Previous" }));
     expect(screen.getByLabelText(/App name/i)).toHaveValue("Stage Persistence App");
+  });
+
+  it("reads generated documents from the active project", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
+    expect(screen.getByText(/Community Services Portal/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+    await user.click(screen.getByRole("button", { name: "Volunteer Management App" }));
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    expect(screen.getByText(/Volunteer Management App/)).toBeInTheDocument();
   });
 });

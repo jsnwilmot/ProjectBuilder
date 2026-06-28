@@ -9,10 +9,14 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Section-based validation that returns `isValid`, missing fields, warnings, and per-stage completion results.
 - Review stage summary with explicit missing required information and warning visibility.
 - Generate stage readiness summary that allows generation with explicit `[MISSING: ...]` markers.
+- Hardened document templates for all 16 required markdown files with project-specific output and cross-document consistency.
+- Approved folder mapping for all generated files with safe path handling for package generation and ZIP export.
+- Shared document generation helpers for missing markers, safe text/list handling, markdown formatting, and file/folder sanitization.
 - Plain-text viewer for all generated Markdown documents.
 - Local ZIP export with the standard 12-folder structure, 16 required documents, and a JSON manifest.
 - Versioned browser-local persistence for multiple projects and one active project.
 - Persisted intake changes, generated documents, lifecycle status, readiness, and timestamps without clearing generated documents on intake edits.
+- Generation from current intake can run before persistence; persisted generated documents are replaced only when Generate is explicitly run.
 - Project data is stored only in the current browser. No backend or external service is used.
 
 ## MVP persistence

@@ -14,9 +14,12 @@ export const PROJECT_FOLDERS = [
 ] as const;
 
 export const DOCUMENT_LOCATIONS = [
-  { fileName: "README.md", folder: "" },
+  { fileName: "README.md", folder: "00_Project_Overview" },
   { fileName: "PROJECT_SCOPE.md", folder: "00_Project_Overview" },
+  { fileName: "NEXT_STEPS.md", folder: "00_Project_Overview" },
+  { fileName: "CHANGE_LOG.md", folder: "00_Project_Overview" },
   { fileName: "CLIENT_REQUIREMENTS.md", folder: "01_Requirements" },
+  { fileName: "ACCEPTANCE_CRITERIA.md", folder: "01_Requirements" },
   { fileName: "ARCHITECT_INSTRUCTIONS.md", folder: "02_Architecture" },
   { fileName: "APP_BLUEPRINT.md", folder: "02_Architecture" },
   { fileName: "DATA_MODEL.md", folder: "03_Data_Model" },
@@ -24,10 +27,7 @@ export const DOCUMENT_LOCATIONS = [
   { fileName: "WORKFLOW_MAP.md", folder: "05_Workflows" },
   { fileName: "SECURITY_MODEL.md", folder: "06_Security" },
   { fileName: "CODEX_INSTRUCTIONS.md", folder: "07_Development" },
-  { fileName: "ACCEPTANCE_CRITERIA.md", folder: "08_Testing" },
   { fileName: "TEST_PLAN.md", folder: "08_Testing" },
   { fileName: "DEPLOYMENT_NOTES.md", folder: "09_Deployment" },
-  { fileName: "CHANGE_LOG.md", folder: "10_Documentation" },
-  { fileName: "NEXT_STEPS.md", folder: "10_Documentation" },
   { fileName: "PHASED_CODEX_PROMPTS.md", folder: "11_Codex_Prompts" }
 ] as const;

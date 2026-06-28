@@ -1,5 +1,50 @@
 # Change Log
 
+## 2026-06-28 — Phase 4: Document Generation Hardening
+
+### Summary
+
+- Hardened document generation across all 16 required markdown files using project-specific templates aligned to the expanded intake schema.
+- Standardized folder mapping to approved package structure with `README.md`, `PROJECT_SCOPE.md`, `NEXT_STEPS.md`, and `CHANGE_LOG.md` under `00_Project_Overview`.
+- Added shared document helpers for safe text handling, exact missing marker output, markdown lists/tables, date formatting, file normalization, and project folder sanitization.
+- Hardened generation and export path safety so unsafe file name/path input cannot create unsafe ZIP paths.
+- Preserved Phase 3 behavior: intake edits do not overwrite persisted generated documents until Generate is clicked again.
+
+### Files created
+
+- `src/lib/documentHelpers.ts` — shared markdown and safety helper functions for document generation.
+- `src/data/generatedFiles.ts` — canonical generated file name list for validation tests.
+- `src/tests/documentHelpers.test.ts` — helper behavior and safety tests.
+
+### Files updated
+
+- `src/templates/documents/index.ts` — complete template hardening rewrite for all required generated docs.
+- `src/data/folderStructure.ts` — approved folder mapping updates.
+- `src/lib/generateProjectPackage.ts` — project-driven template rendering and filename/folder safety hardening.
+- `src/lib/exportProjectPackage.ts` — safe ZIP path normalization.
+- `src/components/DocumentViewer/DocumentViewer.tsx` — preview empty-state message aligned with generation behavior.
+- `src/components/ExportPanel/ExportPanel.tsx` — package tree aligned to folder-mapped README location.
+- `src/tests/generateProjectPackage.test.ts` — expanded document quality and section coverage assertions.
+- `src/tests/exportProjectPackage.test.ts` — updated mapping assertions and unsafe path coverage.
+- `src/tests/projectRepository.test.ts` — regeneration replacement behavior coverage.
+- `src/tests/App.test.tsx` — generated document count and active-project preview coverage.
+- `README.md`, `NEXT_STEPS.md`, `TEST_PLAN.md` — Phase 4 behavior and test coverage documentation updates.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`10` files, `44` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Phase 5: Mission Control Dashboard Hardening.
+- Production hosting remains an Architect decision.
+
 ## 2026-06-28 — Phase 3: Intake Flow Hardening
 
 ### Summary

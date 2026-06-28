@@ -16,6 +16,14 @@
 - Intake updates preserve existing generated documents.
 - Generated documents and actual generated-file counts persist.
 - Generation can proceed with missing intake data and keeps explicit missing markers.
+- All 16 required markdown files generate every time and are non-empty.
+- Generated document names match the canonical generated-file list.
+- Folder mapping is validated against approved package structure.
+- ARCHITECT_INSTRUCTIONS.md includes review process and blocked assumptions.
+- CODEX_INSTRUCTIONS.md includes missing decision and scope boundary rules.
+- PHASED_CODEX_PROMPTS.md includes phased prompts with objective, files, constraints, acceptance criteria, testing, and reporting sections.
+- ZIP export sanitizes unsafe file paths and preserves missing markers.
+- Document preview reads active-project generated documents.
 - Dashboard selectors calculate readiness, outstanding questions, completion, next action, and display status without mutation.
 - All 12 required folders and 16 required files are generated.
 - Missing information markers appear in generated Markdown.
@@ -50,8 +58,9 @@ npm.cmd audit
 12. Edit intake after generation and confirm previously generated documents remain saved.
 13. Confirm Review opens stage 7 and Export navigation opens stage 8 of Guided Intake.
 14. Verify New project remains reachable on mobile and there is no page-level horizontal overflow.
-12. Verify keyboard navigation, focus indicators, and form labels.
-15. Verify Mission Control, intake, documents, and export at desktop and mobile widths.
+15. Verify keyboard navigation, focus indicators, and form labels.
+16. Verify Mission Control, intake, documents, and export at desktop and mobile widths.
+17. Export ZIP and confirm folder mapping includes `00_Project_Overview/README.md` and safe paths only.
 
 ## Known testing boundary
 

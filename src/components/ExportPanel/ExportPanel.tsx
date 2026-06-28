@@ -88,7 +88,6 @@ export function ExportPanel({
             </div>
             <div className="folder-tree">
               <div className="tree-root"><FolderArchive size={18} />{projectPackage.rootFolder}/</div>
-              <div className="tree-file"><FileText size={16} />README.md</div>
               {projectPackage.folders.map((folder) => {
                 const fileCount = projectPackage.documents.filter((document) => document.folder === folder).length;
                 return (

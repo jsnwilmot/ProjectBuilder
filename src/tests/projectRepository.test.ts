@@ -102,6 +102,25 @@ describe("projectRepository", () => {
     expect(loaded.status).toBe("Needs Review");
   });
 
+  it("replaces generated documents when generation is run again", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ identity: { projectName: "Generated project" } }, storage);
+    saveGeneratedDocuments(project.identity.id, [
+      { fileName: "README.md", folder: "00_Project_Overview", content: "# First" }
+    ], storage);
+
+    saveGeneratedDocuments(project.identity.id, [
+      { fileName: "README.md", folder: "00_Project_Overview", content: "# Second" },
+      { fileName: "PROJECT_SCOPE.md", folder: "00_Project_Overview", content: "# Scope" }
+    ], storage);
+
+    const loaded = getProjectById(project.identity.id, storage)!;
+    expect(loaded.generatedDocuments).toHaveLength(2);
+    expect(loaded.generatedDocuments[0].content).toBe("# Second");
+    expect(loaded.generatedFileCount).toBe(2);
+    expect(loaded.status).toBe("Project Package Generated");
+  });
+
   it("does not overwrite another project during intake updates", () => {
     const storage = new MemoryStorage();
     const first = createProject({ identity: { projectName: "First" } }, storage);

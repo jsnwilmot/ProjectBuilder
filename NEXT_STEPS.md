@@ -1,16 +1,16 @@
 # Next Steps
 
-## Phase 4: Document Generation Hardening
+## Phase 5: Mission Control Dashboard Hardening
 
-The next approved development phase should harden document generation quality, document specificity, and handoff consistency against the now-hardened intake model.
+The next approved development phase should harden Mission Control reliability, dashboard clarity, status transitions, and operational readiness visibility.
 
-Recommended Phase 4 scope:
+Recommended Phase 5 scope:
 
-1. Align every generated document section with the expanded intake schema and stage summaries.
-2. Improve cross-document consistency for requirements, workflows, data model, and security language.
-3. Add stronger missing-information markers where new intake fields are not provided.
-4. Validate generated content quality with fixture projects covering sparse and complete intake data.
-5. Expand tests for document template accuracy and generated package integrity.
+1. Improve project status signal quality and next-action guidance for active and recent projects.
+2. Harden readiness panel calculations against partial or inconsistent project data.
+3. Improve project switching clarity and protection against accidental context confusion.
+4. Validate dashboard behavior for generated-document lifecycle and review-state transitions.
+5. Expand dashboard tests for mobile containment, accessibility, and large project lists.
 
 ## Deferred decisions
 

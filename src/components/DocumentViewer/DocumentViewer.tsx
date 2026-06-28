@@ -24,8 +24,8 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
     return (
       <main className="page empty-page" id="main-content">
         <CircleEmpty />
-        <h1>Complete required intake first</h1>
-        <p>Documents are generated only after all required fields pass validation.</p>
+        <h1>No active generated package</h1>
+        <p>Generate a package from the active project to preview the documents.</p>
         <button className="button button-primary" onClick={onReturnToIntake}>Return to intake</button>
       </main>
     );

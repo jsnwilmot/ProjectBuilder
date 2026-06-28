@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import type { ProjectPackage } from "../types/project";
+import { normalizeFileName } from "./documentHelpers";
 
 export async function createProjectArchive(projectPackage: ProjectPackage): Promise<Blob> {
   const zip = new JSZip();
@@ -8,7 +9,13 @@ export async function createProjectArchive(projectPackage: ProjectPackage): Prom
 
   projectPackage.folders.forEach((folder) => root.folder(folder));
   projectPackage.documents.forEach((document) => {
-    const path = document.folder ? `${document.folder}/${document.fileName}` : document.fileName;
+    const safeFolder = document.folder
+      .split("/")
+      .map((part) => part.replace(/[^a-zA-Z0-9_-]/g, ""))
+      .filter(Boolean)
+      .join("/");
+    const safeFileName = normalizeFileName(document.fileName);
+    const path = safeFolder ? `${safeFolder}/${safeFileName}` : safeFileName;
     root.file(path, document.content);
   });
 
