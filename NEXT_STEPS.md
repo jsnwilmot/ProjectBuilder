@@ -1,16 +1,16 @@
 # Next Steps
 
-## Phase 5: Mission Control Dashboard Hardening
+## Phase 6: Export Features Hardening
 
-The next approved development phase should harden Mission Control reliability, dashboard clarity, status transitions, and operational readiness visibility.
+The next approved development phase should harden export reliability, archive verification visibility, and packaging confidence for larger project records.
 
-Recommended Phase 5 scope:
+Recommended Phase 6 scope:
 
-1. Improve project status signal quality and next-action guidance for active and recent projects.
-2. Harden readiness panel calculations against partial or inconsistent project data.
-3. Improve project switching clarity and protection against accidental context confusion.
-4. Validate dashboard behavior for generated-document lifecycle and review-state transitions.
-5. Expand dashboard tests for mobile containment, accessibility, and large project lists.
+1. Add pre-export integrity checks for required folder/file mapping before ZIP generation.
+2. Improve export status messaging for success/failure states and manifest diagnostics.
+3. Validate export behavior for large intake payloads and multi-project switching scenarios.
+4. Expand export tests for deterministic archive contents and normalized path behavior.
+5. Add manual verification checklist updates for download/open validation across desktop browsers.
 
 ## Deferred decisions
 

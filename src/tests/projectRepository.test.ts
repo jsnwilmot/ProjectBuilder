@@ -39,6 +39,17 @@ describe("projectRepository", () => {
     expect(loadStorageState(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
   });
 
+  it("recovers invalid activeProjectId by selecting the first available project", () => {
+    const storage = new MemoryStorage();
+    const first = createProject({ identity: { id: "first", projectName: "First" } }, storage);
+    createProject({ identity: { id: "second", projectName: "Second" } }, storage);
+
+    const state = loadStorageState(storage);
+    storage.setItem(STORAGE_KEY, JSON.stringify({ ...state, activeProjectId: "missing-project" }));
+
+    expect(loadStorageState(storage).activeProjectId).toBe(first.identity.id);
+  });
+
   it("creates multiple projects without erasing existing projects and sets the active id", () => {
     const storage = new MemoryStorage();
     const first = createProject({ identity: { projectName: "First" } }, storage);

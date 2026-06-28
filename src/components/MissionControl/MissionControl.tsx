@@ -1,9 +1,12 @@
 import { DOCUMENT_LOCATIONS } from "../../data/folderStructure";
 import {
+  getActiveProjectSummary,
+  getDashboardWarnings,
   getGeneratedFileCount,
-  getNextAction,
+  getNextActionDetails,
   getOutstandingQuestionCount,
-  getProjectDisplayStatus
+  getProjectDisplayStatus,
+  getRecentProjectSummaries
 } from "../../lib/projectSelectors";
 import { getFirstIncompleteStep } from "../../lib/validateIntake";
 import type { ProjectRecord } from "../../types/project";
@@ -12,10 +15,11 @@ import { ProgressRail } from "./ProgressRail";
 import { ReadinessPanel } from "./ReadinessPanel";
 
 interface MissionControlProps {
-  project: ProjectRecord;
+  project: ProjectRecord | null;
   projects: ProjectRecord[];
   onContinue: (step?: number) => void;
   onSelectProject: (projectId: string) => void;
+  onOpenView: (view: "dashboard" | "intake" | "scope" | "documents" | "export", stage?: number) => void;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
@@ -27,16 +31,41 @@ export function MissionControl({
   project,
   projects,
   onContinue,
-  onSelectProject
+  onSelectProject,
+  onOpenView
 }: MissionControlProps) {
+  if (!project) {
+    return (
+      <main className="page mission-control" id="main-content">
+        <div className="page-heading">
+          <div>
+            <h1>Mission Control</h1>
+            <p>No active project is available yet. Create a new project to begin intake.</p>
+          </div>
+        </div>
+        <section className="project-command" aria-labelledby="empty-state-title">
+          <h2 id="empty-state-title">No active project</h2>
+          <p>Use New project to create a persisted project and start with Foundation intake.</p>
+        </section>
+      </main>
+    );
+  }
+
   const nextStep = getFirstIncompleteStep(project);
   const outstandingCount = getOutstandingQuestionCount(project);
   const generatedCount = getGeneratedFileCount(project);
-  const nextAction = getNextAction(project);
+  const nextAction = getNextActionDetails(project);
+  const activeSummary = getActiveProjectSummary(project);
+  const dashboardWarnings = getDashboardWarnings(project);
+  const recentSummaries = getRecentProjectSummaries(projects, project.identity.id);
 
   const selectProject = (projectId: string) => {
     onSelectProject(projectId);
-    if (projectId === project.identity.id) onContinue(getFirstIncompleteStep(project));
+  };
+
+  const openNextAction = () => {
+    if (nextAction.targetView === "intake") onContinue(nextAction.targetStage ?? nextStep);
+    else onOpenView(nextAction.targetView, nextAction.targetStage);
   };
 
   return (
@@ -52,7 +81,7 @@ export function MissionControl({
         <section className="project-command" aria-labelledby="active-project-title">
           <div className="project-command-heading">
             <div>
-              <h2 id="active-project-title">{project.identity.projectName || "Untitled project"}</h2>
+              <h2 id="active-project-title">{activeSummary?.projectName || "Untitled Project"}</h2>
               <span className="status-label">
                 <span className="status-dot" aria-hidden="true" />
                 {getProjectDisplayStatus(project)}
@@ -65,21 +94,21 @@ export function MissionControl({
           </div>
 
           <dl className="project-meta">
-            <div><dt>Client</dt><dd>{project.client.clientName || "Missing"}</dd></div>
-            <div><dt>App type</dt><dd>{project.intake.appType || "Missing"}</dd></div>
-            <div><dt>Last updated</dt><dd>{dateTimeFormatter.format(new Date(project.updatedAt))}</dd></div>
-            <div><dt>Review status</dt><dd>{project.reviewStatus}</dd></div>
+            <div><dt>Client</dt><dd>{activeSummary?.clientName || "Missing"}</dd></div>
+            <div><dt>App type</dt><dd>{activeSummary?.appType || "Missing"}</dd></div>
+            <div><dt>Last updated</dt><dd>{activeSummary?.lastUpdatedLabel || dateTimeFormatter.format(new Date(project.updatedAt))}</dd></div>
+            <div><dt>Review status</dt><dd>{activeSummary?.reviewStatus || project.reviewStatus}</dd></div>
           </dl>
 
           <ProgressRail project={project} onSelectStep={onContinue} />
 
           <div className="action-summary">
-            <button className="next-action" onClick={() => onContinue(nextStep)}>
+            <button className="next-action" onClick={openNextAction}>
               <span className="action-icon"><Users size={21} aria-hidden="true" /></span>
               <span>
                 <small>Next action</small>
-                <strong>{nextAction}</strong>
-                <em>Complete the next guided project action.</em>
+                <strong>{nextAction.label}</strong>
+                <em>{nextAction.description}</em>
               </span>
               <ChevronRight size={20} aria-hidden="true" />
             </button>
@@ -95,6 +124,16 @@ export function MissionControl({
             </div>
           </div>
 
+          {dashboardWarnings.length > 0 ? (
+            <div className="review-banner has-errors" role="status" aria-live="polite">
+              <Users size={20} aria-hidden="true" />
+              <div>
+                <h2>Dashboard warnings</h2>
+                <p>{dashboardWarnings.map((warning) => warning.message).join(" ")}</p>
+              </div>
+            </div>
+          ) : null}
+
           <div className="recent-projects">
             <h3>Recent projects</h3>
             <div className="table-scroll">
@@ -103,22 +142,23 @@ export function MissionControl({
                   <tr><th>Project name</th><th>Status</th><th>Last updated</th><th>Generated files</th><th>Next action</th></tr>
                 </thead>
                 <tbody>
-                  {projects.map((item) => (
-                    <tr key={item.identity.id}>
+                  {recentSummaries.map((item) => (
+                    <tr key={item.id}>
                       <td>
-                        <button className="table-link" onClick={() => selectProject(item.identity.id)}>
-                          {item.identity.projectName || "Untitled project"}
+                        <button className="table-link" onClick={() => selectProject(item.id)} aria-label={`Select project ${item.projectName}`}>
+                          {item.projectName}
+                          {item.isActive ? <strong> (Active)</strong> : null}
                         </button>
                       </td>
                       <td>
-                        <span className={`table-status ${item.identity.id !== project.identity.id ? "secondary" : ""}`}>
+                        <span className={`table-status ${!item.isActive ? "secondary" : ""}`}>
                           <i />
-                          {getProjectDisplayStatus(item)}
+                          {item.status}
                         </span>
                       </td>
-                      <td>{dateTimeFormatter.format(new Date(item.updatedAt))}</td>
-                      <td>{getGeneratedFileCount(item)} of {DOCUMENT_LOCATIONS.length}</td>
-                      <td>{getNextAction(item)}</td>
+                      <td>{item.lastUpdatedLabel}</td>
+                      <td>{item.generatedFileCount} of {DOCUMENT_LOCATIONS.length}</td>
+                      <td>{item.nextAction.label}</td>
                     </tr>
                   ))}
                 </tbody>

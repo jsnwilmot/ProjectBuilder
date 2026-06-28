@@ -99,6 +99,43 @@ export interface ReadinessSection {
   label: string;
   percent: number;
   state: "Not started" | "In progress" | "Complete";
+  missingCount?: number;
+  warningCount?: number;
+}
+
+export interface ProjectStageProgress {
+  stageId: string;
+  label: string;
+  percentComplete: number;
+  isComplete: boolean;
+  missingCount: number;
+  warningCount: number;
+}
+
+export interface DashboardNextAction {
+  label: string;
+  description: string;
+  targetView: "dashboard" | "intake" | "scope" | "documents" | "export";
+  targetStage?: number;
+}
+
+export interface DashboardWarning {
+  level: "warning" | "error";
+  message: string;
+}
+
+export interface ProjectSummary {
+  id: string;
+  projectName: string;
+  status: ProjectStatus;
+  reviewStatus: string;
+  clientName: string;
+  appType: string;
+  lastUpdatedLabel: string;
+  generatedFileCount: number;
+  outstandingQuestionCount: number;
+  completionPercent: number;
+  nextAction: DashboardNextAction;
 }
 
 export interface ProjectRecord {

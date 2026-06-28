@@ -21,7 +21,7 @@ export function ReadinessPanel({ project }: ReadinessPanelProps) {
     <aside className="readiness-panel" aria-labelledby="readiness-title">
       <h2 id="readiness-title">Project readiness</h2>
       <div className="readiness-list">
-        {sections.map(({ id, label, percent, state }) => {
+        {sections.map(({ id, label, percent, state, missingCount, warningCount }) => {
           const Icon = readinessIcons[id as keyof typeof readinessIcons];
           return (
             <div className="readiness-row" key={label}>
@@ -32,6 +32,9 @@ export function ReadinessPanel({ project }: ReadinessPanelProps) {
                   <span>{percent}%</span>
                 </div>
                 <div className="readiness-state">{state}</div>
+                <div className="readiness-state">
+                  Missing: {missingCount ?? 0} | Warnings: {warningCount ?? 0}
+                </div>
                 <div className="progress-track" aria-hidden="true">
                   <span style={{ width: `${percent}%` }} />
                 </div>

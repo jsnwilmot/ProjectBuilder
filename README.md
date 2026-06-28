@@ -5,6 +5,9 @@ GPT Project Builder turns a rough app idea into a structured project package for
 ## Included workflows
 
 - Mission Control with project status, readiness, outstanding questions, generated-file progress, review status, and next action.
+- Hardened Mission Control selectors for active-project summaries, recent project summaries, deterministic next actions, status normalization, and dashboard warnings.
+- Active project and recent project rows now render from persisted state with clear active-project indication and safe fallbacks.
+- Readiness sections now include derived missing/warning counts from validation stage results.
 - Eight-stage guided intake with a single stage configuration source covering foundation, users, features, data, workflows, security, review, and generation.
 - Section-based validation that returns `isValid`, missing fields, warnings, and per-stage completion results.
 - Review stage summary with explicit missing required information and warning visibility.

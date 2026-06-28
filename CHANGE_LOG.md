@@ -1,5 +1,49 @@
 # Change Log
 
+## 2026-06-28 — Phase 5: Mission Control Dashboard Hardening
+
+### Summary
+
+- Hardened Mission Control to derive active-project and recent-project dashboard data from pure selectors tied to persisted state.
+- Added selector coverage for active project summary, recent project summaries, review status normalization, stage progress, dashboard warnings, next action details, and fallback-safe last updated labels.
+- Improved dashboard reliability for project switching and active project rendering with null/empty safeguards.
+- Added readiness section metadata with derived missing and warning counts.
+- Preserved approved scope: no backend/auth/import/external AI and no major UI redesign.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/projectSelectors.ts` — expanded dashboard selector surface and status/readiness/next-action hardening.
+- `src/types/project.ts` — added dashboard summary/next-action/warning/stage progress types.
+- `src/components/MissionControl/MissionControl.tsx` — switched to selector-driven rendering, warnings, active marker, and empty-state handling.
+- `src/components/MissionControl/ReadinessPanel.tsx` — added missing/warning counts from readiness selector output.
+- `src/app/useProjectBuilder.ts` — hardened active-project null safety and demo-seed flag handling.
+- `src/app/App.tsx` — added mission control next-action routing and guarded project-dependent views.
+- `src/lib/createProject.ts` — preserved blank persisted name with safe UI fallback behavior.
+- `src/tests/projectSelectors.test.ts` — new selector coverage for active summary, sorting, warnings, stage progress, and next action targets.
+- `src/tests/projectRepository.test.ts` — invalid activeProjectId recovery coverage.
+- `src/tests/App.test.tsx` — updated accessibility-driven selection and active-project preview expectations.
+- `src/tests/createProject.test.ts` — aligned safe-default naming expectation.
+- `README.md`, `NEXT_STEPS.md`, `TEST_PLAN.md` — updated Phase 5 behavior and test coverage documentation.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`10` files, `49` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Phase 6: Export Features Hardening.
+- Production hosting remains an Architect decision.
+
 ## 2026-06-28 — Phase 4: Document Generation Hardening
 
 ### Summary

@@ -21,9 +21,12 @@ import type {
   StorageState
 } from "../types/project";
 
+const ENABLE_DEMO_SEED_ON_EMPTY_STORAGE = true;
+
 function initializeStorage(): StorageState {
   const stored = loadStorageState();
   if (stored.projects.length > 0) return stored;
+  if (!ENABLE_DEMO_SEED_ON_EMPTY_STORAGE) return stored;
   const demo = createDemoStorageState();
   saveStorageState(demo);
   return loadStorageState();
@@ -31,9 +34,10 @@ function initializeStorage(): StorageState {
 
 export function useProjectBuilder() {
   const [storageState, setStorageState] = useState<StorageState>(initializeStorage);
-  const project = useMemo(
+  const project = useMemo<ProjectRecord | null>(
     () => storageState.projects.find((candidate) => candidate.identity.id === storageState.activeProjectId)
-      ?? storageState.projects[0],
+      ?? storageState.projects[0]
+      ?? null,
     [storageState]
   );
   const projects = useMemo(
@@ -41,8 +45,14 @@ export function useProjectBuilder() {
     [storageState.projects]
   );
 
-  const validationResult = useMemo(() => validateIntake(project), [project]);
+  const validationResult = useMemo(() => project ? validateIntake(project) : {
+    isValid: false,
+    missingFields: [],
+    warnings: [],
+    sectionResults: []
+  }, [project]);
   const generatedPackage = useMemo<ProjectPackage | null>(() => {
+    if (!project) return null;
     if (project.generatedDocuments.length > 0) {
       return {
         projectId: project.identity.id,
@@ -58,17 +68,19 @@ export function useProjectBuilder() {
   const refresh = () => setStorageState(loadStorageState());
 
   const updateIntake = (changes: Partial<Record<ProjectInputField, string>>) => {
+    if (!project) return;
     updateProjectFields(project.identity.id, changes);
     refresh();
   };
 
   const setStatus = (status: ProjectStatus) => {
+    if (!project) return;
     updateProject(project.identity.id, { status });
     refresh();
   };
 
   const markGenerated = () => {
-    if (!generatedPackage) return;
+    if (!project || !generatedPackage) return;
     saveGeneratedDocuments(project.identity.id, generatedPackage.documents);
     refresh();
   };
@@ -95,7 +107,7 @@ export function useProjectBuilder() {
     setActiveProject,
     validationResult,
     validationIssues: validationResult.missingFields,
-    outstandingFields: project.outstandingQuestions,
+    outstandingFields: project?.outstandingQuestions ?? [],
     generatedPackage
   };
 }

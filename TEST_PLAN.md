@@ -25,6 +25,11 @@
 - ZIP export sanitizes unsafe file paths and preserves missing markers.
 - Document preview reads active-project generated documents.
 - Dashboard selectors calculate readiness, outstanding questions, completion, next action, and display status without mutation.
+- Active project summary selector returns status, generated file count, outstanding required count, review status, and deterministic next action details.
+- Recent project summaries sort by last updated date with stable fallback behavior.
+- Dashboard warning selector surfaces inconsistent persisted status/readiness combinations.
+- Mission Control project switching updates active context and heading safely.
+- Mission Control recent project buttons expose clear accessible labels for project selection.
 - All 12 required folders and 16 required files are generated.
 - Missing information markers appear in generated Markdown.
 - Unsafe project names normalize to predictable paths.

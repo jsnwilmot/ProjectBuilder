@@ -49,7 +49,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Mission Control" }));
 
     expect(screen.getByRole("heading", { name: "Second Project" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Community Services Portal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select project Community Services Portal" })).toBeInTheDocument();
 
     const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as {
       activeProjectId: string;
@@ -59,7 +59,7 @@ describe("App", () => {
     expect(stored.projects.some((project) => project.identity.projectName === "Community Services Portal")).toBe(true);
     expect(stored.projects.find((project) => project.identity.id === stored.activeProjectId)?.identity.projectName).toBe("Second Project");
 
-    await user.click(screen.getByRole("button", { name: "Community Services Portal" }));
+    await user.click(screen.getByRole("button", { name: "Select project Community Services Portal" }));
     expect(screen.getByRole("heading", { name: "Community Services Portal" })).toBeInTheDocument();
   });
 
@@ -120,7 +120,7 @@ describe("App", () => {
     expect(screen.getByText(/Community Services Portal/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Mission Control" }));
-    await user.click(screen.getByRole("button", { name: "Volunteer Management App" }));
+    await user.click(screen.getByRole("button", { name: "Select project Volunteer Management App" }));
     await user.click(screen.getByRole("button", { name: "Documents" }));
     expect(screen.getByText(/Volunteer Management App/)).toBeInTheDocument();
   });

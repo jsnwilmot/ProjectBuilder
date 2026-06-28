@@ -65,9 +65,13 @@ export function App() {
             projects={projects}
             onContinue={openIntake}
             onSelectProject={setActiveProject}
+            onOpenView={(nextView, step) => {
+              if (nextView === "intake") openIntake(step ?? 0);
+              else setView(nextView);
+            }}
           />
         ) : null}
-        {view === "intake" ? (
+        {view === "intake" && project ? (
           <IntakeBuilder
             project={project}
             currentStep={intakeStep}
@@ -80,7 +84,7 @@ export function App() {
             onOpenExport={() => setView("export")}
           />
         ) : null}
-        {view === "scope" ? (
+        {view === "scope" && project ? (
           <ScopeReview
             project={project}
             issues={validationIssues}
