@@ -361,6 +361,10 @@ h3 {
   padding: 23px;
 }
 
+.project-command > p + .button {
+  margin-top: 6px;
+}
+
 .project-command-heading {
   display: flex;
   align-items: flex-start;
@@ -1019,15 +1023,13 @@ tbody tr:hover {
 }
 
 .generate-status h3,
-.review-banner h2,
-.export-blocked h2 {
+.review-banner h2 {
   margin-bottom: 3px;
   font-size: 0.95rem;
 }
 
 .generate-status p,
-.review-banner p,
-.export-blocked p {
+.review-banner p {
   margin: 0;
   color: #5f6878;
   font-size: 0.78rem;
@@ -1038,6 +1040,31 @@ tbody tr:hover {
   padding-left: 21px;
   color: var(--red);
   font-size: 0.77rem;
+}
+
+.review-issues {
+  margin: 0 22px;
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+}
+
+.review-issues h3 {
+  margin-bottom: 3px;
+  font-size: 0.88rem;
+}
+
+.review-issues p {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.review-issues .issue-list {
+  margin-top: 0;
+}
+
+.review-issues.warning .issue-list {
+  color: #7a4d13;
 }
 
 .form-actions {
@@ -1191,6 +1218,11 @@ tbody tr:hover {
   font-size: 0.78rem;
 }
 
+.document-search:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(8, 86, 220, 0.16);
+}
+
 .document-list > div {
   display: flex;
   max-height: 610px;
@@ -1269,6 +1301,25 @@ tbody tr:hover {
   font: 0.76rem/1.7 ui-monospace, SFMono-Regular, Consolas, monospace;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.document-empty {
+  display: grid;
+  min-height: 360px;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.document-empty h2 {
+  margin-bottom: 6px;
+  font-size: 1.1rem;
+}
+
+.document-empty p {
+  max-width: 420px;
+  color: var(--muted);
 }
 
 .empty-page {
@@ -1567,17 +1618,6 @@ tbody tr:hover {
   font: 0.62rem Inter, sans-serif;
 }
 
-.export-blocked {
-  max-width: 720px;
-}
-
-.export-blocked ul {
-  margin: 13px 0 17px;
-  padding-left: 18px;
-  color: #7a4d13;
-  font-size: 0.75rem;
-}
-
 @media (max-width: 1120px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -1607,6 +1647,13 @@ tbody tr:hover {
 }
 
 @media (max-width: 860px) {
+  .button,
+  .nav-item,
+  .intake-step-list button,
+  .document-list button {
+    min-height: 44px;
+  }
+
   .app-shell {
     display: block;
   }
@@ -1875,6 +1922,23 @@ tbody tr:hover {
 
   .tree-folder small {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    gap: 3px;
+    padding: 7px 2px;
+    font-size: 0.6rem;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
   }
 }
 

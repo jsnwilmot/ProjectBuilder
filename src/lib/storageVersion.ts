@@ -26,6 +26,13 @@ function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function normalizeReviewStatus(value: unknown): ProjectRecord["reviewStatus"] {
+  if (value === "Needs review") return "Review needed";
+  return REVIEW_STATUSES.includes(value as ProjectRecord["reviewStatus"])
+    ? value as ProjectRecord["reviewStatus"]
+    : "Not reviewed";
+}
+
 function normalizeProject(value: unknown): ProjectRecord | null {
   if (!isObject(value) || !isObject(value.identity) || !isObject(value.client) || !isObject(value.intake)) {
     return null;
@@ -63,9 +70,7 @@ function normalizeProject(value: unknown): ProjectRecord | null {
     status: PROJECT_STATUSES.includes(value.status as ProjectRecord["status"])
       ? value.status as ProjectRecord["status"]
       : "Intake Started",
-    reviewStatus: REVIEW_STATUSES.includes(value.reviewStatus as ProjectRecord["reviewStatus"])
-      ? value.reviewStatus as ProjectRecord["reviewStatus"]
-      : "Not reviewed",
+    reviewStatus: normalizeReviewStatus(value.reviewStatus),
     now: asString(value.createdAt) || new Date().toISOString()
   });
   return {

@@ -50,6 +50,18 @@ describe("projectRepository", () => {
     expect(loadStorageState(storage).activeProjectId).toBe(first.identity.id);
   });
 
+  it("migrates the legacy review label to the canonical review status", () => {
+    const storage = new MemoryStorage();
+    const project = createSeedProject();
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: project.identity.id,
+      projects: [{ ...project, reviewStatus: "Needs review" }]
+    }));
+
+    expect(loadStorageState(storage).projects[0].reviewStatus).toBe("Review needed");
+  });
+
   it("creates multiple projects without erasing existing projects and sets the active id", () => {
     const storage = new MemoryStorage();
     const first = createProject({ identity: { projectName: "First" } }, storage);
@@ -95,6 +107,7 @@ describe("projectRepository", () => {
     expect(loaded.generatedDocuments).toHaveLength(1);
     expect(loaded.generatedFileCount).toBe(1);
     expect(loaded.status).toBe("Project Package Generated");
+    expect(loaded.reviewStatus).toBe("Review needed");
   });
 
   it("keeps generated documents after intake edits", () => {
@@ -111,6 +124,7 @@ describe("projectRepository", () => {
     expect(loaded.generatedFileCount).toBe(1);
     expect(loaded.intake.appPurpose).toBe("Updated purpose");
     expect(loaded.status).toBe("Needs Review");
+    expect(loaded.reviewStatus).toBe("Review needed");
   });
 
   it("replaces generated documents when generation is run again", () => {

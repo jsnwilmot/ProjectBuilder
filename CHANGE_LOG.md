@@ -1,5 +1,59 @@
 # Change Log
 
+## 2026-06-28 — Phase 7: Review and Cleanup
+
+### Summary
+
+- Reviewed the complete local project workflow across Mission Control, intake, review, generation, documents, project switching, and export.
+- Replaced automatic demo injection with an actionable empty state and guarded project-dependent navigation from blank screens.
+- Standardized review statuses, migrated the legacy `Needs review` label, and kept review status separate from project status.
+- Separated required questions from optional warnings and improved Review, Generate, Documents, and Export accessibility feedback.
+- Consolidated canonical intake, status, folder, file, and path-sanitization sources without changing approved product behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/app/App.tsx`, `src/app/useProjectBuilder.ts` — empty-state routing and removal of stale initialization/status logic.
+- `src/types/project.ts`, `src/lib/storageVersion.ts`, `src/lib/projectRepository.ts`, `src/lib/projectSelectors.ts` — canonical status labels and legacy review-status migration.
+- `src/components/MissionControl/MissionControl.tsx`, `src/components/IntakeBuilder/IntakeBuilder.tsx`, `src/components/DocumentViewer/DocumentViewer.tsx`, `src/components/ExportPanel/ExportPanel.tsx` — empty states, validation language, programmatic state, status announcements, and clear next actions.
+- `src/lib/documentHelpers.ts`, `src/templates/documents/index.ts` — canonical path sanitization and generated file/folder list reuse.
+- `src/styles/global.css` — visible document-search focus, mobile tap targets, review diagnostics, and empty-document styling.
+- Repository, selector, helper, and application tests plus `README.md`, `APP_BLUEPRINT.md`, `NEXT_STEPS.md`, and `TEST_PLAN.md`.
+
+### Files removed
+
+- `src/components/ScopeReview/ScopeReview.tsx` — unreachable duplicate of the canonical Guided Intake Review stage.
+- `src/data/intakeSteps.ts` — stale re-export replaced with direct use of `intakeStages.ts`.
+- `src/data/statuses.ts` — unused duplicate project-status list.
+- `src/lib/sanitizeProjectName.ts` — duplicate path helper consolidated into `documentHelpers.ts`.
+- `src/tests/sanitizeProjectName.test.ts` — coverage consolidated into `documentHelpers.test.ts`.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`11` files, `61` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- In-app browser QA covered the end-to-end active-project workflow and the required mobile, tablet, and desktop viewport checks.
+
+### Issues found
+
+- High: Empty or corrupt storage silently created demo projects and project-dependent navigation could produce a blank screen. Fixed.
+- High: Review status persisted as `Needs review` while UI copy used `Review needed`. Fixed with migration.
+- Medium: Review summaries visually marked missing sections complete and mixed required questions with optional warnings. Fixed.
+- Medium: A zero-result document search hid the list but retained the stale selected preview. Fixed with a clear searchable empty state.
+- Medium: Duplicate status, intake, scope-review, generated-file, folder, and sanitization logic increased drift risk. Consolidated.
+- Low: Document search lacked a visible focus treatment, some mobile controls were below the preferred tap height, and mobile navigation could hide Export behind horizontal scrolling. Fixed.
+
+### Remaining work
+
+- Phase 8: Testing and Deployment Readiness.
+- Manual Windows ZIP opening and inspection remains incomplete.
+- Production hosting remains an Architect decision.
+
 ## 2026-06-28 — Phase 6: Export Features Hardening
 
 ### Summary

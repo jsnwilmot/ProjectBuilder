@@ -4,6 +4,7 @@ import type {
   DashboardNextAction,
   DashboardWarning,
   ProjectRecord,
+  ReviewStatus,
   ProjectStatus,
   ProjectStageProgress,
   ProjectSummary,
@@ -37,16 +38,8 @@ export function getLastUpdatedLabel(project: ProjectRecord): string {
   return new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(parsed);
 }
 
-export function getReviewStatus(project: ProjectRecord): string {
-  const map: Record<string, string> = {
-    "Not reviewed": "Not reviewed",
-    "Needs review": "Review needed",
-    "Approved": "Approved",
-    "Review needed": "Review needed",
-    "In review": "In review",
-    "Changes requested": "Changes requested"
-  };
-  return map[project.reviewStatus] ?? "Review needed";
+export function getReviewStatus(project: ProjectRecord): ReviewStatus {
+  return project.reviewStatus;
 }
 
 export function getOutstandingQuestionCount(project: ProjectRecord): number {
@@ -119,7 +112,7 @@ export function getDashboardWarnings(project: ProjectRecord): DashboardWarning[]
   if (getGeneratedFileCount(project) === 0 && project.status === "Project Package Generated") {
     warnings.push({
       level: "warning",
-      message: "Status shows Project Package Generated but no generated files are stored."
+      message: "Status shows Project Package Generated but no generated documents are stored."
     });
   }
   if (validateIntake(project).missingFields.length > 0 && project.status === "Ready for Codex") {

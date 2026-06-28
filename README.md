@@ -4,13 +4,15 @@ GPT Project Builder turns a rough app idea into a structured project package for
 
 ## Included workflows
 
-- Mission Control with project status, readiness, outstanding questions, generated-file progress, review status, and next action.
+- Mission Control with project status, readiness, outstanding questions, generated-document progress, review status, and next action.
 - Hardened Mission Control selectors for active-project summaries, recent project summaries, deterministic next actions, status normalization, and dashboard warnings.
 - Active project and recent project rows now render from persisted state with clear active-project indication and safe fallbacks.
 - Readiness sections now include derived missing/warning counts from validation stage results.
 - Eight-stage guided intake with a single stage configuration source covering foundation, users, features, data, workflows, security, review, and generation.
 - Section-based validation that returns `isValid`, missing fields, warnings, and per-stage completion results.
 - Review stage summary with explicit missing required information and warning visibility.
+- Consistent project and review status labels with migration of the legacy `Needs review` review label.
+- Actionable empty-state and corrupt-storage recovery without silently creating demo projects.
 - Generate stage readiness summary that allows generation with explicit `[MISSING: ...]` markers.
 - Hardened document templates for all 16 required markdown files with project-specific output and cross-document consistency.
 - Approved folder mapping for all generated files with safe path handling for package generation and ZIP export.
@@ -22,14 +24,14 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Copy actions for generated Architect instructions, Codex instructions, and phased Codex prompts.
 - Versioned browser-local persistence for multiple projects and one active project.
 - Persisted intake changes, generated documents, lifecycle status, readiness, and timestamps without clearing generated documents on intake edits.
-- Generation from current intake can run before persistence; persisted generated documents are replaced only when Generate is explicitly run.
+- Generated documents are replaced only when **Generate and save package** is explicitly run.
 - Project data is stored only in the current browser. No backend or external service is used.
 
 ## MVP persistence
 
 The MVP uses one localStorage key: `gpt-project-builder.storage.v1`. Its versioned schema stores `activeProjectId` and a collection of complete project records. Creating a project adds a new record without replacing existing projects, and selecting a recent project changes the active record.
 
-If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. On a brand-new browser store, the app writes clearly identified demo projects once so Mission Control has useful starting data.
+If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. A new or recovered store opens an actionable empty state and does not create demo projects automatically.
 
 Because there is no backend or authentication in this phase, projects are available only in the browser profile where they were created. Clearing browser storage removes them.
 
@@ -45,6 +47,14 @@ A valid ZIP contains:
 - `project-manifest.json` with the same machine-readable diagnostics.
 
 The two manifests are diagnostic files and are not counted among the 16 core documents. Explicit `[MISSING: ...]` markers remain in generated documents and are reported as warnings rather than blocking export. Unsafe project names are converted to a safe ZIP root; unsafe, duplicate, unexpected, incorrectly mapped, or empty generated files block export with a clear error.
+
+## Current limitations
+
+- No backend, authentication, cloud synchronization, analytics, or external AI calls.
+- Projects remain only in the current browser profile and are removed when browser storage is cleared.
+- Project package import is deferred.
+- Production hosting is not yet decided.
+- ZIP opening and file inspection in Windows Explorer remains a manual release check.
 
 ## Run locally
 
@@ -69,7 +79,7 @@ npm.cmd audit
 src/
   app/          Application composition and project state
   components/   Mission Control, intake, review, viewer, export, and shell UI
-  data/         Intake stages, statuses, folder definitions, and seed project
+  data/         Canonical intake stages, generated files, and folder mapping
   lib/          Project factory, repository, versioning, selectors, validation, generation, and export
   templates/    Generated document content
   tests/        Automated functional tests

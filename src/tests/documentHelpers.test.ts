@@ -28,6 +28,8 @@ describe("documentHelpers", () => {
 
   it("sanitizes folder and file names for export safety", () => {
     expect(sanitizeProjectFolderName("../Unsafe Project")).toBe("unsafe-project");
+    expect(sanitizeProjectFolderName("  Crème brûlée App  ")).toBe("creme-brulee-app");
+    expect(sanitizeProjectFolderName("___")).toBe("untitled-project");
     expect(normalizeFileName("../../my file.md")).toBe("my-file.md");
   });
 

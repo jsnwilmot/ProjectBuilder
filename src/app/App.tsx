@@ -5,7 +5,6 @@ import { DocumentViewer } from "../components/DocumentViewer/DocumentViewer";
 import { ExportPanel } from "../components/ExportPanel/ExportPanel";
 import { IntakeBuilder } from "../components/IntakeBuilder/IntakeBuilder";
 import { MissionControl } from "../components/MissionControl/MissionControl";
-import { ScopeReview } from "../components/ScopeReview/ScopeReview";
 import { GENERATE_STAGE_INDEX, REVIEW_STAGE_INDEX } from "../data/intakeStages";
 import { useProjectBuilder } from "./useProjectBuilder";
 
@@ -21,7 +20,6 @@ export function App() {
     setActiveProject,
     validationIssues,
     validationResult,
-    outstandingFields,
     generatedPackage
   } = useProjectBuilder();
 
@@ -37,6 +35,10 @@ export function App() {
   };
 
   const handleNavigation = (nextView: AppView) => {
+    if (!project && nextView !== "dashboard") {
+      setView("dashboard");
+      return;
+    }
     if (nextView === "scope") {
       openIntake(REVIEW_STAGE_INDEX);
       return;
@@ -53,10 +55,16 @@ export function App() {
     setView("documents");
   };
 
+  const navigationView: AppView = view === "intake" && intakeStep === REVIEW_STAGE_INDEX
+    ? "scope"
+    : view === "intake" && intakeStep === GENERATE_STAGE_INDEX
+      ? "export"
+      : view;
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <AppNavigation currentView={view} onNavigate={handleNavigation} onNewProject={startNewProject} />
+      <AppNavigation currentView={navigationView} onNavigate={handleNavigation} onNewProject={startNewProject} />
       <div className="app-content">
         <AppHeader onNewProject={startNewProject} />
         {view === "dashboard" ? (
@@ -64,10 +72,14 @@ export function App() {
             project={project}
             projects={projects}
             onContinue={openIntake}
+            onCreateProject={startNewProject}
             onSelectProject={setActiveProject}
             onOpenView={(nextView, step) => {
-              if (nextView === "intake") openIntake(step ?? 0);
-              else setView(nextView);
+              if (nextView === "intake") {
+                openIntake(step ?? 0);
+                return;
+              }
+              handleNavigation(nextView);
             }}
           />
         ) : null}
@@ -82,15 +94,6 @@ export function App() {
             onGenerate={generateAndOpenDocuments}
             onOpenDocuments={() => setView("documents")}
             onOpenExport={() => setView("export")}
-          />
-        ) : null}
-        {view === "scope" && project ? (
-          <ScopeReview
-            project={project}
-            issues={validationIssues}
-            outstandingCount={outstandingFields.length}
-            onEditStep={openIntake}
-            onViewDocuments={() => setView("documents")}
           />
         ) : null}
         {view === "documents" ? (

@@ -18,6 +18,7 @@ interface MissionControlProps {
   project: ProjectRecord | null;
   projects: ProjectRecord[];
   onContinue: (step?: number) => void;
+  onCreateProject: () => void;
   onSelectProject: (projectId: string) => void;
   onOpenView: (view: "dashboard" | "intake" | "scope" | "documents" | "export", stage?: number) => void;
 }
@@ -31,6 +32,7 @@ export function MissionControl({
   project,
   projects,
   onContinue,
+  onCreateProject,
   onSelectProject,
   onOpenView
 }: MissionControlProps) {
@@ -45,7 +47,8 @@ export function MissionControl({
         </div>
         <section className="project-command" aria-labelledby="empty-state-title">
           <h2 id="empty-state-title">No active project</h2>
-          <p>Use New project to create a persisted project and start with Foundation intake.</p>
+          <p>Create a project to start Foundation intake. Your work will be saved in this browser.</p>
+          <button className="button button-primary" onClick={onCreateProject}>Create your first project</button>
         </section>
       </main>
     );
@@ -118,9 +121,9 @@ export function MissionControl({
               <span>Questions need your input</span>
             </div>
             <div className="summary-number">
-              <small>Generated files</small>
+              <small>Generated documents</small>
               <strong>{generatedCount} <span>of {DOCUMENT_LOCATIONS.length}</span></strong>
-              <span>Files generated</span>
+              <span>Documents generated</span>
             </div>
           </div>
 
@@ -139,13 +142,18 @@ export function MissionControl({
             <div className="table-scroll">
               <table>
                 <thead>
-                  <tr><th>Project name</th><th>Status</th><th>Last updated</th><th>Generated files</th><th>Next action</th></tr>
+                  <tr><th>Project name</th><th>Status</th><th>Last updated</th><th>Generated documents</th><th>Next action</th></tr>
                 </thead>
                 <tbody>
                   {recentSummaries.map((item) => (
                     <tr key={item.id}>
                       <td>
-                        <button className="table-link" onClick={() => selectProject(item.id)} aria-label={`Select project ${item.projectName}`}>
+                        <button
+                          className="table-link"
+                          onClick={() => selectProject(item.id)}
+                          aria-label={`Select project ${item.projectName}`}
+                          aria-pressed={item.isActive}
+                        >
                           {item.projectName}
                           {item.isActive ? <strong> (Active)</strong> : null}
                         </button>

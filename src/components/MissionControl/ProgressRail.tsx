@@ -1,4 +1,4 @@
-import { intakeSteps } from "../../data/intakeSteps";
+import { INTAKE_STAGES } from "../../data/intakeStages";
 import { getStepCompletion } from "../../lib/validateIntake";
 import type { ProjectRecord } from "../../types/project";
 
@@ -10,7 +10,7 @@ interface ProgressRailProps {
 export function ProgressRail({ project, onSelectStep }: ProgressRailProps) {
   return (
     <ol className="progress-rail" aria-label="Intake progress">
-      {intakeSteps.map((step, index) => {
+      {INTAKE_STAGES.map((step, index) => {
         const completion = getStepCompletion(project, index);
         return (
           <li key={step.id} className={completion === 100 ? "is-complete" : completion > 0 ? "is-current" : ""}>

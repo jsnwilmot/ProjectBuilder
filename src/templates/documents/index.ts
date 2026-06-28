@@ -7,6 +7,8 @@ import {
   safeText,
   sectionOrMissing
 } from "../../lib/documentHelpers";
+import { PROJECT_FOLDERS } from "../../data/folderStructure";
+import { GENERATED_FILES } from "../../data/generatedFiles";
 import type { ProjectRecord } from "../../types/project";
 
 const join = (...parts: string[]) => parts.join("\n\n");
@@ -29,42 +31,14 @@ function missingSummary(project: ProjectRecord): string {
 }
 
 function generatedFilesList(): string {
-  return markdownList([
-    "README.md",
-    "PROJECT_SCOPE.md",
-    "CLIENT_REQUIREMENTS.md",
-    "ARCHITECT_INSTRUCTIONS.md",
-    "CODEX_INSTRUCTIONS.md",
-    "APP_BLUEPRINT.md",
-    "DATA_MODEL.md",
-    "SCREEN_MAP.md",
-    "WORKFLOW_MAP.md",
-    "SECURITY_MODEL.md",
-    "ACCEPTANCE_CRITERIA.md",
-    "TEST_PLAN.md",
-    "DEPLOYMENT_NOTES.md",
-    "CHANGE_LOG.md",
-    "NEXT_STEPS.md",
-    "PHASED_CODEX_PROMPTS.md"
-  ]);
+  return markdownList([...GENERATED_FILES]);
 }
 
 function folderStructure(): string {
   return [
     "```text",
     "/project-name/",
-    "  00_Project_Overview/",
-    "  01_Requirements/",
-    "  02_Architecture/",
-    "  03_Data_Model/",
-    "  04_UI_UX/",
-    "  05_Workflows/",
-    "  06_Security/",
-    "  07_Development/",
-    "  08_Testing/",
-    "  09_Deployment/",
-    "  10_Documentation/",
-    "  11_Codex_Prompts/",
+    ...PROJECT_FOLDERS.map((folder) => `  ${folder}/`),
     "```"
   ].join("\n");
 }

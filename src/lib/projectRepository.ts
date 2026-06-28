@@ -167,7 +167,7 @@ export function updateProjectFields(
     const updated = applyProjectFieldChanges(project, changes);
     return {
       ...updated,
-      reviewStatus: "Needs review",
+      reviewStatus: "Review needed",
       status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
     };
   }, storage);
@@ -182,7 +182,7 @@ export function saveGeneratedDocuments(
     generatedDocuments: documents,
     generatedFileCount: documents.length,
     status: "Project Package Generated",
-    reviewStatus: "Needs review"
+    reviewStatus: "Review needed"
   }, storage);
 }
 

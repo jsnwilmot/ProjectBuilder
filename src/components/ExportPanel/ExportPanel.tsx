@@ -25,6 +25,16 @@ const copyDocuments = [
   { fileName: "PHASED_CODEX_PROMPTS.md", label: "Copy Phased Codex Prompts" }
 ] as const;
 
+const attemptTimeFormatter = new Intl.DateTimeFormat("en-CA", {
+  dateStyle: "medium",
+  timeStyle: "short"
+});
+
+function formatAttemptTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown time" : attemptTimeFormatter.format(date);
+}
+
 async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     try {
@@ -124,11 +134,21 @@ export function ExportPanel({
       </div>
 
       <div className="export-layout">
-        <section className="export-summary" aria-labelledby="export-package-title">
+        <section
+          className="export-summary"
+          aria-labelledby="export-package-title"
+          aria-busy={exportState === "working"}
+        >
           <span className={`export-icon ${ready ? "" : "is-blocked"}`}>
             {ready ? <FolderArchive size={30} aria-hidden="true" /> : <CircleAlert size={30} aria-hidden="true" />}
           </span>
-          <div className={`export-status ${ready ? "is-ready" : "is-blocked"}`}>{statusLabel}</div>
+          <div
+            className={`export-status ${ready ? "is-ready" : "is-blocked"}`}
+            role="status"
+            aria-live="polite"
+          >
+            {statusLabel}
+          </div>
           <h2 id="export-package-title">{integrity.manifestSummary.rootFolder}.zip</h2>
           <p>
             {ready
@@ -137,7 +157,7 @@ export function ExportPanel({
           </p>
 
           <dl>
-            <div><dt>Core files</dt><dd>{integrity.fileCount}/{integrity.expectedFileCount}</dd></div>
+            <div><dt>Core documents</dt><dd>{integrity.fileCount}/{integrity.expectedFileCount}</dd></div>
             <div><dt>Warnings</dt><dd>{integrity.warnings.length}</dd></div>
             <div><dt>Errors</dt><dd>{integrity.errors.length}</dd></div>
           </dl>
@@ -159,8 +179,13 @@ export function ExportPanel({
 
           {lastAttempt ? (
             <p className={`export-message ${lastAttempt.state === "complete" ? "success" : "error"}`} aria-live="polite">
-              {lastAttempt.state === "complete" ? <Check size={16} /> : <CircleAlert size={16} />}
-              {lastAttempt.message}
+              {lastAttempt.state === "complete"
+                ? <Check size={16} aria-hidden="true" />
+                : <CircleAlert size={16} aria-hidden="true" />}
+              <span>
+                {lastAttempt.message}{" "}
+                <time dateTime={lastAttempt.attemptedAt}>{formatAttemptTime(lastAttempt.attemptedAt)}</time>
+              </span>
             </p>
           ) : (
             <p className="export-attempt">Last export attempt: none in this session.</p>
@@ -214,7 +239,7 @@ export function ExportPanel({
                 <div className="tree-folder" key={folder}>
                   <FolderArchive size={16} />
                   <span>{folder}/</span>
-                  <small>{fileCount} core file{fileCount === 1 ? "" : "s"}</small>
+                  <small>{fileCount} core document{fileCount === 1 ? "" : "s"}</small>
                 </div>
               );
             })}

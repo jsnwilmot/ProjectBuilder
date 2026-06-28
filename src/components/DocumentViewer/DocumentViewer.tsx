@@ -17,7 +17,7 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
     ) ?? [],
     [projectPackage, query]
   );
-  const selected = projectPackage?.documents.find((document) => document.fileName === selectedFile)
+  const selected = filteredDocuments.find((document) => document.fileName === selectedFile)
     ?? filteredDocuments[0];
 
   if (!projectPackage) {
@@ -38,7 +38,7 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
           <h1>Documentation Viewer</h1>
           <p>Review generated Markdown as plain text. Missing information remains explicit.</p>
         </div>
-        <span className="document-count">{projectPackage.documents.length} files</span>
+        <span className="document-count">{projectPackage.documents.length} generated documents</span>
       </div>
 
       <div className="document-workspace">
@@ -54,6 +54,7 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
                 key={document.fileName}
                 className={selected?.fileName === document.fileName ? "is-active" : ""}
                 onClick={() => setSelectedFile(document.fileName)}
+                aria-pressed={selected?.fileName === document.fileName}
               >
                 <FileText size={17} aria-hidden="true" />
                 <span>{document.fileName}</span>
@@ -74,7 +75,13 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
               </header>
               <pre>{selected.content}</pre>
             </>
-          ) : <p>No matching documents.</p>}
+          ) : (
+            <div className="document-empty">
+              <h2>No matching documents</h2>
+              <p>Clear or change the search to select a generated document.</p>
+              {query ? <button className="button button-secondary" onClick={() => setQuery("")}>Clear search</button> : null}
+            </div>
+          )}
         </section>
       </div>
     </main>

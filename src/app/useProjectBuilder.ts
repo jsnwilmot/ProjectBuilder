@@ -1,34 +1,23 @@
 import { useMemo, useState } from "react";
 import { PROJECT_FOLDERS } from "../data/folderStructure";
-import { createDemoStorageState } from "../data/seedProject";
+import { sanitizeProjectFolderName } from "../lib/documentHelpers";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
 import {
   createProject,
   loadStorageState,
   saveGeneratedDocuments,
-  saveStorageState,
   setActiveProject as persistActiveProject,
-  updateProject,
   updateProjectFields
 } from "../lib/projectRepository";
-import { sanitizeProjectName } from "../lib/sanitizeProjectName";
 import { validateIntake } from "../lib/validateIntake";
 import type {
   ProjectInputField,
   ProjectPackage,
   ProjectRecord,
-  ProjectStatus,
   StorageState
 } from "../types/project";
 
-const ENABLE_DEMO_SEED_ON_EMPTY_STORAGE = true;
-
 function initializeStorage(): StorageState {
-  const stored = loadStorageState();
-  if (stored.projects.length > 0) return stored;
-  if (!ENABLE_DEMO_SEED_ON_EMPTY_STORAGE) return stored;
-  const demo = createDemoStorageState();
-  saveStorageState(demo);
   return loadStorageState();
 }
 
@@ -56,7 +45,7 @@ export function useProjectBuilder() {
     return {
       projectId: project.identity.id,
       projectName: project.identity.projectName,
-      rootFolder: sanitizeProjectName(project.identity.projectName),
+      rootFolder: sanitizeProjectFolderName(project.identity.projectName),
       folders: PROJECT_FOLDERS,
       documents: project.generatedDocuments
     };
@@ -67,12 +56,6 @@ export function useProjectBuilder() {
   const updateIntake = (changes: Partial<Record<ProjectInputField, string>>) => {
     if (!project) return;
     updateProjectFields(project.identity.id, changes);
-    refresh();
-  };
-
-  const setStatus = (status: ProjectStatus) => {
-    if (!project) return;
-    updateProject(project.identity.id, { status });
     refresh();
   };
 
@@ -99,13 +82,11 @@ export function useProjectBuilder() {
     project,
     projects,
     updateIntake,
-    setStatus,
     markGenerated,
     createNewProject,
     setActiveProject,
     validationResult,
     validationIssues: validationResult.missingFields,
-    outstandingFields: project?.outstandingQuestions ?? [],
     generatedPackage
   };
 }

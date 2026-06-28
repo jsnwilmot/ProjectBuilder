@@ -15,6 +15,7 @@ import {
   getRecentProjectSummaries,
   getReviewStatus
 } from "../lib/projectSelectors";
+import { PROJECT_STATUSES, REVIEW_STATUSES } from "../types/project";
 
 describe("project selectors", () => {
   it("calculates dashboard values without mutating the project", () => {
@@ -37,6 +38,26 @@ describe("project selectors", () => {
     expect(getProjectDisplayStatus(project)).toBe("Intake Started");
     expect(getActiveProjectSummary(project)?.projectName).toBe("Untitled Project");
     expect(getNextAction(project)).toBe("Complete Foundation");
+  });
+
+  it("keeps canonical project and review status labels distinct", () => {
+    expect(PROJECT_STATUSES).toEqual([
+      "Intake Started",
+      "Intake Complete",
+      "Project Package Generated",
+      "Architect Review Needed",
+      "Ready for Codex",
+      "In Development",
+      "Needs Review",
+      "Complete"
+    ]);
+    expect(REVIEW_STATUSES).toEqual([
+      "Not reviewed",
+      "Review needed",
+      "In review",
+      "Approved",
+      "Changes requested"
+    ]);
   });
 
   it("builds active project summary", () => {

@@ -28,12 +28,15 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - `exportIntegrity.ts` validates active-project generated documents, approved mappings, safe paths, duplicates, missing files, empty content, and warnings before archive creation.
 - `exportManifest.ts` creates stable Markdown and JSON export diagnostics.
 - `exportProjectPackage.ts` writes verified folders, core files, and manifests in deterministic order.
-- Field definitions in `src/data/intakeSteps.ts` drive intake structure and progress.
-- `validateIntake.ts` owns generation-blocking validation and completion metrics.
+- `src/data/intakeStages.ts` is the single source for intake fields, stages, and progress metadata.
+- `src/types/project.ts` is the single source for project and review status values.
+- `src/data/generatedFiles.ts` derives the generated-file list from the canonical folder mapping.
+- `validateIntake.ts` owns required-question validation, optional warnings, and completion metrics.
 - `src/templates/documents/` owns document wording.
 - `generateProjectPackage.ts` assembles the standard package.
 - `exportProjectPackage.ts` creates and downloads the ZIP archive.
 - `StorageState` stores multiple projects and one `activeProjectId` in browser local storage.
+- Empty or invalid storage opens an actionable empty state; the runtime does not inject demo projects.
 
 ## Data and security
 

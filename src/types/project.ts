@@ -11,7 +11,13 @@ export const PROJECT_STATUSES = [
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
-export const REVIEW_STATUSES = ["Not reviewed", "Needs review", "Approved"] as const;
+export const REVIEW_STATUSES = [
+  "Not reviewed",
+  "Review needed",
+  "In review",
+  "Approved",
+  "Changes requested"
+] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
 export type StorageVersion = 1;
@@ -128,7 +134,7 @@ export interface ProjectSummary {
   id: string;
   projectName: string;
   status: ProjectStatus;
-  reviewStatus: string;
+  reviewStatus: ReviewStatus;
   clientName: string;
   appType: string;
   lastUpdatedLabel: string;

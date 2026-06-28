@@ -1,5 +1,3 @@
-import { sanitizeProjectName } from "./sanitizeProjectName";
-
 export function missingMarker(description: string): string {
   return `[MISSING: ${description}]`;
 }
@@ -52,5 +50,15 @@ export function normalizeFileName(fileName: string): string {
 }
 
 export function sanitizeProjectFolderName(projectName: string): string {
-  return sanitizeProjectName(projectName);
+  const sanitized = projectName
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/[-_]{2,}/g, "-")
+    .replace(/^[-_]+|[-_]+$/g, "");
+
+  return sanitized || "untitled-project";
 }

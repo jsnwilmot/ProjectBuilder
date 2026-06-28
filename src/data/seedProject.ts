@@ -1,5 +1,5 @@
 import { createProject } from "../lib/createProject";
-import type { ProjectRecord, StorageState } from "../types/project";
+import type { ProjectRecord } from "../types/project";
 
 export function createSeedProject(): ProjectRecord {
   return createProject({
@@ -70,56 +70,4 @@ export function createSeedProject(): ProjectRecord {
     },
     now: "2026-06-28T15:43:00.000Z"
   });
-}
-
-function createExampleProject(
-  id: string,
-  projectName: string,
-  clientName: string,
-  appPurpose: string,
-  updatedAt: string
-): ProjectRecord {
-  const project = createProject({
-    identity: { id, projectName },
-    client: { clientName, businessName: "Example organization" },
-    intake: {
-      appType: "Responsive web application",
-      appPurpose,
-      problemStatement: "The current workflow relies on disconnected manual tracking.",
-      targetUsers: "Staff coordinators",
-      requiredFeatures: "Shared work queue\nStatus tracking",
-      successCriteria: "Staff can complete the primary workflow from one system."
-    },
-    now: updatedAt
-  });
-  return { ...project, updatedAt };
-}
-
-/**
- * Demo records are created only for a brand-new empty browser store.
- * After the first save, every dashboard row is a normal persisted project.
- */
-export function createDemoStorageState(): StorageState {
-  const projects = [
-    createSeedProject(),
-    createExampleProject(
-      "volunteer-management-example",
-      "Volunteer Management App",
-      "Example client",
-      "Coordinate volunteer applications, assignments, and follow-up.",
-      "2026-06-27T18:15:00.000Z"
-    ),
-    createExampleProject(
-      "facilities-booking-example",
-      "Facilities Booking System",
-      "Example client",
-      "Manage room availability and booking requests.",
-      "2026-06-26T16:30:00.000Z"
-    )
-  ];
-  return {
-    version: 1,
-    activeProjectId: projects[0].identity.id,
-    projects
-  };
 }

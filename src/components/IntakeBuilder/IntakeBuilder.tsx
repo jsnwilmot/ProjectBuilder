@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import { intakeSteps } from "../../data/intakeSteps";
-import { GENERATE_STAGE_INDEX } from "../../data/intakeStages";
+import { GENERATE_STAGE_INDEX, INTAKE_STAGES } from "../../data/intakeStages";
 import { getProjectFieldValue } from "../../lib/projectFields";
 import { getStepCompletion } from "../../lib/validateIntake";
 import type {
@@ -35,7 +34,7 @@ export function IntakeBuilder({
   onOpenExport
 }: IntakeBuilderProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const step = intakeSteps[currentStep];
+  const step = INTAKE_STAGES[currentStep];
   const sectionResult = validationResult.sectionResults[currentStep];
   const missingForCurrentStep = sectionResult?.missingFields ?? [];
   const warningsForCurrentStep = sectionResult?.warnings ?? [];
@@ -45,7 +44,7 @@ export function IntakeBuilder({
   }, [currentStep]);
 
   const next = () => {
-    if (currentStep < intakeSteps.length - 1) onStepChange(currentStep + 1);
+    if (currentStep < INTAKE_STAGES.length - 1) onStepChange(currentStep + 1);
     else onOpenDocuments();
   };
 
@@ -74,12 +73,12 @@ export function IntakeBuilder({
           <h1>Guided Intake</h1>
           <p>Build the project package in focused stages. Missing information stays visible.</p>
         </div>
-        <span className="step-counter">Step {currentStep + 1} of {intakeSteps.length}</span>
+        <span className="step-counter">Step {currentStep + 1} of {INTAKE_STAGES.length}</span>
       </div>
 
       <div className="intake-layout">
         <aside className="intake-step-list" aria-label="Intake stages">
-          {intakeSteps.map((item, index) => {
+          {INTAKE_STAGES.map((item, index) => {
             const completion = getStepCompletion(project, index);
             const disabled = !canJumpToStep(index, completion);
             return (
@@ -109,7 +108,7 @@ export function IntakeBuilder({
 
           {step.id === "review" ? (
             <div className="generate-stage">
-              <div className={validationIssues.length ? "generate-status has-errors" : "generate-status is-ready"}>
+              <div className={validationIssues.length ? "generate-status has-errors" : "generate-status is-ready"} role="status" aria-live="polite">
                 {validationIssues.length ? <CircleAlert size={28} aria-hidden="true" /> : <Check size={28} aria-hidden="true" />}
                 <div>
                   <h3>{validationIssues.length ? "Review shows required information still missing" : "Review is ready for generation"}</h3>
@@ -123,7 +122,11 @@ export function IntakeBuilder({
               <div className="scope-list">
                 {summaryItems.map((item) => (
                   <article className="scope-row" key={item.label}>
-                    <div className="scope-state complete"><Check size={17} aria-hidden="true" /></div>
+                    <div className={`scope-state ${item.value.includes("[MISSING:") ? "" : "complete"}`}>
+                      {item.value.includes("[MISSING:")
+                        ? <CircleAlert size={17} aria-hidden="true" />
+                        : <Check size={17} aria-hidden="true" />}
+                    </div>
                     <div className="scope-copy">
                       <div>
                         <h3>{item.label}</h3>
@@ -134,25 +137,33 @@ export function IntakeBuilder({
                 ))}
               </div>
               {validationIssues.length ? (
-                <ul className="issue-list">
-                  {validationIssues.map((issue) => <li key={`${issue.field}-${issue.message}`}>{issue.message}</li>)}
-                </ul>
+                <div className="review-issues">
+                  <h3>Required questions</h3>
+                  <p>Resolve these questions before the project can be marked ready.</p>
+                  <ul className="issue-list">
+                    {validationIssues.map((issue) => <li key={`${issue.field}-${issue.message}`}>{issue.message}</li>)}
+                  </ul>
+                </div>
               ) : null}
               {validationResult.warnings.length ? (
-                <ul className="issue-list">
-                  {validationResult.warnings.map((warning) => <li key={`${warning.field}-${warning.message}`}>{warning.message}</li>)}
-                </ul>
+                <div className="review-issues warning">
+                  <h3>Optional warnings</h3>
+                  <p>These gaps do not block generation, but resolving them improves the project package.</p>
+                  <ul className="issue-list">
+                    {validationResult.warnings.map((warning) => <li key={`${warning.field}-${warning.message}`}>{warning.message}</li>)}
+                  </ul>
+                </div>
               ) : null}
             </div>
           ) : step.id === "generate" ? (
             <div className="generate-stage">
-              <div className={validationIssues.length ? "generate-status has-errors" : "generate-status is-ready"}>
+              <div className={validationIssues.length ? "generate-status has-errors" : "generate-status is-ready"} role="status" aria-live="polite">
                 {validationIssues.length ? <CircleAlert size={28} aria-hidden="true" /> : <Check size={28} aria-hidden="true" />}
                 <div>
                   <h3>{validationIssues.length ? "Generation can proceed with missing markers" : "Ready to generate"}</h3>
                   <p>
-                    Missing required: {validationIssues.length}. Warnings: {validationResult.warnings.length}.
-                    Generation is allowed and missing information will be written as explicit markers.
+                    Required questions unresolved: {validationIssues.length}. Optional warnings: {validationResult.warnings.length}.
+                    Generation is allowed; unresolved information will be written as exact `[MISSING: ...]` markers.
                   </p>
                 </div>
               </div>
@@ -199,7 +210,7 @@ export function IntakeBuilder({
                     {field.multiline
                       ? <textarea {...shared} rows={5} />
                       : <input {...shared} type="text" />}
-                    {issue ? <div className="field-error" id={errorId}><CircleAlert size={15} />{issue.message}</div> : null}
+                    {issue ? <div className="field-error" id={errorId} role="alert"><CircleAlert size={15} aria-hidden="true" />{issue.message}</div> : null}
                   </div>
                 );
               })}
@@ -219,7 +230,7 @@ export function IntakeBuilder({
             </button>
             <span>Changes save automatically in this browser.</span>
             <button className="button button-primary" onClick={next}>
-              {currentStep === intakeSteps.length - 1 ? "Open documents" : step.nextActionLabel || "Continue"}
+              {currentStep === INTAKE_STAGES.length - 1 ? "Open documents" : step.nextActionLabel || "Continue"}
               <ArrowRight size={17} aria-hidden="true" />
             </button>
           </div>

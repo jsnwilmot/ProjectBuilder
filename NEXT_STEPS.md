@@ -1,16 +1,16 @@
 # Next Steps
 
-## Phase 7: Review and Cleanup
+## Phase 8: Testing and Deployment Readiness
 
-The next approved development phase should perform cross-module review, accessibility cleanup, consistency checks, and release-readiness verification.
+The next approved development phase should complete final release testing and prepare an evidence-based deployment recommendation.
 
-Recommended Phase 7 scope:
+Recommended Phase 8 scope:
 
-1. Review intake, generation, Mission Control, documents, and export as one end-to-end workflow.
-2. Reconcile copy, status labels, empty states, and validation language.
-3. Complete keyboard, focus, contrast, and responsive accessibility review.
-4. Remove any remaining duplicate helpers or stale compatibility code.
-5. Run final browser, ZIP-on-Windows, and release checklist verification.
+1. Run the full regression checklist in supported desktop and mobile browsers.
+2. Complete the manual Windows ZIP verification checklist and record evidence.
+3. Confirm production build artifacts, caching expectations, security headers, and rollback steps.
+4. Select the production hosting environment before adding provider-specific configuration.
+5. Document deployment approval, release owner, smoke test, and rollback results.
 
 ## Deferred decisions
 
