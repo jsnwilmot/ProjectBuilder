@@ -22,7 +22,16 @@
 - ARCHITECT_INSTRUCTIONS.md includes review process and blocked assumptions.
 - CODEX_INSTRUCTIONS.md includes missing decision and scope boundary rules.
 - PHASED_CODEX_PROMPTS.md includes phased prompts with objective, files, constraints, acceptance criteria, testing, and reporting sections.
-- ZIP export sanitizes unsafe file paths and preserves missing markers.
+- ZIP export is blocked before explicit generation and never creates an empty package.
+- Export integrity detects missing, extra, empty, duplicate, incorrectly mapped, and unsafe generated files.
+- Missing markers are counted as export warnings without blocking an otherwise valid package.
+- ZIP root names and every archive path are sanitized or rejected safely.
+- Archive folders and core files use deterministic approved ordering.
+- `EXPORT_MANIFEST.md` and `project-manifest.json` are included without changing the 16-core-file count.
+- Manifest diagnostics include project identity, lifecycle status, exported date, warning/error counts, folder summary, and stable file list.
+- Large project records export with safe normalized paths and preserved content.
+- Multi-project export uses only the active project's persisted documents.
+- Copy actions read only active-project Architect, Codex, and phased prompt documents.
 - Document preview reads active-project generated documents.
 - Dashboard selectors calculate readiness, outstanding questions, completion, next action, and display status without mutation.
 - Active project summary selector returns status, generated file count, outstanding required count, review status, and deterministic next action details.
@@ -54,18 +63,26 @@ npm.cmd audit
 3. Clear a required field and confirm the inline error and missing-information visibility in Review.
 4. Enter text containing HTML and confirm it renders as text in the document preview.
 5. Review each generated document and search for `[MISSING:`.
-6. Download the ZIP and confirm the root name is sanitized.
-7. Inspect the ZIP for all standard folders, 16 documents, and `project-manifest.json`.
-8. Refresh and confirm intake persistence.
-9. Create a second project and confirm the first remains in Recent projects.
-10. Switch projects and confirm each intake retains its own values.
-11. Generate a package, refresh, and confirm the generated count and document preview remain.
-12. Edit intake after generation and confirm previously generated documents remain saved.
-13. Confirm Review opens stage 7 and Export navigation opens stage 8 of Guided Intake.
-14. Verify New project remains reachable on mobile and there is no page-level horizontal overflow.
-15. Verify keyboard navigation, focus indicators, and form labels.
-16. Verify Mission Control, intake, documents, and export at desktop and mobile widths.
-17. Export ZIP and confirm folder mapping includes `00_Project_Overview/README.md` and safe paths only.
+6. Open Export before generation and confirm the status says it cannot export yet with a clear Generate action.
+7. Generate the package and open Export.
+8. Confirm Export reports ready or warnings present, 16 actual documents, 16 expected documents, no errors, and manifest included.
+9. Download the ZIP and confirm the root name is sanitized.
+10. Open the ZIP on Windows and confirm all 12 standard folders.
+11. Confirm exactly 16 core Markdown files plus `00_Project_Overview/EXPORT_MANIFEST.md` and `project-manifest.json`.
+12. Open `EXPORT_MANIFEST.md` and confirm project details, file list, warning/error counts, and folder summary.
+13. Confirm `[MISSING: ...]` markers remain in core documents and appear as manifest warnings.
+14. Use an unsafe project name and confirm the ZIP root remains safe.
+15. Switch to another generated project, export again, and confirm only the active project's content is included.
+16. Use each copy action and confirm it copies content from the active project's generated documents.
+17. Refresh and confirm intake persistence.
+18. Create a second project and confirm the first remains in Recent projects.
+19. Switch projects and confirm each intake retains its own values.
+20. Generate a package, refresh, and confirm the generated count and document preview remain.
+21. Edit intake after generation and confirm previously generated documents remain saved.
+22. Confirm Review opens stage 7 and Export navigation opens stage 8 of Guided Intake.
+23. Verify New project remains reachable on mobile and there is no page-level horizontal overflow.
+24. Verify keyboard navigation, focus indicators, form labels, and Export status announcements.
+25. Verify Mission Control, intake, documents, and export at desktop and mobile widths.
 
 ## Known testing boundary
 

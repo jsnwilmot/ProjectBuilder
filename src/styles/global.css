@@ -1324,6 +1324,27 @@ tbody tr:hover {
   color: var(--blue);
 }
 
+.export-icon.is-blocked {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.export-status {
+  display: inline-flex;
+  margin-bottom: 10px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 0.68rem;
+  font-weight: 760;
+}
+
+.export-status.is-blocked {
+  background: var(--amber-soft);
+  color: #995602;
+}
+
 .export-summary h2 {
   margin-bottom: 6px;
   font-size: 1.22rem;
@@ -1391,8 +1412,112 @@ tbody tr:hover {
   color: var(--red) !important;
 }
 
+.export-attempt {
+  margin: 11px 0 0 !important;
+  color: var(--subtle) !important;
+  font-size: 0.68rem !important;
+}
+
+.copy-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.copy-actions h3 {
+  margin: 0 0 2px;
+  font-size: 0.8rem;
+}
+
+.copy-actions .button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.copy-actions p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 .package-contents {
   overflow: hidden;
+}
+
+.export-diagnostics {
+  padding: 18px 22px 0;
+}
+
+.export-diagnostics > dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.export-diagnostics > dl div {
+  padding: 10px 12px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.export-diagnostics > dl div:nth-child(2n) {
+  border-right: 0;
+}
+
+.export-diagnostics > dl div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.export-diagnostics dt {
+  color: var(--subtle);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.export-diagnostics dd {
+  overflow-wrap: anywhere;
+  margin: 2px 0 0;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.diagnostic-list {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.diagnostic-list h3 {
+  margin-bottom: 5px;
+  font-size: 0.74rem;
+}
+
+.diagnostic-list p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--green);
+  font-size: 0.68rem;
+}
+
+.diagnostic-list ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.diagnostic-list.warning ul {
+  color: #8b5700;
+}
+
+.diagnostic-list.error ul {
+  color: var(--red);
 }
 
 .folder-tree {
@@ -1730,6 +1855,21 @@ tbody tr:hover {
   }
 
   .export-summary dl div:last-child {
+    border-bottom: 0;
+  }
+
+  .export-diagnostics > dl {
+    grid-template-columns: 1fr;
+  }
+
+  .export-diagnostics > dl div,
+  .export-diagnostics > dl div:nth-child(2n),
+  .export-diagnostics > dl div:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .export-diagnostics > dl div:last-child {
     border-bottom: 0;
   }
 

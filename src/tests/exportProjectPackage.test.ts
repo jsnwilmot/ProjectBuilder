@@ -1,52 +1,115 @@
 import JSZip from "jszip";
-import { createSeedProject } from "../data/seedProject";
-import { createProjectArchive } from "../lib/exportProjectPackage";
+import { createProject } from "../lib/createProject";
+import {
+  createProjectArchive,
+  ExportIntegrityError,
+  getExpectedArchivePaths
+} from "../lib/exportProjectPackage";
+import {
+  createProject as persistProject,
+  getActiveProject,
+  saveGeneratedDocuments,
+  setActiveProject,
+  type StorageAdapter
+} from "../lib/projectRepository";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
+import {
+  createGeneratedProject,
+  createLargeGeneratedProject
+} from "./helpers/generatedProject";
+
+class MemoryStorage implements StorageAdapter {
+  private values = new Map<string, string>();
+  getItem(key: string) { return this.values.get(key) ?? null; }
+  setItem(key: string, value: string) { this.values.set(key, value); }
+  removeItem(key: string) { this.values.delete(key); }
+}
+
+async function blobToArchive(blob: Blob) {
+  const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+  return JSZip.loadAsync(bytes);
+}
 
 describe("createProjectArchive", () => {
-  it("writes the root document, standard folders, and manifest into the ZIP", async () => {
-    const projectPackage = generateProjectPackage(createSeedProject());
-    const blob = await createProjectArchive(projectPackage);
-    const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsArrayBuffer(blob);
-    });
-    const archive = await JSZip.loadAsync(bytes);
-    const root = `${projectPackage.rootFolder}/`;
+  it("includes the exact deterministic path list and both manifests", async () => {
+    const project = createGeneratedProject();
+    const options = { exportedAt: "2026-06-28T18:00:00.000Z" };
+    const first = await blobToArchive(await createProjectArchive(project, options));
+    const second = await blobToArchive(await createProjectArchive(project, options));
+    const firstPaths = Object.keys(first.files);
+    const secondPaths = Object.keys(second.files);
 
-    expect(archive.file(`${root}00_Project_Overview/README.md`)).not.toBeNull();
-    expect(archive.file(`${root}project-manifest.json`)).not.toBeNull();
-    expect(archive.file(`${root}11_Codex_Prompts/PHASED_CODEX_PROMPTS.md`)).not.toBeNull();
+    expect(firstPaths).toEqual(getExpectedArchivePaths(project));
+    expect(secondPaths).toEqual(firstPaths);
+    expect(first.file(`${firstPaths[0]}00_Project_Overview/EXPORT_MANIFEST.md`)).not.toBeNull();
+    expect(first.file(`${firstPaths[0]}project-manifest.json`)).not.toBeNull();
 
     const manifest = JSON.parse(
-      await archive.file(`${root}project-manifest.json`)!.async("string")
-    ) as { documents: unknown[]; folders: unknown[] };
-    expect(manifest.documents).toHaveLength(16);
-    expect(manifest.folders).toHaveLength(12);
+      await first.file(`${firstPaths[0]}project-manifest.json`)!.async("string")
+    ) as { files: unknown[]; generatedDocumentCount: number };
+    expect(manifest.files).toHaveLength(16);
+    expect(manifest.generatedDocumentCount).toBe(16);
   });
 
-  it("sanitizes unsafe export file paths", async () => {
-    const projectPackage = generateProjectPackage(createSeedProject());
-    projectPackage.documents.push({
-      fileName: "../unsafe/../../name.md",
-      folder: "05_Workflows",
-      content: "unsafe"
-    });
+  it("fails safely before generation instead of creating an empty ZIP", async () => {
+    const project = createProject({ identity: { projectName: "Not generated" } });
+    await expect(createProjectArchive(project)).rejects.toBeInstanceOf(ExportIntegrityError);
+  });
 
-    const blob = await createProjectArchive(projectPackage);
-    const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as ArrayBuffer);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsArrayBuffer(blob);
+  it("fails safely when a package contains an unsafe path", async () => {
+    const project = createGeneratedProject();
+    project.generatedDocuments[0] = {
+      ...project.generatedDocuments[0],
+      folder: "../00_Project_Overview"
+    };
+    await expect(createProjectArchive(project)).rejects.toMatchObject({
+      name: "ExportIntegrityError"
     });
-    const archive = await JSZip.loadAsync(bytes);
-    const paths: string[] = [];
-    archive.forEach((relativePath) => paths.push(relativePath));
+  });
 
-    expect(paths.some((path) => path.includes(".."))).toBe(false);
-    expect(paths.some((path) => /\\/.test(path))).toBe(false);
+  it("exports a large project with a sanitized root and preserved missing markers", async () => {
+    const project = createLargeGeneratedProject();
+    const archive = await blobToArchive(await createProjectArchive(project, {
+      exportedAt: "2026-06-28T18:00:00.000Z"
+    }));
+    const paths = Object.keys(archive.files);
+    const root = paths[0];
+    expect(root).not.toMatch(/[\\]/);
+    expect(paths).toHaveLength(31);
+    const scope = await archive.file(`${root}00_Project_Overview/PROJECT_SCOPE.md`)!.async("string");
+    expect(scope.length).toBeGreaterThan(1000);
+    expect(scope).toContain("[MISSING:");
+  });
+
+  it("exports only the active project's persisted documents after switching projects", async () => {
+    const storage = new MemoryStorage();
+    const projectA = persistProject({
+      identity: { id: "project-a", projectName: "Project A" },
+      client: { clientName: "Client A" }
+    }, storage);
+    const projectB = persistProject({
+      identity: { id: "project-b", projectName: "Project B" },
+      client: { clientName: "Client B" }
+    }, storage);
+    saveGeneratedDocuments(projectA.identity.id, generateProjectPackage(projectA).documents, storage);
+    saveGeneratedDocuments(projectB.identity.id, generateProjectPackage(projectB).documents, storage);
+    setActiveProject(projectB.identity.id, storage);
+
+    const active = getActiveProject(storage)!;
+    const archive = await blobToArchive(await createProjectArchive(active, {
+      exportedAt: "2026-06-28T18:00:00.000Z"
+    }));
+    const root = Object.keys(archive.files)[0];
+    const readme = await archive.file(`${root}00_Project_Overview/README.md`)!.async("string");
+
+    expect(active.identity.id).toBe(projectB.identity.id);
+    expect(readme).toContain("Project B");
+    expect(readme).not.toContain("Project A");
+    expect(getActiveProject(storage)!.generatedDocuments).toHaveLength(16);
   });
 });

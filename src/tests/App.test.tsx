@@ -29,7 +29,8 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /DATA_MODEL\.md/i }));
@@ -114,14 +115,57 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
     expect(screen.getByText(/Community Services Portal/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Mission Control" }));
     await user.click(screen.getByRole("button", { name: "Select project Volunteer Management App" }));
-    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByText(/Volunteer Management App/)).toBeInTheDocument();
+  });
+
+  it("blocks export before generation and reports readiness after generation", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const newProjectButton = screen
+      .getAllByRole("button", { name: "New project" })
+      .find((button) => !button.classList.contains("mobile-new-project"))!;
+    await user.click(newProjectButton);
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+
+    expect(screen.getByText("Cannot export yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate project package first" })).toBeInTheDocument();
+    expect(screen.getByText("0/16")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Generate project package first" }));
+    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+
+    expect(screen.getByText(/Warnings present|Ready to export/)).toBeInTheDocument();
+    expect(screen.getByText("16/16")).toBeInTheDocument();
+    expect(screen.getByText("No export errors.")).toBeInTheDocument();
+  });
+
+  it("copies active-project Architect instructions after generation", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    await user.click(screen.getByRole("button", { name: "Copy Architect Instructions" }));
+
+    const copiedText = await navigator.clipboard.readText();
+    expect(copiedText).toContain("# Architect Instructions");
+    expect(copiedText).toContain("Community Services Portal");
+    expect(screen.getByText("Architect Instructions copied.")).toBeInTheDocument();
   });
 });

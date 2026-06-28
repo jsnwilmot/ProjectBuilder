@@ -25,6 +25,9 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - `projectRepository.ts` owns multi-project CRUD and the single localStorage key.
 - `storageVersion.ts` validates and migrates stored schema version 1.
 - `projectSelectors.ts` derives dashboard values without mutating records.
+- `exportIntegrity.ts` validates active-project generated documents, approved mappings, safe paths, duplicates, missing files, empty content, and warnings before archive creation.
+- `exportManifest.ts` creates stable Markdown and JSON export diagnostics.
+- `exportProjectPackage.ts` writes verified folders, core files, and manifests in deterministic order.
 - Field definitions in `src/data/intakeSteps.ts` drive intake structure and progress.
 - `validateIntake.ts` owns generation-blocking validation and completion metrics.
 - `src/templates/documents/` owns document wording.

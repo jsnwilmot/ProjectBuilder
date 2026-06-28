@@ -16,7 +16,10 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Approved folder mapping for all generated files with safe path handling for package generation and ZIP export.
 - Shared document generation helpers for missing markers, safe text/list handling, markdown formatting, and file/folder sanitization.
 - Plain-text viewer for all generated Markdown documents.
-- Local ZIP export with the standard 12-folder structure, 16 required documents, and a JSON manifest.
+- Verified ZIP export with the standard 12-folder structure, 16 required documents, `EXPORT_MANIFEST.md`, and a JSON diagnostic manifest.
+- Export integrity diagnostics for missing, extra, empty, duplicate, incorrectly mapped, or unsafe document paths.
+- Deterministic core file and folder ordering, safe ZIP root normalization, and active-project-only export.
+- Copy actions for generated Architect instructions, Codex instructions, and phased Codex prompts.
 - Versioned browser-local persistence for multiple projects and one active project.
 - Persisted intake changes, generated documents, lifecycle status, readiness, and timestamps without clearing generated documents on intake edits.
 - Generation from current intake can run before persistence; persisted generated documents are replaced only when Generate is explicitly run.
@@ -29,6 +32,19 @@ The MVP uses one localStorage key: `gpt-project-builder.storage.v1`. Its version
 If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. On a brand-new browser store, the app writes clearly identified demo projects once so Mission Control has useful starting data.
 
 Because there is no backend or authentication in this phase, projects are available only in the browser profile where they were created. Clearing browser storage removes them.
+
+## Export packages
+
+Export uses the active project's persisted generated documents. Run **Generate and save package** before opening Export; Export never creates an empty or implicit package.
+
+A valid ZIP contains:
+
+- The approved 12-folder structure.
+- Exactly 16 core Markdown documents.
+- `00_Project_Overview/EXPORT_MANIFEST.md` with project identity, status, file diagnostics, warning/error counts, folder summary, and stable file list.
+- `project-manifest.json` with the same machine-readable diagnostics.
+
+The two manifests are diagnostic files and are not counted among the 16 core documents. Explicit `[MISSING: ...]` markers remain in generated documents and are reported as warnings rather than blocking export. Unsafe project names are converted to a safe ZIP root; unsafe, duplicate, unexpected, incorrectly mapped, or empty generated files block export with a clear error.
 
 ## Run locally
 

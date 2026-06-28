@@ -1,36 +1,116 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../../data/folderStructure";
 import { createProjectArchive, downloadArchive } from "../../lib/exportProjectPackage";
-import type { ProjectPackage, ValidationIssue } from "../../types/project";
-import { Check, CircleAlert, Download, FileText, FolderArchive } from "../ui/Icons";
+import { validateExportPackage } from "../../lib/exportIntegrity";
+import type { ProjectPackage, ProjectRecord } from "../../types/project";
+import { Check, CircleAlert, Copy, Download, FileText, FolderArchive } from "../ui/Icons";
 
 interface ExportPanelProps {
+  project: ProjectRecord | null;
   projectPackage: ProjectPackage | null;
-  validationIssues: ValidationIssue[];
-  onGenerated: () => void;
-  onReturnToIntake: () => void;
+  onOpenGenerate: () => void;
+}
+
+type ExportState = "idle" | "working" | "complete" | "error";
+
+interface ExportAttempt {
+  state: "complete" | "error";
+  message: string;
+  attemptedAt: string;
+}
+
+const copyDocuments = [
+  { fileName: "ARCHITECT_INSTRUCTIONS.md", label: "Copy Architect Instructions" },
+  { fileName: "CODEX_INSTRUCTIONS.md", label: "Copy Codex Instructions" },
+  { fileName: "PHASED_CODEX_PROMPTS.md", label: "Copy Phased Codex Prompts" }
+] as const;
+
+async function copyText(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Use the local selection fallback when clipboard permission is unavailable.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Clipboard access is unavailable in this browser.");
 }
 
 export function ExportPanel({
+  project,
   projectPackage,
-  validationIssues,
-  onGenerated,
-  onReturnToIntake
+  onOpenGenerate
 }: ExportPanelProps) {
-  const [exportState, setExportState] = useState<"idle" | "working" | "complete" | "error">("idle");
-  const [error, setError] = useState("");
+  const integrity = useMemo(() => validateExportPackage(project), [project]);
+  const [exportState, setExportState] = useState<ExportState>("idle");
+  const [lastAttempt, setLastAttempt] = useState<ExportAttempt | null>(null);
+  const [copyStatus, setCopyStatus] = useState("");
+
+  const ready = Boolean(project && projectPackage && integrity.isValid);
+  const statusLabel = exportState === "working"
+    ? "Exporting"
+    : exportState === "complete"
+      ? "Export complete"
+      : exportState === "error"
+        ? "Export failed"
+        : !ready
+          ? "Cannot export yet"
+          : integrity.warnings.length > 0
+            ? "Warnings present"
+            : "Ready to export";
 
   const exportPackage = async () => {
-    if (!projectPackage) return;
-    setExportState("working");
-    setError("");
-    try {
-      const blob = await createProjectArchive(projectPackage);
-      downloadArchive(blob, `${projectPackage.rootFolder}.zip`);
-      onGenerated();
-      setExportState("complete");
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "The project archive could not be created.");
+    if (!project || !integrity.isValid) {
       setExportState("error");
+      setLastAttempt({
+        state: "error",
+        message: integrity.errors[0] ?? "The active project is not ready to export.",
+        attemptedAt: new Date().toISOString()
+      });
+      return;
+    }
+
+    setExportState("working");
+    try {
+      const blob = await createProjectArchive(project, { exportedAt: integrity.generatedAt });
+      downloadArchive(blob, `${integrity.manifestSummary.rootFolder}.zip`);
+      setExportState("complete");
+      setLastAttempt({
+        state: "complete",
+        message: "Package downloaded successfully.",
+        attemptedAt: new Date().toISOString()
+      });
+    } catch (caughtError) {
+      const message = caughtError instanceof Error
+        ? caughtError.message
+        : "The project archive could not be created.";
+      setExportState("error");
+      setLastAttempt({ state: "error", message, attemptedAt: new Date().toISOString() });
+    }
+  };
+
+  const copyGeneratedDocument = async (fileName: string, label: string) => {
+    const document = project?.generatedDocuments.find((candidate) => candidate.fileName === fileName);
+    if (!document) {
+      setCopyStatus("Generate the package before copying instructions.");
+      return;
+    }
+    try {
+      await copyText(document.content);
+      setCopyStatus(`${label.replace("Copy ", "")} copied.`);
+    } catch (caughtError) {
+      setCopyStatus(caughtError instanceof Error ? caughtError.message : "Copy failed.");
     }
   };
 
@@ -39,70 +119,131 @@ export function ExportPanel({
       <div className="page-heading">
         <div>
           <h1>Project Export</h1>
-          <p>Create a predictable handoff package for Architect review and phased Codex development.</p>
+          <p>Create a verified project package for Architect review and phased Codex development.</p>
         </div>
       </div>
 
-      {!projectPackage ? (
-        <section className="export-blocked">
-          <CircleAlert size={28} aria-hidden="true" />
-          <div>
-            <h2>Export is blocked</h2>
-            <p>Complete {validationIssues.length} required field{validationIssues.length === 1 ? "" : "s"} before generating the package.</p>
-            <ul>{validationIssues.map((issue) => <li key={issue.field}>{issue.message}</li>)}</ul>
-            <button className="button button-primary" onClick={onReturnToIntake}>Complete intake</button>
-          </div>
-        </section>
-      ) : (
-        <div className="export-layout">
-          <section className="export-summary">
-            <span className="export-icon"><FolderArchive size={30} aria-hidden="true" /></span>
-            <h2>{projectPackage.rootFolder}.zip</h2>
-            <p>
-              Includes the complete standard folder structure, 16 generated Markdown files,
-              and a machine-readable package manifest.
-            </p>
-            <dl>
-              <div><dt>Folders</dt><dd>{projectPackage.folders.length}</dd></div>
-              <div><dt>Documents</dt><dd>{projectPackage.documents.length}</dd></div>
-              <div><dt>External transfer</dt><dd>None</dd></div>
-            </dl>
+      <div className="export-layout">
+        <section className="export-summary" aria-labelledby="export-package-title">
+          <span className={`export-icon ${ready ? "" : "is-blocked"}`}>
+            {ready ? <FolderArchive size={30} aria-hidden="true" /> : <CircleAlert size={30} aria-hidden="true" />}
+          </span>
+          <div className={`export-status ${ready ? "is-ready" : "is-blocked"}`}>{statusLabel}</div>
+          <h2 id="export-package-title">{integrity.manifestSummary.rootFolder}.zip</h2>
+          <p>
+            {ready
+              ? "Includes 16 verified core documents plus Markdown and JSON diagnostic manifests."
+              : "Generate and save the active project package before downloading a ZIP."}
+          </p>
+
+          <dl>
+            <div><dt>Core files</dt><dd>{integrity.fileCount}/{integrity.expectedFileCount}</dd></div>
+            <div><dt>Warnings</dt><dd>{integrity.warnings.length}</dd></div>
+            <div><dt>Errors</dt><dd>{integrity.errors.length}</dd></div>
+          </dl>
+
+          {ready ? (
             <button
               className="button button-primary button-large export-button"
               onClick={exportPackage}
               disabled={exportState === "working"}
             >
-              {exportState === "working" ? "Building package…" : "Download project package"}
+              {exportState === "working" ? "Building verified package…" : "Download verified package"}
               <Download size={18} aria-hidden="true" />
             </button>
-            {exportState === "complete" ? <p className="export-message success"><Check size={16} />Package downloaded successfully.</p> : null}
-            {exportState === "error" ? <p className="export-message error"><CircleAlert size={16} />{error}</p> : null}
-          </section>
+          ) : (
+            <button className="button button-primary button-large export-button" onClick={onOpenGenerate}>
+              Generate project package first
+            </button>
+          )}
 
-          <section className="package-contents" aria-labelledby="package-contents-title">
-            <div className="section-heading">
-              <div>
-                <h2 id="package-contents-title">Package contents</h2>
-                <p>Every required folder and generated file is represented.</p>
-              </div>
+          {lastAttempt ? (
+            <p className={`export-message ${lastAttempt.state === "complete" ? "success" : "error"}`} aria-live="polite">
+              {lastAttempt.state === "complete" ? <Check size={16} /> : <CircleAlert size={16} />}
+              {lastAttempt.message}
+            </p>
+          ) : (
+            <p className="export-attempt">Last export attempt: none in this session.</p>
+          )}
+
+          <div className="copy-actions">
+            <h3>Copy generated handoff content</h3>
+            {copyDocuments.map(({ fileName, label }) => (
+              <button
+                key={fileName}
+                className="button button-secondary"
+                onClick={() => copyGeneratedDocument(fileName, label)}
+                disabled={!project?.generatedDocuments.some((document) => document.fileName === fileName)}
+              >
+                <Copy size={15} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+            {copyStatus ? <p aria-live="polite">{copyStatus}</p> : null}
+          </div>
+        </section>
+
+        <section className="package-contents" aria-labelledby="package-contents-title">
+          <div className="section-heading">
+            <div>
+              <h2 id="package-contents-title">Export diagnostics</h2>
+              <p>Integrity results for the active persisted project.</p>
             </div>
-            <div className="folder-tree">
-              <div className="tree-root"><FolderArchive size={18} />{projectPackage.rootFolder}/</div>
-              {projectPackage.folders.map((folder) => {
-                const fileCount = projectPackage.documents.filter((document) => document.folder === folder).length;
-                return (
-                  <div className="tree-folder" key={folder}>
-                    <FolderArchive size={16} />
-                    <span>{folder}/</span>
-                    <small>{fileCount} file{fileCount === 1 ? "" : "s"}</small>
-                  </div>
-                );
-              })}
-              <div className="tree-file"><FileText size={16} />project-manifest.json</div>
-            </div>
-          </section>
-        </div>
-      )}
+          </div>
+
+          <div className="export-diagnostics">
+            <dl>
+              <div><dt>Package root</dt><dd>{integrity.manifestSummary.rootFolder}/</dd></div>
+              <div><dt>Expected documents</dt><dd>{integrity.expectedFileCount}</dd></div>
+              <div><dt>Actual documents</dt><dd>{integrity.fileCount}</dd></div>
+              <div><dt>Manifest included</dt><dd>Yes, when export is valid</dd></div>
+              <div><dt>Folder mapping</dt><dd>{integrity.folderMapStatus}</dd></div>
+              <div><dt>Missing markers</dt><dd>{integrity.manifestSummary.missingMarkerCount}</dd></div>
+            </dl>
+
+            <DiagnosticList title="Missing files" items={integrity.missingFiles} emptyText="No missing core files." />
+            <DiagnosticList title="Warnings" items={integrity.warnings} emptyText="No export warnings." tone="warning" />
+            <DiagnosticList title="Errors" items={integrity.errors} emptyText="No export errors." tone="error" />
+          </div>
+
+          <div className="folder-tree" aria-label="Export folder structure">
+            <div className="tree-root"><FolderArchive size={18} />{integrity.manifestSummary.rootFolder}/</div>
+            {PROJECT_FOLDERS.map((folder) => {
+              const fileCount = DOCUMENT_LOCATIONS.filter((document) => document.folder === folder).length;
+              return (
+                <div className="tree-folder" key={folder}>
+                  <FolderArchive size={16} />
+                  <span>{folder}/</span>
+                  <small>{fileCount} core file{fileCount === 1 ? "" : "s"}</small>
+                </div>
+              );
+            })}
+            <div className="tree-file"><FileText size={16} />00_Project_Overview/EXPORT_MANIFEST.md</div>
+            <div className="tree-file"><FileText size={16} />project-manifest.json</div>
+          </div>
+        </section>
+      </div>
     </main>
+  );
+}
+
+function DiagnosticList({
+  title,
+  items,
+  emptyText,
+  tone = "neutral"
+}: {
+  title: string;
+  items: string[];
+  emptyText: string;
+  tone?: "neutral" | "warning" | "error";
+}) {
+  return (
+    <div className={`diagnostic-list ${tone}`}>
+      <h3>{title}</h3>
+      {items.length > 0
+        ? <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
+        : <p><Check size={14} aria-hidden="true" />{emptyText}</p>}
+    </div>
   );
 }

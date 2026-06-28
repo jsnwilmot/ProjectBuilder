@@ -52,17 +52,14 @@ export function useProjectBuilder() {
     sectionResults: []
   }, [project]);
   const generatedPackage = useMemo<ProjectPackage | null>(() => {
-    if (!project) return null;
-    if (project.generatedDocuments.length > 0) {
-      return {
-        projectId: project.identity.id,
-        projectName: project.identity.projectName,
-        rootFolder: sanitizeProjectName(project.identity.projectName),
-        folders: PROJECT_FOLDERS,
-        documents: project.generatedDocuments
-      };
-    }
-    return generateProjectPackage(project);
+    if (!project || project.generatedDocuments.length === 0) return null;
+    return {
+      projectId: project.identity.id,
+      projectName: project.identity.projectName,
+      rootFolder: sanitizeProjectName(project.identity.projectName),
+      folders: PROJECT_FOLDERS,
+      documents: project.generatedDocuments
+    };
   }, [project]);
 
   const refresh = () => setStorageState(loadStorageState());
@@ -80,8 +77,9 @@ export function useProjectBuilder() {
   };
 
   const markGenerated = () => {
-    if (!project || !generatedPackage) return;
-    saveGeneratedDocuments(project.identity.id, generatedPackage.documents);
+    if (!project) return;
+    const generated = generateProjectPackage(project);
+    saveGeneratedDocuments(project.identity.id, generated.documents);
     refresh();
   };
 

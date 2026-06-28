@@ -1,32 +1,95 @@
 import JSZip from "jszip";
-import type { ProjectPackage } from "../types/project";
-import { normalizeFileName } from "./documentHelpers";
+import { PROJECT_FOLDERS } from "../data/folderStructure";
+import type { ProjectRecord } from "../types/project";
+import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
+import {
+  EXPORT_MANIFEST_PATH,
+  getStableCoreDocuments,
+  validateExportPackage,
+  type ExportIntegrityResult
+} from "./exportIntegrity";
+import { createExportManifest, renderExportManifestMarkdown } from "./exportManifest";
 
-export async function createProjectArchive(projectPackage: ProjectPackage): Promise<Blob> {
+export interface CreateArchiveOptions {
+  exportedAt?: string;
+}
+
+export class ExportIntegrityError extends Error {
+  constructor(public readonly integrity: ExportIntegrityResult) {
+    super(integrity.errors.join(" ") || "The project package failed export integrity checks.");
+    this.name = "ExportIntegrityError";
+  }
+}
+
+const stableZipDate = new Date("1980-01-01T00:00:00.000Z");
+
+function sanitizeFolderSegment(segment: string): string {
+  return segment.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+export function getExpectedArchivePaths(project: ProjectRecord): string[] {
+  const root = sanitizeProjectFolderName(project.identity.projectName);
+  return [
+    `${root}/`,
+    ...PROJECT_FOLDERS.map((folder) => `${root}/${folder}/`),
+    ...getStableCoreDocuments(project).map((document) => `${root}/${document.path}`),
+    `${root}/${EXPORT_MANIFEST_PATH}`,
+    `${root}/project-manifest.json`
+  ];
+}
+
+export async function createProjectArchive(
+  project: ProjectRecord,
+  options: CreateArchiveOptions = {}
+): Promise<Blob> {
+  const generatedAt = options.exportedAt ?? new Date().toISOString();
+  const integrity = validateExportPackage(project, generatedAt);
+  if (!integrity.isValid) throw new ExportIntegrityError(integrity);
+
+  const rootFolder = sanitizeProjectFolderName(project.identity.projectName);
   const zip = new JSZip();
-  const root = zip.folder(projectPackage.rootFolder);
-  if (!root) throw new Error("Unable to create the project export folder.");
+  const fileOptions = { date: stableZipDate };
+  const directoryOptions = { dir: true, date: stableZipDate };
 
-  projectPackage.folders.forEach((folder) => root.folder(folder));
-  projectPackage.documents.forEach((document) => {
-    const safeFolder = document.folder
-      .split("/")
-      .map((part) => part.replace(/[^a-zA-Z0-9_-]/g, ""))
-      .filter(Boolean)
-      .join("/");
+  zip.file(`${rootFolder}/`, "", directoryOptions);
+  for (const folder of PROJECT_FOLDERS) {
+    const safeFolder = sanitizeFolderSegment(folder);
+    if (!safeFolder || safeFolder !== folder) {
+      throw new ExportIntegrityError({
+        ...integrity,
+        isValid: false,
+        errors: [...integrity.errors, `Approved folder "${folder}" is unsafe.`],
+        unsafePaths: [...integrity.unsafePaths, folder],
+        folderMapStatus: "invalid"
+      });
+    }
+    zip.file(`${rootFolder}/${safeFolder}/`, "", directoryOptions);
+  }
+
+  for (const document of getStableCoreDocuments(project)) {
     const safeFileName = normalizeFileName(document.fileName);
-    const path = safeFolder ? `${safeFolder}/${safeFileName}` : safeFileName;
-    root.file(path, document.content);
+    const path = `${rootFolder}/${document.folder}/${safeFileName}`;
+    zip.file(path, document.content, fileOptions);
+  }
+
+  const manifest = createExportManifest(project, integrity);
+  zip.file(
+    `${rootFolder}/${EXPORT_MANIFEST_PATH}`,
+    renderExportManifestMarkdown(manifest),
+    fileOptions
+  );
+  zip.file(
+    `${rootFolder}/project-manifest.json`,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    fileOptions
+  );
+
+  return zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+    platform: "DOS"
   });
-
-  root.file("project-manifest.json", JSON.stringify({
-    projectName: projectPackage.projectName,
-    generatedAt: new Date().toISOString(),
-    folders: projectPackage.folders,
-    documents: projectPackage.documents.map(({ fileName, folder }) => ({ fileName, folder }))
-  }, null, 2));
-
-  return zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
 }
 
 export function downloadArchive(blob: Blob, fileName: string): void {

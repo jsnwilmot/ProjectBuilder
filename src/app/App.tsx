@@ -98,10 +98,9 @@ export function App() {
         ) : null}
         {view === "export" ? (
           <ExportPanel
+            project={project}
             projectPackage={generatedPackage}
-            validationIssues={validationIssues}
-            onGenerated={markGenerated}
-            onReturnToIntake={() => openIntake(0)}
+            onOpenGenerate={() => openIntake(GENERATE_STAGE_INDEX)}
           />
         ) : null}
       </div>

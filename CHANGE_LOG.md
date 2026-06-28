@@ -1,5 +1,48 @@
 # Change Log
 
+## 2026-06-28 — Phase 6: Export Features Hardening
+
+### Summary
+
+- Added strict active-project export integrity validation for all 16 core generated documents.
+- Added deterministic folder/file ordering, unsafe path rejection, duplicate detection, empty-content detection, and safe ZIP root normalization.
+- Added `00_Project_Overview/EXPORT_MANIFEST.md` and expanded `project-manifest.json` diagnostics without changing the 16-core-file count.
+- Blocked export before explicit package generation; export no longer auto-generates transient documents.
+- Added compact Export status, warning/error diagnostics, last-attempt feedback, package tree details, and scoped copy actions.
+
+### Files created
+
+- `src/lib/exportIntegrity.ts` — export validation, missing-marker diagnostics, stable document ordering, and path checks.
+- `src/lib/exportManifest.ts` — diagnostic manifest object and Markdown rendering.
+- `src/tests/exportIntegrity.test.ts` — integrity gate coverage.
+- `src/tests/exportManifest.test.ts` — manifest object and Markdown coverage.
+- `src/tests/helpers/generatedProject.ts` — generated and large-project export fixtures.
+
+### Files updated
+
+- `src/lib/exportProjectPackage.ts` — deterministic verified archive construction and safe failure behavior.
+- `src/app/useProjectBuilder.ts` — explicit generation/export separation.
+- `src/app/App.tsx` — active project passed to Export and Generate-stage recovery routing.
+- `src/components/ExportPanel/ExportPanel.tsx` — status, diagnostics, manifest visibility, and copy actions.
+- `src/components/ui/Icons.tsx`, `src/styles/global.css` — scoped export UI support.
+- Export and application tests plus `README.md`, `NEXT_STEPS.md`, and `TEST_PLAN.md`.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`12` files, `60` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- In-app browser verification covered blocked-before-generation and ready-with-warnings export states at desktop and mobile widths.
+
+### Issues found
+
+- Phase 5 export could use transient auto-generated documents before generation and silently rewrite unsafe paths. Both behaviors are removed.
+
+### Remaining work
+
+- Phase 7: Review and Cleanup.
+- Manual Windows ZIP opening remains a release checklist item.
+
 ## 2026-06-28 — Phase 5: Mission Control Dashboard Hardening
 
 ### Summary
