@@ -1,53 +1,102 @@
-import { useEffect, useMemo, useState } from "react";
-import { createSeedProject } from "../data/seedProject";
+import { useMemo, useState } from "react";
+import { PROJECT_FOLDERS } from "../data/folderStructure";
+import { createDemoStorageState } from "../data/seedProject";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
-import { loadProject, saveProject } from "../lib/projectStorage";
-import { getOutstandingFields, validateIntake } from "../lib/validateIntake";
-import type { ProjectIntake, ProjectPackage, ProjectState, ProjectStatus } from "../types/project";
+import {
+  createProject,
+  loadStorageState,
+  saveGeneratedDocuments,
+  saveStorageState,
+  setActiveProject as persistActiveProject,
+  updateProject,
+  updateProjectFields
+} from "../lib/projectRepository";
+import { sanitizeProjectName } from "../lib/sanitizeProjectName";
+import { validateIntake } from "../lib/validateIntake";
+import type {
+  ProjectInputField,
+  ProjectPackage,
+  ProjectRecord,
+  ProjectStatus,
+  StorageState
+} from "../types/project";
+
+function initializeStorage(): StorageState {
+  const stored = loadStorageState();
+  if (stored.projects.length > 0) return stored;
+  const demo = createDemoStorageState();
+  saveStorageState(demo);
+  return loadStorageState();
+}
 
 export function useProjectBuilder() {
-  const [project, setProject] = useState<ProjectState>(() => loadProject(createSeedProject));
+  const [storageState, setStorageState] = useState<StorageState>(initializeStorage);
+  const project = useMemo(
+    () => storageState.projects.find((candidate) => candidate.identity.id === storageState.activeProjectId)
+      ?? storageState.projects[0],
+    [storageState]
+  );
+  const projects = useMemo(
+    () => [...storageState.projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [storageState.projects]
+  );
 
-  useEffect(() => saveProject(project), [project]);
-
-  const validationIssues = useMemo(() => validateIntake(project.intake), [project.intake]);
-  const outstandingFields = useMemo(() => getOutstandingFields(project.intake), [project.intake]);
+  const validationResult = useMemo(() => validateIntake(project), [project]);
   const generatedPackage = useMemo<ProjectPackage | null>(() => {
-    if (validationIssues.length > 0) return null;
-    return generateProjectPackage(project.intake);
-  }, [project.intake, validationIssues.length]);
+    if (!validationResult.isValid) return null;
+    if (project.generatedDocuments.length > 0) {
+      return {
+        projectId: project.identity.id,
+        projectName: project.identity.projectName,
+        rootFolder: sanitizeProjectName(project.identity.projectName),
+        folders: PROJECT_FOLDERS,
+        documents: project.generatedDocuments
+      };
+    }
+    return generateProjectPackage(project);
+  }, [project, validationResult.isValid]);
 
-  const updateIntake = (changes: Partial<ProjectIntake>) => {
-    setProject((current) => ({
-      ...current,
-      intake: { ...current.intake, ...changes },
-      metadata: {
-        ...current.metadata,
-        status: current.metadata.status === "Project Package Generated" ? "Intake Started" : current.metadata.status,
-        lastUpdated: new Date().toISOString(),
-        reviewStatus: "Needs review"
-      }
-    }));
+  const refresh = () => setStorageState(loadStorageState());
+
+  const updateIntake = (changes: Partial<Record<ProjectInputField, string>>) => {
+    updateProjectFields(project.identity.id, changes);
+    refresh();
   };
 
   const setStatus = (status: ProjectStatus) => {
-    setProject((current) => ({
-      ...current,
-      metadata: { ...current.metadata, status, lastUpdated: new Date().toISOString() }
-    }));
+    updateProject(project.identity.id, { status });
+    refresh();
   };
 
-  const markGenerated = () => setStatus("Project Package Generated");
-  const resetProject = () => setProject(createSeedProject());
+  const markGenerated = () => {
+    if (!generatedPackage) return;
+    saveGeneratedDocuments(project.identity.id, generatedPackage.documents);
+    refresh();
+  };
+
+  const createNewProject = (): ProjectRecord => {
+    const created = createProject();
+    refresh();
+    return created;
+  };
+
+  const setActiveProject = (projectId: string) => {
+    persistActiveProject(projectId);
+    refresh();
+  };
 
   return {
+    storageState,
     project,
+    projects,
     updateIntake,
     setStatus,
     markGenerated,
-    resetProject,
-    validationIssues,
-    outstandingFields,
+    createNewProject,
+    setActiveProject,
+    validationResult,
+    validationIssues: validationResult.missingFields,
+    outstandingFields: project.outstandingQuestions,
     generatedPackage
   };
 }

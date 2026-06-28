@@ -1,20 +1,21 @@
 import { useEffect, useRef } from "react";
 import { intakeSteps } from "../../data/intakeSteps";
+import { getProjectFieldValue } from "../../lib/projectFields";
 import { getStepCompletion } from "../../lib/validateIntake";
-import type { ProjectIntake, ValidationIssue } from "../../types/project";
+import type { ProjectInputField, ProjectRecord, ValidationIssue } from "../../types/project";
 import { ArrowLeft, ArrowRight, Check, CircleAlert } from "../ui/Icons";
 
 interface IntakeBuilderProps {
-  intake: ProjectIntake;
+  project: ProjectRecord;
   currentStep: number;
   validationIssues: ValidationIssue[];
   onStepChange: (step: number) => void;
-  onUpdate: (changes: Partial<ProjectIntake>) => void;
+  onUpdate: (changes: Partial<Record<ProjectInputField, string>>) => void;
   onReview: () => void;
 }
 
 export function IntakeBuilder({
-  intake,
+  project,
   currentStep,
   validationIssues,
   onStepChange,
@@ -46,7 +47,7 @@ export function IntakeBuilder({
       <div className="intake-layout">
         <aside className="intake-step-list" aria-label="Intake stages">
           {intakeSteps.map((item, index) => {
-            const completion = getStepCompletion(intake, index);
+            const completion = getStepCompletion(project, index);
             return (
               <button
                 key={item.id}
@@ -81,7 +82,7 @@ export function IntakeBuilder({
                 const shared = {
                   id: inputId,
                   name: field.name,
-                  value: intake[field.name],
+                  value: getProjectFieldValue(project, field.name),
                   placeholder: field.placeholder,
                   onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                     onUpdate({ [field.name]: event.target.value }),

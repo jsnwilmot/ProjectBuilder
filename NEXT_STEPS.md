@@ -1,15 +1,18 @@
 # Next Steps
 
-## Product decisions required
+## Phase 3: Intake Flow Hardening
 
-- `[MISSING DECISION: Define whether the app must manage multiple persisted projects or only one active local project. This affects storage and dashboard behavior.]`
+The next approved development phase should harden the guided intake experience against the stable multi-project model.
+
+Recommended Phase 3 scope:
+
+1. Review required versus optional fields with the Architect.
+2. Improve per-section validation messages and navigation to missing fields.
+3. Add explicit save-state feedback without changing the persistence architecture.
+4. Verify switching between projects and intake sections with end-to-end browser tests.
+5. Review long-form field guidance with a real project intake.
+
+## Deferred decisions
+
 - `[MISSING DECISION: Define the approved production hosting environment. This affects deployment configuration and security headers.]`
-- `[MISSING DECISION: Decide whether project import is required. Current scope exports packages but does not re-import them.]`
-
-## Recommended sequence
-
-1. Complete Architect review of the generated wording and required-field policy.
-2. Decide the multi-project persistence model.
-3. Add end-to-end download/archive inspection after the storage decision.
-4. Add production deployment configuration after hosting is approved.
-5. Run a user test with one real project intake and revise labels based on observed ambiguity.
+- `[MISSING DECISION: Decide whether project package import belongs in a later phase. Import is explicitly excluded from Phase 2.]`

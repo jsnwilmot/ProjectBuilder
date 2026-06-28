@@ -1,10 +1,11 @@
 import { intakeSteps } from "../../data/intakeSteps";
+import { getProjectFieldValue } from "../../lib/projectFields";
 import { getStepCompletion } from "../../lib/validateIntake";
-import type { ProjectIntake, ValidationIssue } from "../../types/project";
+import type { ProjectRecord, ValidationIssue } from "../../types/project";
 import { ArrowRight, Check, CircleAlert } from "../ui/Icons";
 
 interface ScopeReviewProps {
-  intake: ProjectIntake;
+  project: ProjectRecord;
   issues: ValidationIssue[];
   outstandingCount: number;
   onEditStep: (step: number) => void;
@@ -12,7 +13,7 @@ interface ScopeReviewProps {
 }
 
 export function ScopeReview({
-  intake,
+  project,
   issues,
   outstandingCount,
   onEditStep,
@@ -44,14 +45,14 @@ export function ScopeReview({
       <section className="scope-summary" aria-labelledby="scope-summary-title">
         <div className="section-heading">
           <div>
-            <h2 id="scope-summary-title">{intake.appName || "Untitled project"}</h2>
-            <p>{intake.appPurpose || "[MISSING: app purpose]"}</p>
+          <h2 id="scope-summary-title">{project.identity.projectName || "Untitled project"}</h2>
+          <p>{project.intake.appPurpose || "[MISSING: app purpose]"}</p>
           </div>
         </div>
         <div className="scope-list">
           {intakeSteps.slice(0, -1).map((step, stepIndex) => {
-            const completion = getStepCompletion(intake, stepIndex);
-            const missingFields = step.fields.filter((field) => !intake[field.name].trim());
+            const completion = getStepCompletion(project, stepIndex);
+            const missingFields = step.fields.filter((field) => !getProjectFieldValue(project, field.name).trim());
             return (
               <article key={step.id} className="scope-row">
                 <div className={`scope-state ${completion === 100 ? "complete" : ""}`}>

@@ -1,17 +1,17 @@
 import { intakeSteps } from "../../data/intakeSteps";
 import { getStepCompletion } from "../../lib/validateIntake";
-import type { ProjectIntake } from "../../types/project";
+import type { ProjectRecord } from "../../types/project";
 
 interface ProgressRailProps {
-  intake: ProjectIntake;
+  project: ProjectRecord;
   onSelectStep: (index: number) => void;
 }
 
-export function ProgressRail({ intake, onSelectStep }: ProgressRailProps) {
+export function ProgressRail({ project, onSelectStep }: ProgressRailProps) {
   return (
     <ol className="progress-rail" aria-label="Intake progress">
       {intakeSteps.map((step, index) => {
-        const completion = getStepCompletion(intake, index);
+        const completion = getStepCompletion(project, index);
         return (
           <li key={step.id} className={completion === 100 ? "is-complete" : completion > 0 ? "is-current" : ""}>
             <button onClick={() => onSelectStep(index)} aria-label={`${step.label}: ${completion}% complete`}>

@@ -13,9 +13,11 @@ export function App() {
   const [intakeStep, setIntakeStep] = useState(0);
   const {
     project,
+    projects,
     updateIntake,
     markGenerated,
-    resetProject,
+    createNewProject,
+    setActiveProject,
     validationIssues,
     outstandingFields,
     generatedPackage
@@ -27,11 +29,9 @@ export function App() {
   };
 
   const startNewProject = () => {
-    if (window.confirm("Start a new project? This replaces the current locally saved intake.")) {
-      resetProject();
-      setIntakeStep(0);
-      setView("intake");
-    }
+    createNewProject();
+    setIntakeStep(0);
+    setView("intake");
   };
 
   return (
@@ -43,14 +43,14 @@ export function App() {
         {view === "dashboard" ? (
           <MissionControl
             project={project}
-            outstandingCount={outstandingFields.length}
-            generatedCount={project.metadata.status === "Project Package Generated" ? 16 : 0}
+            projects={projects}
             onContinue={openIntake}
+            onSelectProject={setActiveProject}
           />
         ) : null}
         {view === "intake" ? (
           <IntakeBuilder
-            intake={project.intake}
+            project={project}
             currentStep={intakeStep}
             validationIssues={validationIssues}
             onStepChange={setIntakeStep}
@@ -60,7 +60,7 @@ export function App() {
         ) : null}
         {view === "scope" ? (
           <ScopeReview
-            intake={project.intake}
+            project={project}
             issues={validationIssues}
             outstandingCount={outstandingFields.length}
             onEditStep={openIntake}

@@ -1,5 +1,43 @@
 # Change Log
 
+## 2026-06-28 — Phase 2: Data Model and Persistence Hardening
+
+### Summary
+
+- Replaced single-project state with a normalized, versioned multi-project model.
+- Added one persisted `activeProjectId`, repository CRUD, safe storage recovery, and a Phase 1 legacy-data migration.
+- Connected Mission Control, intake updates, generated documents, status, readiness, timestamps, and export to the active persisted project.
+- Removed hardcoded recent-project rows; demo records are seeded only for a brand-new empty store.
+
+### Files created
+
+- `src/lib/createProject.ts` — complete project factory and safe intake defaults.
+- `src/lib/projectRepository.ts` — versioned multi-project localStorage repository.
+- `src/lib/storageVersion.ts` — schema version and migration validation.
+- `src/lib/projectSelectors.ts` — pure dashboard and readiness selectors.
+- `src/lib/projectFields.ts` — normalized field access and updates.
+- Persistence, factory, and selector test files under `src/tests/`.
+
+### Files updated
+
+- Project types, active-project hook, validation, generation, dashboard, intake, scope review, document templates, tests, and project documentation.
+
+### Testing completed
+
+- Automated Phase 2 model, repository, selector, generation, export, and UI tests.
+- Production TypeScript/Vite build.
+- Dependency audit.
+- Built-in browser smoke testing for project creation, project switching, persistence, and responsive layout.
+
+### Issues found
+
+- The Phase 1 schema used a different single-project localStorage key. A one-time migration now moves valid legacy data into the version-1 multi-project store and removes the old key.
+
+### Remaining work
+
+- Phase 3: Intake Flow Hardening.
+- Production hosting remains an Architect decision.
+
 ## 2026-06-28
 
 ### Summary

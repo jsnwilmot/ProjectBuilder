@@ -5,7 +5,7 @@ import { generateProjectPackage } from "../lib/generateProjectPackage";
 
 describe("createProjectArchive", () => {
   it("writes the root document, standard folders, and manifest into the ZIP", async () => {
-    const projectPackage = generateProjectPackage(createSeedProject().intake);
+    const projectPackage = generateProjectPackage(createSeedProject());
     const blob = await createProjectArchive(projectPackage);
     const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader();

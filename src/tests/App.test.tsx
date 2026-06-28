@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../app/App";
+import { STORAGE_KEY } from "../lib/projectRepository";
 
 describe("App", () => {
   it("opens a selected intake stage from Mission Control", async () => {
@@ -8,7 +9,7 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "Mission Control" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Users: 33% complete/i }));
+    await user.click(screen.getByRole("button", { name: /Users: 100% complete/i }));
 
     expect(screen.getByRole("heading", { name: "Define users and roles" })).toBeInTheDocument();
     expect(screen.getByLabelText(/Target users/i)).toHaveValue(
@@ -23,7 +24,34 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Documents" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /CLIENT_REQUIREMENTS\.md/i }));
-    expect(screen.getByText(/\[MISSING: user roles\]/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /DATA_MODEL\.md/i }));
+    expect(screen.getByText(/\[MISSING: data sources\]/)).toBeInTheDocument();
+  });
+
+  it("creates and switches persisted projects without replacing existing records", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const newProjectButton = screen
+      .getAllByRole("button", { name: "New project" })
+      .find((button) => !button.classList.contains("mobile-new-project"))!;
+    await user.click(newProjectButton);
+    expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/App name/i), "Second Project");
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+
+    expect(screen.getByRole("heading", { name: "Second Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Community Services Portal" })).toBeInTheDocument();
+
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as {
+      activeProjectId: string;
+      projects: Array<{ identity: { id: string; projectName: string } }>;
+    };
+    expect(stored.projects).toHaveLength(4);
+    expect(stored.projects.some((project) => project.identity.projectName === "Community Services Portal")).toBe(true);
+    expect(stored.projects.find((project) => project.identity.id === stored.activeProjectId)?.identity.projectName).toBe("Second Project");
+
+    await user.click(screen.getByRole("button", { name: "Community Services Portal" }));
+    expect(screen.getByRole("heading", { name: "Community Services Portal" })).toBeInTheDocument();
   });
 });

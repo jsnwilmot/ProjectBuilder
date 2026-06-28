@@ -1,4 +1,4 @@
-import type { ProjectIntake } from "../../types/project";
+import type { ProjectTemplateData } from "../../types/project";
 
 export const missing = (label: string) => `[MISSING: ${label}]`;
 
@@ -16,7 +16,7 @@ export function list(valueToRead: string, label: string): string {
     .join("\n");
 }
 
-export const projectHeader = (intake: ProjectIntake) =>
+export const projectHeader = (intake: ProjectTemplateData) =>
   `**Project:** ${value(intake.appName, "app name")}  \n` +
   `**Client:** ${value(intake.clientName, "client name")}  \n` +
   `**Business or department:** ${value(intake.businessName, "business or department")}  \n` +
