@@ -43,7 +43,6 @@ export function useProjectBuilder() {
 
   const validationResult = useMemo(() => validateIntake(project), [project]);
   const generatedPackage = useMemo<ProjectPackage | null>(() => {
-    if (!validationResult.isValid) return null;
     if (project.generatedDocuments.length > 0) {
       return {
         projectId: project.identity.id,
@@ -54,7 +53,7 @@ export function useProjectBuilder() {
       };
     }
     return generateProjectPackage(project);
-  }, [project, validationResult.isValid]);
+  }, [project]);
 
   const refresh = () => setStorageState(loadStorageState());
 

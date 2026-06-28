@@ -5,13 +5,14 @@ GPT Project Builder turns a rough app idea into a structured project package for
 ## Included workflows
 
 - Mission Control with project status, readiness, outstanding questions, generated-file progress, review status, and next action.
-- Eight-stage guided intake covering foundation, users, features, data, workflows, security, review, and generation.
-- Required-field validation before package generation.
-- Scope review with explicit unanswered-field counts.
+- Eight-stage guided intake with a single stage configuration source covering foundation, users, features, data, workflows, security, review, and generation.
+- Section-based validation that returns `isValid`, missing fields, warnings, and per-stage completion results.
+- Review stage summary with explicit missing required information and warning visibility.
+- Generate stage readiness summary that allows generation with explicit `[MISSING: ...]` markers.
 - Plain-text viewer for all generated Markdown documents.
 - Local ZIP export with the standard 12-folder structure, 16 required documents, and a JSON manifest.
 - Versioned browser-local persistence for multiple projects and one active project.
-- Persisted intake changes, generated documents, lifecycle status, readiness, and timestamps.
+- Persisted intake changes, generated documents, lifecycle status, readiness, and timestamps without clearing generated documents on intake edits.
 - Project data is stored only in the current browser. No backend or external service is used.
 
 ## MVP persistence

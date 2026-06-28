@@ -1,6 +1,6 @@
 import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import { createSeedProject } from "../data/seedProject";
-import { generateProjectPackage, ProjectValidationError } from "../lib/generateProjectPackage";
+import { generateProjectPackage } from "../lib/generateProjectPackage";
 
 describe("generateProjectPackage", () => {
   it("creates every required folder and document", () => {
@@ -19,9 +19,11 @@ describe("generateProjectPackage", () => {
     expect(dataModel?.content).toContain("[MISSING: data retention requirements]");
   });
 
-  it("blocks generation when required intake is incomplete", () => {
+  it("allows generation when required intake is incomplete and keeps missing markers", () => {
     const project = createSeedProject();
     const invalid = { ...project, intake: { ...project.intake, appPurpose: "" } };
-    expect(() => generateProjectPackage(invalid)).toThrow(ProjectValidationError);
+    const result = generateProjectPackage(invalid);
+    const readme = result.documents.find((document) => document.fileName === "README.md");
+    expect(readme?.content).toContain("[MISSING: app purpose]");
   });
 });

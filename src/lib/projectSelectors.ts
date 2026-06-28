@@ -1,5 +1,6 @@
 import type { ProjectRecord, ProjectStatus, ReadinessSection } from "../types/project";
 import { getFirstIncompleteStep, getOutstandingFields, getStepCompletion, validateIntake } from "./validateIntake";
+import { GENERATE_STAGE_INDEX } from "../data/intakeStages";
 
 const readinessDefinitions = [
   { id: "requirements", label: "Requirements", steps: [0, 1, 2] },
@@ -33,10 +34,9 @@ export function getReadinessSections(project: ProjectRecord): ReadinessSection[]
 }
 
 export function getProjectCompletionPercent(project: ProjectRecord): number {
-  const sections = validateIntake(project).sectionResults.filter((section) => section.totalFields > 0);
-  const completed = sections.reduce((total, section) => total + section.completedFields, 0);
-  const total = sections.reduce((total, section) => total + section.totalFields, 0);
-  return total === 0 ? 0 : Math.round((completed / total) * 100);
+  const sections = validateIntake(project).sectionResults.filter((section) => section.stageId !== "review" && section.stageId !== "generate");
+  if (sections.length === 0) return 0;
+  return Math.round(sections.reduce((total, section) => total + section.percentComplete, 0) / sections.length);
 }
 
 export function getNextAction(project: ProjectRecord): string {
@@ -53,6 +53,7 @@ export function getNextAction(project: ProjectRecord): string {
     "Confirm success criteria",
     "Review project intake"
   ];
+  if (step === GENERATE_STAGE_INDEX) return "Generate project package";
   return labels[step] ?? "Continue project intake";
 }
 

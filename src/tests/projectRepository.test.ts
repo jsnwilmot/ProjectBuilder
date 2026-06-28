@@ -9,6 +9,7 @@ import {
   saveGeneratedDocuments,
   saveStorageState,
   setActiveProject,
+  updateProjectFields,
   updateProject,
   type StorageAdapter
 } from "../lib/projectRepository";
@@ -83,6 +84,33 @@ describe("projectRepository", () => {
     expect(loaded.generatedDocuments).toHaveLength(1);
     expect(loaded.generatedFileCount).toBe(1);
     expect(loaded.status).toBe("Project Package Generated");
+  });
+
+  it("keeps generated documents after intake edits", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ identity: { projectName: "Generated project" } }, storage);
+    saveGeneratedDocuments(project.identity.id, [
+      { fileName: "README.md", folder: "", content: "# Generated" }
+    ], storage);
+
+    updateProjectFields(project.identity.id, { appPurpose: "Updated purpose" }, storage);
+    const loaded = getProjectById(project.identity.id, storage)!;
+
+    expect(loaded.generatedDocuments).toHaveLength(1);
+    expect(loaded.generatedFileCount).toBe(1);
+    expect(loaded.intake.appPurpose).toBe("Updated purpose");
+    expect(loaded.status).toBe("Needs Review");
+  });
+
+  it("does not overwrite another project during intake updates", () => {
+    const storage = new MemoryStorage();
+    const first = createProject({ identity: { projectName: "First" } }, storage);
+    const second = createProject({ identity: { projectName: "Second" } }, storage);
+
+    updateProjectFields(first.identity.id, { appPurpose: "First project purpose" }, storage);
+
+    expect(getProjectById(first.identity.id, storage)?.intake.appPurpose).toBe("First project purpose");
+    expect(getProjectById(second.identity.id, storage)?.intake.appPurpose).toBe("");
   });
 
   it("resets storage safely", () => {

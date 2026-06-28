@@ -1,16 +1,16 @@
 # Next Steps
 
-## Phase 3: Intake Flow Hardening
+## Phase 4: Document Generation Hardening
 
-The next approved development phase should harden the guided intake experience against the stable multi-project model.
+The next approved development phase should harden document generation quality, document specificity, and handoff consistency against the now-hardened intake model.
 
-Recommended Phase 3 scope:
+Recommended Phase 4 scope:
 
-1. Review required versus optional fields with the Architect.
-2. Improve per-section validation messages and navigation to missing fields.
-3. Add explicit save-state feedback without changing the persistence architecture.
-4. Verify switching between projects and intake sections with end-to-end browser tests.
-5. Review long-form field guidance with a real project intake.
+1. Align every generated document section with the expanded intake schema and stage summaries.
+2. Improve cross-document consistency for requirements, workflows, data model, and security language.
+3. Add stronger missing-information markers where new intake fields are not provided.
+4. Validate generated content quality with fixture projects covering sparse and complete intake data.
+5. Expand tests for document template accuracy and generated package integrity.
 
 ## Deferred decisions
 

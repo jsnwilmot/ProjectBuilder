@@ -163,13 +163,14 @@ export function updateProjectFields(
   changes: Partial<Record<ProjectInputField, string>>,
   storage: StorageAdapter = browserStorage()
 ): ProjectRecord | null {
-  return updateProject(id, (project) => ({
-    ...applyProjectFieldChanges(project, changes),
-    generatedDocuments: [],
-    generatedFileCount: 0,
-    reviewStatus: "Needs review",
-    status: "Intake Started"
-  }), storage);
+  return updateProject(id, (project) => {
+    const updated = applyProjectFieldChanges(project, changes);
+    return {
+      ...updated,
+      reviewStatus: "Needs review",
+      status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
+    };
+  }, storage);
 }
 
 export function saveGeneratedDocuments(

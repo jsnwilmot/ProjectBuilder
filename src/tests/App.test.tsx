@@ -4,6 +4,14 @@ import { App } from "../app/App";
 import { STORAGE_KEY } from "../lib/projectRepository";
 
 describe("App", () => {
+  it("opens the next incomplete stage when continuing intake", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Continue intake/i }));
+    expect(screen.getByRole("heading", { name: "Generate the handoff package" })).toBeInTheDocument();
+  });
+
   it("opens a selected intake stage from Mission Control", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -53,5 +61,51 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Community Services Portal" }));
     expect(screen.getByRole("heading", { name: "Community Services Portal" })).toBeInTheDocument();
+  });
+
+  it("shows missing information in the review stage", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const newProjectButton = screen
+      .getAllByRole("button", { name: "New project" })
+      .find((button) => !button.classList.contains("mobile-new-project"))!;
+    await user.click(newProjectButton);
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+
+    expect(screen.getByRole("heading", { name: "Review project readiness" })).toBeInTheDocument();
+    expect(screen.getByText("[MISSING: app purpose]")).toBeInTheDocument();
+  });
+
+  it("shows readiness counts in the generate stage and allows generation", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const newProjectButton = screen
+      .getAllByRole("button", { name: "New project" })
+      .find((button) => !button.classList.contains("mobile-new-project"))!;
+    await user.click(newProjectButton);
+    await user.click(screen.getByRole("button", { name: "Export" }));
+
+    expect(screen.getByText(/Missing required:/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
+  });
+
+  it("does not lose intake data when switching stages", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const newProjectButton = screen
+      .getAllByRole("button", { name: "New project" })
+      .find((button) => !button.classList.contains("mobile-new-project"))!;
+    await user.click(newProjectButton);
+    await user.type(screen.getByLabelText(/App name/i), "Stage Persistence App");
+
+    await user.click(screen.getByRole("button", { name: "Continue to users" }));
+    expect(screen.getByRole("heading", { name: "Define users and roles" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    expect(screen.getByLabelText(/App name/i)).toHaveValue("Stage Persistence App");
   });
 });

@@ -6,6 +6,7 @@ import { ExportPanel } from "../components/ExportPanel/ExportPanel";
 import { IntakeBuilder } from "../components/IntakeBuilder/IntakeBuilder";
 import { MissionControl } from "../components/MissionControl/MissionControl";
 import { ScopeReview } from "../components/ScopeReview/ScopeReview";
+import { GENERATE_STAGE_INDEX, REVIEW_STAGE_INDEX } from "../data/intakeStages";
 import { useProjectBuilder } from "./useProjectBuilder";
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
     createNewProject,
     setActiveProject,
     validationIssues,
+    validationResult,
     outstandingFields,
     generatedPackage
   } = useProjectBuilder();
@@ -34,10 +36,27 @@ export function App() {
     setView("intake");
   };
 
+  const handleNavigation = (nextView: AppView) => {
+    if (nextView === "scope") {
+      openIntake(REVIEW_STAGE_INDEX);
+      return;
+    }
+    if (nextView === "export") {
+      openIntake(GENERATE_STAGE_INDEX);
+      return;
+    }
+    setView(nextView);
+  };
+
+  const generateAndOpenDocuments = () => {
+    markGenerated();
+    setView("documents");
+  };
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
-      <AppNavigation currentView={view} onNavigate={setView} onNewProject={startNewProject} />
+      <AppNavigation currentView={view} onNavigate={handleNavigation} onNewProject={startNewProject} />
       <div className="app-content">
         <AppHeader onNewProject={startNewProject} />
         {view === "dashboard" ? (
@@ -52,10 +71,13 @@ export function App() {
           <IntakeBuilder
             project={project}
             currentStep={intakeStep}
+            validationResult={validationResult}
             validationIssues={validationIssues}
             onStepChange={setIntakeStep}
             onUpdate={updateIntake}
-            onReview={() => setView("scope")}
+            onGenerate={generateAndOpenDocuments}
+            onOpenDocuments={() => setView("documents")}
+            onOpenExport={() => setView("export")}
           />
         ) : null}
         {view === "scope" ? (
