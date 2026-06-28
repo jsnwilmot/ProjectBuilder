@@ -22,7 +22,7 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
 
   if (!projectPackage) {
     return (
-      <main className="page empty-page" id="main-content">
+      <main className="page empty-page" id="main-content" tabIndex={-1}>
         <CircleEmpty />
         <h1>No active generated package</h1>
         <p>Generate a package from the active project to preview the documents.</p>
@@ -32,7 +32,7 @@ export function DocumentViewer({ projectPackage, onReturnToIntake }: DocumentVie
   }
 
   return (
-    <main className="page document-page" id="main-content">
+    <main className="page document-page" id="main-content" tabIndex={-1}>
       <div className="page-heading compact">
         <div>
           <h1>Documentation Viewer</h1>

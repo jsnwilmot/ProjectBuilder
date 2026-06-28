@@ -53,8 +53,8 @@ The two manifests are diagnostic files and are not counted among the 16 core doc
 - No backend, authentication, cloud synchronization, analytics, or external AI calls.
 - Projects remain only in the current browser profile and are removed when browser storage is cleared.
 - Project package import is deferred.
-- Production hosting is not yet decided.
-- ZIP opening and file inspection in Windows Explorer remains a manual release check.
+- Production hosting is Cloudflare Pages; production deployment and smoke testing remain release-owner actions.
+- Windows technical ZIP extraction passed, but user-visible download and Windows Explorer inspection remain manual release checks.
 
 ## Run locally
 
@@ -64,6 +64,20 @@ npm.cmd run dev
 ```
 
 Open the local URL printed by Vite.
+
+## Production deployment
+
+**Hosting target selected: Cloudflare Pages**
+
+The MVP deploys as a static Vite build:
+
+- Framework preset: Vite, or None if Vite is not available
+- Root directory: repository root
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Environment variables: none required
+
+The app has no URL-based client-side routes, so no SPA redirect file is required. See [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md) for the Cloudflare Pages checklist, security and cache recommendations, rollback procedure, and post-deployment smoke test.
 
 ## Verify
 
@@ -87,4 +101,4 @@ src/
   styles/       Shared visual system and responsive behavior
 ```
 
-See [APP_BLUEPRINT.md](./APP_BLUEPRINT.md), [TEST_PLAN.md](./TEST_PLAN.md), and [NEXT_STEPS.md](./NEXT_STEPS.md) for implementation details and remaining decisions.
+See [APP_BLUEPRINT.md](./APP_BLUEPRINT.md), [TEST_PLAN.md](./TEST_PLAN.md), [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md), [RELEASE_NOTES.md](./RELEASE_NOTES.md), and [NEXT_STEPS.md](./NEXT_STEPS.md) for implementation details and release actions.

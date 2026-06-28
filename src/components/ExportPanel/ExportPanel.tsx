@@ -125,7 +125,7 @@ export function ExportPanel({
   };
 
   return (
-    <main className="page export-page" id="main-content">
+    <main className="page export-page" id="main-content" tabIndex={-1}>
       <div className="page-heading">
         <div>
           <h1>Project Export</h1>

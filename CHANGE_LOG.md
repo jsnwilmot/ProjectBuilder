@@ -1,5 +1,52 @@
 # Change Log
 
+## 2026-06-28 — Phase 8: Testing and Deployment Readiness
+
+### Summary
+
+- Completed production-preview regression for project creation, minimum intake, refresh persistence, project switching, generation, document inspection/search, export diagnostics, and copy actions.
+- Selected Cloudflare Pages as the approved MVP production host and documented the exact static Vite deployment settings.
+- Verified a production-generated ZIP with Windows `Expand-Archive`, including all 12 folders, 16 core documents, both manifests, readable representative files, safe unique paths, active-project data, and missing markers.
+- Added release, deployment, security-header, caching, rollback, and post-deployment smoke-test guidance without adding provider-specific configuration.
+- Hardened skip-link behavior by making every main landmark programmatically focusable and explicitly focusing the active main landmark on activation.
+
+### Files created
+
+- `DEPLOYMENT_NOTES.md` — Cloudflare Pages settings, deployment checklist, static routing notes, persistence limitations, security/cache recommendations, rollback, and smoke testing.
+- `RELEASE_NOTES.md` — MVP release scope, verification evidence, limitations, blockers, and recommended deployment action.
+
+### Files updated
+
+- `README.md`, `NEXT_STEPS.md`, `TEST_PLAN.md`, `CHANGE_LOG.md` — release readiness, Cloudflare Pages decision, verification evidence, and launch actions.
+- `src/app/App.tsx` — explicit skip-link focus behavior.
+- `src/components/MissionControl/MissionControl.tsx`, `src/components/IntakeBuilder/IntakeBuilder.tsx`, `src/components/DocumentViewer/DocumentViewer.tsx`, `src/components/ExportPanel/ExportPanel.tsx` — focusable main landmarks.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`11` files, `62` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- No lint script exists in `package.json`.
+- Production-preview regression passed at `390 x 844`, `768 x 1024`, and `1440 x 1000` with zero page-level horizontal overflow and zero browser warnings/errors.
+- Windows technical ZIP extraction and content verification passed.
+
+### Issues found
+
+- Low: The skip link pointed at the correct landmark, but the main target was not programmatically focusable. Fixed across every rendered main view.
+
+### Remaining work
+
+- Assign the production release owner.
+- Deploy the clean `main` branch to Cloudflare Pages and run the documented post-deployment smoke test.
+- Complete the user-visible ZIP download and Windows Explorer inspection on the deployed site.
+- Add a custom domain later if approved.
+- Decide later whether package import belongs in a future version.
+
 ## 2026-06-28 — Phase 7: Review and Cleanup
 
 ### Summary

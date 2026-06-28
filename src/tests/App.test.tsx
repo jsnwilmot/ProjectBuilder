@@ -11,6 +11,16 @@ function seedApp(projects: ProjectRecord[] = [createSeedProject()], activeProjec
 }
 
 describe("App", () => {
+  it("moves focus to the main landmark from the skip link", async () => {
+    seedApp();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("link", { name: "Skip to main content" }));
+
+    expect(screen.getByRole("main")).toHaveFocus();
+  });
+
   it("opens the next incomplete stage when continuing intake", async () => {
     seedApp();
     const user = userEvent.setup();

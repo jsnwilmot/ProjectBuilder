@@ -63,7 +63,16 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault()
+          document.getElementById("main-content")?.focus()
+        }}
+      >
+        Skip to main content
+      </a>
       <AppNavigation currentView={navigationView} onNavigate={handleNavigation} onNewProject={startNewProject} />
       <div className="app-content">
         <AppHeader onNewProject={startNewProject} />

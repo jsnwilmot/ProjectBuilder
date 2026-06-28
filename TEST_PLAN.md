@@ -62,6 +62,22 @@ npm.cmd run build
 npm.cmd audit
 ```
 
+## Phase 8 release evidence
+
+- Production-preview workflow passed for a newly created `Phase 8 Release Candidate QA` project.
+- Minimum required intake completed with zero unresolved required questions and six visible optional warnings.
+- Refresh persistence and switching between the seeded project and release-candidate project passed.
+- Generation produced all 16 documents.
+- Representative Architect, Codex, and phased prompt documents contained the active project identity and explicit missing markers.
+- Document search hid all documents for a no-match query and restored the document set after clearing.
+- Export diagnostics reported 16 expected documents, 16 actual documents, valid folder mapping, both manifests, one missing-marker warning, and zero errors.
+- Architect, Codex, and phased prompt copy actions returned 2,089, 1,831, and 5,853 characters respectively from the active project.
+- Browser console verification reported zero warnings or errors.
+- Responsive checks at `390 x 844`, `768 x 1024`, and `1440 x 1000` reported no page-level horizontal overflow.
+- Every rendered button and form control in the checked views had an accessible name; main and navigation landmarks were present; visible `:focus-visible` styling was detected.
+- The skip-link target was hardened to be programmatically focusable and explicitly receive focus on activation.
+- Current in-app testing used the available Chromium-based browser surface. Firefox-specific verification remains uncompleted.
+
 ## Full regression checklist
 
 1. Start with empty storage and create a project from the Mission Control empty state.
@@ -108,30 +124,36 @@ Test at `390 x 844`, `768 x 1024`, and `1440 x 1000`.
 
 ## Manual Windows ZIP verification checklist
 
-This checklist has not been completed by automated or in-app browser testing.
+The technical archive portion passed on Windows using the exact production package generator followed by Windows `Expand-Archive` into a fresh temporary directory.
 
-1. Download the ZIP.
+Technical results:
+
+- Sanitized root folder: passed.
+- All 12 approved folders: passed.
+- Exactly 16 core Markdown documents: passed.
+- `00_Project_Overview/EXPORT_MANIFEST.md`: passed.
+- `project-manifest.json`: passed.
+- Representative README, scope, Architect, Codex, and phased prompt documents were readable: passed.
+- Exact `[MISSING: ...]` markers: passed.
+- Duplicate or unsafe paths: none.
+- Active-project identity and intake data: passed.
+
+Release-owner steps still required:
+
+1. Download the ZIP from the deployed Cloudflare Pages site.
 2. Open it in Windows Explorer.
-3. Confirm the root folder is sanitized.
-4. Confirm all 12 approved folders are present.
-5. Confirm exactly 16 core Markdown documents are present.
-6. Confirm `00_Project_Overview/EXPORT_MANIFEST.md` is present.
-7. Confirm `project-manifest.json` is present.
-8. Open representative files and confirm they render correctly.
-9. Confirm `[MISSING: ...]` markers are preserved.
-10. Confirm no unsafe path names exist.
-11. Confirm the active project's identity and intake data appear in the documents.
+3. Confirm the downloaded archive reproduces the verified technical results.
 
 ## Deployment readiness checklist
 
 1. Run `npm.cmd test`, `npm.cmd run build`, `npm.cmd audit`, and `git diff --check`.
 2. Confirm no lint script exists or run it if one is added.
-3. Confirm the production host and release owner are approved.
-4. Confirm HTTPS, SPA fallback routing, cache headers, and security headers for the selected host.
+3. Confirm the Cloudflare Pages deployment and release owner are approved.
+4. Confirm HTTPS, root refresh behavior, cache headers, and security headers on Cloudflare Pages.
 5. Confirm no secrets or environment-specific credentials are present in the client bundle.
 6. Confirm backup/export guidance for local-only project data is documented.
 7. Record production smoke-test, rollback, and incident ownership steps.
 
 ## Known testing boundary
 
-The in-app browser can block file downloads and clipboard access. Automated ZIP and clipboard tests cover those code paths, but Windows Explorer inspection must remain manual until it is actually performed.
+The in-app browser can block file downloads. Clipboard actions passed in the production preview, and Windows technical archive extraction passed, but the user-visible deployed ZIP download and Windows Explorer inspection remain manual until the release owner performs them.

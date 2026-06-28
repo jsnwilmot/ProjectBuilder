@@ -67,7 +67,7 @@ export function IntakeBuilder({
   ];
 
   return (
-    <main className="page intake-page" id="main-content">
+    <main className="page intake-page" id="main-content" tabIndex={-1}>
       <div className="page-heading compact">
         <div>
           <h1>Guided Intake</h1>

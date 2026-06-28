@@ -38,7 +38,7 @@ export function MissionControl({
 }: MissionControlProps) {
   if (!project) {
     return (
-      <main className="page mission-control" id="main-content">
+      <main className="page mission-control" id="main-content" tabIndex={-1}>
         <div className="page-heading">
           <div>
             <h1>Mission Control</h1>
@@ -72,7 +72,7 @@ export function MissionControl({
   };
 
   return (
-    <main className="page mission-control" id="main-content">
+    <main className="page mission-control" id="main-content" tabIndex={-1}>
       <div className="page-heading">
         <div>
           <h1>Mission Control</h1>
