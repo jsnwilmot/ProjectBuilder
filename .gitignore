@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+.dev-server.pid
+.DS_Store
+desktop-qa.png
+mobile-qa.png

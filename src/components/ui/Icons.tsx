@@ -1,0 +1,56 @@
+import type { LucideProps } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpenText,
+  Box,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  ClipboardCheck,
+  Database,
+  Download,
+  FileText,
+  FolderArchive,
+  LayoutDashboard,
+  ListChecks,
+  Menu,
+  Network,
+  PanelLeftClose,
+  Plus,
+  Rocket,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X
+} from "lucide-react";
+
+export {
+  ArrowLeft,
+  ArrowRight,
+  BookOpenText,
+  Box,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  ClipboardCheck,
+  Database,
+  Download,
+  FileText,
+  FolderArchive,
+  LayoutDashboard,
+  ListChecks,
+  Menu,
+  Network,
+  PanelLeftClose,
+  Plus,
+  Rocket,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  X
+};
+
+export type IconComponent = React.ComponentType<LucideProps>;
