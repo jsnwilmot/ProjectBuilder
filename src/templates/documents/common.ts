@@ -20,7 +20,7 @@ export const projectHeader = (intake: ProjectTemplateData) =>
   `**Project:** ${value(intake.appName, "app name")}  \n` +
   `**Client:** ${value(intake.clientName, "client name")}  \n` +
   `**Business or department:** ${value(intake.businessName, "business or department")}  \n` +
-  `**App type:** ${value(intake.appType, "app type")}`;
+  `**Project type:** ${value(intake.appType, "project type")}`;
 
 export const generatedNotice =
   "> Generated from the approved project intake. Missing decisions are shown explicitly and require review.";

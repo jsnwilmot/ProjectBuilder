@@ -26,7 +26,7 @@ export function createLargeGeneratedProject(): ProjectRecord {
       businessName: "Service Design & Operations"
     },
     intake: {
-      appType: "Responsive operations platform",
+      appType: "Web application",
       appPurpose: "Coordinate a large regional service program safely.",
       problemStatement: "Teams need one deterministic package for complex delivery planning.",
       targetPlatform: "Desktop and mobile web",

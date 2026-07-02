@@ -1,4 +1,11 @@
 import { INTAKE_STAGES, GENERATE_STAGE_INDEX } from "../data/intakeStages";
+import {
+  BRANDING_REQUIRED_FIELDS,
+  PROJECT_MODULE_FIELDS,
+  getProjectTypeFields,
+  getProjectTypePreset,
+  isBrandingRequired
+} from "../data/projectTypes";
 import type {
   IntakeValidationResult,
   ProjectInputField,
@@ -10,7 +17,10 @@ import type {
 import { getProjectFieldValue } from "./projectFields";
 
 const fieldLabels = new Map(
-  INTAKE_STAGES.flatMap((stage) => stage.fields.map((field) => [field.name, field.label] as const))
+  [
+    ...INTAKE_STAGES.flatMap((stage) => stage.fields),
+    ...Object.values(PROJECT_MODULE_FIELDS).flat()
+  ].map((field) => [field.name, field.label] as const)
 );
 
 const globalWarningRules: Array<{ field: ProjectInputField; message: string }> = [
@@ -19,7 +29,6 @@ const globalWarningRules: Array<{ field: ProjectInputField; message: string }> =
   { field: "assumptions", message: "No assumptions listed." },
   { field: "integrations", message: "No integrations listed." },
   { field: "reportsDashboards", message: "No reports listed." },
-  { field: "brandingNotes", message: "No branding notes listed." },
   { field: "accessibilityNotes", message: "No accessibility notes listed." }
 ];
 
@@ -31,6 +40,48 @@ function lines(value: string): string[] {
 }
 
 function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationIssue[] {
+  const projectType = project.intake.appType;
+  const preset = getProjectTypePreset(projectType);
+  const missing = (field: ProjectInputField, message: string): ValidationIssue => ({
+    field,
+    label: fieldLabels.get(field) ?? field,
+    message
+  });
+  const isWebsite = preset?.requiredIntakeModules.includes("website") ?? false;
+  const isGame = preset?.requiredIntakeModules.includes("game") ?? false;
+  const isDashboard = preset?.requiredIntakeModules.includes("dashboard") ?? false;
+  const isAutomation = preset?.requiredIntakeModules.includes("automation") ?? false;
+  const isApi = preset?.requiredIntakeModules.includes("api") ?? false;
+
+  if (stageId === "foundation") {
+    const issues: ValidationIssue[] = [];
+    if (projectType && !preset) {
+      issues.push(missing("appType", "Choose a supported project type from the available presets."));
+    }
+    if (
+      preset?.brandingRequirementLevel === "conditional"
+      && !project.intake.audienceVisibility.trim()
+    ) {
+      issues.push(missing(
+        "audienceVisibility",
+        "Audience visibility is required to determine whether structured branding is required."
+      ));
+    }
+    if (isWebsite && !project.intake.domainStatus.trim() && !project.intake.hostingStatus.trim()) {
+      issues.push(missing(
+        "domainStatus",
+        "Website projects require a domain or hosting decision, including \"Unknown yet\"."
+      ));
+    }
+    if (isGame && !project.intake.gameGenre.trim()) {
+      issues.push(missing("gameGenre", "Game genre is required for game projects."));
+    }
+    if (isGame && !project.intake.gameTargetDevices.trim() && !project.intake.targetPlatform.trim()) {
+      issues.push(missing("gameTargetDevices", "Target devices or target platform are required for game projects."));
+    }
+    return issues;
+  }
+
   if (stageId === "users") {
     const issues: ValidationIssue[] = [];
     if (lines(project.intake.targetUsers).length === 0) {
@@ -42,6 +93,12 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     if (!project.intake.rolePermissionsSummary.trim() && !project.intake.roleAccessNotes.trim()) {
       issues.push({ field: "rolePermissionsSummary", label: "Role permissions summary", message: "Permission summary or role access notes are required." });
     }
+    if (isDashboard && !project.intake.dashboardAudience.trim()) {
+      issues.push(missing("dashboardAudience", "Dashboard audience is required for dashboard projects."));
+    }
+    if (isApi && !project.intake.apiConsumers.trim()) {
+      issues.push(missing("apiConsumers", "API consumers are required for API or backend projects."));
+    }
     return issues;
   }
 
@@ -52,6 +109,34 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     }
     if (!project.intake.acceptanceNotes.trim()) {
       issues.push({ field: "acceptanceNotes", label: "Acceptance notes", message: "Acceptance notes are required." });
+    }
+    if (isBrandingRequired(projectType, project.intake.audienceVisibility)) {
+      for (const field of BRANDING_REQUIRED_FIELDS) {
+        if (!getProjectFieldValue(project, field).trim()) {
+          issues.push(missing(field, `${fieldLabels.get(field) ?? field} is required for this project's branding handoff.`));
+        }
+      }
+    }
+    if (isWebsite && !project.intake.websitePages.trim()) {
+      issues.push(missing("websitePages", "Website pages are required for website projects."));
+    }
+    if (isWebsite && !project.intake.seoKeywords.trim()) {
+      issues.push(missing("seoKeywords", "SEO notes or keywords are required for website projects."));
+    }
+    if (isWebsite && !project.intake.contentSource.trim()) {
+      issues.push(missing("contentSource", "Content source is required for website projects."));
+    }
+    if (isGame && !project.intake.gameControls.trim()) {
+      issues.push(missing("gameControls", "Controls are required for game projects."));
+    }
+    if (isGame && !project.intake.gameArtStyle.trim()) {
+      issues.push(missing("gameArtStyle", "Art style is required for game projects."));
+    }
+    if (isDashboard && !project.intake.dashboardKpis.trim()) {
+      issues.push(missing("dashboardKpis", "KPIs are required for dashboard projects."));
+    }
+    if (isApi && !project.intake.apiEndpoints.trim()) {
+      issues.push(missing("apiEndpoints", "Endpoints are required for API or backend projects."));
     }
     return issues;
   }
@@ -67,6 +152,18 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     }
     if (!project.intake.keyFields.trim()) {
       issues.push({ field: "keyFields", label: "Key fields", message: "Key fields should be identified where known." });
+    }
+    if (isDashboard && !project.intake.dashboardDataSources.trim() && !project.intake.dataSources.trim()) {
+      issues.push(missing("dashboardDataSources", "A data source is required for dashboard projects."));
+    }
+    if (isDashboard && !project.intake.dashboardRefreshFrequency.trim()) {
+      issues.push(missing("dashboardRefreshFrequency", "Refresh frequency is required for dashboard projects."));
+    }
+    if (isAutomation && (!project.intake.sourceSystem.trim() || !project.intake.targetSystem.trim())) {
+      issues.push(missing("sourceSystem", "Source and target systems are required for automation projects."));
+    }
+    if (isApi && !project.intake.dataContracts.trim()) {
+      issues.push(missing("dataContracts", "Data contracts are required for API or backend projects."));
     }
     return issues;
   }
@@ -85,6 +182,21 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     if (!project.intake.workflowOutcome.trim()) {
       issues.push({ field: "workflowOutcome", label: "Expected outcome", message: "Each workflow must include an expected outcome." });
     }
+    if (isGame && !project.intake.gameplayLoop.trim()) {
+      issues.push(missing("gameplayLoop", "Gameplay loop is required for game projects."));
+    }
+    if (isAutomation && !project.intake.automationTrigger.trim()) {
+      issues.push(missing("automationTrigger", "Automation trigger is required for automation projects."));
+    }
+    if (isAutomation && !project.intake.automationSteps.trim()) {
+      issues.push(missing("automationSteps", "Ordered automation steps are required for automation projects."));
+    }
+    if (isAutomation && !project.intake.automationErrorHandling.trim()) {
+      issues.push(missing("automationErrorHandling", "Failure handling is required for automation projects."));
+    }
+    if (isAutomation && !project.intake.notificationRules.trim()) {
+      issues.push(missing("notificationRules", "Notification rules are required for automation projects."));
+    }
     return issues;
   }
 
@@ -98,6 +210,9 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     }
     if (!project.intake.risks.trim()) {
       issues.push({ field: "risks", label: "Risks", message: "List security risks or explicitly state no known risks." });
+    }
+    if (isApi && !project.intake.apiAuthentication.trim() && !project.intake.authenticationExpectation.trim()) {
+      issues.push(missing("apiAuthentication", "Authentication expectation is required for API or backend projects."));
     }
     return issues;
   }
@@ -115,7 +230,15 @@ function sectionWarnings(project: ProjectRecord, stageId: string): string[] {
   if (stageId === "features") {
     const warnings: string[] = [];
     if (!project.intake.reportsDashboards.trim()) warnings.push("No reports listed.");
-    if (!project.intake.brandingNotes.trim()) warnings.push("No branding notes listed.");
+    const preset = getProjectTypePreset(project.intake.appType);
+    if (
+      preset
+      && preset.brandingRequirementLevel !== "required"
+      && !project.intake.brandStatus.trim()
+      && !project.intake.brandingNotes.trim()
+    ) {
+      warnings.push("No branding information listed.");
+    }
     return warnings;
   }
   if (stageId === "data") {
@@ -134,7 +257,12 @@ function sectionResult(project: ProjectRecord, stageIndex: number): ValidationSe
   const stage = INTAKE_STAGES[stageIndex];
   const requiredMissing = stage.requiredFields.filter((field) => !getProjectFieldValue(project, field).trim());
   const ruleIssues = ruleMissingFields(project, stage.id);
-  const trackedFields = [...new Set([...stage.requiredFields, ...stage.optionalFields])];
+  const projectTypeFields = getProjectTypeFields(
+    project.intake.appType,
+    project.intake.audienceVisibility,
+    stage.id
+  ).map((field) => field.name);
+  const trackedFields = [...new Set([...stage.requiredFields, ...stage.optionalFields, ...projectTypeFields])];
   const completed = trackedFields.filter((field) => getProjectFieldValue(project, field).trim()).length;
   const percentComplete = trackedFields.length === 0
     ? (requiredMissing.length === 0 && ruleIssues.length === 0 ? 100 : 0)
@@ -188,7 +316,15 @@ export function validateIntake(project: ProjectRecord): IntakeValidationResult {
 
 export function getOutstandingFields(project: ProjectRecord): ProjectInputField[] {
   return INTAKE_STAGES
-    .flatMap((step) => step.fields.map((field) => field.name))
+    .flatMap((step) => [
+      ...step.fields.map((field) => field.name),
+      ...getProjectTypeFields(
+        project.intake.appType,
+        project.intake.audienceVisibility,
+        step.id
+      ).map((field) => field.name)
+    ])
+    .filter((field, index, fields) => fields.indexOf(field) === index)
     .filter((field) => !getProjectFieldValue(project, field).trim());
 }
 

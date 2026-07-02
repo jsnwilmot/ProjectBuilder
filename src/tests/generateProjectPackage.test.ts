@@ -34,7 +34,10 @@ describe("generateProjectPackage", () => {
       expect.arrayContaining([
         expect.objectContaining({ fileName: "README.md", folder: "00_Project_Overview" }),
         expect.objectContaining({ fileName: "PROJECT_SCOPE.md", folder: "00_Project_Overview" }),
+        expect.objectContaining({ fileName: "HANDOFF_CHECKLIST.md", folder: "00_Project_Overview" }),
         expect.objectContaining({ fileName: "CLIENT_REQUIREMENTS.md", folder: "01_Requirements" }),
+        expect.objectContaining({ fileName: "CLIENT_QUESTIONS.md", folder: "01_Requirements" }),
+        expect.objectContaining({ fileName: "BRAND_GUIDE.md", folder: "04_UI_UX" }),
         expect.objectContaining({ fileName: "ARCHITECT_INSTRUCTIONS.md", folder: "02_Architecture" }),
         expect.objectContaining({ fileName: "CODEX_INSTRUCTIONS.md", folder: "07_Development" }),
         expect.objectContaining({ fileName: "PHASED_CODEX_PROMPTS.md", folder: "11_Codex_Prompts" })
@@ -69,5 +72,20 @@ describe("generateProjectPackage", () => {
     expect(prompts?.content).toContain("### Acceptance criteria");
     expect(prompts?.content).toContain("### Testing instructions");
     expect(prompts?.content).toContain("### Reporting instructions");
+  });
+
+  it("generates the brand guide, client questions, and handoff checklist", () => {
+    const result = generateProjectPackage(createSeedProject());
+    const brandGuide = result.documents.find((document) => document.fileName === "BRAND_GUIDE.md");
+    const questions = result.documents.find((document) => document.fileName === "CLIENT_QUESTIONS.md");
+    const checklist = result.documents.find((document) => document.fileName === "HANDOFF_CHECKLIST.md");
+    const nextSteps = result.documents.find((document) => document.fileName === "NEXT_STEPS.md");
+
+    expect(brandGuide?.content).toContain("# Brand Guide");
+    expect(brandGuide?.content).toContain("Established department brand");
+    expect(questions?.content).toContain("# Client Questions");
+    expect(checklist?.content).toContain("A Draft package may be reviewed and exported.");
+    expect(nextSteps?.content).toContain("## Use This Project Package");
+    expect(nextSteps?.content).toContain("Run Phase 1 only in Codex.");
   });
 });

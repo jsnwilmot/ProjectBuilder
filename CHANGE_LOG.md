@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-07-02 — Project Type Presets, Branding Intake, and Handoff Guidance
+
+### Summary
+
+- Added 15 typed, config-driven project type presets with recommended platforms, conditional intake modules, branding requirements, and generated-document notes.
+- Made project type a required Foundation choice and added relevant website, game, mobile, dashboard, Microsoft 365, automation, and API questions.
+- Added structured branding fields with project-type and public/internal visibility rules.
+- Kept Draft package generation/export available with explicit missing markers while blocking Ready for Codex when required intake is incomplete.
+- Added `BRAND_GUIDE.md`, `CLIENT_QUESTIONS.md`, and `HANDOFF_CHECKLIST.md`, increasing the core package from 16 to 19 documents.
+- Added shared **Use This Project Package** guidance to Export and generated `NEXT_STEPS.md`.
+
+### Files created
+
+- `src/data/projectTypes.ts` — project type presets, conditional modules, tailored fields, and branding rules.
+- `src/data/packageGuidance.ts` — shared post-generation Architect/Codex workflow.
+- `src/tests/projectTypes.test.ts` — preset metadata, conditional field, and branding-rule coverage.
+
+### Files updated
+
+- Project types, factory defaults, storage migration, project field updates, validation, selectors, generation templates, folder mapping, export diagnostics, and UI components under `src/`.
+- Automated application, validation, persistence, generation, manifest, integrity, and ZIP export tests under `src/tests/`.
+- `README.md`, `APP_BLUEPRINT.md`, `CODEX_INSTRUCTIONS.md`, `NEXT_STEPS.md`, `TEST_PLAN.md`, `DEPLOYMENT_NOTES.md`, and `RELEASE_NOTES.md`.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`12` files, `75` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- In-app browser QA passed at the default desktop viewport and `390 x 844`.
+- Browser interaction covered required project type selection, Website/Game field switching, Draft generation, all 19 generated files, Export readiness, and **Use This Project Package** guidance.
+- Browser console reported zero warnings/errors and mobile page-level horizontal overflow was absent.
+
+### Issues found
+
+- Medium: Existing persisted packages generated before this change contain 16 of the now-required 19 documents. They remain visible but must be regenerated before Export integrity can pass.
+- Low: Existing unsupported free-text app types cannot map safely to a typed preset. Storage normalization now clears those values so users explicitly reselect a supported project type.
+
+### Remaining work
+
+- Regenerate existing persisted packages before their next export.
+- Run the 19-document Windows Explorer ZIP check during release verification.
+- Deploy and run the documented production smoke test when the release owner is assigned.
+
 ## 2026-06-28 — Phase 8: Testing and Deployment Readiness
 
 ### Summary

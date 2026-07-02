@@ -99,4 +99,13 @@ describe("project selectors", () => {
     const action = getNextActionDetails(project);
     expect(action.targetView).toBe("documents");
   });
+
+  it("blocks Ready for Codex status when required intake is missing", () => {
+    const project = createProject({
+      identity: { id: "not-ready", projectName: "Not Ready" },
+      status: "Ready for Codex"
+    });
+
+    expect(getProjectDisplayStatus(project)).toBe("Needs Review");
+  });
 });

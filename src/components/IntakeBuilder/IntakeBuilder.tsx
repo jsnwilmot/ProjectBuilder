@@ -1,8 +1,14 @@
 import { useEffect, useRef } from "react";
 import { GENERATE_STAGE_INDEX, INTAKE_STAGES } from "../../data/intakeStages";
+import {
+  getProjectTypeFields,
+  getProjectTypePreset,
+  isBrandingRequired
+} from "../../data/projectTypes";
 import { getProjectFieldValue } from "../../lib/projectFields";
 import { getStepCompletion } from "../../lib/validateIntake";
 import type {
+  IntakeFieldDefinition,
   IntakeValidationResult,
   ProjectInputField,
   ProjectRecord,
@@ -38,6 +44,17 @@ export function IntakeBuilder({
   const sectionResult = validationResult.sectionResults[currentStep];
   const missingForCurrentStep = sectionResult?.missingFields ?? [];
   const warningsForCurrentStep = sectionResult?.warnings ?? [];
+  const preset = getProjectTypePreset(project.intake.appType);
+  const projectTypeFields = getProjectTypeFields(
+    project.intake.appType,
+    project.intake.audienceVisibility,
+    step.id
+  );
+  const coreFields = step.fields.map((field) => (
+    field.name === "audienceVisibility" && preset?.brandingRequirementLevel === "conditional"
+      ? { ...field, required: true }
+      : field
+  ));
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -105,6 +122,31 @@ export function IntakeBuilder({
               <p>{step.description}</p>
             </div>
           </div>
+
+          {preset && step.id !== "review" && step.id !== "generate" ? (
+            <div className="preset-summary" role="status">
+              <div>
+                <strong>{preset.label} preset</strong>
+                <p>{preset.description}</p>
+              </div>
+              <dl>
+                <div>
+                  <dt>Recommended platforms</dt>
+                  <dd>{preset.recommendedTargetPlatforms.join(", ")}</dd>
+                </div>
+                <div>
+                  <dt>Branding</dt>
+                  <dd>
+                    {isBrandingRequired(project.intake.appType, project.intake.audienceVisibility)
+                      ? "Required"
+                      : preset.brandingRequirementLevel === "conditional"
+                        ? "Depends on audience visibility"
+                        : "Optional"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ) : null}
 
           {step.id === "review" ? (
             <div className="generate-stage">
@@ -184,37 +226,29 @@ export function IntakeBuilder({
               </div>
             </div>
           ) : step.fields.length > 0 ? (
-            <div className="field-stack">
-              {step.fields.map((field) => {
-                const issue = validationIssues.find((item) => item.field === field.name);
-                const inputId = `field-${field.name}`;
-                const descriptionId = `${inputId}-description`;
-                const errorId = `${inputId}-error`;
-                const shared = {
-                  id: inputId,
-                  name: field.name,
-                  value: getProjectFieldValue(project, field.name),
-                  placeholder: field.placeholder,
-                  onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-                    onUpdate({ [field.name]: event.target.value }),
-                  "aria-describedby": `${descriptionId}${issue ? ` ${errorId}` : ""}`,
-                  "aria-invalid": Boolean(issue)
-                };
-                return (
-                  <div className="form-field" key={field.name}>
-                    <label htmlFor={inputId}>
-                      {field.label}
-                      {field.required ? <span className="required-label">Required</span> : <span>Optional</span>}
-                    </label>
-                    <p id={descriptionId}>{field.description}</p>
-                    {field.multiline
-                      ? <textarea {...shared} rows={5} />
-                      : <input {...shared} type="text" />}
-                    {issue ? <div className="field-error" id={errorId} role="alert"><CircleAlert size={15} aria-hidden="true" />{issue.message}</div> : null}
+            <>
+              <ProjectFieldList
+                fields={coreFields}
+                project={project}
+                validationIssues={validationIssues}
+                onUpdate={onUpdate}
+              />
+              {projectTypeFields.length > 0 ? (
+                <section className="tailored-intake" aria-labelledby={`tailored-${step.id}`}>
+                  <div className="tailored-intake-heading">
+                    <span>Project-specific</span>
+                    <h3 id={`tailored-${step.id}`}>{preset?.label} questions</h3>
+                    <p>Only questions relevant to the selected project type are shown.</p>
                   </div>
-                );
-              })}
-            </div>
+                  <ProjectFieldList
+                    fields={projectTypeFields}
+                    project={project}
+                    validationIssues={validationIssues}
+                    onUpdate={onUpdate}
+                  />
+                </section>
+              ) : null}
+            </>
           ) : (
             <div className="generate-stage" />
           )}
@@ -237,5 +271,86 @@ export function IntakeBuilder({
         </section>
       </div>
     </main>
+  );
+}
+
+function ProjectFieldList({
+  fields,
+  project,
+  validationIssues,
+  onUpdate
+}: {
+  fields: IntakeFieldDefinition[];
+  project: ProjectRecord;
+  validationIssues: ValidationIssue[];
+  onUpdate: (changes: Partial<Record<ProjectInputField, string>>) => void;
+}) {
+  return (
+    <div className="field-stack">
+      {fields.map((field) => {
+        const issue = validationIssues.find((item) => item.field === field.name);
+        const inputId = `field-${field.name}`;
+        const descriptionId = `${inputId}-description`;
+        const errorId = `${inputId}-error`;
+        const describedBy = `${descriptionId}${issue ? ` ${errorId}` : ""}`;
+        const onChange = (
+          event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+        ) => onUpdate({ [field.name]: event.target.value });
+
+        return (
+          <div className="form-field" key={field.name}>
+            <label htmlFor={inputId}>
+              {field.label}
+              {field.required ? <span className="required-label">Required</span> : <span>Optional</span>}
+            </label>
+            <p id={descriptionId}>{field.description}</p>
+            {field.inputType === "select" ? (
+              <select
+                id={inputId}
+                name={field.name}
+                value={getProjectFieldValue(project, field.name)}
+                onChange={onChange}
+                aria-describedby={describedBy}
+                aria-invalid={Boolean(issue)}
+                required={field.required}
+              >
+                <option value="">{field.placeholder}</option>
+                {field.options?.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            ) : field.multiline ? (
+              <textarea
+                id={inputId}
+                name={field.name}
+                value={getProjectFieldValue(project, field.name)}
+                placeholder={field.placeholder}
+                onChange={onChange}
+                aria-describedby={describedBy}
+                aria-invalid={Boolean(issue)}
+                required={field.required}
+                rows={5}
+              />
+            ) : (
+              <input
+                id={inputId}
+                name={field.name}
+                value={getProjectFieldValue(project, field.name)}
+                placeholder={field.placeholder}
+                onChange={onChange}
+                aria-describedby={describedBy}
+                aria-invalid={Boolean(issue)}
+                required={field.required}
+                type="text"
+              />
+            )}
+            {issue ? (
+              <div className="field-error" id={errorId} role="alert">
+                <CircleAlert size={15} aria-hidden="true" />
+                {issue.message}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }

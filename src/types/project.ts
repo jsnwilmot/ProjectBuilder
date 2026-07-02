@@ -22,6 +22,52 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
 export type StorageVersion = 1;
 
+export type ProjectType =
+  | "Static website"
+  | "Business website"
+  | "Web application"
+  | "Mobile app"
+  | "Android app"
+  | "iOS app"
+  | "Game"
+  | "Dashboard or reporting project"
+  | "Power Apps or Microsoft 365 app"
+  | "Automation or workflow tool"
+  | "API or backend service"
+  | "E-commerce site"
+  | "AI assistant or chatbot"
+  | "Desktop software"
+  | "Other digital project";
+
+export type BrandingRequirementLevel = "required" | "optional" | "conditional";
+
+export type IntakeModuleId =
+  | "foundation"
+  | "users"
+  | "features"
+  | "data"
+  | "workflows"
+  | "security"
+  | "branding"
+  | "website"
+  | "game"
+  | "mobile"
+  | "dashboard"
+  | "microsoft365"
+  | "automation"
+  | "api";
+
+export interface ProjectTypePreset {
+  value: ProjectType;
+  label: string;
+  description: string;
+  recommendedTargetPlatforms: readonly string[];
+  requiredIntakeModules: readonly IntakeModuleId[];
+  optionalIntakeModules: readonly IntakeModuleId[];
+  brandingRequirementLevel: BrandingRequirementLevel;
+  suggestedGeneratedDocumentNotes: readonly string[];
+}
+
 export interface ProjectIdentity {
   id: string;
   projectName: string;
@@ -33,10 +79,11 @@ export interface ClientDetails {
 }
 
 export interface ProjectIntake {
-  appType: string;
+  appType: ProjectType | "";
   appPurpose: string;
   problemStatement: string;
   targetPlatform: string;
+  audienceVisibility: string;
   targetUsers: string;
   userRoles: string;
   roleDescriptions: string;
@@ -85,6 +132,85 @@ export interface ProjectIntake {
   integrations: string;
   reportsDashboards: string;
   brandingNotes: string;
+  brandStatus: string;
+  logoStatus: string;
+  logoFiles: string;
+  primaryColors: string;
+  secondaryColors: string;
+  fontPreferences: string;
+  brandTone: string;
+  imageStyle: string;
+  iconStyle: string;
+  referenceSites: string;
+  brandRestrictions: string;
+  faviconNeeded: string;
+  openGraphImageNeeded: string;
+  socialAssetsNeeded: string;
+  contentSource: string;
+  approvedAssets: string;
+  accessibilityContrastNotes: string;
+  websitePages: string;
+  websiteServices: string;
+  websiteContactMethod: string;
+  domainStatus: string;
+  hostingStatus: string;
+  seoKeywords: string;
+  serviceArea: string;
+  googleBusinessProfile: string;
+  testimonials: string;
+  websiteForms: string;
+  websiteAnalytics: string;
+  legalPages: string;
+  imagesAndContent: string;
+  gameGenre: string;
+  gameTargetDevices: string;
+  gameEngine: string;
+  gameplayLoop: string;
+  gameControls: string;
+  gameLevels: string;
+  gameScoring: string;
+  gameCharacters: string;
+  gameArtStyle: string;
+  gameAudio: string;
+  gameMonetization: string;
+  gameStoreReleaseNeeds: string;
+  mobilePlatforms: string;
+  offlineSupport: string;
+  pushNotifications: string;
+  devicePermissions: string;
+  accountSystem: string;
+  appStoreRequirements: string;
+  dataSync: string;
+  privacyRequirements: string;
+  dashboardDataSources: string;
+  dashboardKpis: string;
+  dashboardRefreshFrequency: string;
+  dashboardFilters: string;
+  drillThrough: string;
+  dashboardPermissions: string;
+  dashboardExportNeeds: string;
+  dashboardAudience: string;
+  sharePointLists: string;
+  dataverseUse: string;
+  powerAutomateFlows: string;
+  powerBiReports: string;
+  m365Connectors: string;
+  m365Environment: string;
+  dlpRestrictions: string;
+  m365Permissions: string;
+  automationTrigger: string;
+  automationSteps: string;
+  sourceSystem: string;
+  targetSystem: string;
+  approvalSteps: string;
+  automationErrorHandling: string;
+  retryLogic: string;
+  automationLogs: string;
+  notificationRules: string;
+  apiEndpoints: string;
+  dataContracts: string;
+  apiAuthentication: string;
+  apiConsumers: string;
   constraints: string;
   risks: string;
   assumptions: string;
@@ -207,6 +333,8 @@ export interface IntakeFieldDefinition {
   placeholder: string;
   multiline?: boolean;
   required?: boolean;
+  inputType?: "text" | "select";
+  options?: readonly string[];
 }
 
 export interface IntakeStep {

@@ -14,7 +14,7 @@ The release candidate is ready for a controlled Cloudflare Pages deployment afte
 - Mission Control for active-project status, readiness, outstanding questions, generated-document progress, and next actions.
 - Versioned browser-local persistence for multiple projects and one active project.
 - Eight-stage guided intake with required-field validation and optional warnings.
-- Generation of 16 deterministic project handoff documents.
+- Generation of 19 deterministic project handoff documents.
 - Plain-text document search and preview.
 - Verified ZIP export with 12 standard folders, Markdown and JSON manifests, deterministic ordering, and integrity diagnostics.
 - Copy actions for Architect instructions, Codex instructions, and phased Codex prompts.
@@ -26,8 +26,8 @@ The release candidate is ready for a controlled Cloudflare Pages deployment afte
 - Production build completed successfully.
 - Dependency audit reported zero vulnerabilities.
 - Production-preview regression covered project creation, minimum intake, refresh persistence, project switching, generation, document search/preview, export diagnostics, and all three copy actions.
-- Export diagnostics reported 16 expected documents, 16 actual documents, valid folder mapping, both manifests, and zero errors.
-- Windows technical archive verification passed using the production generator and Windows `Expand-Archive`: 12 folders, 16 core Markdown documents, both manifests, safe unique paths, readable representative documents, active-project data, and missing markers.
+- Export diagnostics report 19 expected documents, 19 actual documents, valid folder mapping, Draft/Ready for Codex status, both manifests, and warning/error details.
+- Windows technical archive verification for the prior 16-document package passed. A new 19-document archive verification is required before the next release.
 - Responsive checks passed at `390 x 844`, `768 x 1024`, and `1440 x 1000` without page-level horizontal overflow.
 
 ## Known limitations

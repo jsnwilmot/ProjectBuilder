@@ -27,6 +27,7 @@ describe("validateIntake", () => {
       expect.arrayContaining([
         "appName",
         "clientName",
+        "appType",
         "appPurpose",
         "problemStatement",
         "successCriteria",
@@ -81,8 +82,71 @@ describe("validateIntake", () => {
       "No assumptions listed.",
       "No integrations listed.",
       "No reports listed.",
-      "No branding notes listed.",
       "No accessibility notes listed."
     ]));
+  });
+
+  it("requires a project type before intake can be complete", () => {
+    const project = createSeedProject();
+    project.intake.appType = "";
+
+    const result = validateIntake(project);
+
+    expect(result.isValid).toBe(false);
+    expect(result.missingFields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: "appType" })])
+    );
+  });
+
+  it("requires structured branding for website projects", () => {
+    const project = createSeedProject();
+    project.intake.appType = "Business website";
+    project.intake.brandStatus = "";
+    project.intake.logoStatus = "";
+    project.intake.primaryColors = "";
+
+    const fields = validateIntake(project).missingFields.map((issue) => issue.field);
+
+    expect(fields).toEqual(expect.arrayContaining(["brandStatus", "logoStatus", "primaryColors"]));
+  });
+
+  it("does not require full branding for an internal web application", () => {
+    const project = createSeedProject();
+    project.intake.audienceVisibility = "Internal";
+    project.intake.brandStatus = "";
+    project.intake.logoStatus = "";
+    project.intake.primaryColors = "";
+    project.intake.fontPreferences = "";
+    project.intake.brandTone = "";
+    project.intake.imageStyle = "";
+    project.intake.contentSource = "";
+    project.intake.approvedAssets = "";
+    project.intake.accessibilityContrastNotes = "";
+
+    const fields = validateIntake(project).missingFields.map((issue) => issue.field);
+
+    expect(fields).not.toEqual(expect.arrayContaining(["brandStatus", "logoStatus", "primaryColors"]));
+    expect(validateIntake(project).isValid).toBe(true);
+  });
+
+  it("applies required fields for website, game, dashboard, API, and automation presets", () => {
+    const cases = [
+      { appType: "Business website" as const, fields: ["websitePages", "domainStatus", "seoKeywords"] },
+      { appType: "Game" as const, fields: ["gameGenre", "gameplayLoop", "gameControls", "gameArtStyle"] },
+      { appType: "Dashboard or reporting project" as const, fields: ["dashboardDataSources", "dashboardKpis", "dashboardRefreshFrequency", "dashboardAudience"] },
+      { appType: "API or backend service" as const, fields: ["apiEndpoints", "dataContracts", "apiAuthentication", "apiConsumers"] },
+      { appType: "Automation or workflow tool" as const, fields: ["automationTrigger", "automationSteps", "sourceSystem", "automationErrorHandling", "notificationRules"] }
+    ];
+
+    for (const testCase of cases) {
+      const project = createSeedProject();
+      project.intake.appType = testCase.appType;
+      project.intake.audienceVisibility = "Internal";
+      if (testCase.appType === "API or backend service") {
+        project.intake.authenticationExpectation = "";
+      }
+      const fields = validateIntake(project).missingFields.map((issue) => issue.field);
+      expect(fields, testCase.appType).toEqual(expect.arrayContaining(testCase.fields));
+    }
   });
 });

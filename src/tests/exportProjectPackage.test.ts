@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { DOCUMENT_LOCATIONS } from "../data/folderStructure";
 import { createProject } from "../lib/createProject";
 import {
   createProjectArchive,
@@ -52,8 +53,8 @@ describe("createProjectArchive", () => {
     const manifest = JSON.parse(
       await first.file(`${firstPaths[0]}project-manifest.json`)!.async("string")
     ) as { files: unknown[]; generatedDocumentCount: number };
-    expect(manifest.files).toHaveLength(16);
-    expect(manifest.generatedDocumentCount).toBe(16);
+    expect(manifest.files).toHaveLength(DOCUMENT_LOCATIONS.length);
+    expect(manifest.generatedDocumentCount).toBe(DOCUMENT_LOCATIONS.length);
   });
 
   it("fails safely before generation instead of creating an empty ZIP", async () => {
@@ -80,7 +81,7 @@ describe("createProjectArchive", () => {
     const paths = Object.keys(archive.files);
     const root = paths[0];
     expect(root).not.toMatch(/[\\]/);
-    expect(paths).toHaveLength(31);
+    expect(paths).toHaveLength(getExpectedArchivePaths(project).length);
     const scope = await archive.file(`${root}00_Project_Overview/PROJECT_SCOPE.md`)!.async("string");
     expect(scope.length).toBeGreaterThan(1000);
     expect(scope).toContain("[MISSING:");
@@ -110,6 +111,6 @@ describe("createProjectArchive", () => {
     expect(active.identity.id).toBe(projectB.identity.id);
     expect(readme).toContain("Project B");
     expect(readme).not.toContain("Project A");
-    expect(getActiveProject(storage)!.generatedDocuments).toHaveLength(16);
+    expect(getActiveProject(storage)!.generatedDocuments).toHaveLength(DOCUMENT_LOCATIONS.length);
   });
 });

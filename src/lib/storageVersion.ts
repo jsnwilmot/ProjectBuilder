@@ -9,6 +9,7 @@ import type {
   StorageVersion
 } from "../types/project";
 import { PROJECT_STATUSES, REVIEW_STATUSES } from "../types/project";
+import { isProjectType } from "../data/projectTypes";
 
 export const CURRENT_STORAGE_VERSION: StorageVersion = 1;
 
@@ -53,6 +54,11 @@ function normalizeProject(value: unknown): ProjectRecord | null {
         return fileName ? [{ fileName, folder, content }] : [];
       })
     : [];
+  const normalizedIntake = Object.fromEntries(
+    Object.keys(EMPTY_PROJECT_INTAKE).map((field) => [field, asString(intake[field])])
+  ) as unknown as ProjectIntake;
+  const storedProjectType = asString(intake.appType);
+  normalizedIntake.appType = isProjectType(storedProjectType) ? storedProjectType : "";
 
   const project = createProject({
     identity: {
@@ -63,9 +69,7 @@ function normalizeProject(value: unknown): ProjectRecord | null {
       clientName: asString(client.clientName),
       businessName: asString(client.businessName)
     } satisfies ClientDetails,
-    intake: Object.fromEntries(
-      Object.keys(EMPTY_PROJECT_INTAKE).map((field) => [field, asString(intake[field])])
-    ) as unknown as ProjectIntake,
+    intake: normalizedIntake,
     generatedDocuments,
     status: PROJECT_STATUSES.includes(value.status as ProjectRecord["status"])
       ? value.status as ProjectRecord["status"]

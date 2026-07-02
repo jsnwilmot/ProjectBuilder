@@ -98,7 +98,7 @@ export function MissionControl({
 
           <dl className="project-meta">
             <div><dt>Client</dt><dd>{activeSummary?.clientName || "Missing"}</dd></div>
-            <div><dt>App type</dt><dd>{activeSummary?.appType || "Missing"}</dd></div>
+            <div><dt>Project type</dt><dd>{activeSummary?.appType || "Missing"}</dd></div>
             <div><dt>Last updated</dt><dd>{activeSummary?.lastUpdatedLabel || dateTimeFormatter.format(new Date(project.updatedAt))}</dd></div>
             <div><dt>Review status</dt><dd>{activeSummary?.reviewStatus || project.reviewStatus}</dd></div>
           </dl>

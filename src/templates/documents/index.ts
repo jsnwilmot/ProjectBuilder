@@ -9,6 +9,9 @@ import {
 } from "../../lib/documentHelpers";
 import { PROJECT_FOLDERS } from "../../data/folderStructure";
 import { GENERATED_FILES } from "../../data/generatedFiles";
+import { PACKAGE_USAGE_STEPS } from "../../data/packageGuidance";
+import { getProjectTypeFields, getProjectTypePreset } from "../../data/projectTypes";
+import { validateIntake } from "../../lib/validateIntake";
 import type { ProjectRecord } from "../../types/project";
 
 const join = (...parts: string[]) => parts.join("\n\n");
@@ -18,7 +21,7 @@ function header(project: ProjectRecord): string {
     `**Project:** ${safeText(project.identity.projectName, "app name")}`,
     `**Client:** ${safeText(project.client.clientName, "client name")}`,
     `**Business or department:** ${safeText(project.client.businessName, "business or department")}`,
-    `**App type:** ${safeText(project.intake.appType, "app type")}`,
+    `**Project type:** ${safeText(project.intake.appType, "project type")}`,
     `**Target platform:** ${safeText(project.intake.targetPlatform, "target platform")}`,
     `**Status:** ${project.status}`
   ].join("  \n");
@@ -32,6 +35,33 @@ function missingSummary(project: ProjectRecord): string {
 
 function generatedFilesList(): string {
   return markdownList([...GENERATED_FILES]);
+}
+
+function packageReadiness(project: ProjectRecord): string {
+  const validation = validateIntake(project);
+  return validation.isValid
+    ? "Ready for Codex — zero required intake fields are missing."
+    : `Draft — ${validation.missingFields.length} required intake item${validation.missingFields.length === 1 ? "" : "s"} remain unresolved.`;
+}
+
+function projectTypeNotes(project: ProjectRecord): string {
+  const preset = getProjectTypePreset(project.intake.appType);
+  return preset
+    ? markdownList([...preset.suggestedGeneratedDocumentNotes])
+    : `- ${missingMarker("project type selection")}`;
+}
+
+function tailoredIntakeSummary(project: ProjectRecord): string {
+  const fields = ["foundation", "users", "features", "data", "workflows", "security"]
+    .flatMap((stageId) => getProjectTypeFields(
+      project.intake.appType,
+      project.intake.audienceVisibility,
+      stageId
+    ));
+  if (fields.length === 0) return `- ${missingMarker("project-type-specific requirements")}`;
+  return fields
+    .map((field) => `- **${field.label}:** ${safeText(String(project.intake[field.name as keyof typeof project.intake] ?? ""), field.label.toLowerCase())}`)
+    .join("\n");
 }
 
 function folderStructure(): string {
@@ -53,6 +83,7 @@ const readme = (project: ProjectRecord) => join(
   `## Folder structure\n\n${folderStructure()}`,
   "## How GPT Architect should use this package\n\n1. Validate scope boundaries and assumptions.\n2. Resolve every missing marker before approvals.\n3. Produce phased Codex prompts aligned with accepted requirements.",
   "## How Codex Developer should use this package\n\n1. Build only what is approved in these documents.\n2. Do not guess beyond accepted scope.\n3. Report missing decisions using exact missing-decision markers.",
+  `## Package readiness\n\n${packageReadiness(project)}`,
   `## Missing information summary\n\n${missingSummary(project)}`,
   `## Next steps\n\n${markdownList([
     "Architect review and contradiction cleanup",
@@ -70,7 +101,7 @@ const projectScope = (project: ProjectRecord) => join(
   `## Target users\n\n${listOrMissing(project.intake.targetUsers, "target users")}`,
   `## User roles\n\n${listOrMissing(project.intake.userRoles, "user roles")}`,
   sectionOrMissing("Target platform", project.intake.targetPlatform, "target platform"),
-  sectionOrMissing("App type", project.intake.appType, "app type"),
+  sectionOrMissing("Project type", project.intake.appType, "project type"),
   `## Constraints\n\n${listOrMissing(project.intake.constraints, "constraints")}`,
   `## Risks\n\n${listOrMissing(project.intake.risks, "risks")}`,
   `## Assumptions\n\n${listOrMissing(project.intake.assumptions, "assumptions")}`,
@@ -103,6 +134,7 @@ const clientRequirements = (project: ProjectRecord) => join(
   `## Integrations\n\n${listOrMissing(project.intake.integrations, "integrations")}`,
   `## Reports or dashboards\n\n${listOrMissing(project.intake.reportsDashboards, "reports or dashboards")}`,
   `## Branding notes\n\n${listOrMissing(project.intake.brandingNotes, "branding notes")}`,
+  `## Project-type-specific requirements\n\n${tailoredIntakeSummary(project)}`,
   `## Notifications\n\n${listOrMissing(project.intake.notifications, "notifications")}`,
   `## Automations\n\n${listOrMissing(project.intake.automations, "automations")}`,
   `## Constraints\n\n${listOrMissing(project.intake.constraints, "constraints")}`,
@@ -114,7 +146,7 @@ const appBlueprint = (project: ProjectRecord) => join(
   "# App Blueprint",
   header(project),
   sectionOrMissing("Product summary", project.intake.appPurpose, "app purpose"),
-  sectionOrMissing("App type", project.intake.appType, "app type"),
+  sectionOrMissing("Project type", project.intake.appType, "project type"),
   sectionOrMissing("Target platform", project.intake.targetPlatform, "target platform"),
   `## Core modules\n\n${listOrMissing(project.intake.requiredFeatures, "required features")}`,
   `## Screen map summary\n\n${listOrMissing(project.intake.screens, "screens")}`,
@@ -131,6 +163,8 @@ const appBlueprint = (project: ProjectRecord) => join(
   ])}`,
   `## Integration summary\n\n${listOrMissing(project.intake.integrations, "integrations")}`,
   `## Reporting summary\n\n${listOrMissing(project.intake.reportsDashboards, "reports or dashboards")}`,
+  `## Project type guidance\n\n${projectTypeNotes(project)}`,
+  `## Tailored intake summary\n\n${tailoredIntakeSummary(project)}`,
   "## Architecture boundaries\n\nThis blueprint supports websites, web apps, mobile apps, software tools, internal systems, portals, dashboards, games, and other digital products. It does not force a single app pattern.",
   `## Build assumptions\n\n${listOrMissing(project.intake.assumptions, "assumptions")}`,
   `## Future decisions\n\n- ${missingMarker("hosting and deployment model")}`
@@ -219,7 +253,7 @@ const acceptanceCriteria = (project: ProjectRecord) => join(
   ])}`,
   `## Accessibility acceptance criteria\n\n${listOrMissing(project.intake.accessibilityNotes, "accessibility notes")}`,
   "## Testing acceptance criteria\n\n- Unit tests cover validation and generation logic.\n- Integration tests cover active-project persistence and workflow behavior.\n- Manual checks cover accessibility and export reliability.",
-  "## Export or deployment acceptance criteria\n\n- Generated package contains all 16 required files.\n- ZIP structure matches approved folders.\n- Missing markers remain visible in exported markdown."
+  `## Export or deployment acceptance criteria\n\n- Generated package contains all ${GENERATED_FILES.length} required files.\n- ZIP structure matches approved folders.\n- Missing markers remain visible in exported markdown.`
 );
 
 const testPlan = (project: ProjectRecord) => join(
@@ -229,7 +263,7 @@ const testPlan = (project: ProjectRecord) => join(
   "## Unit test targets\n\n- Validation rules by stage\n- Document helper functions\n- File mapping and sanitization",
   "## Integration test targets\n\n- Active project generation and persistence\n- Intake edit behavior versus generated documents\n- Document preview and export behavior",
   `## Manual test checklist\n\n${markdownList([
-    "Generate package and verify all 16 files exist",
+    `Generate package and verify all ${GENERATED_FILES.length} files exist`,
     "Confirm missing markers are visible in preview and ZIP",
     "Switch active project and verify preview/export use active project docs",
     "Edit intake after generation and verify docs persist until regenerate"
@@ -260,7 +294,7 @@ const architectInstructions = (project: ProjectRecord) => join(
   "# Architect Instructions",
   header(project),
   sectionOrMissing("Project purpose", project.intake.appPurpose, "app purpose"),
-  sectionOrMissing("App type", project.intake.appType, "app type"),
+  sectionOrMissing("Project type", project.intake.appType, "project type"),
   sectionOrMissing("Target platform", project.intake.targetPlatform, "target platform"),
   `## User roles\n\n${listOrMissing(project.intake.userRoles, "user roles")}`,
   `## Data sources\n\n${listOrMissing(project.intake.dataSources, "data sources")}`,
@@ -292,6 +326,7 @@ const codexInstructions = (project: ProjectRecord) => join(
   "## Documentation requirements\n\nUpdate README, change log, next steps, and test plan when behavior changes.",
   "## Expected response format after each task\n\nSummary, files created/updated/removed, tests, issues, scope questions, and next step.",
   "## Missing decision rule\n\nUse: [MISSING DECISION: explain what is missing and why it matters].",
+  "## Draft and readiness rule\n\nDraft package generation is allowed with [MISSING: ...] markers. Do not mark the project Ready for Codex until validation reports zero required missing fields.",
   "## Scope boundary rule\n\nDo not implement outside approved scope. Do not guess unapproved architecture or features."
 );
 
@@ -330,7 +365,7 @@ const changeLog = (project: ProjectRecord) => join(
   "### Initial package generation entry",
   `- Generated date: ${formatDate()}`,
   `- Project status: ${project.status}`,
-  "- Generated files: 16",
+  `- Generated files: ${GENERATED_FILES.length}`,
   `- Missing information count: ${project.outstandingQuestions.length}`,
   `- Known gaps: ${missingSummary(project)}`,
   "- Next review action: Architect resolves missing decisions and confirms phased implementation order."
@@ -339,13 +374,82 @@ const changeLog = (project: ProjectRecord) => join(
 const nextSteps = (project: ProjectRecord) => join(
   "# Next Steps",
   header(project),
-  "## Immediate next action\n\nArchitect reviews this package and resolves missing decisions.",
+  `## Package readiness\n\n${packageReadiness(project)}`,
+  "## Use This Project Package",
+  PACKAGE_USAGE_STEPS.map((step, index) => `${index + 1}. ${step}`).join("\n"),
+  "## Immediate next action\n\nReview PROJECT_SCOPE.md and resolve every required missing marker before marking the project Ready for Codex.",
   "## Architect review tasks\n\n- Validate scope and boundaries\n- Resolve contradictions\n- Approve phased prompts",
   `## Client questions to resolve\n\n${missingSummary(project)}`,
   "## Codex readiness checklist\n\n- Scope approved\n- Missing decisions resolved or explicitly deferred\n- Acceptance criteria testable\n- Security and accessibility expectations documented",
   "## Recommended first Codex phase\n\nPhase 1: Project setup",
   "## Blockers\n\n- [MISSING: unresolved blockers]",
   "## Non-blocking improvements\n\n- Improve optional reporting and branding detail coverage after core scope approval."
+);
+
+const brandGuide = (project: ProjectRecord) => join(
+  "# Brand Guide",
+  header(project),
+  `## Brand requirement\n\n${getProjectTypePreset(project.intake.appType)?.brandingRequirementLevel ?? missingMarker("branding requirement level")}`,
+  sectionOrMissing("Brand status", project.intake.brandStatus, "brand status"),
+  sectionOrMissing("Logo status", project.intake.logoStatus, "logo status"),
+  `## Logo files\n\n${listOrMissing(project.intake.logoFiles, "logo files")}`,
+  `## Primary colours\n\n${listOrMissing(project.intake.primaryColors, "primary colours")}`,
+  `## Secondary colours\n\n${listOrMissing(project.intake.secondaryColors, "secondary colours")}`,
+  sectionOrMissing("Font preferences", project.intake.fontPreferences, "font preferences"),
+  sectionOrMissing("Brand tone", project.intake.brandTone, "brand tone"),
+  sectionOrMissing("Image style", project.intake.imageStyle, "image style"),
+  sectionOrMissing("Icon style", project.intake.iconStyle, "icon style"),
+  `## Reference sites\n\n${listOrMissing(project.intake.referenceSites, "reference sites")}`,
+  `## Brand restrictions\n\n${listOrMissing(project.intake.brandRestrictions, "brand restrictions")}`,
+  `## Required supporting assets\n\n${markdownList([
+    safeText(project.intake.faviconNeeded, "favicon decision"),
+    safeText(project.intake.openGraphImageNeeded, "Open Graph image decision"),
+    safeText(project.intake.socialAssetsNeeded, "social asset decision")
+  ])}`,
+  sectionOrMissing("Content source", project.intake.contentSource, "content source"),
+  `## Approved assets\n\n${listOrMissing(project.intake.approvedAssets, "approved assets")}`,
+  `## Accessibility and contrast\n\n${listOrMissing(
+    project.intake.accessibilityContrastNotes || project.intake.accessibilityNotes,
+    "accessibility contrast notes"
+  )}`,
+  `## Additional notes\n\n${listOrMissing(project.intake.brandingNotes, "additional branding notes")}`
+);
+
+const clientQuestions = (project: ProjectRecord) => {
+  const validation = validateIntake(project);
+  const questions = validation.missingFields.map((issue) => `- ${issue.message}`);
+  return join(
+    "# Client Questions",
+    header(project),
+    `## Package readiness\n\n${packageReadiness(project)}`,
+    "## Required questions",
+    questions.length > 0 ? questions.join("\n") : "- None. Required intake is complete.",
+    `## Optional follow-up areas\n\n${validation.warnings.length > 0
+      ? validation.warnings.map((warning) => `- ${warning.message}`).join("\n")
+      : "- None."}`,
+    "## Review instruction\n\nRecord approved answers in the guided intake, regenerate the package, and confirm the required question count reaches zero."
+  );
+};
+
+const handoffChecklist = (project: ProjectRecord) => join(
+  "# Handoff Checklist",
+  header(project),
+  `## Package readiness\n\n${packageReadiness(project)}`,
+  `## Required handoff checks\n\n${markdownList([
+    "PROJECT_SCOPE.md reviewed",
+    "All required [MISSING: ...] markers resolved",
+    "CLIENT_REQUIREMENTS.md reviewed with the client",
+    "APP_BLUEPRINT.md reviewed by GPT Architect",
+    "Security and accessibility expectations approved",
+    "Acceptance criteria are testable",
+    "ARCHITECT_INSTRUCTIONS.md placed in the GPT Architect context",
+    "CODEX_INSTRUCTIONS.md placed in Codex setup or repository instructions",
+    "PHASED_CODEX_PROMPTS.md reviewed",
+    "Only Phase 1 is queued for initial Codex execution"
+  ])}`,
+  "## Operating loop",
+  PACKAGE_USAGE_STEPS.map((step, index) => `${index + 1}. ${step}`).join("\n"),
+  "## Approval rule\n\nA Draft package may be reviewed and exported. Ready for Codex requires zero required missing fields."
 );
 
 export const documentTemplates: Record<string, (project: ProjectRecord) => string> = {
@@ -364,6 +468,9 @@ export const documentTemplates: Record<string, (project: ProjectRecord) => strin
   "DEPLOYMENT_NOTES.md": deploymentNotes,
   "CHANGE_LOG.md": changeLog,
   "NEXT_STEPS.md": nextSteps,
+  "HANDOFF_CHECKLIST.md": handoffChecklist,
+  "CLIENT_QUESTIONS.md": clientQuestions,
+  "BRAND_GUIDE.md": brandGuide,
   "PHASED_CODEX_PROMPTS.md": phasedPrompts
 };
 

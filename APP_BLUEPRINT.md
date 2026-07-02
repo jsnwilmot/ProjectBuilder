@@ -29,14 +29,24 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - `exportManifest.ts` creates stable Markdown and JSON export diagnostics.
 - `exportProjectPackage.ts` writes verified folders, core files, and manifests in deterministic order.
 - `src/data/intakeStages.ts` is the single source for intake fields, stages, and progress metadata.
+- `src/data/projectTypes.ts` defines the 15 typed project presets, recommended platforms, conditional modules, structured branding questions, and project-specific fields.
+- `src/data/packageGuidance.ts` is the shared source for the post-generation Architect/Codex workflow used by the UI and generated documents.
 - `src/types/project.ts` is the single source for project and review status values.
 - `src/data/generatedFiles.ts` derives the generated-file list from the canonical folder mapping.
-- `validateIntake.ts` owns required-question validation, optional warnings, and completion metrics.
+- `validateIntake.ts` owns shared and project-type-specific required-question validation, optional warnings, branding rules, and completion metrics.
 - `src/templates/documents/` owns document wording.
 - `generateProjectPackage.ts` assembles the standard package.
 - `exportProjectPackage.ts` creates and downloads the ZIP archive.
 - `StorageState` stores multiple projects and one `activeProjectId` in browser local storage.
+- Stored free-text project types that do not match a supported preset migrate to an empty choice so the user must select a valid type.
 - Empty or invalid storage opens an actionable empty state; the runtime does not inject demo projects.
+
+## Package readiness
+
+- Draft package generation and export are allowed with explicit `[MISSING: ...]` markers.
+- Export diagnostics label the package Draft or Ready for Codex.
+- Ready for Codex requires zero required missing fields across shared and project-type-specific validation.
+- Generated output contains 19 core Markdown documents, including `BRAND_GUIDE.md`, `CLIENT_QUESTIONS.md`, and `HANDOFF_CHECKLIST.md`.
 
 ## Data and security
 

@@ -1,4 +1,5 @@
 import type { IntakeStageDefinition } from "../types/project";
+import { AUDIENCE_VISIBILITY_OPTIONS, PROJECT_TYPE_VALUES } from "./projectTypes";
 
 export const INTAKE_STAGES: IntakeStageDefinition[] = [
   {
@@ -6,17 +7,33 @@ export const INTAKE_STAGES: IntakeStageDefinition[] = [
     label: "Foundation",
     title: "Set the project foundation",
     description: "Define project identity, purpose, success outcomes, and known constraints.",
-    requiredFields: ["appName", "clientName", "appPurpose", "problemStatement", "successCriteria"],
-    optionalFields: ["businessName", "appType", "targetPlatform", "constraints", "outOfScope"],
+    requiredFields: ["appName", "clientName", "appType", "appPurpose", "problemStatement", "successCriteria"],
+    optionalFields: ["businessName", "audienceVisibility", "targetPlatform", "constraints", "outOfScope"],
     completionRules: [
-      "App name, client name, app purpose, problem statement, and success criteria must be provided."
+      "App name, client name, project type, app purpose, problem statement, and success criteria must be provided."
     ],
     nextActionLabel: "Continue to users",
     fields: [
       { name: "appName", label: "App name", description: "A clear working name for the project.", placeholder: "Community Services Portal", required: true },
       { name: "clientName", label: "Client name", description: "The person accountable for the project.", placeholder: "Client or sponsor name", required: true },
       { name: "businessName", label: "Business or department", description: "The organization this project serves.", placeholder: "Community Programs" },
-      { name: "appType", label: "App type", description: "The broad product category.", placeholder: "Internal web application" },
+      {
+        name: "appType",
+        label: "Project type",
+        description: "Choose the preset that best matches the project. This controls the relevant intake questions.",
+        placeholder: "Choose a project type",
+        required: true,
+        inputType: "select",
+        options: PROJECT_TYPE_VALUES
+      },
+      {
+        name: "audienceVisibility",
+        label: "Audience visibility",
+        description: "State whether the finished product is internal, public-facing, mixed, or still unknown.",
+        placeholder: "Choose audience visibility",
+        inputType: "select",
+        options: AUDIENCE_VISIBILITY_OPTIONS
+      },
       { name: "targetPlatform", label: "Target platform", description: "Where this product is expected to run.", placeholder: "Web browser, tablet kiosk, mobile web" },
       { name: "appPurpose", label: "App purpose", description: "What this app must help people accomplish.", placeholder: "Describe the intended outcome", multiline: true, required: true },
       { name: "problemStatement", label: "Problem being solved", description: "Describe the current problem in plain language.", placeholder: "What is difficult, slow, or unreliable today?", multiline: true, required: true },
@@ -70,7 +87,7 @@ export const INTAKE_STAGES: IntakeStageDefinition[] = [
       { name: "automations", label: "Automations", description: "List approved actions that happen without manual input.", placeholder: "Trigger - automated action", multiline: true },
       { name: "reportsDashboards", label: "Reports or dashboards", description: "Describe reporting requirements.", placeholder: "Report - audience - decision", multiline: true },
       { name: "screens", label: "Screens", description: "List expected pages, views, or panels.", placeholder: "Screen - purpose", multiline: true },
-      { name: "brandingNotes", label: "Branding notes", description: "Record visual and voice requirements.", placeholder: "Brand guidance and content tone", multiline: true }
+      { name: "brandingNotes", label: "Additional branding notes", description: "Record supplemental visual or voice requirements not captured in the structured branding fields.", placeholder: "Additional brand guidance", multiline: true }
     ]
   },
   {

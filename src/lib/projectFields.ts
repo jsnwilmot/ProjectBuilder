@@ -5,6 +5,7 @@ import type {
   ProjectRecord,
   ProjectTemplateData
 } from "../types/project";
+import { isProjectType } from "../data/projectTypes";
 
 const clientFields = new Set<keyof ClientDetails>(["clientName", "businessName"]);
 
@@ -27,7 +28,8 @@ export function applyProjectFieldChanges(
   for (const [field, value] of Object.entries(changes) as Array<[ProjectInputField, string]>) {
     if (field === "appName") identity.projectName = value;
     else if (clientFields.has(field as keyof ClientDetails)) client[field as keyof ClientDetails] = value;
-    else intake[field as keyof ProjectIntake] = value;
+    else if (field === "appType") intake.appType = isProjectType(value) ? value : "";
+    else (intake as unknown as Record<string, string>)[field] = value;
   }
 
   return { ...project, identity, client, intake };

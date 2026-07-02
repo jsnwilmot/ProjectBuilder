@@ -12,10 +12,11 @@ export function createSeedProject(): ProjectRecord {
       businessName: "Community Programs"
     },
     intake: {
-      appType: "Responsive web application",
+      appType: "Web application",
       appPurpose: "Give residents one place to discover local programs and submit service requests.",
       problemStatement: "Program information and service requests are spread across disconnected pages, email inboxes, and spreadsheets.",
       targetPlatform: "Desktop and mobile web browsers",
+      audienceVisibility: "Public-facing",
       targetUsers: "Residents\nProgram coordinators\nDepartment reviewers",
       userRoles: "Resident — browse programs and submit requests\nCoordinator — manage program details\nReviewer — assess and update requests",
       roleDescriptions: "Resident handles discovery and request submission.\nCoordinator manages service catalog quality.\nReviewer triages and resolves requests.",
@@ -65,6 +66,15 @@ export function createSeedProject(): ProjectRecord {
       integrations: "Optional city CRM export after approval.",
       reportsDashboards: "Weekly request volume and average resolution time dashboard.",
       brandingNotes: "Use existing department color palette and plain language voice.",
+      brandStatus: "Established department brand",
+      logoStatus: "Approved logo available",
+      primaryColors: "Department navy and accessible white",
+      fontPreferences: "Use the approved department sans-serif stack",
+      brandTone: "Clear, welcoming, and plain language",
+      imageStyle: "Authentic local community photography",
+      contentSource: "Program coordinators supply and approve service content.",
+      approvedAssets: "Department logo and colour palette",
+      accessibilityContrastNotes: "All text and interactive states must meet WCAG AA contrast.",
       outOfScope: "Payments\nNative mobile applications",
       successCriteria: "Residents can find a relevant program and submit a complete request without staff assistance.\nReviewers can identify the next required action for every request."
     },

@@ -2,6 +2,7 @@ import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import { GENERATED_FILES } from "../data/generatedFiles";
 import type { ProjectRecord } from "../types/project";
 import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
+import { validateIntake } from "./validateIntake";
 
 export const EXPORT_MANIFEST_PATH = "00_Project_Overview/EXPORT_MANIFEST.md";
 export const EXPORT_SCHEMA_VERSION = 1;
@@ -11,6 +12,7 @@ export interface ExportManifestSummary {
   rootFolder: string;
   coreFileCount: number;
   missingMarkerCount: number;
+  readiness: "Draft" | "Ready for Codex";
   manifestPath: string;
 }
 
@@ -96,6 +98,7 @@ export function validateExportPackage(
         rootFolder: "untitled-project",
         coreFileCount: 0,
         missingMarkerCount: 0,
+        readiness: "Draft",
         manifestPath: EXPORT_MANIFEST_PATH
       }
     };
@@ -149,8 +152,12 @@ export function validateExportPackage(
   }
 
   const missingMarkerCount = countMissingMarkers(project);
+  const readiness = validateIntake(project).isValid ? "Ready for Codex" : "Draft";
   if (missingMarkerCount > 0) {
     warnings.push(`${missingMarkerCount} missing-information marker(s) will remain in the export.`);
+  }
+  if (readiness === "Draft") {
+    warnings.push("Package readiness is Draft because required intake information is still missing.");
   }
   const sourceName = project.identity.projectName.trim();
   if (!sourceName || rootFolder !== sourceName.toLowerCase().replace(/\s+/g, "-")) {
@@ -174,6 +181,7 @@ export function validateExportPackage(
       rootFolder,
       coreFileCount: documents.length,
       missingMarkerCount,
+      readiness,
       manifestPath: EXPORT_MANIFEST_PATH
     }
   };

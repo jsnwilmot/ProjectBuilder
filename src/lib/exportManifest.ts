@@ -25,6 +25,7 @@ export interface ExportManifest {
   generatedDocumentCount: number;
   expectedDocumentCount: number;
   missingInformationMarkerCount: number;
+  readiness: "Draft" | "Ready for Codex";
   exportWarnings: string[];
   exportErrors: string[];
   rootFolder: string;
@@ -50,13 +51,14 @@ export function createExportManifest(
     activeProjectId: project.identity.id,
     projectName: project.identity.projectName.trim() || "Untitled project",
     clientName: project.client.clientName.trim() || "[MISSING: client name]",
-    appType: project.intake.appType.trim() || "[MISSING: app type]",
+    appType: project.intake.appType.trim() || "[MISSING: project type]",
     projectStatus: project.status,
     reviewStatus: project.reviewStatus,
     exportedAt: integrity.generatedAt,
     generatedDocumentCount: integrity.fileCount,
     expectedDocumentCount: integrity.expectedFileCount,
     missingInformationMarkerCount: integrity.manifestSummary.missingMarkerCount,
+    readiness: integrity.manifestSummary.readiness,
     exportWarnings: [...integrity.warnings],
     exportErrors: [...integrity.errors],
     rootFolder: integrity.manifestSummary.rootFolder,
@@ -90,7 +92,7 @@ export function renderExportManifestMarkdown(manifest: ExportManifest): string {
 | Active project id | ${markdownCell(manifest.activeProjectId)} |
 | Project name | ${markdownCell(manifest.projectName)} |
 | Client name | ${markdownCell(manifest.clientName)} |
-| App type | ${markdownCell(manifest.appType)} |
+| Project type | ${markdownCell(manifest.appType)} |
 | Project status | ${markdownCell(manifest.projectStatus)} |
 | Review status | ${markdownCell(manifest.reviewStatus)} |
 | Exported date | ${markdownCell(manifest.exportedAt)} |
@@ -98,6 +100,7 @@ export function renderExportManifestMarkdown(manifest: ExportManifest): string {
 | Generated documents | ${manifest.generatedDocumentCount} |
 | Expected documents | ${manifest.expectedDocumentCount} |
 | Missing information markers | ${manifest.missingInformationMarkerCount} |
+| Package readiness | ${manifest.readiness} |
 
 ## Export warnings
 

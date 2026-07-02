@@ -3,6 +3,10 @@
 ## Automated coverage
 
 - Intake stage configuration is defined in one canonical source with 8 required stages.
+- Project type is a required Foundation choice backed by 15 typed, config-driven presets.
+- Website, game, mobile, dashboard, Microsoft 365, automation, and API questions are shown only for relevant presets.
+- Branding validation changes by project type and audience visibility; internal web applications do not require full branding.
+- Website, game, dashboard, API, and automation presets enforce their required project-specific fields.
 - Required intake rules pass and fail predictably for Foundation, Users, Features, Data, Workflows, and Security stages.
 - Validation returns `isValid`, `missingFields`, `warnings`, and `sectionResults` with `stageId`, `label`, `percentComplete`, `isComplete`, `missingFields`, and `warnings`.
 - Optional omissions remain visible as warnings.
@@ -20,7 +24,8 @@
 - Intake updates preserve existing generated documents.
 - Generated documents and actual generated-file counts persist.
 - Generation can proceed with missing intake data and keeps explicit missing markers.
-- All 16 required markdown files generate every time and are non-empty.
+- All 19 required markdown files generate every time and are non-empty.
+- `BRAND_GUIDE.md`, `CLIENT_QUESTIONS.md`, and `HANDOFF_CHECKLIST.md` generate in their approved folders.
 - Generated document names match the canonical generated-file list.
 - Folder mapping is validated against approved package structure.
 - ARCHITECT_INSTRUCTIONS.md includes review process and blocked assumptions.
@@ -31,7 +36,8 @@
 - Missing markers are counted as export warnings without blocking an otherwise valid package.
 - ZIP root names and every archive path are sanitized or rejected safely.
 - Archive folders and core files use deterministic approved ordering.
-- `EXPORT_MANIFEST.md` and `project-manifest.json` are included without changing the 16-core-file count.
+- `EXPORT_MANIFEST.md` and `project-manifest.json` are included without changing the 19-core-file count.
+- Export diagnostics identify packages as Draft or Ready for Codex while allowing valid Draft exports.
 - Manifest diagnostics include project identity, lifecycle status, exported date, warning/error counts, folder summary, and stable file list.
 - Large project records export with safe normalized paths and preserved content.
 - Multi-project export uses only the active project's persisted documents.
@@ -45,7 +51,7 @@
 - Dashboard warning selector surfaces inconsistent persisted status/readiness combinations.
 - Mission Control project switching updates active context and heading safely.
 - Mission Control recent project buttons expose clear accessible labels for project selection.
-- All 12 required folders and 16 required files are generated.
+- All 12 required folders and 19 required files are generated.
 - Missing information markers appear in generated Markdown.
 - Unsafe project names normalize to predictable paths.
 - ZIP archives contain the root document, manifest, standard folders, and phased prompts.
@@ -62,15 +68,28 @@ npm.cmd run build
 npm.cmd audit
 ```
 
+## 2026-07-02 change evidence
+
+- `npm.cmd test`: passed (`12` files, `75` tests).
+- `npm.cmd run build`: passed.
+- `npm.cmd audit`: passed with `0` vulnerabilities.
+- `git diff --check`: passed.
+- In-app browser QA passed at the default desktop viewport and `390 x 844`.
+- Website and Game presets displayed only their relevant Foundation questions.
+- Draft generation produced all 19 documents, including the three new files.
+- Export showed `19/19`, `Draft`, and **Use This Project Package** with the Phase 1 instruction.
+- Browser console warnings/errors: none.
+- Mobile page-level horizontal overflow: none.
+
 ## Phase 8 release evidence
 
 - Production-preview workflow passed for a newly created `Phase 8 Release Candidate QA` project.
 - Minimum required intake completed with zero unresolved required questions and six visible optional warnings.
 - Refresh persistence and switching between the seeded project and release-candidate project passed.
-- Generation produced all 16 documents.
+- Generation produced all 19 documents.
 - Representative Architect, Codex, and phased prompt documents contained the active project identity and explicit missing markers.
 - Document search hid all documents for a no-match query and restored the document set after clearing.
-- Export diagnostics reported 16 expected documents, 16 actual documents, valid folder mapping, both manifests, one missing-marker warning, and zero errors.
+- Export diagnostics reported 19 expected documents, 19 actual documents, valid folder mapping, both manifests, package readiness, and zero errors.
 - Architect, Codex, and phased prompt copy actions returned 2,089, 1,831, and 5,853 characters respectively from the active project.
 - Browser console verification reported zero warnings or errors.
 - Responsive checks at `390 x 844`, `768 x 1024`, and `1440 x 1000` reported no page-level horizontal overflow.
@@ -85,12 +104,12 @@ npm.cmd audit
 3. Refresh and confirm the active project and intake values persist.
 4. Create a second project, switch projects, and confirm each project retains its own intake and generated documents.
 5. Open Scope Review and confirm required questions and optional warnings are clearly separated.
-6. Generate the project package and confirm all 16 generated documents are available.
+6. Generate the project package and confirm all 19 generated documents are available.
 7. Edit intake after generation and confirm the saved generated documents remain unchanged until Generate is run again.
 8. Preview multiple documents, search for a missing file name, clear the search, and confirm plain-text rendering.
 9. Confirm exact `[MISSING: ...]` markers remain visible in incomplete generated documents.
 10. Open Export before generation and confirm a clear blocked state and Generate action.
-11. Open Export after generation and confirm 16 expected documents, 16 actual documents, valid folder mapping, manifests, warnings, and zero errors.
+11. Open Export after generation and confirm 19 expected documents, 19 actual documents, valid folder mapping, Draft/Ready for Codex status, manifests, warnings, and zero errors.
 12. Use all three copy actions and confirm each copies content from the active project only.
 13. Switch projects and confirm Export and copy actions use the newly active project.
 14. Load corrupt storage and an invalid active project id and confirm safe recovery without a crash or blank page.
@@ -130,7 +149,7 @@ Technical results:
 
 - Sanitized root folder: passed.
 - All 12 approved folders: passed.
-- Exactly 16 core Markdown documents: passed.
+- Exactly 19 core Markdown documents: pending current Windows archive rerun.
 - `00_Project_Overview/EXPORT_MANIFEST.md`: passed.
 - `project-manifest.json`: passed.
 - Representative README, scope, Architect, Codex, and phased prompt documents were readable: passed.

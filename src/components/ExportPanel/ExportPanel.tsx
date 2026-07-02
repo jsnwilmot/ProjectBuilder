@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../../data/folderStructure";
+import { PACKAGE_USAGE_STEPS } from "../../data/packageGuidance";
 import { createProjectArchive, downloadArchive } from "../../lib/exportProjectPackage";
 import { validateExportPackage } from "../../lib/exportIntegrity";
 import type { ProjectPackage, ProjectRecord } from "../../types/project";
@@ -152,7 +153,7 @@ export function ExportPanel({
           <h2 id="export-package-title">{integrity.manifestSummary.rootFolder}.zip</h2>
           <p>
             {ready
-              ? "Includes 16 verified core documents plus Markdown and JSON diagnostic manifests."
+              ? `Includes ${integrity.expectedFileCount} verified core documents plus Markdown and JSON diagnostic manifests.`
               : "Generate and save the active project package before downloading a ZIP."}
           </p>
 
@@ -224,6 +225,7 @@ export function ExportPanel({
               <div><dt>Manifest included</dt><dd>Yes, when export is valid</dd></div>
               <div><dt>Folder mapping</dt><dd>{integrity.folderMapStatus}</dd></div>
               <div><dt>Missing markers</dt><dd>{integrity.manifestSummary.missingMarkerCount}</dd></div>
+              <div><dt>Package readiness</dt><dd>{integrity.manifestSummary.readiness}</dd></div>
             </dl>
 
             <DiagnosticList title="Missing files" items={integrity.missingFiles} emptyText="No missing core files." />
@@ -246,6 +248,17 @@ export function ExportPanel({
             <div className="tree-file"><FileText size={16} />00_Project_Overview/EXPORT_MANIFEST.md</div>
             <div className="tree-file"><FileText size={16} />project-manifest.json</div>
           </div>
+
+          <section className="package-guidance" aria-labelledby="package-guidance-title">
+            <div>
+              <span>Post-generation workflow</span>
+              <h2 id="package-guidance-title">Use This Project Package</h2>
+              <p>Follow this review loop before moving beyond the first Codex phase.</p>
+            </div>
+            <ol>
+              {PACKAGE_USAGE_STEPS.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+          </section>
         </section>
       </div>
     </main>

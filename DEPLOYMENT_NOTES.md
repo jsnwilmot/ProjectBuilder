@@ -51,8 +51,8 @@ These settings align with Cloudflare's current [Vite deployment guide](https://d
 14. Confirm HTTPS works.
 15. Confirm refresh works.
 16. Confirm `localStorage` project persistence works.
-17. Confirm **Generate** creates 16 documents.
-18. Confirm Export diagnostics show 16 of 16.
+17. Confirm **Generate** creates 19 documents.
+18. Confirm Export diagnostics show 19 of 19 and a Draft or Ready for Codex result.
 19. Confirm ZIP download works.
 20. Confirm copy actions work.
 21. Add a custom domain later if approved.
@@ -111,12 +111,11 @@ Rollback restores application assets only. It cannot restore browser data that a
 4. Refresh and confirm the active project and intake values persist.
 5. Create a second project, switch between projects, and confirm project isolation.
 6. Confirm Scope Review separates required issues from optional warnings.
-7. Generate and save the package; confirm 16 generated documents.
+7. Generate and save the package; confirm 19 generated documents.
 8. Open representative documents and confirm project data plus exact `[MISSING: ...]` markers.
-9. Confirm Export diagnostics show 16 expected and 16 actual documents, valid mapping, both manifests, and zero errors.
+9. Confirm Export diagnostics show 19 expected and 19 actual documents, valid mapping, package readiness, both manifests, and zero errors.
 10. Download the ZIP and open it in Windows Explorer.
-11. Confirm all 12 folders, 16 core documents, Markdown manifest, and JSON manifest.
+11. Confirm all 12 folders, 19 core documents, Markdown manifest, and JSON manifest.
 12. Run all three copy actions and verify Architect, Codex, and phased prompt content.
 13. Confirm browser console warnings/errors are absent.
 14. Confirm the workflow at desktop and mobile widths.
-

@@ -1,4 +1,5 @@
 import { createSeedProject } from "../data/seedProject";
+import type { ProjectRecord } from "../types/project";
 import {
   STORAGE_KEY,
   createProject,
@@ -60,6 +61,37 @@ describe("projectRepository", () => {
     }));
 
     expect(loadStorageState(storage).projects[0].reviewStatus).toBe("Review needed");
+  });
+
+  it("preserves project type fields and supplies safe defaults for older stored intake", () => {
+    const storage = new MemoryStorage();
+    const project = createSeedProject();
+    const storedProject = JSON.parse(JSON.stringify(project)) as ProjectRecord;
+    delete (storedProject.intake as unknown as Record<string, string>).brandStatus;
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: project.identity.id,
+      projects: [storedProject]
+    }));
+
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.intake.appType).toBe("Web application");
+    expect(loaded.intake.brandStatus).toBe("");
+    expect(loaded.intake.websitePages).toBe("");
+  });
+
+  it("requires older free-text app types to be reselected from a supported preset", () => {
+    const storage = new MemoryStorage();
+    const project = createSeedProject();
+    const storedProject = JSON.parse(JSON.stringify(project)) as ProjectRecord;
+    (storedProject.intake as unknown as Record<string, string>).appType = "Legacy custom app type";
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: project.identity.id,
+      projects: [storedProject]
+    }));
+
+    expect(loadStorageState(storage).projects[0].intake.appType).toBe("");
   });
 
   it("creates multiple projects without erasing existing projects and sets the active id", () => {

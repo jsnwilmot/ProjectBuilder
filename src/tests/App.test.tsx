@@ -118,7 +118,7 @@ describe("App", () => {
     expect(screen.getByText(/Required questions unresolved:/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
-    expect(screen.getByText("16 generated documents")).toBeInTheDocument();
+    expect(screen.getByText("19 generated documents")).toBeInTheDocument();
   });
 
   it("does not lose intake data when switching stages", async () => {
@@ -174,7 +174,7 @@ describe("App", () => {
 
     expect(screen.getByText("Cannot export yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate project package first" })).toBeInTheDocument();
-    expect(screen.getByText("0/16")).toBeInTheDocument();
+    expect(screen.getByText("0/19")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Generate project package first" }));
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
@@ -182,8 +182,35 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Open export" }));
 
     expect(screen.getByText(/Warnings present|Ready to export/)).toBeInTheDocument();
-    expect(screen.getByText("16/16")).toBeInTheDocument();
+    expect(screen.getByText("19/19")).toBeInTheDocument();
     expect(screen.getByText("No export errors.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Use This Project Package" })).toBeInTheDocument();
+  });
+
+  it("requires a project type and shows website-specific questions", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Create your first project" }));
+    const projectType = screen.getByRole("combobox", { name: /Project type/i });
+    expect(projectType).toBeRequired();
+    await user.selectOptions(projectType, "Business website");
+
+    expect(screen.getByLabelText(/Domain status/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Hosting status/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Game genre/i)).not.toBeInTheDocument();
+  });
+
+  it("shows game-specific questions only for the game preset", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Create your first project" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: /Project type/i }), "Game");
+
+    expect(screen.getByLabelText(/Game genre/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Target devices/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Domain status/i)).not.toBeInTheDocument();
   });
 
   it("copies active-project Architect instructions after generation", async () => {
