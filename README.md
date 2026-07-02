@@ -61,7 +61,7 @@ The two manifests are diagnostic files and are not counted among the 19 core doc
 - No backend, authentication, cloud synchronization, analytics, or external AI calls.
 - Projects remain only in the current browser profile and are removed when browser storage is cleared.
 - Project package import is deferred.
-- Production hosting is Cloudflare Pages; production deployment and smoke testing remain release-owner actions.
+- Production hosting uses Cloudflare Workers Static Assets through the existing `projectbuilder` Worker.
 - Windows technical ZIP extraction passed, but user-visible download and Windows Explorer inspection remain manual release checks.
 
 ## Run locally
@@ -75,17 +75,17 @@ Open the local URL printed by Vite.
 
 ## Production deployment
 
-**Hosting target selected: Cloudflare Pages**
+**Hosting target: Cloudflare Workers Static Assets**
 
-The MVP deploys as a static Vite build:
+The MVP deploys as a static Vite build to the existing `projectbuilder` Worker:
 
-- Framework preset: Vite, or None if Vite is not available
-- Root directory: repository root
-- Build command: `npm run build`
+- Build command: `npm.cmd run build`
 - Build output directory: `dist`
+- Deploy command: `npm.cmd run deploy`
+- Production URL: `https://projectbuilder.jsnwilmot.workers.dev/`
 - Environment variables: none required
 
-The app has no URL-based client-side routes, so no SPA redirect file is required. See [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md) for the Cloudflare Pages checklist, security and cache recommendations, rollback procedure, and post-deployment smoke test.
+`wrangler.jsonc` deploys `dist` as static assets with single-page-application fallback handling. No Worker runtime code is required. See [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md) for the deployment checklist, rollback procedure, and post-deployment smoke test.
 
 ## Verify
 

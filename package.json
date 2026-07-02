@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "deploy": "wrangler deploy",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"
@@ -26,6 +27,7 @@
     "jsdom": "^25.0.1",
     "typescript": "~5.6.3",
     "vite": "^8.1.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.107.0"
   }
 }

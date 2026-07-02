@@ -4,9 +4,9 @@ Release date: 2026-06-28
 
 ## Deployment readiness status
 
-**Cloudflare Pages selected as MVP production host.**
+**Cloudflare Workers Static Assets selected as the production host.**
 
-The release candidate is ready for a controlled Cloudflare Pages deployment after assignment of a release owner. Exact build settings, security and cache recommendations, rollback steps, and the production smoke test are recorded in [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md).
+The production target is the existing `projectbuilder` Worker at `https://projectbuilder.jsnwilmot.workers.dev/`. The repository now records the Worker configuration, exact build and deploy commands, rollback steps, and production smoke test in [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md).
 
 ## Included
 
@@ -43,16 +43,15 @@ The release candidate is ready for a controlled Cloudflare Pages deployment afte
 
 ## Deferred
 
-- Custom domain, if approved after the `pages.dev` deployment passes smoke testing.
+- Custom domain, if approved after the `workers.dev` deployment passes smoke testing.
 - A later product decision on whether ZIP import belongs in a future version.
 - Any backend, authentication, collaboration, cloud persistence, or external AI capability requires separate architecture approval.
 
 ## Release blockers
 
-- `[MISSING DECISION: Assign the production release owner.]`
 - Complete the deployed-site ZIP download and Windows Explorer inspection.
-- Run and record the post-deployment Cloudflare Pages smoke test.
+- Run and record the post-deployment Cloudflare Workers smoke test.
 
 ## Recommended action
 
-Deploy the clean `main` branch to Cloudflare Pages using `npm run build` and `dist`, then execute the checklist in [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md).
+Build with `npm.cmd run build`, deploy the `dist` output to the existing `projectbuilder` Worker with `npm.cmd run deploy`, then execute the checklist in [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md).

@@ -1,5 +1,44 @@
 # Change Log
 
+## 2026-07-02 — Cloudflare Worker Deployment Configuration
+
+### Summary
+
+- Reconciled deployment documentation with the approved Cloudflare Workers Static Assets production target.
+- Added a reviewed assets-only Wrangler configuration for the existing `projectbuilder` Worker.
+- Added the repository deployment command and pinned Wrangler as a development dependency.
+
+### Files created
+
+- `wrangler.jsonc` — Worker identity, compatibility date, `dist` asset directory, and SPA fallback behavior.
+
+### Files updated
+
+- `package.json` and `package-lock.json` — Wrangler development dependency and `npm.cmd run deploy` script.
+- `DEPLOYMENT_NOTES.md`, `RELEASE_NOTES.md`, and `README.md` — corrected the production target, commands, URL, and rollback/smoke-test guidance.
+- `CHANGE_LOG.md` — recorded this deployment-configuration task.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`12` files, `75` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- `npm.cmd exec wrangler -- deploy --dry-run` — passed; Wrangler read the four `dist` assets with no bindings.
+
+### Issues found
+
+- High: Deployment documentation named Cloudflare Pages while production used the `projectbuilder` Worker. Corrected.
+
+### Remaining work
+
+- Commit and deploy the validated build.
+- Run the full production smoke test.
+
 ## 2026-07-02 — Project Type and 19-Document Validation Pass
 
 ### Summary
