@@ -80,6 +80,10 @@ npm.cmd audit
 - Export showed `19/19`, `Draft`, and **Use This Project Package** with the Phase 1 instruction.
 - Browser console warnings/errors: none.
 - Mobile page-level horizontal overflow: none.
+- All persisted packages previously showing `16 of 19` were regenerated and now show `19 of 19`.
+- Required conditional fields were rendered and checked for Business website, Web application, Android app, Game, Dashboard, Power Apps/Microsoft 365, API/backend, and Automation/workflow presets.
+- A complete internal web-application QA project reached `Ready for Codex`; an incomplete project remained `Draft` while retaining generation/export access.
+- Windows `Expand-Archive` inspection passed for `19-document-ready-qa.zip`.
 
 ## Phase 8 release evidence
 
@@ -149,7 +153,9 @@ Technical results:
 
 - Sanitized root folder: passed.
 - All 12 approved folders: passed.
-- Exactly 19 core Markdown documents: pending current Windows archive rerun.
+- Exactly 19 core Markdown documents: passed.
+- Missing, duplicate, empty, unsafe, or unreadable core files: none.
+- Stale 16-document references in the generated package: none.
 - `00_Project_Overview/EXPORT_MANIFEST.md`: passed.
 - `project-manifest.json`: passed.
 - Representative README, scope, Architect, Codex, and phased prompt documents were readable: passed.

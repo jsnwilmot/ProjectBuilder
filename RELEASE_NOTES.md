@@ -27,7 +27,7 @@ The release candidate is ready for a controlled Cloudflare Pages deployment afte
 - Dependency audit reported zero vulnerabilities.
 - Production-preview regression covered project creation, minimum intake, refresh persistence, project switching, generation, document search/preview, export diagnostics, and all three copy actions.
 - Export diagnostics report 19 expected documents, 19 actual documents, valid folder mapping, Draft/Ready for Codex status, both manifests, and warning/error details.
-- Windows technical archive verification for the prior 16-document package passed. A new 19-document archive verification is required before the next release.
+- Windows technical archive verification passed for the 19-document package: all 12 folders, 19 core Markdown documents, both manifests, clean unique paths, readable content, and no missing or duplicate files.
 - Responsive checks passed at `390 x 844`, `768 x 1024`, and `1440 x 1000` without page-level horizontal overflow.
 
 ## Known limitations

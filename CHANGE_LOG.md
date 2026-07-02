@@ -1,5 +1,47 @@
 # Change Log
 
+## 2026-07-02 — Project Type and 19-Document Validation Pass
+
+### Summary
+
+- Confirmed the project type, conditional intake, branding, Draft/Ready, generation, guidance, and export implementation without adding features.
+- Regenerated all three persisted 16-document packages; Mission Control now reports no stale `16 of 19` packages.
+- Created a complete internal web-application QA project and verified the rendered Export state reaches `Ready for Codex` only after required intake is complete.
+- Downloaded and inspected the production ZIP with Windows `Expand-Archive`.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `CHANGE_LOG.md`, `TEST_PLAN.md`, and `RELEASE_NOTES.md` — recorded completed validation and 19-document ZIP evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`12` files, `75` tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- Required project-type behavior passed for Business website, Web application, Android app, Game, Dashboard, Power Apps/Microsoft 365, API/backend, and Automation/workflow presets.
+- Draft generation with missing markers, Ready for Codex gating, `19/19` Export diagnostics, and both post-generation guidance surfaces passed.
+- Desktop and `390 x 844` browser QA passed with zero console warnings/errors and no page-level horizontal overflow.
+- Windows ZIP inspection passed: 12 folders, 19 core Markdown documents, both manifests, clean unique paths, readable headings, zero missing/duplicate/empty files, and no stale 16-document references.
+
+### Issues found
+
+- None in the application.
+- Testing limitation: the in-app browser did not expose its download event, but the authorized ZIP download completed successfully in Windows and was inspected directly.
+
+### Remaining work
+
+- Deploy to Cloudflare Pages when the release owner is assigned.
+- Run the documented smoke test against the deployed URL.
+
 ## 2026-07-02 — Project Type Presets, Branding Intake, and Handoff Guidance
 
 ### Summary
