@@ -29,6 +29,10 @@
 - `npm.cmd audit` — passed (`0` vulnerabilities).
 - `git diff --check` — passed.
 - `npm.cmd exec wrangler -- deploy --dry-run` — passed; Wrangler read the four `dist` assets with no bindings.
+- `npm.cmd run deploy` — deployed Worker version `8408e22f-eafa-4985-935b-cd09746590c1` to `projectbuilder`.
+- Production browser smoke testing passed at desktop and `390 × 844`: current asset hash loaded, no console errors, no horizontal overflow, project type was required, Business website and Game conditional fields appeared, internal Web application branding stayed optional, and Draft/Ready gating worked.
+- Production generation produced all 19 core documents, including `BRAND_GUIDE.md`, `CLIENT_QUESTIONS.md`, and `HANDOFF_CHECKLIST.md`; `NEXT_STEPS.md` contained the complete Architect/Codex workflow.
+- Production ZIP download succeeded. Windows archive inspection confirmed 12 folders, 19 core documents, both manifests, no missing core files, no duplicate paths, and complete post-generation guidance.
 
 ### Issues found
 
@@ -36,8 +40,8 @@
 
 ### Remaining work
 
-- Commit and deploy the validated build.
-- Run the full production smoke test.
+- Complete a physical-keyboard tab-order check in a normal browser when available; automated focus styles and accessibility tests passed, but the in-app browser did not advance focus with synthetic Tab input.
+- Firefox-specific production verification remains optional follow-up coverage.
 
 ## 2026-07-02 — Project Type and 19-Document Validation Pass
 
