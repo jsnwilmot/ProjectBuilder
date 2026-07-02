@@ -7,3 +7,10 @@ coverage/
 .DS_Store
 desktop-qa.png
 mobile-qa.png
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
