@@ -30,6 +30,7 @@ export async function copyText(text: string): Promise<CopyTextResult> {
   textarea.style.color = "#1c2738";
   textarea.style.pointerEvents = "none";
   textarea.addEventListener("blur", () => textarea.remove(), { once: true });
+  document.addEventListener("pointerdown", () => textarea.remove(), { once: true, capture: true });
   document.body.append(textarea);
   textarea.focus();
   textarea.select();
