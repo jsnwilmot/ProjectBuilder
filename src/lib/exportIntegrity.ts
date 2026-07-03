@@ -3,6 +3,7 @@ import { GENERATED_FILES } from "../data/generatedFiles";
 import type { ProjectRecord } from "../types/project";
 import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
 import { getClientReviewReadiness } from "./clientReview";
+import { countPackageMissingMarkers } from "./documentReview";
 
 export const EXPORT_MANIFEST_PATH = "00_Project_Overview/EXPORT_MANIFEST.md";
 export const EXPORT_SCHEMA_VERSION = 1;
@@ -32,7 +33,6 @@ export interface ExportIntegrityResult {
 }
 
 const controlCharacters = /[\u0000-\u001f\u007f]/;
-const missingMarkerPattern = /\[MISSING:[^\]]+\]/g;
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
@@ -61,10 +61,7 @@ function hasUnsafeFileName(fileName: string): boolean {
 }
 
 export function countMissingMarkers(project: ProjectRecord): number {
-  return project.generatedDocuments.reduce((total, document) => {
-    const matches = document.content.match(missingMarkerPattern);
-    return total + (matches?.length ?? 0);
-  }, 0);
+  return countPackageMissingMarkers(project.generatedDocuments);
 }
 
 export function validateExportPackage(

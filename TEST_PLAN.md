@@ -57,8 +57,11 @@
 - Clipboard permission failure uses the local selection fallback when the browser supports it.
 - Client Questions copy uses the same local selection fallback when direct clipboard access is denied.
 - Browsers without native or legacy copy-command access leave fallback text visibly selected with a Ctrl+C instruction.
-- Document preview reads active-project generated documents.
-- Document search exposes a clear zero-result state and restores the selected document after clearing.
+- Project Package Preview renders all 19 generated documents with canonical folder mapping, purpose labels, review status, and per-document missing-marker count.
+- Package summary reports Draft/Ready status, 19-document completeness, total marker count, review blockers, checklist completion, and ZIP availability.
+- Document preview opens selected full Markdown content, preserves plain-text spacing, exposes metadata, and returns to the document list.
+- Document and quick-copy actions use the shared clipboard utility and selection fallback.
+- Document search covers file name, folder, and purpose, exposes a clear zero-result state, and restores the document list after clearing.
 - Dashboard selectors calculate readiness, outstanding questions, completion, next action, and display status without mutation.
 - Active project summary selector returns status, generated file count, outstanding required count, review status, and deterministic next action details.
 - Recent project summaries sort by last updated date with stable fallback behavior.
@@ -81,6 +84,20 @@ npm.cmd test
 npm.cmd run build
 npm.cmd audit
 ```
+
+## 2026-07-03 project package preview evidence
+
+- `npm.cmd test`: passed (`14` files, `94` tests).
+- `npm.cmd test -- src/tests/documentReview.test.ts src/tests/exportProjectPackage.test.ts src/tests/clientReview.test.ts`: passed (`3` files, `12` focused regression tests).
+- `npm.cmd run build`: passed.
+- `npm.cmd audit`: passed with `0` vulnerabilities.
+- `git diff --check`: passed.
+- Automated coverage includes the 19-document list, canonical folders, purpose metadata, per-document and package marker totals, Draft warning, Ready-for-Codex blocker summary, preview content, back navigation, document copy, quick copy, and clipboard fallback.
+- Existing onboarding, project persistence, Client Review, 19-document generation, export integrity, and ZIP tests remain in the full suite.
+- In-app browser QA passed at `1280 x 720` desktop and `390 x 844` mobile with no console warnings/errors, framework overlay, or page-level horizontal overflow.
+- Ready and Draft package summaries, all 19 review rows, five quick-copy actions, purpose/folder/status metadata, preview open/close, full Markdown content, clipboard selection fallback, and responsive layout passed.
+- Browser export reported `19/19`, valid folder mapping, zero export errors, and `Package downloaded successfully.`
+- Physical-keyboard tab order and Windows Explorer ZIP inspection remain manual release checks. Automated focus styles, accessible labels, and keyboard-reachable controls passed.
 
 ## 2026-07-03 onboarding and first-run UX evidence
 

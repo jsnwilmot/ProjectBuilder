@@ -110,7 +110,7 @@ export function App() {
           />
         ) : null}
         {view === "documents" ? (
-          <DocumentViewer projectPackage={generatedPackage} onReturnToIntake={() => openIntake(0)} />
+          <DocumentViewer project={project} projectPackage={generatedPackage} onReturnToIntake={() => openIntake(0)} />
         ) : null}
         {view === "export" ? (
           <ExportPanel

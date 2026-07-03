@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../app/App";
 import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
+import { countDocumentMissingMarkers, countPackageMissingMarkers } from "../lib/documentReview";
 import { STORAGE_KEY, saveStorageState } from "../lib/projectRepository";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
@@ -52,14 +53,16 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
-    expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /DATA_MODEL\.md/i }));
+    expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview README.md" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Preview DATA_MODEL.md" }));
+    expect(screen.getByRole("heading", { name: "DATA_MODEL.md" })).toBeInTheDocument();
     expect(screen.getByText(/\[MISSING: data sources\]/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to document list" }));
     await user.type(screen.getByRole("textbox", { name: "Search documents" }), "does-not-exist");
     expect(screen.getByRole("heading", { name: "No matching documents" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(screen.getByRole("heading", { name: "DATA_MODEL.md" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview DATA_MODEL.md" })).toBeInTheDocument();
   });
 
   it("creates and switches persisted projects without replacing existing records", async () => {
@@ -144,7 +147,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "What happens after generation?" })).toBeInTheDocument();
     expect(screen.getByText("Complete the Ready for Codex checklist.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
-    expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
     expect(screen.getByText("19 generated documents")).toBeInTheDocument();
   });
 
@@ -177,7 +180,8 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
-    expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Preview README.md" }));
     expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
     expect(screen.getByText(/Community Services Portal/)).toBeInTheDocument();
 
@@ -185,7 +189,82 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Select project Volunteer Management App" }));
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: "Preview README.md" }));
     expect(screen.getByText(/Volunteer Management App/)).toBeInTheDocument();
+  });
+
+  it("reviews all 19 generated documents with purposes, marker counts, preview, and copy actions", async () => {
+    const project = createDraftGeneratedProject(createProject({
+      identity: { id: "document-review-ui", projectName: "Document Review UI" },
+      intake: { appType: "Business website" }
+    }));
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+
+    expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
+    const reviewRegion = screen.getByRole("region", { name: "Generated document review" });
+    expect(within(reviewRegion).getAllByRole("listitem")).toHaveLength(19);
+    expect(screen.getByText("Defines approved scope, boundaries, assumptions, and success criteria.")).toBeInTheDocument();
+
+    const scopeDocument = project.generatedDocuments.find((document) => document.fileName === "PROJECT_SCOPE.md")!;
+    const scopeRow = screen.getByRole("button", { name: "Preview PROJECT_SCOPE.md" }).closest("article")!;
+    expect(scopeRow).toHaveTextContent("00_Project_Overview");
+    expect(scopeRow).toHaveTextContent(`${countDocumentMissingMarkers(scopeDocument.content)} missing marker`);
+
+    const summary = screen.getByRole("region", { name: "Package summary" });
+    expect(within(summary).getByText("Documents").closest("div")).toHaveTextContent("19/19");
+    expect(within(summary).getByText("Missing markers").closest("div")).toHaveTextContent(
+      String(countPackageMissingMarkers(project.generatedDocuments))
+    );
+    expect(within(summary).getByText("Package status").closest("div")).toHaveTextContent("Draft");
+    expect(within(summary).getByText("Final readiness").closest("div")).toHaveTextContent("Not ready");
+    expect(within(summary).getByText(/Missing information remains/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Preview PROJECT_SCOPE.md" }));
+    expect(screen.getByRole("heading", { name: "PROJECT_SCOPE.md" })).toBeInTheDocument();
+    expect(screen.getByText(/# Project Scope/)).toHaveTextContent("Document Review UI");
+    await user.click(screen.getByRole("button", { name: "Copy document" }));
+    expect(await navigator.clipboard.readText()).toBe(scopeDocument.content);
+    expect(screen.getByText("PROJECT_SCOPE.md copied.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to document list" }));
+
+    await user.click(screen.getByRole("button", { name: "Quick copy ARCHITECT_INSTRUCTIONS.md" }));
+    expect(await navigator.clipboard.readText()).toContain("# Architect Instructions");
+    expect(screen.getByText("ARCHITECT_INSTRUCTIONS.md copied.")).toBeInTheDocument();
+  });
+
+  it("shows zero readiness blockers for a Ready for Codex package preview", async () => {
+    seedApp([createGeneratedProject()]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+
+    const summary = screen.getByRole("region", { name: "Package summary" });
+    expect(within(summary).getByText("Package status").closest("div")).toHaveTextContent("Ready for Codex");
+    expect(within(summary).getByText("Ready for Codex blockers").closest("div")).toHaveTextContent("0");
+    expect(within(summary).getByText("Readiness checklist").closest("div")).toHaveTextContent("12/12");
+    expect(within(summary).getByText("Final readiness").closest("div")).toHaveTextContent("Ready");
+  });
+
+  it("uses the clipboard selection fallback for document review copy actions", async () => {
+    const project = createGeneratedProject();
+    seedApp([project]);
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("Denied"));
+    const execCommand = vi.fn().mockReturnValue(true);
+    Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Copy README.md" }));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(execCommand).toHaveBeenCalledWith("copy");
+    expect(screen.getByText("README.md copied.")).toBeInTheDocument();
   });
 
   it("blocks export before generation and reports readiness after generation", async () => {

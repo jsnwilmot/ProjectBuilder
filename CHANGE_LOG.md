@@ -1,5 +1,56 @@
 # Change Log
 
+## 2026-07-03 — Project Package Preview and Document Review
+
+### Summary
+
+- Replaced the generated-document viewer with a complete Project Package Preview and review workflow.
+- Added a package summary for Draft/Ready status, 19-document completeness, missing markers, review blockers, checklist progress, final readiness, and ZIP availability.
+- Added canonical purpose descriptions, review status, and missing-marker count for every generated document.
+- Added full plain-text Markdown preview with folder, purpose, status, marker count, copy, back, and close controls.
+- Added quick-copy actions for Architect instructions, Codex instructions, phased prompts, client questions, and next steps using the existing clipboard fallback.
+- Preserved generation, Client Review, readiness gating, onboarding, persistence, and ZIP export behavior.
+
+### Files created
+
+- `src/data/documentPurposes.ts` — canonical purpose labels and quick-copy document list.
+- `src/lib/documentReview.ts` — shared marker counting and document review metadata.
+- `src/tests/documentReview.test.ts` — marker-count and review-status unit coverage.
+
+### Files updated
+
+- `src/components/DocumentViewer/DocumentViewer.tsx` — package summary, review list, document preview, copy actions, and Draft/Ready guidance.
+- `src/app/App.tsx` — active project passed to package preview diagnostics.
+- `src/lib/exportIntegrity.ts` — shared package marker counting.
+- `src/styles/global.css` — desktop and mobile package-review layouts.
+- `src/tests/App.test.tsx` — end-to-end package preview, copy, readiness, and fallback coverage.
+- `README.md`, `TEST_PLAN.md`, `RELEASE_NOTES.md`, and `CHANGE_LOG.md` — feature and verification documentation.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`14` files, `94` tests).
+- `npm.cmd test -- src/tests/documentReview.test.ts src/tests/exportProjectPackage.test.ts src/tests/clientReview.test.ts` — passed (`3` files, `12` focused regression tests).
+- Existing onboarding, Client Review, 19-document generation, and ZIP tests passed in the full suite.
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- In-app browser QA passed at `1280 x 720` desktop and `390 x 844` mobile for Ready and Draft summaries, the 19-document review list, purpose/status/marker metadata, preview open/close, plain-text Markdown content, document copy, quick copy, clipboard fallback, responsive layout, and console health.
+- Browser ZIP export reported `19/19`, valid folder mapping, zero errors, and a successful package download.
+
+### Issues found
+
+- None during implementation.
+- Testing limitation: physical-keyboard tab order and Windows Explorer ZIP inspection remain manual release checks.
+
+### Remaining work
+
+- Review the phase before committing or deploying.
+- Complete the physical-keyboard and Windows Explorer ZIP checks in a normal desktop browser when available.
+
 ## 2026-07-03 — Onboarding and First-Run UX Polish
 
 ### Summary

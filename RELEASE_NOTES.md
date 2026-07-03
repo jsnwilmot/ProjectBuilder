@@ -20,14 +20,16 @@ The production target is the existing `projectbuilder` Worker at `https://projec
 - Client Review workflow with grouped missing-information decisions, copyable client questions, and a 12-item Ready for Codex checklist.
 - Safe persistence and migration for `Answered`, `Not applicable`, and `Deferred` review decisions.
 - Generation of 19 deterministic project handoff documents.
-- Plain-text document search and preview.
+- Project Package Preview with all 19 documents, canonical folders, purpose labels, statuses, per-document marker counts, and Preview/Copy actions.
+- Package-level Draft/Ready, missing-marker, blocker, checklist, and ZIP-readiness summary.
+- Full plain-text Markdown review plus quick-copy actions for the five key handoff documents using the existing clipboard fallback.
 - Verified ZIP export with 12 standard folders, Markdown and JSON manifests, deterministic ordering, and integrity diagnostics.
 - Copy actions for Architect instructions, Codex instructions, and phased Codex prompts.
 - Responsive and accessible application shell for desktop, tablet, and mobile.
 
 ## Release verification
 
-- Automated suite: 13 files and 89 tests passed, including first-run onboarding, read-only example non-persistence, preset guidance, status explanations, client-review decisions, clipboard fallbacks, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
+- Automated suite: 14 files and 94 tests passed, including package preview metadata, marker totals, document and quick-copy behavior, first-run onboarding, client-review decisions, clipboard fallbacks, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
 - Production build completed successfully.
 - Dependency audit reported zero vulnerabilities.
 - Production-preview regression covered project creation, minimum intake, refresh persistence, project switching, generation, document search/preview, export diagnostics, and all three copy actions.

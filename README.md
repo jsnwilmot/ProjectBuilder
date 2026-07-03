@@ -24,7 +24,10 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Generated `BRAND_GUIDE.md`, `CLIENT_QUESTIONS.md`, and `HANDOFF_CHECKLIST.md` files.
 - Approved folder mapping for all generated files with safe path handling for package generation and ZIP export.
 - Shared document generation helpers for missing markers, safe text/list handling, markdown formatting, and file/folder sanitization.
-- Plain-text viewer for all generated Markdown documents.
+- Project Package Preview with a 19-document review list, folder and purpose labels, per-document statuses, missing-marker counts, and Preview/Copy actions.
+- Full plain-text Markdown preview with preserved heading and list spacing, document metadata, and back/close navigation.
+- Package summary showing Draft/Ready status, document count, total missing markers, readiness blockers, checklist progress, and ZIP availability.
+- Quick-copy actions for Architect instructions, Codex instructions, phased prompts, client questions, and next steps using the shared clipboard fallback.
 - Verified ZIP export with the standard 12-folder structure, 19 required documents, `EXPORT_MANIFEST.md`, and a JSON diagnostic manifest.
 - Export diagnostics distinguish Draft packages from Ready for Codex packages. Draft generation/export remains allowed; Ready for Codex requires all blocking review items and checklist checks to pass.
 - Mission Control explains Draft, Ready for Codex, and Client Questions Pending in plain language when those states apply.
@@ -62,6 +65,8 @@ A valid ZIP contains:
 - `project-manifest.json` with the same machine-readable diagnostics.
 
 The two manifests are diagnostic files and are not counted among the 19 core documents. Explicit `[MISSING: ...]` markers remain in generated documents and are reported as warnings rather than blocking export. A package with unresolved client review or checklist blockers is labeled **Draft**. It becomes **Ready for Codex** only when every blocking review item is answered or marked not applicable with a reason, all blocking checklist checks pass, and the final package is regenerated. Unsafe project names are converted to a safe ZIP root; unsafe, duplicate, unexpected, incorrectly mapped, or empty generated files block export with a clear error.
+
+Open **Documents** after generation to review the Project Package Preview before export. Documents with missing markers are labeled **Needs Info**; key handoff documents without missing markers are labeled **Review Recommended**; other complete documents are labeled **Ready**. Draft packages may retain missing markers, but required missing information must be resolved before Ready for Codex.
 
 ## Current limitations
 
