@@ -7,10 +7,18 @@ import {
 } from "./projectSelectors";
 import { EMPTY_STORAGE_STATE, migrateStorageState } from "./storageVersion";
 import { getOutstandingFields } from "./validateIntake";
+import {
+  deriveReviewItems,
+  getClientReviewReadiness,
+  reviewItemBlocksReadiness,
+  updateReviewItemDecision
+} from "./clientReview";
 import type {
   GeneratedDocument,
   ProjectInputField,
   ProjectRecord,
+  ReadinessChecklistId,
+  ReviewItem,
   StorageState
 } from "../types/project";
 
@@ -38,13 +46,25 @@ function browserStorage(): StorageAdapter {
 }
 
 function synchronizeDerivedFields(project: ProjectRecord): ProjectRecord {
+  const reviewItems = deriveReviewItems(project);
+  const reviewProject = { ...project, reviewItems };
+  const unresolvedReviewFields = [...new Set(
+    reviewItems.filter(reviewItemBlocksReadiness).map((item) => item.fieldKey)
+  )];
   const synchronized = {
-    ...project,
-    generatedFileCount: getGeneratedFileCount(project),
-    outstandingQuestions: getOutstandingFields(project),
-    readinessSections: getReadinessSections(project)
+    ...reviewProject,
+    generatedFileCount: getGeneratedFileCount(reviewProject),
+    outstandingQuestions: unresolvedReviewFields.length > 0
+      ? unresolvedReviewFields
+      : getOutstandingFields(reviewProject),
+    readinessSections: getReadinessSections(reviewProject)
   };
-  return { ...synchronized, status: getProjectDisplayStatus(synchronized) };
+  const readiness = getClientReviewReadiness(synchronized);
+  return {
+    ...synchronized,
+    status: getProjectDisplayStatus(synchronized),
+    reviewStatus: readiness.isReady ? "Approved" : synchronized.reviewStatus
+  };
 }
 
 function synchronizeStorageState(state: StorageState): StorageState {
@@ -167,6 +187,7 @@ export function updateProjectFields(
     const updated = applyProjectFieldChanges(project, changes);
     return {
       ...updated,
+      packageGeneratedAt: null,
       reviewStatus: "Review needed",
       status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
     };
@@ -181,9 +202,45 @@ export function saveGeneratedDocuments(
   return updateProject(id, {
     generatedDocuments: documents,
     generatedFileCount: documents.length,
+    packageGeneratedAt: new Date().toISOString(),
     status: "Project Package Generated",
     reviewStatus: "Review needed"
   }, storage);
+}
+
+export function updateReviewItem(
+  id: string,
+  reviewItemId: string,
+  changes: Partial<Pick<ReviewItem, "status" | "notApplicableReason" | "deferredReason">>,
+  storage: StorageAdapter = browserStorage()
+): ProjectRecord | null {
+  return updateProject(id, (project) => ({
+    ...project,
+    reviewItems: deriveReviewItems(project).map((item) =>
+      item.id === reviewItemId ? updateReviewItemDecision(item, changes) : item
+    ),
+    packageGeneratedAt: null,
+    reviewStatus: "In review",
+    status: project.generatedDocuments.length > 0 ? "Needs Review" : project.status
+  }), storage);
+}
+
+export function updateReadinessConfirmation(
+  id: string,
+  checklistId: ReadinessChecklistId,
+  checked: boolean,
+  storage: StorageAdapter = browserStorage()
+): ProjectRecord | null {
+  return updateProject(id, (project) => ({
+    ...project,
+    readinessConfirmations: {
+      ...project.readinessConfirmations,
+      [checklistId]: checked
+    },
+    packageGeneratedAt: null,
+    reviewStatus: "In review",
+    status: project.generatedDocuments.length > 0 ? "Needs Review" : project.status
+  }), storage);
 }
 
 export function deleteProject(id: string, storage: StorageAdapter = browserStorage()): StorageState {

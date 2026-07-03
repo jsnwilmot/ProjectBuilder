@@ -11,7 +11,7 @@ import { PROJECT_FOLDERS } from "../../data/folderStructure";
 import { GENERATED_FILES } from "../../data/generatedFiles";
 import { PACKAGE_USAGE_STEPS } from "../../data/packageGuidance";
 import { getProjectTypeFields, getProjectTypePreset } from "../../data/projectTypes";
-import { validateIntake } from "../../lib/validateIntake";
+import { getClientReviewReadiness, groupClientQuestions } from "../../lib/clientReview";
 import type { ProjectRecord } from "../../types/project";
 
 const join = (...parts: string[]) => parts.join("\n\n");
@@ -28,9 +28,9 @@ function header(project: ProjectRecord): string {
 }
 
 function missingSummary(project: ProjectRecord): string {
-  const count = project.outstandingQuestions.length;
-  if (count === 0) return "No missing markers are currently identified from intake fields.";
-  return `${count} intake field${count === 1 ? " is" : "s are"} currently missing and marked explicitly in this package.`;
+  const count = getClientReviewReadiness(project).unresolvedItems.length;
+  if (count === 0) return "No unresolved client review items are currently identified.";
+  return `${count} client review item${count === 1 ? " is" : "s are"} unresolved and represented in this package.`;
 }
 
 function generatedFilesList(): string {
@@ -38,10 +38,52 @@ function generatedFilesList(): string {
 }
 
 function packageReadiness(project: ProjectRecord): string {
-  const validation = validateIntake(project);
-  return validation.isValid
-    ? "Ready for Codex — zero required intake fields are missing."
-    : `Draft — ${validation.missingFields.length} required intake item${validation.missingFields.length === 1 ? "" : "s"} remain unresolved.`;
+  const readiness = getClientReviewReadiness(project);
+  return readiness.isReady
+    ? "Ready for Codex — all blocking client review and readiness checks are complete."
+    : `Draft — ${readiness.blockerCount} readiness blocker${readiness.blockerCount === 1 ? "" : "s"} remain unresolved.`;
+}
+
+function reviewItemsByStatus(project: ProjectRecord, status: "Not applicable" | "Deferred"): string {
+  const items = project.reviewItems.filter((item) => item.status === status);
+  if (items.length === 0) return "- None.";
+  return items.map((item) => {
+    const reason = status === "Not applicable" ? item.notApplicableReason : item.deferredReason;
+    const readinessNote = status === "Deferred" && (item.blocking || !item.allowDeferred)
+      ? " This remains a readiness blocker."
+      : "";
+    return `- **${item.section} — ${item.label}:** ${reason || missingMarker(`${status.toLowerCase()} reason`)}${readinessNote}`;
+  }).join("\n");
+}
+
+function outstandingReviewQuestions(project: ProjectRecord): string {
+  const groups = groupClientQuestions(project.reviewItems);
+  if (groups.length === 0) return "- None.";
+  return groups.map(({ section, items }) => [
+    `### ${section}`,
+    ...items.map((item) => `- ${item.recommendedQuestion}`)
+  ].join("\n")).join("\n\n");
+}
+
+function readinessChecklist(project: ProjectRecord): string {
+  return getClientReviewReadiness(project).checklist
+    .map((item) => `- [${item.passed ? "x" : " "}] ${item.label}${item.passed ? "" : ` — ${item.reason}`}`)
+    .join("\n");
+}
+
+function readinessBlockers(project: ProjectRecord): string {
+  const blockers = getClientReviewReadiness(project).blockers;
+  return blockers.length > 0 ? blockers.map((blocker) => `- ${blocker}`).join("\n") : "- None.";
+}
+
+function reviewDecisionSummary(project: ProjectRecord): string {
+  return join(
+    `## Outstanding client questions\n\n${outstandingReviewQuestions(project)}`,
+    `## Not applicable decisions\n\n${reviewItemsByStatus(project, "Not applicable")}`,
+    `## Deferred decisions\n\n${reviewItemsByStatus(project, "Deferred")}`,
+    `## Readiness checklist\n\n${readinessChecklist(project)}`,
+    `## Current blockers\n\n${readinessBlockers(project)}`
+  );
 }
 
 function projectTypeNotes(project: ProjectRecord): string {
@@ -107,7 +149,8 @@ const projectScope = (project: ProjectRecord) => join(
   `## Assumptions\n\n${listOrMissing(project.intake.assumptions, "assumptions")}`,
   `## Success criteria\n\n${listOrMissing(project.intake.successCriteria, "success criteria")}`,
   "## Approved boundaries\n\n- Keep local persistence, no backend, no authentication, no import, and no external AI calls unless explicitly approved.\n- GPT Project Builder prepares the client project package and does not build the final client app directly.",
-  `## Missing scope decisions\n\n${missingSummary(project)}`
+  `## Missing scope decisions\n\n${missingSummary(project)}`,
+  reviewDecisionSummary(project)
 );
 
 const clientRequirements = (project: ProjectRecord) => join(
@@ -253,7 +296,9 @@ const acceptanceCriteria = (project: ProjectRecord) => join(
   ])}`,
   `## Accessibility acceptance criteria\n\n${listOrMissing(project.intake.accessibilityNotes, "accessibility notes")}`,
   "## Testing acceptance criteria\n\n- Unit tests cover validation and generation logic.\n- Integration tests cover active-project persistence and workflow behavior.\n- Manual checks cover accessibility and export reliability.",
-  `## Export or deployment acceptance criteria\n\n- Generated package contains all ${GENERATED_FILES.length} required files.\n- ZIP structure matches approved folders.\n- Missing markers remain visible in exported markdown.`
+  `## Export or deployment acceptance criteria\n\n- Generated package contains all ${GENERATED_FILES.length} required files.\n- ZIP structure matches approved folders.\n- Missing markers remain visible in exported markdown.`,
+  `## Client review acceptance\n\n${readinessChecklist(project)}`,
+  `## Readiness blockers\n\n${readinessBlockers(project)}`
 );
 
 const testPlan = (project: ProjectRecord) => join(
@@ -326,7 +371,7 @@ const codexInstructions = (project: ProjectRecord) => join(
   "## Documentation requirements\n\nUpdate README, change log, next steps, and test plan when behavior changes.",
   "## Expected response format after each task\n\nSummary, files created/updated/removed, tests, issues, scope questions, and next step.",
   "## Missing decision rule\n\nUse: [MISSING DECISION: explain what is missing and why it matters].",
-  "## Draft and readiness rule\n\nDraft package generation is allowed with [MISSING: ...] markers. Do not mark the project Ready for Codex until validation reports zero required missing fields.",
+  "## Draft and readiness rule\n\nDraft package generation is allowed with [MISSING: ...] markers. Do not mark the project Ready for Codex until required gaps, client review decisions, and every blocking readiness checklist item are complete.",
   "## Scope boundary rule\n\nDo not implement outside approved scope. Do not guess unapproved architecture or features."
 );
 
@@ -379,10 +424,12 @@ const nextSteps = (project: ProjectRecord) => join(
   PACKAGE_USAGE_STEPS.map((step, index) => `${index + 1}. ${step}`).join("\n"),
   "## Immediate next action\n\nReview PROJECT_SCOPE.md and resolve every required missing marker before marking the project Ready for Codex.",
   "## Architect review tasks\n\n- Validate scope and boundaries\n- Resolve contradictions\n- Approve phased prompts",
-  `## Client questions to resolve\n\n${missingSummary(project)}`,
-  "## Codex readiness checklist\n\n- Scope approved\n- Missing decisions resolved or explicitly deferred\n- Acceptance criteria testable\n- Security and accessibility expectations documented",
+  `## Client questions to resolve\n\n${outstandingReviewQuestions(project)}`,
+  `## Not applicable decisions\n\n${reviewItemsByStatus(project, "Not applicable")}`,
+  `## Deferred decisions\n\n${reviewItemsByStatus(project, "Deferred")}`,
+  `## Codex readiness checklist\n\n${readinessChecklist(project)}`,
   "## Recommended first Codex phase\n\nPhase 1: Project setup",
-  "## Blockers\n\n- [MISSING: unresolved blockers]",
+  `## Blockers\n\n${readinessBlockers(project)}`,
   "## Non-blocking improvements\n\n- Improve optional reporting and branding detail coverage after core scope approval."
 );
 
@@ -416,18 +463,15 @@ const brandGuide = (project: ProjectRecord) => join(
 );
 
 const clientQuestions = (project: ProjectRecord) => {
-  const validation = validateIntake(project);
-  const questions = validation.missingFields.map((issue) => `- ${issue.message}`);
   return join(
     "# Client Questions",
     header(project),
     `## Package readiness\n\n${packageReadiness(project)}`,
-    "## Required questions",
-    questions.length > 0 ? questions.join("\n") : "- None. Required intake is complete.",
-    `## Optional follow-up areas\n\n${validation.warnings.length > 0
-      ? validation.warnings.map((warning) => `- ${warning.message}`).join("\n")
-      : "- None."}`,
-    "## Review instruction\n\nRecord approved answers in the guided intake, regenerate the package, and confirm the required question count reaches zero."
+    `## Questions grouped for client review\n\n${outstandingReviewQuestions(project)}`,
+    `## Not applicable decisions\n\n${reviewItemsByStatus(project, "Not applicable")}`,
+    `## Deferred decisions\n\n${reviewItemsByStatus(project, "Deferred")}`,
+    `## Readiness blockers\n\n${readinessBlockers(project)}`,
+    "## Review instruction\n\nRecord approved answers in the guided intake. Mark an item not applicable only with a reason. Deferred blocking items keep the package in Draft. Regenerate the package after review."
   );
 };
 
@@ -435,21 +479,14 @@ const handoffChecklist = (project: ProjectRecord) => join(
   "# Handoff Checklist",
   header(project),
   `## Package readiness\n\n${packageReadiness(project)}`,
-  `## Required handoff checks\n\n${markdownList([
-    "PROJECT_SCOPE.md reviewed",
-    "All required [MISSING: ...] markers resolved",
-    "CLIENT_REQUIREMENTS.md reviewed with the client",
-    "APP_BLUEPRINT.md reviewed by GPT Architect",
-    "Security and accessibility expectations approved",
-    "Acceptance criteria are testable",
-    "ARCHITECT_INSTRUCTIONS.md placed in the GPT Architect context",
-    "CODEX_INSTRUCTIONS.md placed in Codex setup or repository instructions",
-    "PHASED_CODEX_PROMPTS.md reviewed",
-    "Only Phase 1 is queued for initial Codex execution"
-  ])}`,
+  `## Required handoff checks\n\n${readinessChecklist(project)}`,
+  `## Outstanding client questions\n\n${outstandingReviewQuestions(project)}`,
+  `## Not applicable decisions\n\n${reviewItemsByStatus(project, "Not applicable")}`,
+  `## Deferred decisions\n\n${reviewItemsByStatus(project, "Deferred")}`,
+  `## Current blockers\n\n${readinessBlockers(project)}`,
   "## Operating loop",
   PACKAGE_USAGE_STEPS.map((step, index) => `${index + 1}. ${step}`).join("\n"),
-  "## Approval rule\n\nA Draft package may be reviewed and exported. Ready for Codex requires zero required missing fields."
+  "## Approval rule\n\nA Draft package may be reviewed and exported. Ready for Codex requires all blocking client review items and readiness checks to pass."
 );
 
 export const documentTemplates: Record<string, (project: ProjectRecord) => string> = {

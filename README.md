@@ -13,7 +13,8 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Conditional website, game, mobile, dashboard, Microsoft 365, automation, and API questions shown only for relevant project types.
 - Structured branding intake with public/internal visibility rules; branding is required for public and brand-dependent products and optional for internal tools.
 - Section-based validation that returns `isValid`, missing fields, warnings, and per-stage completion results.
-- Review stage summary with explicit missing required information and warning visibility.
+- Client Review workflow between generation and Ready for Codex, with persisted missing-information decisions, grouped client questions, and a blocking readiness checklist.
+- Missing and weak items record section, field label, reason, recommended client question, action, and one of `Needs answer`, `Answered`, `Not applicable`, or `Deferred`.
 - Consistent project and review status labels with migration of the legacy `Needs review` review label.
 - Actionable empty-state and corrupt-storage recovery without silently creating demo projects.
 - Generate stage readiness summary that allows generation with explicit `[MISSING: ...]` markers.
@@ -23,13 +24,13 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Shared document generation helpers for missing markers, safe text/list handling, markdown formatting, and file/folder sanitization.
 - Plain-text viewer for all generated Markdown documents.
 - Verified ZIP export with the standard 12-folder structure, 19 required documents, `EXPORT_MANIFEST.md`, and a JSON diagnostic manifest.
-- Export diagnostics distinguish Draft packages from Ready for Codex packages. Draft generation/export remains allowed; Ready for Codex requires zero required missing fields.
+- Export diagnostics distinguish Draft packages from Ready for Codex packages. Draft generation/export remains allowed; Ready for Codex requires all blocking review items and checklist checks to pass.
 - A **Use This Project Package** panel and generated `NEXT_STEPS.md` explain the Architect/Codex review loop after generation.
 - Export integrity diagnostics for missing, extra, empty, duplicate, incorrectly mapped, or unsafe document paths.
 - Deterministic core file and folder ordering, safe ZIP root normalization, and active-project-only export.
 - Copy actions for generated Architect instructions, Codex instructions, and phased Codex prompts.
 - Versioned browser-local persistence for multiple projects and one active project.
-- Persisted intake changes, generated documents, lifecycle status, readiness, and timestamps without clearing generated documents on intake edits.
+- Persisted intake changes, generated documents, client review decisions, readiness confirmations, lifecycle status, and timestamps without clearing generated documents on intake edits.
 - Generated documents are replaced only when **Generate and save package** is explicitly run.
 - Project data is stored only in the current browser. No backend or external service is used.
 
@@ -43,6 +44,8 @@ Because there is no backend or authentication in this phase, projects are availa
 
 Existing stored free-text app types that do not match a supported preset are cleared during normalization so the user can make an explicit valid selection. Packages generated before the 19-document format remain stored, but they must be regenerated to add the three new required files before Export integrity will pass.
 
+Older stored projects are normalized with safe defaults for the client review workflow. Review decisions are stored in the existing version-1 record. Intake or review changes mark the generated package stale; regenerate after the final review before Ready for Codex can pass.
+
 ## Export packages
 
 Export uses the active project's persisted generated documents. Run **Generate and save package** before opening Export; Export never creates an empty or implicit package.
@@ -54,7 +57,7 @@ A valid ZIP contains:
 - `00_Project_Overview/EXPORT_MANIFEST.md` with project identity, status, file diagnostics, warning/error counts, folder summary, and stable file list.
 - `project-manifest.json` with the same machine-readable diagnostics.
 
-The two manifests are diagnostic files and are not counted among the 19 core documents. Explicit `[MISSING: ...]` markers remain in generated documents and are reported as warnings rather than blocking export. A package with unresolved required intake is labeled **Draft**. It becomes **Ready for Codex** only when validation reports zero required missing fields. Unsafe project names are converted to a safe ZIP root; unsafe, duplicate, unexpected, incorrectly mapped, or empty generated files block export with a clear error.
+The two manifests are diagnostic files and are not counted among the 19 core documents. Explicit `[MISSING: ...]` markers remain in generated documents and are reported as warnings rather than blocking export. A package with unresolved client review or checklist blockers is labeled **Draft**. It becomes **Ready for Codex** only when every blocking review item is answered or marked not applicable with a reason, all blocking checklist checks pass, and the final package is regenerated. Unsafe project names are converted to a safe ZIP root; unsafe, duplicate, unexpected, incorrectly mapped, or empty generated files block export with a clear error.
 
 ## Current limitations
 

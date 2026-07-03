@@ -102,6 +102,30 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Review project readiness" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scope Review" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("[MISSING: app purpose]")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Missing Information Review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Client Questions Review" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ready for Codex checklist" })).toBeInTheDocument();
+  });
+
+  it("records not-applicable reasons and copies grouped client questions", async () => {
+    const project = createProject({
+      identity: { id: "client-review-ui", projectName: "Client Review UI" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+    const firstStatus = screen.getAllByRole("combobox", { name: "Status" })[0];
+    await user.selectOptions(firstStatus, "Not applicable");
+    const reason = screen.getByLabelText(/Why this is not applicable/i);
+    expect(reason).toHaveAttribute("aria-invalid", "true");
+    await user.type(reason, "Confirmed outside this project.");
+    expect(reason).toHaveValue("Confirmed outside this project.");
+
+    await user.click(screen.getByRole("button", { name: "Copy all questions" }));
+    expect(await navigator.clipboard.readText()).toContain("Foundation");
+    expect(screen.getByText("Client questions copied.")).toBeInTheDocument();
   });
 
   it("shows readiness counts in the generate stage and allows generation", async () => {
@@ -115,7 +139,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Export" }));
 
     expect(screen.getByRole("button", { name: "Export" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText(/Required questions unresolved:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Readiness blockers:/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
     expect(screen.getByText("19 generated documents")).toBeInTheDocument();

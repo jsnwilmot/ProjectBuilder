@@ -15,6 +15,8 @@ export function App() {
     project,
     projects,
     updateIntake,
+    updateClientReviewItem,
+    setReadinessConfirmation,
     markGenerated,
     createNewProject,
     setActiveProject,
@@ -100,6 +102,8 @@ export function App() {
             validationIssues={validationIssues}
             onStepChange={setIntakeStep}
             onUpdate={updateIntake}
+            onUpdateReviewItem={updateClientReviewItem}
+            onToggleReadiness={setReadinessConfirmation}
             onGenerate={generateAndOpenDocuments}
             onOpenDocuments={() => setView("documents")}
             onOpenExport={() => setView("export")}

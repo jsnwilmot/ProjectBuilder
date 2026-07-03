@@ -7,6 +7,8 @@ import {
   loadStorageState,
   saveGeneratedDocuments,
   setActiveProject as persistActiveProject,
+  updateReadinessConfirmation,
+  updateReviewItem,
   updateProjectFields
 } from "../lib/projectRepository";
 import { validateIntake } from "../lib/validateIntake";
@@ -14,6 +16,8 @@ import type {
   ProjectInputField,
   ProjectPackage,
   ProjectRecord,
+  ReadinessChecklistId,
+  ReviewItem,
   StorageState
 } from "../types/project";
 
@@ -66,6 +70,21 @@ export function useProjectBuilder() {
     refresh();
   };
 
+  const updateClientReviewItem = (
+    reviewItemId: string,
+    changes: Partial<Pick<ReviewItem, "status" | "notApplicableReason" | "deferredReason">>
+  ) => {
+    if (!project) return;
+    updateReviewItem(project.identity.id, reviewItemId, changes);
+    refresh();
+  };
+
+  const setReadinessConfirmation = (checklistId: ReadinessChecklistId, checked: boolean) => {
+    if (!project) return;
+    updateReadinessConfirmation(project.identity.id, checklistId, checked);
+    refresh();
+  };
+
   const createNewProject = (): ProjectRecord => {
     const created = createProject();
     refresh();
@@ -82,6 +101,8 @@ export function useProjectBuilder() {
     project,
     projects,
     updateIntake,
+    updateClientReviewItem,
+    setReadinessConfirmation,
     markGenerated,
     createNewProject,
     setActiveProject,

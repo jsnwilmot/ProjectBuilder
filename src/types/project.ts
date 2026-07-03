@@ -22,6 +22,45 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
 export type StorageVersion = 1;
 
+export const REVIEW_ITEM_STATUSES = [
+  "Needs answer",
+  "Answered",
+  "Not applicable",
+  "Deferred"
+] as const;
+export type ReviewItemStatus = (typeof REVIEW_ITEM_STATUSES)[number];
+
+export const CLIENT_REVIEW_SECTIONS = [
+  "Foundation",
+  "Branding",
+  "Users",
+  "Features",
+  "Data",
+  "Workflows",
+  "Security",
+  "Content",
+  "Deployment",
+  "Testing"
+] as const;
+export type ClientReviewSection = (typeof CLIENT_REVIEW_SECTIONS)[number];
+
+export const READINESS_CHECKLIST_IDS = [
+  "projectTypeConfirmed",
+  "scopeReviewed",
+  "requiredGapsResolved",
+  "brandingConfirmed",
+  "screensConfirmed",
+  "dataModelConfirmed",
+  "workflowsConfirmed",
+  "securityConfirmed",
+  "acceptanceCriteriaReviewed",
+  "clientQuestionsResolved",
+  "draftPackageReviewed",
+  "codexInstructionsReady"
+] as const;
+export type ReadinessChecklistId = (typeof READINESS_CHECKLIST_IDS)[number];
+export type ReadinessConfirmations = Partial<Record<ReadinessChecklistId, boolean>>;
+
 export type ProjectType =
   | "Static website"
   | "Business website"
@@ -226,6 +265,38 @@ export interface GeneratedDocument {
   content: string;
 }
 
+export interface ReviewItem {
+  id: string;
+  section: ClientReviewSection;
+  fieldKey: ProjectInputField;
+  label: string;
+  reason: string;
+  recommendedQuestion: string;
+  status: ReviewItemStatus;
+  notApplicableReason: string;
+  deferredReason: string;
+  blocking: boolean;
+  allowDeferred: boolean;
+  source: "missing" | "warning" | "weak";
+  updatedAt: string;
+}
+
+export interface ReadinessChecklistItem {
+  id: ReadinessChecklistId;
+  label: string;
+  passed: boolean;
+  manual: boolean;
+  reason: string;
+}
+
+export interface ClientReviewReadiness {
+  isReady: boolean;
+  blockerCount: number;
+  blockers: string[];
+  checklist: ReadinessChecklistItem[];
+  unresolvedItems: ReviewItem[];
+}
+
 export interface ReadinessSection {
   id: string;
   label: string;
@@ -278,6 +349,9 @@ export interface ProjectRecord {
   generatedFileCount: number;
   outstandingQuestions: ProjectInputField[];
   readinessSections: ReadinessSection[];
+  reviewItems: ReviewItem[];
+  readinessConfirmations: ReadinessConfirmations;
+  packageGeneratedAt: string | null;
   status: ProjectStatus;
   reviewStatus: ReviewStatus;
   createdAt: string;

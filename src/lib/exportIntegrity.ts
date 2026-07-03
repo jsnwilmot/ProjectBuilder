@@ -2,7 +2,7 @@ import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import { GENERATED_FILES } from "../data/generatedFiles";
 import type { ProjectRecord } from "../types/project";
 import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
-import { validateIntake } from "./validateIntake";
+import { getClientReviewReadiness } from "./clientReview";
 
 export const EXPORT_MANIFEST_PATH = "00_Project_Overview/EXPORT_MANIFEST.md";
 export const EXPORT_SCHEMA_VERSION = 1;
@@ -152,12 +152,13 @@ export function validateExportPackage(
   }
 
   const missingMarkerCount = countMissingMarkers(project);
-  const readiness = validateIntake(project).isValid ? "Ready for Codex" : "Draft";
+  const clientReview = getClientReviewReadiness(project);
+  const readiness = clientReview.isReady ? "Ready for Codex" : "Draft";
   if (missingMarkerCount > 0) {
     warnings.push(`${missingMarkerCount} missing-information marker(s) will remain in the export.`);
   }
   if (readiness === "Draft") {
-    warnings.push("Package readiness is Draft because required intake information is still missing.");
+    warnings.push(`Package readiness is Draft because ${clientReview.blockerCount} client review blocker(s) remain.`);
   }
   const sourceName = project.identity.projectName.trim();
   if (!sourceName || rootFolder !== sourceName.toLowerCase().replace(/\s+/g, "-")) {

@@ -6,15 +6,19 @@ import {
   isBrandingRequired
 } from "../../data/projectTypes";
 import { getProjectFieldValue } from "../../lib/projectFields";
+import { getClientReviewReadiness } from "../../lib/clientReview";
 import { getStepCompletion } from "../../lib/validateIntake";
 import type {
   IntakeFieldDefinition,
   IntakeValidationResult,
   ProjectInputField,
   ProjectRecord,
+  ReadinessChecklistId,
+  ReviewItem,
   ValidationIssue
 } from "../../types/project";
 import { ArrowLeft, ArrowRight, Check, CircleAlert } from "../ui/Icons";
+import { ClientReviewWorkflow } from "../ClientReview/ClientReviewWorkflow";
 
 interface IntakeBuilderProps {
   project: ProjectRecord;
@@ -23,6 +27,11 @@ interface IntakeBuilderProps {
   validationIssues: ValidationIssue[];
   onStepChange: (step: number) => void;
   onUpdate: (changes: Partial<Record<ProjectInputField, string>>) => void;
+  onUpdateReviewItem: (
+    reviewItemId: string,
+    changes: Partial<Pick<ReviewItem, "status" | "notApplicableReason" | "deferredReason">>
+  ) => void;
+  onToggleReadiness: (checklistId: ReadinessChecklistId, checked: boolean) => void;
   onGenerate: () => void;
   onOpenDocuments: () => void;
   onOpenExport: () => void;
@@ -35,6 +44,8 @@ export function IntakeBuilder({
   validationIssues,
   onStepChange,
   onUpdate,
+  onUpdateReviewItem,
+  onToggleReadiness,
   onGenerate,
   onOpenDocuments,
   onOpenExport
@@ -45,6 +56,7 @@ export function IntakeBuilder({
   const missingForCurrentStep = sectionResult?.missingFields ?? [];
   const warningsForCurrentStep = sectionResult?.warnings ?? [];
   const preset = getProjectTypePreset(project.intake.appType);
+  const clientReviewReadiness = getClientReviewReadiness(project);
   const projectTypeFields = getProjectTypeFields(
     project.intake.appType,
     project.intake.audienceVisibility,
@@ -178,34 +190,21 @@ export function IntakeBuilder({
                   </article>
                 ))}
               </div>
-              {validationIssues.length ? (
-                <div className="review-issues">
-                  <h3>Required questions</h3>
-                  <p>Resolve these questions before the project can be marked ready.</p>
-                  <ul className="issue-list">
-                    {validationIssues.map((issue) => <li key={`${issue.field}-${issue.message}`}>{issue.message}</li>)}
-                  </ul>
-                </div>
-              ) : null}
-              {validationResult.warnings.length ? (
-                <div className="review-issues warning">
-                  <h3>Optional warnings</h3>
-                  <p>These gaps do not block generation, but resolving them improves the project package.</p>
-                  <ul className="issue-list">
-                    {validationResult.warnings.map((warning) => <li key={`${warning.field}-${warning.message}`}>{warning.message}</li>)}
-                  </ul>
-                </div>
-              ) : null}
+              <ClientReviewWorkflow
+                project={project}
+                onUpdateReviewItem={onUpdateReviewItem}
+                onToggleReadiness={onToggleReadiness}
+              />
             </div>
           ) : step.id === "generate" ? (
             <div className="generate-stage">
-              <div className={validationIssues.length ? "generate-status has-errors" : "generate-status is-ready"} role="status" aria-live="polite">
-                {validationIssues.length ? <CircleAlert size={28} aria-hidden="true" /> : <Check size={28} aria-hidden="true" />}
+              <div className={clientReviewReadiness.isReady ? "generate-status is-ready" : "generate-status has-errors"} role="status" aria-live="polite">
+                {clientReviewReadiness.isReady ? <Check size={28} aria-hidden="true" /> : <CircleAlert size={28} aria-hidden="true" />}
                 <div>
-                  <h3>{validationIssues.length ? "Generation can proceed with missing markers" : "Ready to generate"}</h3>
+                  <h3>{clientReviewReadiness.isReady ? "Ready for Codex" : "Draft generation can proceed"}</h3>
                   <p>
-                    Required questions unresolved: {validationIssues.length}. Optional warnings: {validationResult.warnings.length}.
-                    Generation is allowed; unresolved information will be written as exact `[MISSING: ...]` markers.
+                    Readiness blockers: {clientReviewReadiness.blockerCount}. Required intake gaps: {validationIssues.length}.
+                    Generation is allowed; unresolved information is written as exact `[MISSING: ...]` markers.
                   </p>
                 </div>
               </div>

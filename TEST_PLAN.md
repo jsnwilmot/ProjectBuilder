@@ -10,6 +10,12 @@
 - Required intake rules pass and fail predictably for Foundation, Users, Features, Data, Workflows, and Security stages.
 - Validation returns `isValid`, `missingFields`, `warnings`, and `sectionResults` with `stageId`, `label`, `percentComplete`, `isComplete`, `missingFields`, and `warnings`.
 - Optional omissions remain visible as warnings.
+- Missing required and weak information derives persisted review items grouped by the required client-review sections.
+- `Answered` clears a review blocker; `Not applicable` requires a reason; blocking `Deferred` items remain blockers; explicitly allowed non-blocking deferrals clear.
+- Client questions are grouped in a stable section order and copied as plain text.
+- Ready for Codex requires every blocking review item and all 12 readiness checklist checks to pass.
+- Intake, review-decision, and manual readiness changes mark the generated package stale until regeneration.
+- Older version-1 stored projects receive safe review defaults without losing intake or generated documents.
 - Continue Intake selects the next incomplete stage.
 - Stage switching does not lose entered intake values.
 - New projects receive complete safe defaults, unique IDs, lifecycle status, and timestamps.
@@ -56,7 +62,7 @@
 - Unsafe project names normalize to predictable paths.
 - ZIP archives contain the root document, manifest, standard folders, and phased prompts.
 - Mission Control opens the selected intake step.
-- Review stage surfaces missing required information and warnings before generation.
+- Review stage surfaces the Missing Information Review, grouped Client Questions Review, and Ready for Codex checklist before generation.
 - Generate stage shows readiness counts and saves documents to the active project.
 - Documentation Viewer renders generated content.
 
@@ -67,6 +73,19 @@ npm.cmd test
 npm.cmd run build
 npm.cmd audit
 ```
+
+## 2026-07-03 client review evidence
+
+- `npm.cmd test`: passed (`13` files, `84` tests).
+- `npm.cmd test -- src/tests/exportProjectPackage.test.ts`: passed (`5` ZIP tests).
+- `npm.cmd run build`: passed.
+- `npm.cmd audit`: passed with `0` vulnerabilities.
+- `git diff --check`: passed.
+- Desktop browser QA passed for review rendering, decision persistence, grouped question copy, Draft blocking, `12/12` Ready for Codex completion after regeneration, responsive layout, and zero console warnings/errors.
+- `390 × 844` browser QA passed with no page-level horizontal overflow and no console warnings/errors.
+- Browser ZIP generation reported `19/19`, valid folder mapping, Ready for Codex, zero export errors, and a successful download.
+- Automated ZIP inspection confirmed deterministic paths, 12 approved folders, 19 core documents, both manifests, readable client-review documents, and no stale 16-document paths.
+- Synthetic Tab input did not advance focus in the in-app browser. Automated skip-link, label, keyboard-focusability, and `:focus-visible` checks passed; physical-keyboard tab order remains a manual release check.
 
 ## 2026-07-02 change evidence
 
@@ -165,7 +184,7 @@ Technical results:
 
 Release-owner steps still required:
 
-1. Download the ZIP from the deployed Cloudflare Pages site.
+1. Download the ZIP from the deployed Cloudflare Worker site.
 2. Open it in Windows Explorer.
 3. Confirm the downloaded archive reproduces the verified technical results.
 
@@ -173,8 +192,8 @@ Release-owner steps still required:
 
 1. Run `npm.cmd test`, `npm.cmd run build`, `npm.cmd audit`, and `git diff --check`.
 2. Confirm no lint script exists or run it if one is added.
-3. Confirm the Cloudflare Pages deployment and release owner are approved.
-4. Confirm HTTPS, root refresh behavior, cache headers, and security headers on Cloudflare Pages.
+3. Confirm the Cloudflare Workers Static Assets deployment and release owner are approved.
+4. Confirm HTTPS, root refresh behavior, cache headers, and security headers on the production Worker.
 5. Confirm no secrets or environment-specific credentials are present in the client bundle.
 6. Confirm backup/export guidance for local-only project data is documented.
 7. Record production smoke-test, rollback, and incident ownership steps.

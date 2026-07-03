@@ -1,14 +1,40 @@
 import { createSeedProject } from "../../data/seedProject";
 import { createProject } from "../../lib/createProject";
 import { generateProjectPackage } from "../../lib/generateProjectPackage";
+import { deriveReviewItems } from "../../lib/clientReview";
 import type { ProjectRecord } from "../../types/project";
 
 export function createGeneratedProject(project = createSeedProject()): ProjectRecord {
+  const reviewedProject: ProjectRecord = {
+    ...project,
+    reviewItems: deriveReviewItems(project).map((item) => ({
+      ...item,
+      status: "Answered"
+    })),
+    readinessConfirmations: {
+      ...project.readinessConfirmations,
+      scopeReviewed: true,
+      acceptanceCriteriaReviewed: true,
+      draftPackageReviewed: true
+    }
+  };
+  const generated = generateProjectPackage(reviewedProject);
+  return {
+    ...reviewedProject,
+    generatedDocuments: generated.documents,
+    generatedFileCount: generated.documents.length,
+    packageGeneratedAt: "2026-06-28T18:00:00.000Z",
+    status: "Project Package Generated"
+  };
+}
+
+export function createDraftGeneratedProject(project: ProjectRecord): ProjectRecord {
   const generated = generateProjectPackage(project);
   return {
     ...project,
     generatedDocuments: generated.documents,
     generatedFileCount: generated.documents.length,
+    packageGeneratedAt: "2026-06-28T18:00:00.000Z",
     status: "Project Package Generated"
   };
 }

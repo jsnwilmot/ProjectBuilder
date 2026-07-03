@@ -12,6 +12,8 @@ import {
   setActiveProject,
   updateProjectFields,
   updateProject,
+  updateReadinessConfirmation,
+  updateReviewItem,
   type StorageAdapter
 } from "../lib/projectRepository";
 
@@ -78,6 +80,25 @@ describe("projectRepository", () => {
     expect(loaded.intake.appType).toBe("Web application");
     expect(loaded.intake.brandStatus).toBe("");
     expect(loaded.intake.websitePages).toBe("");
+  });
+
+  it("safely adds client review defaults to older stored projects", () => {
+    const storage = new MemoryStorage();
+    const project = createSeedProject();
+    const storedProject = JSON.parse(JSON.stringify(project)) as Record<string, unknown>;
+    delete storedProject.reviewItems;
+    delete storedProject.readinessConfirmations;
+    delete storedProject.packageGeneratedAt;
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: project.identity.id,
+      projects: [storedProject]
+    }));
+
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.reviewItems.length).toBeGreaterThan(0);
+    expect(loaded.readinessConfirmations).toEqual({});
+    expect(loaded.packageGeneratedAt).toBeNull();
   });
 
   it("requires older free-text app types to be reselected from a supported preset", () => {
@@ -157,6 +178,26 @@ describe("projectRepository", () => {
     expect(loaded.intake.appPurpose).toBe("Updated purpose");
     expect(loaded.status).toBe("Needs Review");
     expect(loaded.reviewStatus).toBe("Review needed");
+    expect(loaded.packageGeneratedAt).toBeNull();
+  });
+
+  it("persists review decisions and readiness confirmations", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ identity: { projectName: "Client review" } }, storage);
+    const reviewItem = project.reviewItems[0];
+
+    updateReviewItem(project.identity.id, reviewItem.id, {
+      status: "Not applicable",
+      notApplicableReason: "Confirmed outside this project."
+    }, storage);
+    updateReadinessConfirmation(project.identity.id, "scopeReviewed", true, storage);
+
+    const loaded = getProjectById(project.identity.id, storage)!;
+    expect(loaded.reviewItems.find((item) => item.id === reviewItem.id)).toMatchObject({
+      status: "Not applicable",
+      notApplicableReason: "Confirmed outside this project."
+    });
+    expect(loaded.readinessConfirmations.scopeReviewed).toBe(true);
   });
 
   it("replaces generated documents when generation is run again", () => {

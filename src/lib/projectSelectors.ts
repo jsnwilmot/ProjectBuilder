@@ -10,7 +10,8 @@ import type {
   ProjectSummary,
   ReadinessSection
 } from "../types/project";
-import { getFirstIncompleteStep, getOutstandingFields, getStepCompletion, validateIntake } from "./validateIntake";
+import { getFirstIncompleteStep, validateIntake } from "./validateIntake";
+import { getClientReviewReadiness } from "./clientReview";
 
 const readinessDefinitions = [
   { id: "requirements", label: "Requirements", steps: [0, 1, 2] },
@@ -43,7 +44,7 @@ export function getReviewStatus(project: ProjectRecord): ReviewStatus {
 }
 
 export function getOutstandingQuestionCount(project: ProjectRecord): number {
-  return validateIntake(project).missingFields.length;
+  return getClientReviewReadiness(project).unresolvedItems.length;
 }
 
 export function getGeneratedFileCount(project: ProjectRecord): number {
@@ -89,20 +90,16 @@ export function getProjectCompletionPercent(project: ProjectRecord): number {
 }
 
 export function getProjectDisplayStatus(project: ProjectRecord): ProjectStatus {
-  const advancedStatuses: ProjectStatus[] = [
-    "Architect Review Needed",
-    "Ready for Codex",
-    "In Development",
-    "Needs Review",
-    "Complete"
-  ];
-
-  if (statusSet.has(project.status) && advancedStatuses.includes(project.status)) {
-    if (project.status === "Ready for Codex" && !validateIntake(project).isValid) return "Needs Review";
+  if (statusSet.has(project.status) && ["In Development", "Complete"].includes(project.status)) {
     return project.status;
   }
-
-  if (getGeneratedFileCount(project) > 0) return "Project Package Generated";
+  const readiness = getClientReviewReadiness(project);
+  if (readiness.isReady) return "Ready for Codex";
+  if (project.status === "Ready for Codex") return "Needs Review";
+  if (getGeneratedFileCount(project) > 0) {
+    return project.status === "Needs Review" ? "Needs Review" : "Project Package Generated";
+  }
+  if (project.status === "Architect Review Needed") return "Architect Review Needed";
   if (validateIntake(project).isValid) return "Intake Complete";
   return "Intake Started";
 }
@@ -115,10 +112,10 @@ export function getDashboardWarnings(project: ProjectRecord): DashboardWarning[]
       message: "Status shows Project Package Generated but no generated documents are stored."
     });
   }
-  if (validateIntake(project).missingFields.length > 0 && project.status === "Ready for Codex") {
+  if (!getClientReviewReadiness(project).isReady && project.status === "Ready for Codex") {
     warnings.push({
       level: "error",
-      message: "Project is marked Ready for Codex but required intake information is still missing."
+      message: "Project is marked Ready for Codex but client review blockers remain."
     });
   }
   if (!normalizedDate(project.updatedAt)) {
@@ -133,9 +130,18 @@ export function getNextAction(project: ProjectRecord): string {
 
 export function getNextActionDetails(project: ProjectRecord): DashboardNextAction {
   const validation = validateIntake(project);
+  const readiness = getClientReviewReadiness(project);
   const step = getFirstIncompleteStep(project);
 
   if (getGeneratedFileCount(project) > 0) {
+    if (!readiness.isReady) {
+      return {
+        label: `Resolve ${readiness.blockerCount} readiness blocker${readiness.blockerCount === 1 ? "" : "s"}`,
+        description: "Complete the client review workflow, then regenerate the package.",
+        targetView: "scope",
+        targetStage: REVIEW_STAGE_INDEX
+      };
+    }
     return {
       label: "Review generated documents",
       description: "Open generated docs for quality review or export.",

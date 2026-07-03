@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-07-03 — Client Review Workflow and Missing Information Review
+
+### Summary
+
+- Added a guided Client Review workflow between package generation and Ready for Codex.
+- Added persisted missing-information review items with grouped client questions and `Needs answer`, `Answered`, `Not applicable`, and `Deferred` decisions.
+- Added a 12-item readiness checklist and review-aware Draft/Ready for Codex gating.
+- Updated generated review documents and export diagnostics to show questions, decisions, deferred items, checklist state, and blockers.
+- Added safe version-1 storage normalization for existing projects.
+
+### Files created
+
+- `src/lib/clientReview.ts` — review-item derivation, question grouping, decision rules, and readiness evaluation.
+- `src/components/ClientReview/ClientReviewWorkflow.tsx` — missing-information review, client questions, copy action, and readiness checklist UI.
+- `src/tests/clientReview.test.ts` — review decisions, deferral, question grouping, and readiness coverage.
+
+### Files updated
+
+- Project types, factory defaults, storage normalization, repository actions, selectors, generation, export diagnostics, and application state under `src/`.
+- Guided Intake review UI, shared responsive styles, and generated document templates.
+- Application, persistence, generation, ZIP, selector, and export tests under `src/tests/`.
+- `README.md`, `CODEX_INSTRUCTIONS.md`, `TEST_PLAN.md`, `RELEASE_NOTES.md`, and `CHANGE_LOG.md`.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`13` files, `84` tests).
+- `npm.cmd test -- src/tests/exportProjectPackage.test.ts` — passed (`5` ZIP tests).
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- Desktop browser QA passed for review rendering, decision persistence, client-question copy, Draft blocking, `12/12` Ready for Codex completion after regeneration, zero console warnings/errors, and no page-level horizontal overflow.
+- `390 × 844` browser QA passed with the review cards and checklist usable, zero console warnings/errors, and no page-level horizontal overflow.
+- Browser ZIP generation reported `19/19`, valid folder mapping, Ready for Codex, zero export errors, and a successful download.
+- Automated ZIP inspection confirmed deterministic paths, all 19 core documents, both manifests, readable client-review documents, and no stale 16-document paths.
+
+### Issues found
+
+- Testing limitation: the in-app browser did not advance focus in response to synthetic Tab input. Automated focus, skip-link, labeling, and `:focus-visible` checks pass; a physical-keyboard tab-order check remains a manual release check.
+
+### Remaining work
+
+- Complete the physical-keyboard tab-order check in a normal browser when available.
+- Deploy only after this phase is reviewed and approved.
+
 ## 2026-07-02 — Cloudflare Worker Deployment Configuration
 
 ### Summary

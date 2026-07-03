@@ -2,7 +2,7 @@ import { DOCUMENT_LOCATIONS } from "../data/folderStructure";
 import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
 import { validateExportPackage } from "../lib/exportIntegrity";
-import { createGeneratedProject } from "./helpers/generatedProject";
+import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 
 describe("validateExportPackage", () => {
   it("accepts a complete generated package and reports missing markers as warnings", () => {
@@ -25,11 +25,11 @@ describe("validateExportPackage", () => {
     expect(result.fileCount).toBe(0);
     expect(result.errors).toContain("Generate the project package before exporting.");
     expect(result.missingFiles).toHaveLength(DOCUMENT_LOCATIONS.length);
-    expect(result.manifestSummary.readiness).toBe("Ready for Codex");
+    expect(result.manifestSummary.readiness).toBe("Draft");
   });
 
   it("allows a generated draft export and reports Draft readiness", () => {
-    const project = createGeneratedProject(createProject({
+    const project = createDraftGeneratedProject(createProject({
       identity: { id: "draft", projectName: "Draft Project" }
     }));
 
@@ -37,9 +37,10 @@ describe("validateExportPackage", () => {
 
     expect(result.isValid).toBe(true);
     expect(result.manifestSummary.readiness).toBe("Draft");
-    expect(result.warnings).toContain(
-      "Package readiness is Draft because required intake information is still missing."
-    );
+    expect(result.warnings.some((warning) =>
+      warning.includes("Package readiness is Draft because")
+      && warning.includes("client review blocker")
+    )).toBe(true);
   });
 
   it("detects missing and extra core files", () => {

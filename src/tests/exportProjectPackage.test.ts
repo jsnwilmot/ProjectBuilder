@@ -55,6 +55,15 @@ describe("createProjectArchive", () => {
     ) as { files: unknown[]; generatedDocumentCount: number };
     expect(manifest.files).toHaveLength(DOCUMENT_LOCATIONS.length);
     expect(manifest.generatedDocumentCount).toBe(DOCUMENT_LOCATIONS.length);
+    const clientQuestions = await first.file(
+      `${firstPaths[0]}01_Requirements/CLIENT_QUESTIONS.md`
+    )!.async("string");
+    const handoffChecklist = await first.file(
+      `${firstPaths[0]}00_Project_Overview/HANDOFF_CHECKLIST.md`
+    )!.async("string");
+    expect(clientQuestions).toContain("## Questions grouped for client review");
+    expect(handoffChecklist).toContain("## Required handoff checks");
+    expect(firstPaths.some((path) => path.includes("16-document"))).toBe(false);
   });
 
   it("fails safely before generation instead of creating an empty ZIP", async () => {

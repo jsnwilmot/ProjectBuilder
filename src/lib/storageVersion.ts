@@ -5,10 +5,18 @@ import type {
   ProjectIdentity,
   ProjectIntake,
   ProjectRecord,
+  ReadinessConfirmations,
+  ReviewItem,
   StorageState,
   StorageVersion
 } from "../types/project";
-import { PROJECT_STATUSES, REVIEW_STATUSES } from "../types/project";
+import {
+  CLIENT_REVIEW_SECTIONS,
+  PROJECT_STATUSES,
+  READINESS_CHECKLIST_IDS,
+  REVIEW_ITEM_STATUSES,
+  REVIEW_STATUSES
+} from "../types/project";
 import { isProjectType } from "../data/projectTypes";
 
 export const CURRENT_STORAGE_VERSION: StorageVersion = 1;
@@ -32,6 +40,48 @@ function normalizeReviewStatus(value: unknown): ProjectRecord["reviewStatus"] {
   return REVIEW_STATUSES.includes(value as ProjectRecord["reviewStatus"])
     ? value as ProjectRecord["reviewStatus"]
     : "Not reviewed";
+}
+
+function normalizeReviewItems(value: unknown): ReviewItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((candidate) => {
+    if (!isObject(candidate)) return [];
+    const fieldKey = asString(candidate.fieldKey) as ReviewItem["fieldKey"];
+    const section = asString(candidate.section) as ReviewItem["section"];
+    const status = asString(candidate.status) as ReviewItem["status"];
+    const source = asString(candidate.source) as ReviewItem["source"];
+    if (
+      !asString(candidate.id)
+      || !fieldKey
+      || !CLIENT_REVIEW_SECTIONS.includes(section)
+      || !REVIEW_ITEM_STATUSES.includes(status)
+      || !["missing", "warning", "weak"].includes(source)
+    ) return [];
+    return [{
+      id: asString(candidate.id),
+      section,
+      fieldKey,
+      label: asString(candidate.label),
+      reason: asString(candidate.reason),
+      recommendedQuestion: asString(candidate.recommendedQuestion),
+      status,
+      notApplicableReason: asString(candidate.notApplicableReason),
+      deferredReason: asString(candidate.deferredReason),
+      blocking: candidate.blocking !== false,
+      allowDeferred: candidate.allowDeferred === true,
+      source,
+      updatedAt: asString(candidate.updatedAt)
+    }];
+  });
+}
+
+function normalizeReadinessConfirmations(value: unknown): ReadinessConfirmations {
+  if (!isObject(value)) return {};
+  return Object.fromEntries(
+    READINESS_CHECKLIST_IDS
+      .filter((id) => typeof value[id] === "boolean")
+      .map((id) => [id, value[id]])
+  ) as ReadinessConfirmations;
 }
 
 function normalizeProject(value: unknown): ProjectRecord | null {
@@ -71,6 +121,13 @@ function normalizeProject(value: unknown): ProjectRecord | null {
     } satisfies ClientDetails,
     intake: normalizedIntake,
     generatedDocuments,
+    reviewItems: normalizeReviewItems(value.reviewItems),
+    readinessConfirmations: normalizeReadinessConfirmations(value.readinessConfirmations),
+    packageGeneratedAt: Object.prototype.hasOwnProperty.call(value, "packageGeneratedAt")
+      ? asString(value.packageGeneratedAt) || null
+      : generatedDocuments.length > 0
+        ? asString(value.updatedAt) || asString(value.createdAt) || new Date().toISOString()
+        : null,
     status: PROJECT_STATUSES.includes(value.status as ProjectRecord["status"])
       ? value.status as ProjectRecord["status"]
       : "Intake Started",

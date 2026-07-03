@@ -5,8 +5,11 @@ import type {
   ProjectIntake,
   ProjectRecord,
   ProjectStatus,
+  ReadinessConfirmations,
+  ReviewItem,
   ReviewStatus
 } from "../types/project";
+import { deriveReviewItems } from "./clientReview";
 import { getOutstandingFields } from "./validateIntake";
 import { getReadinessSections } from "./projectSelectors";
 
@@ -15,6 +18,9 @@ export interface CreateProjectOptions {
   client?: Partial<ClientDetails>;
   intake?: Partial<ProjectIntake>;
   generatedDocuments?: GeneratedDocument[];
+  reviewItems?: ReviewItem[];
+  readinessConfirmations?: ReadinessConfirmations;
+  packageGeneratedAt?: string | null;
   status?: ProjectStatus;
   reviewStatus?: ReviewStatus;
   now?: string;
@@ -181,6 +187,9 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
     generatedFileCount: options.generatedDocuments?.length ?? 0,
     outstandingQuestions: [],
     readinessSections: [],
+    reviewItems: [...(options.reviewItems ?? [])],
+    readinessConfirmations: { ...(options.readinessConfirmations ?? {}) },
+    packageGeneratedAt: options.packageGeneratedAt ?? null,
     status: options.status ?? "Intake Started",
     reviewStatus: options.reviewStatus ?? "Not reviewed",
     createdAt: now,
@@ -189,5 +198,6 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
 
   project.outstandingQuestions = getOutstandingFields(project);
   project.readinessSections = getReadinessSections(project);
+  project.reviewItems = deriveReviewItems(project, now);
   return project;
 }

@@ -21,7 +21,7 @@ describe("project selectors", () => {
   it("calculates dashboard values without mutating the project", () => {
     const project = createSeedProject();
     const before = JSON.stringify(project);
-    expect(getOutstandingQuestionCount(project)).toBe(0);
+    expect(getOutstandingQuestionCount(project)).toBeGreaterThan(0);
     expect(getGeneratedFileCount(project)).toBe(0);
     expect(getReadinessSections(project)).toHaveLength(6);
     expect(getProjectStageProgress(project)).toHaveLength(8);
@@ -91,13 +91,13 @@ describe("project selectors", () => {
     expect(warnings.length).toBeGreaterThan(0);
   });
 
-  it("next action routes to documents when generated documents exist", () => {
+  it("next action routes to client review when generated documents still have blockers", () => {
     const project = createSeedProject();
     project.generatedDocuments = [
       { fileName: "README.md", folder: "00_Project_Overview", content: "# Doc" }
     ];
     const action = getNextActionDetails(project);
-    expect(action.targetView).toBe("documents");
+    expect(action.targetView).toBe("scope");
   });
 
   it("blocks Ready for Codex status when required intake is missing", () => {

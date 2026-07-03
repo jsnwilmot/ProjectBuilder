@@ -2,6 +2,7 @@ import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import { GENERATED_FILES } from "../data/generatedFiles";
 import { createSeedProject } from "../data/seedProject";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
+import { deriveReviewItems } from "../lib/clientReview";
 
 describe("generateProjectPackage", () => {
   it("creates every required folder and document", () => {
@@ -84,8 +85,33 @@ describe("generateProjectPackage", () => {
     expect(brandGuide?.content).toContain("# Brand Guide");
     expect(brandGuide?.content).toContain("Established department brand");
     expect(questions?.content).toContain("# Client Questions");
+    expect(questions?.content).toContain("## Questions grouped for client review");
+    expect(questions?.content).toContain("## Not applicable decisions");
+    expect(questions?.content).toContain("## Deferred decisions");
     expect(checklist?.content).toContain("A Draft package may be reviewed and exported.");
+    expect(checklist?.content).toContain("## Current blockers");
     expect(nextSteps?.content).toContain("## Use This Project Package");
+    expect(nextSteps?.content).toContain("## Codex readiness checklist");
     expect(nextSteps?.content).toContain("Run Phase 1 only in Codex.");
+  });
+
+  it("writes deferred review decisions into client questions and next steps", () => {
+    const project = createSeedProject();
+    const deferred = deriveReviewItems(project).find((item) => item.allowDeferred)!;
+    project.reviewItems = deriveReviewItems(project).map((item) => item.id === deferred.id
+      ? {
+          ...item,
+          status: "Deferred",
+          deferredReason: "Confirm during the client design review."
+        }
+      : item);
+
+    const result = generateProjectPackage(project);
+    const questions = result.documents.find((document) => document.fileName === "CLIENT_QUESTIONS.md");
+    const nextSteps = result.documents.find((document) => document.fileName === "NEXT_STEPS.md");
+
+    expect(questions?.content).toContain(deferred.recommendedQuestion);
+    expect(questions?.content).toContain("Confirm during the client design review.");
+    expect(nextSteps?.content).toContain("Confirm during the client design review.");
   });
 });
