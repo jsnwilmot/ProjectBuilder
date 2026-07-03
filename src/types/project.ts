@@ -100,6 +100,7 @@ export interface ProjectTypePreset {
   value: ProjectType;
   label: string;
   description: string;
+  helperText: string;
   recommendedTargetPlatforms: readonly string[];
   requiredIntakeModules: readonly IntakeModuleId[];
   optionalIntakeModules: readonly IntakeModuleId[];

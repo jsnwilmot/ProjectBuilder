@@ -11,9 +11,12 @@ The production target is the existing `projectbuilder` Worker at `https://projec
 ## Included
 
 - Static React/Vite application with no server runtime.
+- First-run Mission Control welcome with clear product boundaries, an eight-step workflow, project creation, and a read-only example that never persists.
 - Mission Control for active-project status, readiness, outstanding questions, generated-document progress, and next actions.
 - Versioned browser-local persistence for multiple projects and one active project.
 - Eight-stage guided intake with required-field validation and optional warnings.
+- Project-type use-case guidance and conditional intake questions shown immediately after type selection.
+- Plain-language Draft, Ready for Codex, and Client Questions Pending guidance plus a pre-generation explanation of the GPT Architect/Codex handoff workflow.
 - Client Review workflow with grouped missing-information decisions, copyable client questions, and a 12-item Ready for Codex checklist.
 - Safe persistence and migration for `Answered`, `Not applicable`, and `Deferred` review decisions.
 - Generation of 19 deterministic project handoff documents.
@@ -24,7 +27,7 @@ The production target is the existing `projectbuilder` Worker at `https://projec
 
 ## Release verification
 
-- Automated suite: 13 files and 86 tests passed, including client-review decisions, native and selection clipboard fallbacks, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
+- Automated suite: 13 files and 89 tests passed, including first-run onboarding, read-only example non-persistence, preset guidance, status explanations, client-review decisions, clipboard fallbacks, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
 - Production build completed successfully.
 - Dependency audit reported zero vulnerabilities.
 - Production-preview regression covered project creation, minimum intake, refresh persistence, project switching, generation, document search/preview, export diagnostics, and all three copy actions.

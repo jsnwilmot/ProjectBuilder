@@ -5,6 +5,7 @@ import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
 import { STORAGE_KEY, saveStorageState } from "../lib/projectRepository";
 import type { ProjectRecord } from "../types/project";
+import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 
 function seedApp(projects: ProjectRecord[] = [createSeedProject()], activeProjectId = projects[0]?.identity.id ?? null) {
   saveStorageState({ version: 1, activeProjectId, projects }, window.localStorage);
@@ -140,6 +141,8 @@ describe("App", () => {
 
     expect(screen.getByRole("button", { name: "Export" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/Readiness blockers:/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What happens after generation?" })).toBeInTheDocument();
+    expect(screen.getByText("Complete the Ready for Codex checklist.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     expect(screen.getByRole("heading", { name: "Documentation Viewer" })).toBeInTheDocument();
     expect(screen.getByText("19 generated documents")).toBeInTheDocument();
@@ -215,11 +218,12 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Create your first project" }));
+    await user.click(screen.getByRole("button", { name: "Create New Project" }));
     const projectType = screen.getByRole("combobox", { name: /Project type/i });
     expect(projectType).toBeRequired();
     await user.selectOptions(projectType, "Business website");
 
+    expect(screen.getByText("Use this for service business websites, local business sites, brochure sites, and marketing pages.")).toBeInTheDocument();
     expect(screen.getByLabelText(/Domain status/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Hosting status/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Game genre/i)).not.toBeInTheDocument();
@@ -229,9 +233,10 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Create your first project" }));
+    await user.click(screen.getByRole("button", { name: "Create New Project" }));
     await user.selectOptions(screen.getByRole("combobox", { name: /Project type/i }), "Game");
 
+    expect(screen.getByText("Use this for projects with a gameplay loop, controls, progression, art, audio, levels, or scoring.")).toBeInTheDocument();
     expect(screen.getByLabelText(/Game genre/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Target devices/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Domain status/i)).not.toBeInTheDocument();
@@ -254,26 +259,75 @@ describe("App", () => {
     expect(screen.getByText("Architect Instructions copied.")).toBeInTheDocument();
   });
 
-  it("shows a useful empty state and prevents blank project routes", async () => {
+  it("shows first-run guidance and prevents blank project routes", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "No active project" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create your first project" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What it creates" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What it does not create" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create New Project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View Example Workflow" })).toBeInTheDocument();
+    expect(screen.getByText("Choose type")).toBeInTheDocument();
+    expect(screen.getByText("Review missing")).toBeInTheDocument();
+    expect(screen.getByText("Review Codex output with GPT Architect")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Guided Intake" }));
-    expect(screen.getByRole("heading", { name: "No active project" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Create your first project" }));
+    await user.click(screen.getByRole("button", { name: "Create New Project" }));
     expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
+  });
+
+  it("opens and closes the read-only example without creating a project", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "View Example Workflow" }));
+
+    expect(screen.getByRole("heading", { name: "Sample Local Business Website" })).toBeInTheDocument();
+    expect(screen.getByText("Business website")).toBeInTheDocument();
+    expect(screen.getByText("Customers, Owner, Administrator")).toBeInTheDocument();
+    expect(screen.getByText(/Service and contact pages, Brand guide, SEO notes, Phased Codex prompts/)).toBeInTheDocument();
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Close example" }));
+    expect(screen.queryByRole("heading", { name: "Sample Local Business Website" })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it("bypasses onboarding for existing projects and explains readiness states", () => {
+    const readyProject = createGeneratedProject();
+    seedApp([readyProject]);
+    render(<App />);
+
+    expect(screen.queryByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).not.toBeInTheDocument();
+    expect(screen.getByText("Ready for Codex:").closest("p")).toHaveTextContent(
+      "Ready for Codex: Scope, client review, and the readiness checklist are complete."
+    );
+  });
+
+  it("explains Draft and Client Questions Pending for generated packages with blockers", () => {
+    const draftProject = createDraftGeneratedProject(createProject({
+      identity: { id: "draft-status-help", projectName: "Draft Status Help" }
+    }));
+    seedApp([draftProject]);
+    render(<App />);
+
+    expect(screen.getByText("Draft:").closest("p")).toHaveTextContent(
+      "Draft: The package can be reviewed, but required information is still missing."
+    );
+    expect(screen.getByText("Client Questions Pending:").closest("p")).toHaveTextContent(
+      "Client Questions Pending: Some client questions still need answers before the project can be Ready for Codex."
+    );
   });
 
   it("recovers corrupt browser storage into the empty state", () => {
     window.localStorage.setItem(STORAGE_KEY, "{not-json");
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "No active project" })).toBeInTheDocument();
-    expect(screen.getByText(/Create a project to start Foundation intake/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create New Project" })).toBeInTheDocument();
   });
 
   it("uses the selection fallback when clipboard permission is denied", async () => {

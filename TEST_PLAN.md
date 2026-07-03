@@ -21,7 +21,13 @@
 - New projects receive complete safe defaults, unique IDs, lifecycle status, and timestamps.
 - Versioned storage state saves and loads multiple projects plus `activeProjectId`.
 - Invalid localStorage JSON recovers to a safe empty version-1 state.
-- Empty storage renders a useful no-project state and project-dependent navigation does not produce a blank page.
+- Empty storage renders the first-run welcome, product boundaries, eight-step workflow, and project-dependent navigation without producing a blank page.
+- The primary onboarding action opens Foundation intake.
+- The read-only business website example opens and closes without creating, replacing, or persisting a project.
+- Existing projects bypass the first-run welcome.
+- Selected project types show config-driven use-case helper copy alongside the existing conditional questions.
+- Mission Control explains Draft, Ready for Codex, and Client Questions Pending when those states apply.
+- The Generate stage shows the post-generation review and GPT Architect/Codex handoff workflow before generation.
 - Invalid `activeProjectId` recovers to the first valid persisted project.
 - Legacy `Needs review` data migrates to the canonical `Review needed` review status.
 - Project status and review status use separate canonical label sets.
@@ -75,6 +81,20 @@ npm.cmd test
 npm.cmd run build
 npm.cmd audit
 ```
+
+## 2026-07-03 onboarding and first-run UX evidence
+
+- `npm.cmd test`: passed (`13` files, `89` tests).
+- `npm.cmd test -- src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/clientReview.test.ts`: passed (`3` files, `19` focused regression tests).
+- `npm.cmd run build`: passed.
+- `npm.cmd audit`: passed with `0` vulnerabilities.
+- `git diff --check`: passed.
+- First-run UI coverage verifies welcome content, workflow guidance, primary creation, read-only example behavior, non-persistence, existing-project bypass, project-type helper copy, status explanations, and post-generation guidance.
+- Existing client review, 19-document generation, and ZIP export tests remain in the full regression suite.
+- In-app browser QA passed at `1346 x 1270` desktop and `390 x 844` mobile with no console warnings/errors and no page-level horizontal overflow.
+- Welcome rendering, example open/close, new project creation, existing-project reload/bypass, Business website helper copy and fields, generation guidance, Client Review access, 19-document generation, and export diagnostics passed.
+- Browser export reported `19/19`, valid folder mapping, zero export errors, and `Package downloaded successfully.`; focused automated ZIP inspection remains the archive-content authority.
+- Physical-keyboard tab order and Windows Explorer ZIP inspection remain manual release checks. Automated skip-link focus, form labeling, reachable controls, and `:focus-visible` coverage passed; the in-app browser did not expose a reliable physical-keyboard simulation.
 
 ## 2026-07-03 client review evidence
 

@@ -19,6 +19,7 @@ import type {
 } from "../../types/project";
 import { ArrowLeft, ArrowRight, Check, CircleAlert } from "../ui/Icons";
 import { ClientReviewWorkflow } from "../ClientReview/ClientReviewWorkflow";
+import { PostGenerationGuidance } from "../Onboarding/PostGenerationGuidance";
 
 interface IntakeBuilderProps {
   project: ProjectRecord;
@@ -140,6 +141,7 @@ export function IntakeBuilder({
               <div>
                 <strong>{preset.label} preset</strong>
                 <p>{preset.description}</p>
+                <p className="preset-helper">{preset.helperText}</p>
               </div>
               <dl>
                 <div>
@@ -218,6 +220,7 @@ export function IntakeBuilder({
                   {warningsForCurrentStep.map((warning) => <li key={warning}>{warning}</li>)}
                 </ul>
               ) : null}
+              <PostGenerationGuidance />
               <div className="form-actions" style={{ marginTop: "18px", paddingInline: 0, borderTop: "0", background: "transparent" }}>
                 <button className="button button-primary" onClick={onGenerate}>Generate and save package</button>
                 <button className="button button-secondary" onClick={onOpenDocuments}>Open generated documents</button>

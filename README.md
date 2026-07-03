@@ -4,12 +4,14 @@ GPT Project Builder turns a rough app idea into a structured project package for
 
 ## Included workflows
 
+- First-run Mission Control welcome with a plain-language product boundary, primary project-creation action, read-only example workflow, and compact eight-step path from idea to GPT Architect review.
+- The read-only example demonstrates a local business website handoff without creating or overwriting a saved project.
 - Mission Control with project status, readiness, outstanding questions, generated-document progress, review status, and next action.
 - Hardened Mission Control selectors for active-project summaries, recent project summaries, deterministic next actions, status normalization, and dashboard warnings.
 - Active project and recent project rows now render from persisted state with clear active-project indication and safe fallbacks.
 - Readiness sections now include derived missing/warning counts from validation stage results.
 - Eight-stage guided intake with a single stage configuration source covering foundation, users, features, data, workflows, security, review, and generation.
-- Required project type selection with 15 typed presets that define recommended platforms, relevant intake modules, branding level, and generated-document guidance.
+- Required project type selection with 15 typed presets that define recommended platforms, relevant intake modules, branding level, generated-document guidance, and visible use-case helper copy.
 - Conditional website, game, mobile, dashboard, Microsoft 365, automation, and API questions shown only for relevant project types.
 - Structured branding intake with public/internal visibility rules; branding is required for public and brand-dependent products and optional for internal tools.
 - Section-based validation that returns `isValid`, missing fields, warnings, and per-stage completion results.
@@ -25,6 +27,8 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - Plain-text viewer for all generated Markdown documents.
 - Verified ZIP export with the standard 12-folder structure, 19 required documents, `EXPORT_MANIFEST.md`, and a JSON diagnostic manifest.
 - Export diagnostics distinguish Draft packages from Ready for Codex packages. Draft generation/export remains allowed; Ready for Codex requires all blocking review items and checklist checks to pass.
+- Mission Control explains Draft, Ready for Codex, and Client Questions Pending in plain language when those states apply.
+- The Generate stage explains the exact post-generation review and GPT Architect/Codex handoff workflow before a package is created.
 - A **Use This Project Package** panel and generated `NEXT_STEPS.md` explain the Architect/Codex review loop after generation.
 - Export integrity diagnostics for missing, extra, empty, duplicate, incorrectly mapped, or unsafe document paths.
 - Deterministic core file and folder ordering, safe ZIP root normalization, and active-project-only export.
@@ -38,7 +42,7 @@ GPT Project Builder turns a rough app idea into a structured project package for
 
 The MVP uses one localStorage key: `gpt-project-builder.storage.v1`. Its versioned schema stores `activeProjectId` and a collection of complete project records. Creating a project adds a new record without replacing existing projects, and selecting a recent project changes the active record.
 
-If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. A new or recovered store opens an actionable empty state and does not create demo projects automatically.
+If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. A new or recovered store opens the first-run welcome and does not create demo projects automatically. Opening the example workflow is read-only and does not write to storage.
 
 Because there is no backend or authentication in this phase, projects are available only in the browser profile where they were created. Clearing browser storage removes them.
 

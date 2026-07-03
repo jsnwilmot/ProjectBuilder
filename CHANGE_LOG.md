@@ -1,5 +1,56 @@
 # Change Log
 
+## 2026-07-03 — Onboarding and First-Run UX Polish
+
+### Summary
+
+- Added a first-run Mission Control welcome that explains the product, its 19-document output, its limits, and the path from project creation to GPT Architect review.
+- Added an eight-step workflow overview and a read-only local business website example that does not write to project storage.
+- Added config-driven project-type use-case guidance for all 15 presets.
+- Added plain-language Draft, Ready for Codex, and Client Questions Pending explanations.
+- Added the post-generation review and GPT Architect/Codex workflow to the Generate stage.
+- Preserved existing project loading, intake, client review, generation, 19-document package, and ZIP export behavior.
+
+### Files created
+
+- `src/data/onboarding.ts` — shared onboarding workflow, post-generation steps, and read-only example data.
+- `src/components/Onboarding/WorkflowOverview.tsx` — compact eight-step onboarding workflow.
+- `src/components/Onboarding/PostGenerationGuidance.tsx` — reusable pre-generation handoff guidance.
+
+### Files updated
+
+- `src/components/MissionControl/MissionControl.tsx` — first-run welcome, example workflow, and status explanations.
+- `src/components/IntakeBuilder/IntakeBuilder.tsx` — project-type helper copy and post-generation guidance.
+- `src/data/projectTypes.ts`, `src/types/project.ts` — config-driven helper text for every supported project type.
+- `src/styles/global.css` — responsive onboarding, example, helper, status, and guidance styles.
+- `src/tests/App.test.tsx` — first-run, example, helper, status, generation guidance, and regression coverage.
+- `README.md`, `TEST_PLAN.md`, `RELEASE_NOTES.md`, and `CHANGE_LOG.md` — feature and verification documentation.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`13` files, `89` tests).
+- `npm.cmd test -- src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/clientReview.test.ts` — passed (`3` files, `19` focused regression tests).
+- Existing 19-document generation, Client Review workflow, and ZIP integrity tests passed as part of the full suite.
+- `npm.cmd run build` — passed.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- In-app browser QA passed at desktop and `390 x 844` for welcome rendering, example open/close, new and existing project behavior, Business website helper copy, post-generation guidance, Client Review access, 19-document generation, export success, console health, and page-level overflow.
+- Browser export reported `19/19`, valid folder mapping, zero export errors, and a successful package download.
+
+### Issues found
+
+- None during implementation.
+- Testing limitation: physical-keyboard tab order and user-visible Windows Explorer ZIP inspection remain manual checks. Automated focus, labeling, skip-link, and visible-focus coverage passed.
+
+### Remaining work
+
+- Review the phase before committing or deploying.
+- Complete the physical-keyboard and Windows Explorer ZIP checks in a normal desktop browser when available.
+
 ## 2026-07-03 — Client Review Workflow and Missing Information Review
 
 ### Summary
