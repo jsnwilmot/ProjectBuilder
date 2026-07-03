@@ -50,6 +50,7 @@
 - Copy actions read only active-project Architect, Codex, and phased prompt documents.
 - Clipboard permission failure uses the local selection fallback when the browser supports it.
 - Client Questions copy uses the same local selection fallback when direct clipboard access is denied.
+- Browsers without native or legacy copy-command access leave fallback text visibly selected with a Ctrl+C instruction.
 - Document preview reads active-project generated documents.
 - Document search exposes a clear zero-result state and restores the selected document after clearing.
 - Dashboard selectors calculate readiness, outstanding questions, completion, next action, and display status without mutation.
@@ -77,7 +78,7 @@ npm.cmd audit
 
 ## 2026-07-03 client review evidence
 
-- `npm.cmd test`: passed (`13` files, `85` tests).
+- `npm.cmd test`: passed (`13` files, `86` tests).
 - `npm.cmd test -- src/tests/exportProjectPackage.test.ts`: passed (`5` ZIP tests).
 - `npm.cmd run build`: passed.
 - `npm.cmd audit`: passed with `0` vulnerabilities.

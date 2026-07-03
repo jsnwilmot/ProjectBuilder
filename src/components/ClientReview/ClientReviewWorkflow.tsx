@@ -34,8 +34,10 @@ export function ClientReviewWorkflow({
   const copyQuestions = async () => {
     const text = formatClientQuestions(project.reviewItems);
     try {
-      await copyText(text);
-      setCopyStatus("Client questions copied.");
+      const result = await copyText(text);
+      setCopyStatus(result === "copied"
+        ? "Client questions copied."
+        : "Client questions selected. Press Ctrl+C to copy.");
     } catch {
       setCopyStatus("Copy failed. Select the questions below and copy them manually.");
     }

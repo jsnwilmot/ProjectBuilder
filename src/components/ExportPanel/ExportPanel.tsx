@@ -97,8 +97,10 @@ export function ExportPanel({
       return;
     }
     try {
-      await copyText(document.content);
-      setCopyStatus(`${label.replace("Copy ", "")} copied.`);
+      const result = await copyText(document.content);
+      setCopyStatus(result === "copied"
+        ? `${label.replace("Copy ", "")} copied.`
+        : `${label.replace("Copy ", "")} selected. Press Ctrl+C to copy.`);
     } catch (caughtError) {
       setCopyStatus(caughtError instanceof Error ? caughtError.message : "Copy failed.");
     }

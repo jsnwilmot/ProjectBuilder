@@ -313,4 +313,26 @@ describe("App", () => {
     expect(execCommand).toHaveBeenCalledWith("copy");
     expect(screen.getByText("Client questions copied.")).toBeInTheDocument();
   });
+
+  it("leaves client questions selected when browser copy commands are unavailable", async () => {
+    const project = createProject({
+      identity: { id: "client-selection-fallback", projectName: "Client Selection Fallback" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("Denied"));
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: vi.fn().mockReturnValue(false)
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+    await user.click(screen.getByRole("button", { name: "Copy all questions" }));
+
+    expect(screen.getByText("Client questions selected. Press Ctrl+C to copy.")).toBeInTheDocument();
+    expect(screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Selected text ready to copy"
+    }).value).toContain("Foundation");
+  });
 });
