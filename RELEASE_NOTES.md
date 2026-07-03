@@ -24,7 +24,7 @@ The production target is the existing `projectbuilder` Worker at `https://projec
 
 ## Release verification
 
-- Automated suite: 13 files and 84 tests passed, including client-review decisions, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
+- Automated suite: 13 files and 85 tests passed, including client-review decisions, clipboard fallback, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
 - Production build completed successfully.
 - Dependency audit reported zero vulnerabilities.
 - Production-preview regression covered project creation, minimum intake, refresh persistence, project switching, generation, document search/preview, export diagnostics, and all three copy actions.

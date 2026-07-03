@@ -4,6 +4,7 @@ import {
   getClientReviewReadiness,
   groupClientQuestions
 } from "../../lib/clientReview";
+import { copyText } from "../../lib/copyText";
 import {
   REVIEW_ITEM_STATUSES,
   type ReadinessChecklistId,
@@ -33,7 +34,7 @@ export function ClientReviewWorkflow({
   const copyQuestions = async () => {
     const text = formatClientQuestions(project.reviewItems);
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       setCopyStatus("Client questions copied.");
     } catch {
       setCopyStatus("Copy failed. Select the questions below and copy them manually.");

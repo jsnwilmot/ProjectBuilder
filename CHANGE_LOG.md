@@ -9,17 +9,19 @@
 - Added a 12-item readiness checklist and review-aware Draft/Ready for Codex gating.
 - Updated generated review documents and export diagnostics to show questions, decisions, deferred items, checklist state, and blockers.
 - Added safe version-1 storage normalization for existing projects.
+- Added a shared clipboard fallback after production smoke testing exposed denied direct clipboard access for client questions.
 
 ### Files created
 
 - `src/lib/clientReview.ts` — review-item derivation, question grouping, decision rules, and readiness evaluation.
 - `src/components/ClientReview/ClientReviewWorkflow.tsx` — missing-information review, client questions, copy action, and readiness checklist UI.
 - `src/tests/clientReview.test.ts` — review decisions, deferral, question grouping, and readiness coverage.
+- `src/lib/copyText.ts` — shared direct-clipboard and local selection fallback used by review and export copy actions.
 
 ### Files updated
 
 - Project types, factory defaults, storage normalization, repository actions, selectors, generation, export diagnostics, and application state under `src/`.
-- Guided Intake review UI, shared responsive styles, and generated document templates.
+- Guided Intake review UI, Export copy handling, shared responsive styles, and generated document templates.
 - Application, persistence, generation, ZIP, selector, and export tests under `src/tests/`.
 - `README.md`, `CODEX_INSTRUCTIONS.md`, `TEST_PLAN.md`, `RELEASE_NOTES.md`, and `CHANGE_LOG.md`.
 
@@ -29,7 +31,7 @@
 
 ### Testing completed
 
-- `npm.cmd test` — passed (`13` files, `84` tests).
+- `npm.cmd test` — passed (`13` files, `85` tests).
 - `npm.cmd test -- src/tests/exportProjectPackage.test.ts` — passed (`5` ZIP tests).
 - `npm.cmd run build` — passed.
 - `npm.cmd audit` — passed (`0` vulnerabilities).
@@ -41,6 +43,7 @@
 
 ### Issues found
 
+- Medium: Production Client Questions copy reported failure when direct clipboard permission was denied. Fixed by reusing the existing local selection fallback through a shared helper.
 - Testing limitation: the in-app browser did not advance focus in response to synthetic Tab input. Automated focus, skip-link, labeling, and `:focus-visible` checks pass; a physical-keyboard tab-order check remains a manual release check.
 
 ### Remaining work

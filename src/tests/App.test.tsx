@@ -294,4 +294,23 @@ describe("App", () => {
     expect(execCommand).toHaveBeenCalledWith("copy");
     expect(screen.getByText("Architect Instructions copied.")).toBeInTheDocument();
   });
+
+  it("uses the selection fallback when client question clipboard access is denied", async () => {
+    const project = createProject({
+      identity: { id: "client-copy-fallback", projectName: "Client Copy Fallback" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("Denied"));
+    const execCommand = vi.fn().mockReturnValue(true);
+    Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+    await user.click(screen.getByRole("button", { name: "Copy all questions" }));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(execCommand).toHaveBeenCalledWith("copy");
+    expect(screen.getByText("Client questions copied.")).toBeInTheDocument();
+  });
 });
