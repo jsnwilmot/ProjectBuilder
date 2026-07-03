@@ -334,5 +334,8 @@ describe("App", () => {
     expect(screen.getByRole<HTMLTextAreaElement>("textbox", {
       name: "Selected text ready to copy"
     }).value).toContain("Foundation");
+
+    await user.click(screen.getByRole("heading", { name: "Client Questions Review" }));
+    expect(screen.queryByRole("textbox", { name: "Selected text ready to copy" })).not.toBeInTheDocument();
   });
 });

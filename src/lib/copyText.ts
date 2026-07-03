@@ -28,6 +28,8 @@ export async function copyText(text: string): Promise<CopyTextResult> {
   textarea.style.borderRadius = "8px";
   textarea.style.background = "#fff";
   textarea.style.color = "#1c2738";
+  textarea.style.pointerEvents = "none";
+  textarea.addEventListener("blur", () => textarea.remove(), { once: true });
   document.body.append(textarea);
   textarea.focus();
   textarea.select();
