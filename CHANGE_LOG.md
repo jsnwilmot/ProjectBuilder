@@ -1,5 +1,42 @@
 # Change Log
 
+## 2026-07-04 — ExportPanel Export and Copy Failure Test Coverage
+
+### Summary
+
+- Added test coverage for the ExportPanel component's verified package export success path, archive-build failure handling, and copy-to-clipboard failure handling.
+- Increased `src/components/ExportPanel/ExportPanel.tsx` coverage from `60%` to `88.88%` statements and `55.55%` to `85.18%` branches.
+- Confirmed the two remaining uncovered branches are unreachable defensive guards, not a testing gap — React suppresses `onClick` on `disabled` buttons even when the click event is dispatched programmatically, and the export guard is only reachable through a button that never renders unless the guard's condition is already false.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/tests/App.test.tsx` — export success, archive-build failure, non-Error throw fallback, and copy failure regression coverage for ExportPanel.
+- `CHANGE_LOG.md` — this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm test` — passed (`14` files, `128` tests).
+- `npm run test:coverage` — passed; `src/components/ExportPanel/ExportPanel.tsx` at `88.88%` statements / `85.18%` branches (up from `60%` / `55.55%`).
+- `npm run lint` — passed.
+- `npm run build` — passed, including TypeScript checking.
+- `npm audit` — passed (`0` vulnerabilities).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Two guard branches in `ExportPanel.tsx` (the `!ready` export guard and the `!document` copy guard) remain uncovered by design. Both are unreachable given current UI wiring — the export guard's button only renders when the guard would already pass, and the copy guard's button is `disabled` whenever the guard would trigger. Left in place as defense-in-depth; removing them would reach literal 100% coverage but changes production behavior, so that decision was left open rather than made unilaterally.
+
 ## 2026-07-04 — Release Readiness and Final MVP QA
 
 ### Summary

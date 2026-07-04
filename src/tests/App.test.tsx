@@ -4,6 +4,7 @@ import { App } from "../app/App";
 import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
 import { countDocumentMissingMarkers, countPackageMissingMarkers } from "../lib/documentReview";
+import * as exportProjectPackageModule from "../lib/exportProjectPackage";
 import { STORAGE_KEY, saveStorageState } from "../lib/projectRepository";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
@@ -379,6 +380,68 @@ describe("App", () => {
     expect(screen.getByText("19/19")).toBeInTheDocument();
     expect(screen.getByText("No export errors.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Use This Project Package" })).toBeInTheDocument();
+  });
+
+  it("downloads a verified package and reports success", async () => {
+    seedApp([createGeneratedProject()]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    expect(screen.getByRole("button", { name: /Download verified package/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Download verified package/ }));
+
+    expect(await screen.findByText("Export complete")).toBeInTheDocument();
+    expect(screen.getByText(/Package downloaded successfully\./)).toBeInTheDocument();
+  });
+
+  it("shows a friendly error message when building the archive fails", async () => {
+    seedApp([createGeneratedProject()]);
+    const user = userEvent.setup();
+    vi.spyOn(exportProjectPackageModule, "createProjectArchive").mockRejectedValue(
+      new Error("The archive service is temporarily unavailable.")
+    );
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    await user.click(screen.getByRole("button", { name: /Download verified package/ }));
+
+    expect(await screen.findByText("Export failed")).toBeInTheDocument();
+    expect(screen.getByText(/The archive service is temporarily unavailable\./)).toBeInTheDocument();
+  });
+
+  it("falls back to a generic error message when a non-Error value is thrown during export", async () => {
+    seedApp([createGeneratedProject()]);
+    const user = userEvent.setup();
+    vi.spyOn(exportProjectPackageModule, "createProjectArchive").mockRejectedValue("boom");
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    await user.click(screen.getByRole("button", { name: /Download verified package/ }));
+
+    expect(await screen.findByText("Export failed")).toBeInTheDocument();
+    expect(screen.getByText(/The project archive could not be created\./)).toBeInTheDocument();
+  });
+
+  it("shows the underlying error message when copying a handoff document fails unexpectedly", async () => {
+    seedApp([createGeneratedProject()]);
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("Denied"));
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+    await user.click(screen.getByRole("button", { name: "Copy Architect Instructions" }));
+
+    // document.execCommand is not implemented in jsdom by default (and is not
+    // stubbed in this test), so the copy-selection fallback itself throws,
+    // exercising ExportPanel's own catch-and-report path rather than the
+    // "selected" fallback message.
+    expect(await screen.findByText(/execCommand/)).toBeInTheDocument();
   });
 
   it("requires a project type and shows website-specific questions", async () => {
