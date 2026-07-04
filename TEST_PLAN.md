@@ -20,6 +20,12 @@
 - Stage switching does not lose entered intake values.
 - New projects receive complete safe defaults, unique IDs, lifecycle status, and timestamps.
 - Versioned storage state saves and loads multiple projects plus `activeProjectId`.
+- Existing version-1 projects without archive or duplication metadata load as active projects with safe null defaults.
+- Duplicate creates a new id, adds `Copy` to the project name, records source lineage, preserves copied intake, and clears generated output.
+- Archive hides a project from the active list without deleting its intake, review, readiness, or generated-document data.
+- Restore returns archived data to the active list and updates only archive/timestamp metadata.
+- Active and archived delete actions require a confirmation dialog; Cancel preserves the record and Permanently Delete removes it.
+- Mission Control summary counts exclude archived records from active, Draft, Ready for Codex, and blocker totals.
 - Invalid localStorage JSON recovers to a safe empty version-1 state.
 - Empty storage renders the first-run welcome, product boundaries, eight-step workflow, and project-dependent navigation without producing a blank page.
 - The primary onboarding action opens Foundation intake.
@@ -67,7 +73,7 @@
 - Recent project summaries sort by last updated date with stable fallback behavior.
 - Dashboard warning selector surfaces inconsistent persisted status/readiness combinations.
 - Mission Control project switching updates active context and heading safely.
-- Mission Control recent project buttons expose clear accessible labels for project selection.
+- Mission Control project rows expose clear Open, Duplicate, Archive/Restore, and Delete labels.
 - All 12 required folders and 19 required files are generated.
 - Missing information markers appear in generated Markdown.
 - Unsafe project names normalize to predictable paths.
@@ -84,6 +90,20 @@ npm.cmd test
 npm.cmd run build
 npm.cmd audit
 ```
+
+## 2026-07-03 saved project management evidence
+
+- `npm.cmd test`: passed (`14` files, `123` tests).
+- `npm.cmd run test:coverage`: passed; overall branch coverage is `84.03%`.
+- `src/lib/projectRepository.ts`: `100%` statements, branches, and functions.
+- `npm.cmd run lint`: passed.
+- `npm.cmd run build`: passed, including TypeScript checking.
+- `git diff --check`: passed.
+- In-app browser QA passed at desktop and `390 × 844` mobile widths with no console errors or page-level horizontal overflow.
+- Duplicate, archive, archived view, restore, confirmation focus, Cancel, permanent delete, count updates, persistence reload, 19-document generation, Package Preview, and ZIP export passed.
+- Technical ZIP inspection passed with `12` folders, `19` core documents, both manifests, and no missing, duplicate, or empty files.
+- `npm.cmd audit`: passed with `0` vulnerabilities.
+- Physical-keyboard tab order and Windows Explorer ZIP inspection remain manual release checks.
 
 ## 2026-07-03 project package preview evidence
 

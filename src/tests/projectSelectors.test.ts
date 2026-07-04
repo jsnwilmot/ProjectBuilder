@@ -10,6 +10,7 @@ import {
   getOutstandingQuestionCount,
   getProjectCompletionPercent,
   getProjectDisplayStatus,
+  getProjectManagementCounts,
   getProjectStageProgress,
   getReadinessSections,
   getRecentProjectSummaries,
@@ -98,6 +99,26 @@ describe("project selectors", () => {
     ];
     const action = getNextActionDetails(project);
     expect(action.targetView).toBe("scope");
+  });
+
+  it("counts active, archived, ready, draft, and blocked projects without treating archived projects as active", () => {
+    const active = createProject({ identity: { id: "active", projectName: "Active" } });
+    const archived = createProject({
+      identity: { id: "archived", projectName: "Archived" },
+      archivedAt: "2026-07-04T12:00:00.000Z"
+    });
+    const draft = createProject({
+      identity: { id: "draft", projectName: "Draft" },
+      generatedDocuments: [{ fileName: "README.md", folder: "", content: "# Draft" }]
+    });
+
+    expect(getProjectManagementCounts([active, archived, draft])).toEqual({
+      active: 2,
+      archived: 1,
+      readyForCodex: 0,
+      draft: 1,
+      withBlockers: 2
+    });
   });
 
   it("blocks Ready for Codex status when required intake is missing", () => {

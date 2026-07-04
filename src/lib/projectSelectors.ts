@@ -4,6 +4,7 @@ import type {
   DashboardNextAction,
   DashboardWarning,
   ProjectRecord,
+  ProjectManagementCounts,
   ReviewStatus,
   ProjectStatus,
   ProjectStageProgress,
@@ -193,6 +194,7 @@ export function getActiveProjectSummary(project: ProjectRecord | null): ProjectS
   return {
     id: project.identity.id,
     projectName: safeProjectName(project),
+    archivedAt: project.archivedAt,
     status: getProjectDisplayStatus(project),
     reviewStatus: getReviewStatus(project),
     clientName: project.client.clientName.trim() || "Missing",
@@ -202,6 +204,24 @@ export function getActiveProjectSummary(project: ProjectRecord | null): ProjectS
     outstandingQuestionCount: getOutstandingQuestionCount(project),
     completionPercent: getProjectCompletionPercent(project),
     nextAction: getNextActionDetails(project)
+  };
+}
+
+export function getProjectManagementCounts(projects: ProjectRecord[]): ProjectManagementCounts {
+  const activeProjects = projects.filter((project) => !project.archivedAt);
+  const readiness = activeProjects.map((project) => ({
+    project,
+    clientReview: getClientReviewReadiness(project)
+  }));
+
+  return {
+    active: activeProjects.length,
+    archived: projects.length - activeProjects.length,
+    readyForCodex: readiness.filter(({ clientReview }) => clientReview.isReady).length,
+    draft: readiness.filter(({ project, clientReview }) =>
+      getGeneratedFileCount(project) > 0 && !clientReview.isReady
+    ).length,
+    withBlockers: readiness.filter(({ clientReview }) => clientReview.blockerCount > 0).length
   };
 }
 

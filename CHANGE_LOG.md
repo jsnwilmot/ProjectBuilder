@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-07-03 — Saved Project Management and Mission Control Actions
+
+### Summary
+
+- Added clear Open, Duplicate, Archive, Restore, and Delete actions to Mission Control.
+- Added separate active and archived project sections with summary counts for active, archived, Ready for Codex, Draft, and blocked projects.
+- Added duplicate lineage metadata, current timestamps, stale generated output, and review-decision reconciliation.
+- Added reversible archive/restore persistence without changing saved intake, review decisions, readiness confirmations, or generated documents.
+- Added an accessible confirmation dialog so active and archived projects cannot be permanently deleted with one click.
+- Preserved onboarding, intake presets, branding, Client Review, readiness gating, 19-document generation, Package Preview, clipboard fallback, and ZIP export.
+
+### Files created
+
+- `src/components/MissionControl/SavedProjectManagement.tsx` — project counts, active/archived tables, row actions, notices, and delete confirmation.
+
+### Files updated
+
+- `src/types/project.ts` — archive, duplication lineage, and management count types.
+- `src/lib/createProject.ts`, `src/lib/storageVersion.ts`, and `src/lib/projectRepository.ts` — safe metadata defaults and duplicate/archive/restore persistence.
+- `src/lib/projectSelectors.ts` — Mission Control management counts.
+- `src/app/useProjectBuilder.ts` and `src/app/App.tsx` — saved-project operations exposed to Mission Control.
+- `src/components/MissionControl/MissionControl.tsx` and `src/styles/global.css` — management UI integration and responsive styling.
+- `src/tests/projectRepository.test.ts`, `src/tests/projectSelectors.test.ts`, and `src/tests/App.test.tsx` — storage, count, action, and confirmation coverage.
+- `README.md`, `TEST_PLAN.md`, `RELEASE_NOTES.md`, and `CHANGE_LOG.md` — behavior and verification documentation.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`14` files, `123` tests).
+- `npm.cmd run test:coverage` — passed; overall branch coverage is `84.03%` and `src/lib/projectRepository.ts` remains at `100%` statements, branches, and functions.
+- `npm.cmd run lint` — passed.
+- `npm.cmd run build` — passed, including TypeScript checking.
+- `git diff --check` — passed.
+- Desktop and `390 × 844` browser QA passed for project actions, counts, duplicate, archive, archived view, restore, delete confirmation/cancel/confirm, persistence reload, generation, Package Preview, and ZIP export.
+- Technical ZIP inspection passed with `12` folders, `19` core documents, both manifests, and no missing, duplicate, or empty files.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+
+### Issues found
+
+- None during implementation.
+
+### Remaining work
+
+- Physical-keyboard tab order and Windows Explorer ZIP inspection remain manual release checks.
+
 ## 2026-07-03 — ESLint, CI, Coverage, and Repository Tests
 
 ### Summary

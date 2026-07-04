@@ -143,6 +143,37 @@ export function createProject(
   return project;
 }
 
+export function duplicateProject(
+  id: string,
+  storage: StorageAdapter = browserStorage(),
+  now = new Date().toISOString()
+): ProjectRecord | null {
+  const state = loadStorageState(storage);
+  const source = state.projects.find((project) => project.identity.id === id);
+  if (!source) return null;
+
+  const projectName = source.identity.projectName.trim() || "Untitled Project";
+  const duplicate = synchronizeDerivedFields(createProjectRecord({
+    identity: { projectName: `${projectName} Copy` },
+    client: { ...source.client },
+    intake: { ...source.intake },
+    reviewItems: source.reviewItems.map((item) => ({ ...item })),
+    readinessConfirmations: { ...source.readinessConfirmations },
+    packageGeneratedAt: null,
+    status: "Intake Started",
+    reviewStatus: "Review needed",
+    sourceProjectId: source.identity.id,
+    duplicatedAt: now,
+    now
+  }));
+  saveStorageState({
+    ...state,
+    activeProjectId: duplicate.identity.id,
+    projects: [...state.projects, duplicate]
+  }, storage);
+  return duplicate;
+}
+
 export type ProjectUpdate =
   | Partial<ProjectRecord>
   | ((current: ProjectRecord) => ProjectRecord);
@@ -247,11 +278,50 @@ export function deleteProject(id: string, storage: StorageAdapter = browserStora
   const state = loadStorageState(storage);
   const projects = state.projects.filter((project) => project.identity.id !== id);
   const activeProjectId = state.activeProjectId === id
-    ? [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.identity.id ?? null
+    ? [...projects]
+      .filter((project) => !project.archivedAt)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.identity.id ?? null
     : state.activeProjectId;
   const next = { ...state, activeProjectId, projects };
   saveStorageState(next, storage);
   return next;
+}
+
+export function archiveProject(
+  id: string,
+  storage: StorageAdapter = browserStorage(),
+  now = new Date().toISOString()
+): ProjectRecord | null {
+  const state = loadStorageState(storage);
+  const current = state.projects.find((project) => project.identity.id === id);
+  if (!current) return null;
+
+  const archived = { ...current, archivedAt: now, updatedAt: now };
+  const projects = state.projects.map((project) => project.identity.id === id ? archived : project);
+  const activeProjectId = state.activeProjectId === id
+    ? [...projects]
+      .filter((project) => !project.archivedAt)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.identity.id ?? null
+    : state.activeProjectId;
+  saveStorageState({ ...state, activeProjectId, projects }, storage);
+  return archived;
+}
+
+export function restoreProject(
+  id: string,
+  storage: StorageAdapter = browserStorage(),
+  now = new Date().toISOString()
+): ProjectRecord | null {
+  const state = loadStorageState(storage);
+  const current = state.projects.find((project) => project.identity.id === id);
+  if (!current) return null;
+
+  const restored = { ...current, archivedAt: null, updatedAt: now };
+  saveStorageState({
+    ...state,
+    projects: state.projects.map((project) => project.identity.id === id ? restored : project)
+  }, storage);
+  return restored;
 }
 
 export function setActiveProject(id: string, storage: StorageAdapter = browserStorage()): ProjectRecord | null {

@@ -20,6 +20,10 @@ export function App() {
     markGenerated,
     createNewProject,
     setActiveProject,
+    duplicateSavedProject,
+    archiveSavedProject,
+    restoreSavedProject,
+    deleteSavedProject,
     validationIssues,
     validationResult,
     generatedPackage
@@ -85,6 +89,10 @@ export function App() {
             onContinue={openIntake}
             onCreateProject={startNewProject}
             onSelectProject={setActiveProject}
+            onDuplicateProject={duplicateSavedProject}
+            onArchiveProject={archiveSavedProject}
+            onRestoreProject={restoreSavedProject}
+            onDeleteProject={deleteSavedProject}
             onOpenView={(nextView, step) => {
               if (nextView === "intake") {
                 openIntake(step ?? 0);

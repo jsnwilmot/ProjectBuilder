@@ -132,6 +132,9 @@ function normalizeProject(value: unknown): ProjectRecord | null {
       ? value.status as ProjectRecord["status"]
       : "Intake Started",
     reviewStatus: normalizeReviewStatus(value.reviewStatus),
+    archivedAt: asString(value.archivedAt) || null,
+    sourceProjectId: asString(value.sourceProjectId) || null,
+    duplicatedAt: asString(value.duplicatedAt) || null,
     now: asString(value.createdAt) || new Date().toISOString()
   });
   return {
@@ -149,7 +152,7 @@ export function migrateStorageState(input: unknown): StorageState {
   const requestedActiveId = typeof input.activeProjectId === "string" ? input.activeProjectId : null;
   const activeProjectId = projects.some((project) => project.identity.id === requestedActiveId)
     ? requestedActiveId
-    : projects[0]?.identity.id ?? null;
+    : projects.find((project) => !project.archivedAt)?.identity.id ?? null;
 
   return {
     version: CURRENT_STORAGE_VERSION,

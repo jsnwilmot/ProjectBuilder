@@ -3,8 +3,12 @@ import { PROJECT_FOLDERS } from "../data/folderStructure";
 import { sanitizeProjectFolderName } from "../lib/documentHelpers";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
 import {
+  archiveProject,
   createProject,
+  deleteProject,
+  duplicateProject,
   loadStorageState,
+  restoreProject,
   saveGeneratedDocuments,
   setActiveProject as persistActiveProject,
   updateReadinessConfirmation,
@@ -29,7 +33,7 @@ export function useProjectBuilder() {
   const [storageState, setStorageState] = useState<StorageState>(initializeStorage);
   const project = useMemo<ProjectRecord | null>(
     () => storageState.projects.find((candidate) => candidate.identity.id === storageState.activeProjectId)
-      ?? storageState.projects[0]
+      ?? storageState.projects.find((candidate) => !candidate.archivedAt)
       ?? null,
     [storageState]
   );
@@ -96,6 +100,29 @@ export function useProjectBuilder() {
     refresh();
   };
 
+  const duplicateSavedProject = (projectId: string): ProjectRecord | null => {
+    const duplicated = duplicateProject(projectId);
+    refresh();
+    return duplicated;
+  };
+
+  const archiveSavedProject = (projectId: string): ProjectRecord | null => {
+    const archived = archiveProject(projectId);
+    refresh();
+    return archived;
+  };
+
+  const restoreSavedProject = (projectId: string): ProjectRecord | null => {
+    const restored = restoreProject(projectId);
+    refresh();
+    return restored;
+  };
+
+  const deleteSavedProject = (projectId: string) => {
+    deleteProject(projectId);
+    refresh();
+  };
+
   return {
     storageState,
     project,
@@ -106,6 +133,10 @@ export function useProjectBuilder() {
     markGenerated,
     createNewProject,
     setActiveProject,
+    duplicateSavedProject,
+    archiveSavedProject,
+    restoreSavedProject,
+    deleteSavedProject,
     validationResult,
     validationIssues: validationResult.missingFields,
     generatedPackage

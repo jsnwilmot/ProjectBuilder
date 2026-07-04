@@ -7,6 +7,9 @@ GPT Project Builder turns a rough app idea into a structured project package for
 - First-run Mission Control welcome with a plain-language product boundary, primary project-creation action, read-only example workflow, and compact eight-step path from idea to GPT Architect review.
 - The read-only example demonstrates a local business website handoff without creating or overwriting a saved project.
 - Mission Control with project status, readiness, outstanding questions, generated-document progress, review status, and next action.
+- Saved Project Management with explicit Open, Duplicate, Archive, Restore, and confirmed Delete actions for browser-local projects.
+- Active and archived projects are separated, with compact counts for active, archived, Ready for Codex, Draft, and blocked projects.
+- Duplicate creates a new `Copy` record with lineage metadata and stale generated output; archive retains all project data and can be reversed.
 - Hardened Mission Control selectors for active-project summaries, recent project summaries, deterministic next actions, status normalization, and dashboard warnings.
 - Active project and recent project rows now render from persisted state with clear active-project indication and safe fallbacks.
 - Readiness sections now include derived missing/warning counts from validation stage results.
@@ -43,7 +46,9 @@ GPT Project Builder turns a rough app idea into a structured project package for
 
 ## MVP persistence
 
-The MVP uses one localStorage key: `gpt-project-builder.storage.v1`. Its versioned schema stores `activeProjectId` and a collection of complete project records. Creating a project adds a new record without replacing existing projects, and selecting a recent project changes the active record.
+The MVP uses one localStorage key: `gpt-project-builder.storage.v1`. Its versioned schema stores `activeProjectId` and a collection of complete project records. Creating or duplicating a project adds a new record without replacing existing projects. Archived records retain their data, are excluded from the default active list, and can be restored.
+
+Duplicate records receive a new id, current timestamps, `sourceProjectId` and `duplicatedAt` lineage, an `Intake Started` lifecycle state, and no generated documents. Review decisions are reconciled against the copied intake, and the copied package must be regenerated before Ready for Codex. Delete always requires a second confirmation and permanently removes only the selected local record.
 
 If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. A new or recovered store opens the first-run welcome and does not create demo projects automatically. Opening the example workflow is read-only and does not write to storage.
 

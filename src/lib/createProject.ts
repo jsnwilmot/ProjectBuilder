@@ -23,6 +23,9 @@ export interface CreateProjectOptions {
   packageGeneratedAt?: string | null;
   status?: ProjectStatus;
   reviewStatus?: ReviewStatus;
+  archivedAt?: string | null;
+  sourceProjectId?: string | null;
+  duplicatedAt?: string | null;
   now?: string;
 }
 
@@ -192,6 +195,9 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
     packageGeneratedAt: options.packageGeneratedAt ?? null,
     status: options.status ?? "Intake Started",
     reviewStatus: options.reviewStatus ?? "Not reviewed",
+    archivedAt: options.archivedAt ?? null,
+    sourceProjectId: options.sourceProjectId ?? null,
+    duplicatedAt: options.duplicatedAt ?? null,
     createdAt: now,
     updatedAt: now
   };

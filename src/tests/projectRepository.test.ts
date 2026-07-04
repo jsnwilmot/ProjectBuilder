@@ -3,13 +3,16 @@ import type { ProjectRecord } from "../types/project";
 import {
   LEGACY_STORAGE_KEY,
   STORAGE_KEY,
+  archiveProject,
   createProject,
   deleteProject,
+  duplicateProject,
   getActiveProject,
   getProjectById,
   listProjects,
   loadStorageState,
   resetStorage,
+  restoreProject,
   saveGeneratedDocuments,
   saveStorageState,
   setActiveProject,
@@ -83,6 +86,9 @@ describe("projectRepository", () => {
     expect(loaded.intake.appType).toBe("Web application");
     expect(loaded.intake.brandStatus).toBe("");
     expect(loaded.intake.websitePages).toBe("");
+    expect(loaded.archivedAt).toBeNull();
+    expect(loaded.sourceProjectId).toBeNull();
+    expect(loaded.duplicatedAt).toBeNull();
   });
 
   it("safely adds client review defaults to older stored projects", () => {
@@ -126,6 +132,128 @@ describe("projectRepository", () => {
     expect(state.projects.map((project) => project.identity.projectName)).toEqual(["First", "Second"]);
     expect(state.activeProjectId).toBe(second.identity.id);
     expect(first.identity.id).not.toBe(second.identity.id);
+  });
+
+  it("duplicates a project with a new id, Copy name, lineage, and stale generated output", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({
+      identity: { id: "source", projectName: "Client Portal" },
+      client: { clientName: "Client" },
+      intake: { appPurpose: "Manage client requests" },
+      generatedDocuments: [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Ready" }],
+      packageGeneratedAt: "2026-07-01T12:00:00.000Z",
+      status: "Ready for Codex",
+      now: "2026-07-01T12:00:00.000Z"
+    }, storage);
+
+    const duplicated = duplicateProject(source.identity.id, storage, "2026-07-04T12:00:00.000Z")!;
+    const state = loadStorageState(storage);
+    const persistedSource = state.projects.find((project) => project.identity.id === source.identity.id)!;
+
+    expect(duplicated.identity.id).not.toBe(source.identity.id);
+    expect(duplicated.identity.projectName).toBe("Client Portal Copy");
+    expect(duplicated.sourceProjectId).toBe(source.identity.id);
+    expect(duplicated.duplicatedAt).toBe("2026-07-04T12:00:00.000Z");
+    expect(duplicated.createdAt).toBe("2026-07-04T12:00:00.000Z");
+    expect(duplicated.updatedAt).toBe("2026-07-04T12:00:00.000Z");
+    expect(duplicated.generatedDocuments).toEqual([]);
+    expect(duplicated.packageGeneratedAt).toBeNull();
+    expect(duplicated.status).toBe("Intake Started");
+    expect(duplicated.client).toEqual(source.client);
+    expect(duplicated.intake).toEqual(source.intake);
+    expect(state.activeProjectId).toBe(duplicated.identity.id);
+    expect(state.projects).toHaveLength(2);
+    expect(persistedSource.generatedDocuments).toHaveLength(1);
+    expect(persistedSource.identity.projectName).toBe("Client Portal");
+  });
+
+  it("uses Untitled Project Copy when duplicating a project without a name", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({ identity: { id: "untitled" } }, storage);
+
+    expect(duplicateProject(source.identity.id, storage)?.identity.projectName).toBe("Untitled Project Copy");
+  });
+
+  it("returns null when saved-project operations target a missing id", () => {
+    const storage = new MemoryStorage();
+
+    expect(duplicateProject("missing", storage)).toBeNull();
+    expect(archiveProject("missing", storage)).toBeNull();
+    expect(restoreProject("missing", storage)).toBeNull();
+  });
+
+  it("archives a project without deleting its data and hides it from active selection", () => {
+    const storage = new MemoryStorage();
+    const first = createProject({
+      identity: { id: "first", projectName: "First" },
+      intake: { appPurpose: "Preserve this purpose" }
+    }, storage);
+    const second = createProject({ identity: { id: "second", projectName: "Second" } }, storage);
+    setActiveProject(first.identity.id, storage);
+
+    const archived = archiveProject(first.identity.id, storage, "2026-07-04T13:00:00.000Z")!;
+    const state = loadStorageState(storage);
+
+    expect(archived.archivedAt).toBe("2026-07-04T13:00:00.000Z");
+    expect(archived.intake.appPurpose).toBe("Preserve this purpose");
+    expect(state.projects).toHaveLength(2);
+    expect(state.projects.find((project) => project.identity.id === first.identity.id)?.archivedAt).toBe(
+      "2026-07-04T13:00:00.000Z"
+    );
+    expect(state.activeProjectId).toBe(second.identity.id);
+  });
+
+  it("keeps the active id when archiving another project and clears it when the last active project is archived", () => {
+    const storage = new MemoryStorage();
+    const first = createProject({ identity: { id: "first", projectName: "First" } }, storage);
+    const second = createProject({ identity: { id: "second", projectName: "Second" } }, storage);
+    setActiveProject(first.identity.id, storage);
+
+    archiveProject(second.identity.id, storage);
+    expect(loadStorageState(storage).activeProjectId).toBe(first.identity.id);
+
+    archiveProject(first.identity.id, storage);
+    expect(loadStorageState(storage).activeProjectId).toBeNull();
+  });
+
+  it("selects the most recently updated active project when archiving the current project", () => {
+    const storage = new MemoryStorage();
+    const current = createProject({
+      identity: { id: "current", projectName: "Current" },
+      now: "2026-07-04T10:00:00.000Z"
+    }, storage);
+    createProject({
+      identity: { id: "newest", projectName: "Newest" },
+      now: "2026-07-04T12:00:00.000Z"
+    }, storage);
+    createProject({
+      identity: { id: "older", projectName: "Older" },
+      now: "2026-07-04T11:00:00.000Z"
+    }, storage);
+    setActiveProject(current.identity.id, storage);
+
+    archiveProject(current.identity.id, storage);
+
+    expect(loadStorageState(storage).activeProjectId).toBe("newest");
+  });
+
+  it("restores an archived project without changing its saved project data", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({
+      identity: { id: "archived", projectName: "Archived" },
+      intake: { appPurpose: "Keep this purpose" },
+      generatedDocuments: [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Saved" }]
+    }, storage);
+    archiveProject(project.identity.id, storage, "2026-07-04T13:00:00.000Z");
+
+    const restored = restoreProject(project.identity.id, storage, "2026-07-04T14:00:00.000Z")!;
+
+    expect(restored.archivedAt).toBeNull();
+    expect(restored.updatedAt).toBe("2026-07-04T14:00:00.000Z");
+    expect(restored.intake.appPurpose).toBe("Keep this purpose");
+    expect(restored.generatedDocuments).toEqual(project.generatedDocuments);
+    expect(restored.reviewItems).toEqual(project.reviewItems);
+    expect(restored.readinessConfirmations).toEqual(project.readinessConfirmations);
   });
 
   it("sets the active project", () => {

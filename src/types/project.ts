@@ -331,6 +331,7 @@ export interface DashboardWarning {
 export interface ProjectSummary {
   id: string;
   projectName: string;
+  archivedAt: string | null;
   status: ProjectStatus;
   reviewStatus: ReviewStatus;
   clientName: string;
@@ -355,8 +356,19 @@ export interface ProjectRecord {
   packageGeneratedAt: string | null;
   status: ProjectStatus;
   reviewStatus: ReviewStatus;
+  archivedAt: string | null;
+  sourceProjectId: string | null;
+  duplicatedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectManagementCounts {
+  active: number;
+  archived: number;
+  readyForCodex: number;
+  draft: number;
+  withBlockers: number;
 }
 
 export interface ProjectPackage {

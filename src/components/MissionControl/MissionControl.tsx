@@ -8,8 +8,7 @@ import {
   getGeneratedFileCount,
   getNextActionDetails,
   getOutstandingQuestionCount,
-  getProjectDisplayStatus,
-  getRecentProjectSummaries
+  getProjectDisplayStatus
 } from "../../lib/projectSelectors";
 import { getFirstIncompleteStep } from "../../lib/validateIntake";
 import type { ProjectRecord } from "../../types/project";
@@ -17,6 +16,7 @@ import { ChevronRight, Users } from "../ui/Icons";
 import { WorkflowOverview } from "../Onboarding/WorkflowOverview";
 import { ProgressRail } from "./ProgressRail";
 import { ReadinessPanel } from "./ReadinessPanel";
+import { SavedProjectManagement } from "./SavedProjectManagement";
 
 interface MissionControlProps {
   project: ProjectRecord | null;
@@ -24,6 +24,10 @@ interface MissionControlProps {
   onContinue: (step?: number) => void;
   onCreateProject: () => void;
   onSelectProject: (projectId: string) => void;
+  onDuplicateProject: (projectId: string) => ProjectRecord | null;
+  onArchiveProject: (projectId: string) => ProjectRecord | null;
+  onRestoreProject: (projectId: string) => ProjectRecord | null;
+  onDeleteProject: (projectId: string) => void;
   onOpenView: (view: "dashboard" | "intake" | "scope" | "documents" | "export", stage?: number) => void;
 }
 
@@ -64,11 +68,15 @@ export function MissionControl({
   onContinue,
   onCreateProject,
   onSelectProject,
+  onDuplicateProject,
+  onArchiveProject,
+  onRestoreProject,
+  onDeleteProject,
   onOpenView
 }: MissionControlProps) {
   const [showExample, setShowExample] = useState(false);
 
-  if (!project) {
+  if (projects.length === 0) {
     return (
       <main className="page mission-control" id="main-content" tabIndex={-1}>
         <div className="page-heading">
@@ -145,18 +153,40 @@ export function MissionControl({
     );
   }
 
+  if (!project) {
+    return (
+      <main className="page mission-control" id="main-content" tabIndex={-1}>
+        <div className="page-heading">
+          <div>
+            <h1>Mission Control</h1>
+            <p>Manage active and archived project packages saved in this browser.</p>
+          </div>
+          <button className="button button-primary" onClick={onCreateProject}>Create New Project</button>
+        </div>
+        <section className="project-command no-active-project" aria-labelledby="no-active-project-title">
+          <h2 id="no-active-project-title">No active projects</h2>
+          <p>Restore an archived project or create a new one to continue working.</p>
+          <SavedProjectManagement
+            projects={projects}
+            activeProjectId={null}
+            onOpen={onSelectProject}
+            onDuplicate={onDuplicateProject}
+            onArchive={onArchiveProject}
+            onRestore={onRestoreProject}
+            onDelete={onDeleteProject}
+          />
+        </section>
+      </main>
+    );
+  }
+
   const nextStep = getFirstIncompleteStep(project);
   const outstandingCount = getOutstandingQuestionCount(project);
   const generatedCount = getGeneratedFileCount(project);
   const nextAction = getNextActionDetails(project);
   const activeSummary = getActiveProjectSummary(project);
   const dashboardWarnings = getDashboardWarnings(project);
-  const recentSummaries = getRecentProjectSummaries(projects, project.identity.id);
   const statusExplanations = getStatusExplanations(project);
-
-  const selectProject = (projectId: string) => {
-    onSelectProject(projectId);
-  };
 
   const openNextAction = () => {
     if (nextAction.targetView === "intake") onContinue(nextAction.targetStage ?? nextStep);
@@ -187,6 +217,11 @@ export function MissionControl({
                     <p key={item.label}><strong>{item.label}:</strong> {item.description}</p>
                   ))}
                 </div>
+              ) : null}
+              {project.archivedAt ? (
+                <p className="archived-project-helper">
+                  <strong>Archived:</strong> This project is hidden from the active list but can be restored.
+                </p>
               ) : null}
             </div>
             <button className="button button-primary button-large" onClick={() => onContinue(nextStep)}>
@@ -236,42 +271,15 @@ export function MissionControl({
             </div>
           ) : null}
 
-          <div className="recent-projects">
-            <h3>Recent projects</h3>
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr><th>Project name</th><th>Status</th><th>Last updated</th><th>Generated documents</th><th>Next action</th></tr>
-                </thead>
-                <tbody>
-                  {recentSummaries.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <button
-                          className="table-link"
-                          onClick={() => selectProject(item.id)}
-                          aria-label={`Select project ${item.projectName}`}
-                          aria-pressed={item.isActive}
-                        >
-                          {item.projectName}
-                          {item.isActive ? <strong> (Active)</strong> : null}
-                        </button>
-                      </td>
-                      <td>
-                        <span className={`table-status ${!item.isActive ? "secondary" : ""}`}>
-                          <i />
-                          {item.status}
-                        </span>
-                      </td>
-                      <td>{item.lastUpdatedLabel}</td>
-                      <td>{item.generatedFileCount} of {DOCUMENT_LOCATIONS.length}</td>
-                      <td>{item.nextAction.label}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <SavedProjectManagement
+            projects={projects}
+            activeProjectId={project.identity.id}
+            onOpen={onSelectProject}
+            onDuplicate={onDuplicateProject}
+            onArchive={onArchiveProject}
+            onRestore={onRestoreProject}
+            onDelete={onDeleteProject}
+          />
         </section>
 
         <ReadinessPanel project={project} />

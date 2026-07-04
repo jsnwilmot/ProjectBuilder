@@ -79,7 +79,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Mission Control" }));
 
     expect(screen.getByRole("heading", { name: "Second Project" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Select project Community Services Portal" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Community Services Portal" })).toBeInTheDocument();
 
     const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as {
       activeProjectId: string;
@@ -89,8 +89,70 @@ describe("App", () => {
     expect(stored.projects.some((project) => project.identity.projectName === "Community Services Portal")).toBe(true);
     expect(stored.projects.find((project) => project.identity.id === stored.activeProjectId)?.identity.projectName).toBe("Second Project");
 
-    await user.click(screen.getByRole("button", { name: "Select project Community Services Portal" }));
+    await user.click(screen.getByRole("button", { name: "Open Community Services Portal" }));
     expect(screen.getByRole("heading", { name: "Community Services Portal" })).toBeInTheDocument();
+  });
+
+  it("duplicates, archives, views, and restores saved projects from Mission Control", async () => {
+    const source = createProject({
+      identity: { id: "managed-source", projectName: "Managed Project" },
+      generatedDocuments: [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Managed" }]
+    });
+    seedApp([source]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(
+      within(screen.getByLabelText("Project counts")).getByText("Active projects").parentElement
+    ).toHaveTextContent("1");
+    await user.click(screen.getByRole("button", { name: "Duplicate Managed Project" }));
+
+    expect(screen.getByText(/Managed Project Copy created/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Managed Project Copy" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Managed Project Copy" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Archive Managed Project Copy" }));
+    expect(screen.getByText(/Managed Project Copy archived/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open Managed Project Copy" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show archived (1)" }));
+    expect(screen.getByRole("button", { name: "Open Managed Project Copy" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore Managed Project Copy" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Restore Managed Project Copy" }));
+    expect(screen.getByText(/Managed Project Copy restored/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive Managed Project Copy" })).toBeInTheDocument();
+  });
+
+  it("requires confirmation before deleting active and archived projects", async () => {
+    const active = createProject({ identity: { id: "active-delete", projectName: "Active Delete" } });
+    const archived = createProject({
+      identity: { id: "archived-delete", projectName: "Archived Delete" },
+      archivedAt: "2026-07-04T12:00:00.000Z"
+    });
+    seedApp([active, archived], active.identity.id);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Active Delete" }));
+    expect(screen.getByRole("dialog", { name: "Delete Active Delete?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Open Active Delete" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete Active Delete" }));
+    await user.click(screen.getByRole("button", { name: "Permanently Delete" }));
+    expect(screen.queryByRole("button", { name: "Open Active Delete" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Show archived (1)" }));
+    await user.click(screen.getByRole("button", { name: "Delete Archived Delete" }));
+    expect(screen.getByRole("dialog", { name: "Delete Archived Delete?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "Open Archived Delete" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete Archived Delete" }));
+    await user.click(screen.getByRole("button", { name: "Permanently Delete" }));
+    expect(screen.queryByRole("button", { name: "Open Archived Delete" })).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY)!).projects).toHaveLength(0);
   });
 
   it("shows missing information in the review stage", async () => {
@@ -186,7 +248,7 @@ describe("App", () => {
     expect(screen.getByText(/Community Services Portal/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Mission Control" }));
-    await user.click(screen.getByRole("button", { name: "Select project Volunteer Management App" }));
+    await user.click(screen.getByRole("button", { name: "Open Volunteer Management App" }));
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Generate and save package" }));
     await user.click(screen.getByRole("button", { name: "Preview README.md" }));

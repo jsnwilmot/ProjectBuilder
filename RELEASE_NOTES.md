@@ -13,6 +13,7 @@ The production target is the existing `projectbuilder` Worker at `https://projec
 - Static React/Vite application with no server runtime.
 - First-run Mission Control welcome with clear product boundaries, an eight-step workflow, project creation, and a read-only example that never persists.
 - Mission Control for active-project status, readiness, outstanding questions, generated-document progress, and next actions.
+- Saved Project Management with separate active/archived lists, project counts, duplicate lineage, reversible archive/restore, and confirmation-gated permanent deletion.
 - Versioned browser-local persistence for multiple projects and one active project.
 - Eight-stage guided intake with required-field validation and optional warnings.
 - Project-type use-case guidance and conditional intake questions shown immediately after type selection.
@@ -29,6 +30,7 @@ The production target is the existing `projectbuilder` Worker at `https://projec
 
 ## Release verification
 
+- Saved Project Management verification passed `123` tests, coverage, lint, TypeScript/build, dependency audit with zero vulnerabilities, desktop/mobile browser QA, 19-document generation, Package Preview, and technical ZIP inspection.
 - Automated suite: 14 files and 94 tests passed, including package preview metadata, marker totals, document and quick-copy behavior, first-run onboarding, client-review decisions, clipboard fallbacks, readiness gating, storage migration, ZIP integrity, and skip-link focus behavior.
 - Production build completed successfully.
 - Dependency audit reported zero vulnerabilities.
