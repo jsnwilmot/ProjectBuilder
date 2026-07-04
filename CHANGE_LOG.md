@@ -1,5 +1,43 @@
 # Change Log
 
+## 2026-07-04 — Controlled Dependency Audit (Vite 8.1.3) and Major Upgrade Roadmap
+
+### Summary
+
+- Created audit branch `chore/dependency-audit-vite-8.1.3` for isolated dependency maintenance.
+- Upgraded `vite` from `8.1.0` to `8.1.3` as a controlled patch-only update.
+- Verified full quality gates after the patch upgrade.
+- Added a dedicated major-upgrade plan for React 19, TypeScript 6, and jsdom 29 in a separate roadmap document.
+
+### Files created
+
+- `MAJOR_UPGRADE_PLAN.md` — phased execution and risk/rollback plan for major dependency tracks.
+
+### Files updated
+
+- `package.json` and `package-lock.json` — Vite patch update to `8.1.3`.
+- `CHANGE_LOG.md` — this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` — passed.
+- `npm.cmd test` — passed (`14` files, `129` tests).
+- `npm.cmd run test:coverage` — passed with thresholds (`93.87%` statements, `85.58%` branches, `95.29%` functions, `95.51%` lines).
+- `npm.cmd run build` — passed with `vite v8.1.3`.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Execute Track A/B/C branches from `MAJOR_UPGRADE_PLAN.md` for React, TypeScript, and jsdom major updates.
+
 ## 2026-07-04 — Persistence Warning, Coverage Gate, and Export Download Stability
 
 ### Summary
