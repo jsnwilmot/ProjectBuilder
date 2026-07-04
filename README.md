@@ -108,6 +108,8 @@ The MVP deploys as a static Vite build to the existing `projectbuilder` Worker:
 
 ```powershell
 npm.cmd test
+npm.cmd run test:coverage
+npm.cmd run lint
 npm.cmd run build
 npm.cmd audit
 ```
@@ -126,4 +128,4 @@ src/
   styles/       Shared visual system and responsive behavior
 ```
 
-See [APP_BLUEPRINT.md](./APP_BLUEPRINT.md), [TEST_PLAN.md](./TEST_PLAN.md), [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md), [RELEASE_NOTES.md](./RELEASE_NOTES.md), and [NEXT_STEPS.md](./NEXT_STEPS.md) for implementation details and release actions.
+See [APP_BLUEPRINT.md](./APP_BLUEPRINT.md), [TEST_PLAN.md](./TEST_PLAN.md), [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md), [RELEASE_NOTES.md](./RELEASE_NOTES.md), [RELEASE_READINESS_REPORT.md](./RELEASE_READINESS_REPORT.md), and [NEXT_STEPS.md](./NEXT_STEPS.md) for implementation details and release actions.

@@ -155,6 +155,32 @@ describe("App", () => {
     expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY)!).projects).toHaveLength(0);
   });
 
+  it("keeps keyboard focus in the delete dialog and closes it with Escape", async () => {
+    const project = createProject({
+      identity: { id: "keyboard-delete", projectName: "Keyboard Delete" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    const deleteButton = screen.getByRole("button", { name: "Delete Keyboard Delete" });
+    await user.click(deleteButton);
+
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+    const confirmButton = screen.getByRole("button", { name: "Permanently Delete" });
+    expect(cancelButton).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(confirmButton).toHaveFocus();
+    await user.tab();
+    expect(cancelButton).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog", { name: "Delete Keyboard Delete?" })).not.toBeInTheDocument();
+    expect(deleteButton).toHaveFocus();
+  });
+
   it("shows missing information in the review stage", async () => {
     const user = userEvent.setup();
     render(<App />);

@@ -1,5 +1,48 @@
 # Change Log
 
+## 2026-07-04 — Release Readiness and Final MVP QA
+
+### Summary
+
+- Completed the production MVP journey across intake, generation, saved-project management, document review, and verified ZIP export.
+- Added keyboard containment, Escape dismissal, and cancellation focus restoration to the destructive delete confirmation dialog.
+- Corrected stale Cloudflare Pages guidance to the deployed Cloudflare Workers Static Assets target.
+- Added the final MVP release-readiness report and current verification evidence.
+
+### Files created
+
+- `RELEASE_READINESS_REPORT.md` — production, accessibility, ZIP, issue, limitation, and final recommendation evidence.
+
+### Files updated
+
+- `src/components/MissionControl/SavedProjectManagement.tsx` — delete-dialog keyboard handling and focus restoration.
+- `src/tests/App.test.tsx` — delete-dialog focus containment, Escape, and focus-restoration regression coverage.
+- `README.md`, `TEST_PLAN.md`, `NEXT_STEPS.md`, and `CHANGE_LOG.md` — final release verification and accurate deployment guidance.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`14` files, `124` tests).
+- `npm.cmd run test:coverage` — passed; overall branch coverage is `84.05%`.
+- `npm.cmd run lint` — passed.
+- `npm.cmd run build` — passed, including TypeScript checking.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+- Production desktop and `390 x 844` QA passed with no console warnings/errors or page-level horizontal overflow.
+- Direct Windows ZIP inspection passed for `12` folders, `19` core documents, both manifests, exact missing markers, and safe readable paths.
+
+### Issues found
+
+- Medium: Escape did not close the permanent-delete confirmation dialog. Fixed with keyboard handling and regression coverage.
+- Medium: `NEXT_STEPS.md` still named Cloudflare Pages despite the approved Worker deployment. Corrected.
+
+### Remaining work
+
+- Physical-keyboard tab-order verification and Windows Explorer visual ZIP inspection remain manual release checks.
+
 ## 2026-07-03 — Saved Project Management and Mission Control Actions
 
 ### Summary

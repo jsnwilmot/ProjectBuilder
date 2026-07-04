@@ -1,5 +1,21 @@
 # Test Plan
 
+## 2026-07-04 final MVP release-readiness evidence
+
+- `npm.cmd test`: passed (`14` files, `124` tests).
+- `npm.cmd run test:coverage`: passed; overall branch coverage is `84.05%`.
+- `src/lib/projectRepository.ts`: `100%` statements, branches, and functions.
+- `npm.cmd run lint`: passed.
+- `npm.cmd run build`: passed, including TypeScript checking.
+- `npm.cmd audit`: passed with `0` vulnerabilities.
+- `git diff --check`: passed.
+- Production QA completed the create, save, reopen, duplicate, archive, restore, cancel-delete, confirm-delete, generation, document review, and ZIP export journey.
+- Production generated `19/19` project-specific core documents with `55` exact `[MISSING: ...]` markers reported consistently in Package Preview and Export diagnostics.
+- Direct Windows ZIP inspection passed with `12` folders, `19` core documents, both valid manifests, and no missing, duplicate, empty, unsafe, unreadable, filler, or stale-project files.
+- The delete confirmation now traps focus between its actions, closes with Escape, restores focus after cancellation, and keeps Cancel as the initial focus target.
+- Desktop and `390 x 844` production checks passed with no console warnings/errors or page-level horizontal overflow.
+- Physical-keyboard tab-order verification and Windows Explorer visual inspection remain manual release checks.
+
 ## Automated coverage
 
 - Intake stage configuration is defined in one canonical source with 8 required stages.
@@ -249,8 +265,8 @@ Release-owner steps still required:
 
 ## Deployment readiness checklist
 
-1. Run `npm.cmd test`, `npm.cmd run build`, `npm.cmd audit`, and `git diff --check`.
-2. Confirm no lint script exists or run it if one is added.
+1. Run `npm.cmd test`, `npm.cmd run test:coverage`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd audit`, and `git diff --check`.
+2. Confirm TypeScript checking passes through the production build.
 3. Confirm the Cloudflare Workers Static Assets deployment and release owner are approved.
 4. Confirm HTTPS, root refresh behavior, cache headers, and security headers on the production Worker.
 5. Confirm no secrets or environment-specific credentials are present in the client bundle.
@@ -259,4 +275,4 @@ Release-owner steps still required:
 
 ## Known testing boundary
 
-The in-app browser can block file downloads. Clipboard actions passed in the production preview, and Windows technical archive extraction passed, but the user-visible deployed ZIP download and Windows Explorer inspection remain manual until the release owner performs them.
+The production ZIP download completed and the downloaded archive passed direct Windows inspection. The in-app browser did not expose its download event, physical-keyboard tab movement was not available, and Windows Explorer visual inspection remains manual for the release owner.

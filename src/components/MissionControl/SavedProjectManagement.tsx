@@ -151,12 +151,56 @@ export function SavedProjectManagement({
   const [notice, setNotice] = useState("");
   const [deleteCandidate, setDeleteCandidate] = useState<ProjectRecord | null>(null);
   const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+  const deleteDialogRef = useRef<HTMLElement>(null);
+  const restoreDeleteFocusRef = useRef(true);
   const activeProjects = projects.filter((project) => !project.archivedAt);
   const archivedProjects = projects.filter((project) => Boolean(project.archivedAt));
   const counts = getProjectManagementCounts(projects);
 
   useEffect(() => {
-    if (deleteCandidate) cancelDeleteRef.current?.focus();
+    if (!deleteCandidate) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+
+    cancelDeleteRef.current?.focus();
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        restoreDeleteFocusRef.current = true;
+        setDeleteCandidate(null);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableButtons = deleteDialogRef.current?.querySelectorAll<HTMLButtonElement>(
+        "button:not([disabled])"
+      );
+      if (!focusableButtons?.length) return;
+
+      const firstButton = focusableButtons[0];
+      const lastButton = focusableButtons[focusableButtons.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstButton) {
+        event.preventDefault();
+        lastButton.focus();
+      } else if (!event.shiftKey && document.activeElement === lastButton) {
+        event.preventDefault();
+        firstButton.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleDialogKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleDialogKeyDown);
+      if (restoreDeleteFocusRef.current && previouslyFocused?.isConnected) {
+        previouslyFocused.focus();
+      }
+    };
   }, [deleteCandidate]);
 
   const duplicate = (projectId: string) => {
@@ -180,9 +224,20 @@ export function SavedProjectManagement({
   const permanentlyDelete = () => {
     if (!deleteCandidate) return;
     const projectName = deleteCandidate.identity.projectName.trim() || "Untitled Project";
+    restoreDeleteFocusRef.current = false;
     onDelete(deleteCandidate.identity.id);
     setDeleteCandidate(null);
     setNotice(`${projectName} permanently deleted from this browser.`);
+  };
+
+  const requestDelete = (project: ProjectRecord) => {
+    restoreDeleteFocusRef.current = true;
+    setDeleteCandidate(project);
+  };
+
+  const cancelDelete = () => {
+    restoreDeleteFocusRef.current = true;
+    setDeleteCandidate(null);
   };
 
   return (
@@ -228,7 +283,7 @@ export function SavedProjectManagement({
         onDuplicate={duplicate}
         onArchive={archive}
         onRestore={restore}
-        onRequestDelete={setDeleteCandidate}
+        onRequestDelete={requestDelete}
       />
 
       {showArchived ? (
@@ -243,7 +298,7 @@ export function SavedProjectManagement({
             onDuplicate={duplicate}
             onArchive={archive}
             onRestore={restore}
-            onRequestDelete={setDeleteCandidate}
+            onRequestDelete={requestDelete}
           />
         </div>
       ) : null}
@@ -256,6 +311,7 @@ export function SavedProjectManagement({
             aria-modal="true"
             aria-labelledby="delete-confirmation-title"
             aria-describedby="delete-confirmation-description"
+            ref={deleteDialogRef}
           >
             <span className="eyebrow">Permanent action</span>
             <h2 id="delete-confirmation-title">Delete {deleteCandidate.identity.projectName.trim() || "Untitled Project"}?</h2>
@@ -265,7 +321,7 @@ export function SavedProjectManagement({
             <div className="delete-confirmation-actions">
               <button
                 className="button button-secondary"
-                onClick={() => setDeleteCandidate(null)}
+                onClick={cancelDelete}
                 ref={cancelDeleteRef}
               >
                 Cancel
