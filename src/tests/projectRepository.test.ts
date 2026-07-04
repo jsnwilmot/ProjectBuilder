@@ -1,10 +1,13 @@
 import { createSeedProject } from "../data/seedProject";
 import type { ProjectRecord } from "../types/project";
 import {
+  LEGACY_STORAGE_KEY,
   STORAGE_KEY,
   createProject,
+  deleteProject,
   getActiveProject,
   getProjectById,
+  listProjects,
   loadStorageState,
   resetStorage,
   saveGeneratedDocuments,
@@ -235,5 +238,238 @@ describe("projectRepository", () => {
     createProject({ identity: { projectName: "Disposable" } }, storage);
     expect(resetStorage(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
     expect(loadStorageState(storage).projects).toEqual([]);
+  });
+
+  describe("legacy project migration", () => {
+    it("migrates a legacy single-project record into the versioned store", () => {
+      const storage = new MemoryStorage();
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({
+        intake: {
+          appName: "Legacy App",
+          clientName: "Legacy Client",
+          businessName: "Legacy Business",
+          appPurpose: "Track legacy widgets"
+        },
+        metadata: { id: "legacy-id", status: "Intake Started", reviewStatus: "Review needed" }
+      }));
+
+      const loaded = loadStorageState(storage);
+
+      expect(loaded.projects).toHaveLength(1);
+      expect(loaded.activeProjectId).toBe(loaded.projects[0].identity.id);
+      expect(loaded.projects[0].identity.projectName).toBe("Legacy App");
+      expect(loaded.projects[0].client.clientName).toBe("Legacy Client");
+      expect(loaded.projects[0].client.businessName).toBe("Legacy Business");
+      expect(loaded.projects[0].intake.appPurpose).toBe("Track legacy widgets");
+      expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+    });
+
+    it("migrates a legacy record with no name fields by falling back to empty defaults", () => {
+      const storage = new MemoryStorage();
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({
+        intake: { appPurpose: "No names on this legacy record" }
+      }));
+
+      const loaded = loadStorageState(storage);
+
+      expect(loaded.projects).toHaveLength(1);
+      expect(loaded.projects[0].identity.projectName).toBe("");
+      expect(loaded.projects[0].client.clientName).toBe("");
+      expect(loaded.projects[0].client.businessName).toBe("");
+      expect(loaded.projects[0].intake.appPurpose).toBe("No names on this legacy record");
+    });
+
+    it("ignores a legacy record with no intake payload and starts with an empty state", () => {
+      const storage = new MemoryStorage();
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ metadata: { id: "orphaned" } }));
+
+      expect(loadStorageState(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
+    });
+
+    it("discards an unparsable legacy record instead of crashing", () => {
+      const storage = new MemoryStorage();
+      storage.setItem(LEGACY_STORAGE_KEY, "{not-valid-json");
+
+      expect(loadStorageState(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
+      expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+    });
+
+    it("does not run legacy migration once versioned storage already exists", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ identity: { projectName: "Current" } }, storage);
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ intake: { appName: "Should be ignored" } }));
+
+      const loaded = loadStorageState(storage);
+
+      expect(loaded.projects).toHaveLength(1);
+      expect(loaded.projects[0].identity.projectName).toBe(project.identity.projectName);
+      expect(storage.getItem(LEGACY_STORAGE_KEY)).not.toBeNull();
+    });
+  });
+
+  describe("default browser storage fallback", () => {
+    it("falls back to a safe empty state when window.localStorage is inaccessible", () => {
+      const originalDescriptor = Object.getOwnPropertyDescriptor(window, "localStorage");
+      Object.defineProperty(window, "localStorage", {
+        configurable: true,
+        get() {
+          throw new Error("SecurityError: localStorage is disabled in this context");
+        }
+      });
+
+      try {
+        expect(loadStorageState()).toEqual({ version: 1, activeProjectId: null, projects: [] });
+        expect(() => saveStorageState({ version: 1, activeProjectId: null, projects: [] })).not.toThrow();
+        expect(resetStorage()).toEqual({ version: 1, activeProjectId: null, projects: [] });
+      } finally {
+        if (originalDescriptor) {
+          Object.defineProperty(window, "localStorage", originalDescriptor);
+        }
+      }
+    });
+  });
+
+  describe("not-found and empty-state branches", () => {
+    it("returns null from getProjectById when the id does not exist", () => {
+      const storage = new MemoryStorage();
+      createProject({ identity: { projectName: "Only project" } }, storage);
+      expect(getProjectById("missing-id", storage)).toBeNull();
+    });
+
+    it("returns null from updateProject when the id does not exist", () => {
+      const storage = new MemoryStorage();
+      createProject({ identity: { projectName: "Only project" } }, storage);
+      expect(updateProject("missing-id", { reviewStatus: "Review needed" }, storage)).toBeNull();
+    });
+
+    it("returns null from setActiveProject when the id does not exist and leaves the active id unchanged", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ identity: { projectName: "Only project" } }, storage);
+      expect(setActiveProject("missing-id", storage)).toBeNull();
+      expect(loadStorageState(storage).activeProjectId).toBe(project.identity.id);
+    });
+
+    it("returns null from getActiveProject when no project is active", () => {
+      const storage = new MemoryStorage();
+      expect(getActiveProject(storage)).toBeNull();
+    });
+
+    it("keeps project.status when updating review decisions on a project with no generated documents yet", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ identity: { projectName: "Draft project" } }, storage);
+      const reviewItem = project.reviewItems[0];
+
+      const updated = updateReviewItem(project.identity.id, reviewItem.id, {
+        status: "Not applicable",
+        notApplicableReason: "Not relevant yet"
+      }, storage);
+
+      expect(updated?.status).toBe(project.status);
+    });
+
+    it("keeps project.status when confirming readiness on a project with no generated documents yet", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ identity: { projectName: "Draft project" } }, storage);
+
+      const updated = updateReadinessConfirmation(project.identity.id, "scopeReviewed", true, storage);
+
+      expect(updated?.status).toBe(project.status);
+    });
+
+    it("flags the project as Needs Review when a review decision changes after documents were generated", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ identity: { projectName: "Generated project" } }, storage);
+      saveGeneratedDocuments(project.identity.id, [
+        { fileName: "README.md", folder: "", content: "# Generated" }
+      ], storage);
+      const reviewItem = project.reviewItems[0];
+
+      const updated = updateReviewItem(project.identity.id, reviewItem.id, {
+        status: "Not applicable",
+        notApplicableReason: "Confirmed outside this project."
+      }, storage);
+
+      expect(updated?.status).toBe("Needs Review");
+    });
+
+    it("flags the project as Needs Review when readiness is confirmed after documents were generated", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ identity: { projectName: "Generated project" } }, storage);
+      saveGeneratedDocuments(project.identity.id, [
+        { fileName: "README.md", folder: "", content: "# Generated" }
+      ], storage);
+
+      const updated = updateReadinessConfirmation(project.identity.id, "scopeReviewed", true, storage);
+
+      expect(updated?.status).toBe("Needs Review");
+    });
+  });
+
+  it("lists projects most-recently-updated first", async () => {
+    const storage = new MemoryStorage();
+    const first = createProject({ identity: { projectName: "First" } }, storage);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    const second = createProject({ identity: { projectName: "Second" } }, storage);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    updateProjectFields(first.identity.id, { appPurpose: "Touch first most recently" }, storage);
+
+    const listed = listProjects(storage);
+
+    expect(listed.map((project) => project.identity.id)).toEqual([first.identity.id, second.identity.id]);
+  });
+
+  describe("deleteProject", () => {
+    it("ranks multiple remaining projects by most recently updated when reassigning the active id", async () => {
+      const storage = new MemoryStorage();
+      const first = createProject({ identity: { projectName: "First" } }, storage);
+      const second = createProject({ identity: { projectName: "Second" } }, storage);
+      const third = createProject({ identity: { projectName: "Third" } }, storage);
+      setActiveProject(third.identity.id, storage);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      updateProjectFields(second.identity.id, { appPurpose: "Touch second to make it most recent" }, storage);
+
+      const result = deleteProject(third.identity.id, storage);
+
+      expect(result.projects.map((project) => project.identity.id)).toEqual(
+        expect.arrayContaining([first.identity.id, second.identity.id])
+      );
+      expect(result.activeProjectId).toBe(second.identity.id);
+    });
+
+    it("switches the active project to the most recently updated remaining project", async () => {
+      const storage = new MemoryStorage();
+      const first = createProject({ identity: { projectName: "First" } }, storage);
+      const second = createProject({ identity: { projectName: "Second" } }, storage);
+      setActiveProject(second.identity.id, storage);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      updateProjectFields(first.identity.id, { appPurpose: "Touch first to make it most recent" }, storage);
+
+      const result = deleteProject(second.identity.id, storage);
+
+      expect(result.projects).toHaveLength(1);
+      expect(result.activeProjectId).toBe(first.identity.id);
+    });
+
+    it("clears the active project id when deleting the last remaining project", () => {
+      const storage = new MemoryStorage();
+      const only = createProject({ identity: { projectName: "Only project" } }, storage);
+
+      const result = deleteProject(only.identity.id, storage);
+
+      expect(result.projects).toHaveLength(0);
+      expect(result.activeProjectId).toBeNull();
+    });
+
+    it("leaves the active project id unchanged when deleting a non-active project", () => {
+      const storage = new MemoryStorage();
+      const first = createProject({ identity: { projectName: "First" } }, storage);
+      const second = createProject({ identity: { projectName: "Second" } }, storage);
+      setActiveProject(first.identity.id, storage);
+
+      const result = deleteProject(second.identity.id, storage);
+
+      expect(result.projects).toHaveLength(1);
+      expect(result.activeProjectId).toBe(first.identity.id);
+    });
   });
 });

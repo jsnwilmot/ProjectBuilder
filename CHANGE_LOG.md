@@ -1,5 +1,50 @@
 # Change Log
 
+## 2026-07-03 — ESLint, CI, Coverage, and Repository Tests
+
+### Summary
+
+- Added ESLint flat configuration for TypeScript, React Hooks, React Refresh, and JSX accessibility checks.
+- Added GitHub Actions CI for dependency installation, linting, type checking, tests, build, and dependency audit.
+- Added Vitest V8 coverage tooling and npm scripts for lint and coverage.
+- Exported the legacy project storage key and expanded repository tests to cover migration, unavailable storage, missing records, project ordering, and deletion branches.
+- Preserved the intentional unsafe-control-character path check with a targeted ESLint suppression.
+
+### Files created
+
+- `eslint.config.js` — repository lint configuration.
+- `.github/workflows/ci.yml` — main-branch and pull-request CI workflow.
+
+### Files updated
+
+- `package.json` and `package-lock.json` — scripts and development dependencies.
+- `src/lib/exportIntegrity.ts` — documented intentional control-character regex suppression.
+- `src/lib/projectRepository.ts` — exported the legacy storage key for migration testing.
+- `src/tests/projectRepository.test.ts` — repository branch and migration coverage.
+- `CHANGE_LOG.md` — task record and verification results.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd test` — passed (`14` files, `113` tests).
+- `npm.cmd run test:coverage` — passed; `src/lib/projectRepository.ts` reached `100%` statement, branch, and function coverage.
+- `npm.cmd run lint` — passed.
+- `npm.cmd run build` — passed, including `tsc --noEmit -p tsconfig.app.json`.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+- `git diff --check` — passed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Commit and push the tooling update.
+- Deploy the Project Package Preview phase only after this update is accepted.
+
 ## 2026-07-03 — Project Package Preview and Document Review
 
 ### Summary

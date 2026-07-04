@@ -32,6 +32,7 @@ export interface ExportIntegrityResult {
   manifestSummary: ExportManifestSummary;
 }
 
+// eslint-disable-next-line no-control-regex -- intentional check for unsafe path characters
 const controlCharacters = /[\u0000-\u001f\u007f]/;
 
 function unique(values: string[]): string[] {

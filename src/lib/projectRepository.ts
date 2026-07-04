@@ -23,7 +23,7 @@ import type {
 } from "../types/project";
 
 export const STORAGE_KEY = "gpt-project-builder.storage.v1";
-const LEGACY_STORAGE_KEY = "gpt-project-builder:project:v1";
+export const LEGACY_STORAGE_KEY = "gpt-project-builder:project:v1";
 
 export interface StorageAdapter {
   getItem(key: string): string | null;
