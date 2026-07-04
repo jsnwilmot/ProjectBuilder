@@ -7,6 +7,7 @@ import {
   createProject,
   deleteProject,
   duplicateProject,
+  getPersistenceWarning,
   loadStorageState,
   restoreProject,
   saveGeneratedDocuments,
@@ -31,6 +32,7 @@ function initializeStorage(): StorageState {
 
 export function useProjectBuilder() {
   const [storageState, setStorageState] = useState<StorageState>(initializeStorage);
+  const [persistenceWarning, setPersistenceWarning] = useState<string | null>(getPersistenceWarning());
   const project = useMemo<ProjectRecord | null>(
     () => storageState.projects.find((candidate) => candidate.identity.id === storageState.activeProjectId)
       ?? storageState.projects.find((candidate) => !candidate.archivedAt)
@@ -59,7 +61,10 @@ export function useProjectBuilder() {
     };
   }, [project]);
 
-  const refresh = () => setStorageState(loadStorageState());
+  const refresh = () => {
+    setStorageState(loadStorageState());
+    setPersistenceWarning(getPersistenceWarning());
+  };
 
   const updateIntake = (changes: Partial<Record<ProjectInputField, string>>) => {
     if (!project) return;
@@ -139,6 +144,7 @@ export function useProjectBuilder() {
     deleteSavedProject,
     validationResult,
     validationIssues: validationResult.missingFields,
-    generatedPackage
+    generatedPackage,
+    persistenceWarning
   };
 }

@@ -26,7 +26,8 @@ export function App() {
     deleteSavedProject,
     validationIssues,
     validationResult,
-    generatedPackage
+    generatedPackage,
+    persistenceWarning
   } = useProjectBuilder();
 
   const openIntake = (step = 0) => {
@@ -82,6 +83,11 @@ export function App() {
       <AppNavigation currentView={navigationView} onNavigate={handleNavigation} onNewProject={startNewProject} />
       <div className="app-content">
         <AppHeader onNewProject={startNewProject} />
+        {persistenceWarning ? (
+          <div className="persistence-warning" role="status" aria-live="polite">
+            {persistenceWarning}
+          </div>
+        ) : null}
         {view === "dashboard" ? (
           <MissionControl
             project={project}

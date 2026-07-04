@@ -29,8 +29,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit -p tsconfig.app.json
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage gate
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build

@@ -5,7 +5,7 @@ import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
 import { countDocumentMissingMarkers, countPackageMissingMarkers } from "../lib/documentReview";
 import * as exportProjectPackageModule from "../lib/exportProjectPackage";
-import { STORAGE_KEY, saveStorageState } from "../lib/projectRepository";
+import { STORAGE_KEY, clearPersistenceWarning, saveStorageState } from "../lib/projectRepository";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 
@@ -558,6 +558,26 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create New Project" })).toBeInTheDocument();
+  });
+
+  it("shows a persistence warning when browser storage access is unavailable", () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, "localStorage");
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("SecurityError: localStorage is disabled in this context");
+      }
+    });
+
+    try {
+      render(<App />);
+      expect(screen.getByText(/Saving is currently unavailable in this browser context\./)).toBeInTheDocument();
+    } finally {
+      clearPersistenceWarning();
+      if (originalDescriptor) {
+        Object.defineProperty(window, "localStorage", originalDescriptor);
+      }
+    }
   });
 
   it("uses the selection fallback when clipboard permission is denied", async () => {

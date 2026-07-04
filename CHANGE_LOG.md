@@ -1,5 +1,48 @@
 # Change Log
 
+## 2026-07-04 — Persistence Warning, Coverage Gate, and Export Download Stability
+
+### Summary
+
+- Implemented user-visible persistence warnings when browser storage is unavailable or write operations fail.
+- Added a Mission Control shell warning banner wired to repository persistence health.
+- Stabilized archive download behavior for test environments by avoiding jsdom anchor navigation and deferring object URL cleanup in real browsers.
+- Added coverage thresholds in Vitest config and enforced coverage in CI.
+- Added regression coverage for unavailable localStorage warning behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` — persistence warning state, unavailable/write-failure detection, and warning accessors.
+- `src/app/useProjectBuilder.ts`, `src/app/App.tsx`, and `src/styles/global.css` — warning banner wiring and styling.
+- `src/lib/exportProjectPackage.ts` — jsdom-safe archive download behavior and deferred URL cleanup.
+- `vite.config.ts` and `.github/workflows/ci.yml` — coverage threshold and CI coverage gate.
+- `src/tests/setup.ts` and `src/tests/App.test.tsx` — warning-state reset and unavailable-storage regression coverage.
+- `RELEASE_READINESS_REPORT.md`, `TEST_PLAN.md`, and `CHANGE_LOG.md` — updated verification evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` — passed.
+- `npm.cmd test` — passed (`14` files, `129` tests).
+- `npm.cmd run test:coverage` — passed with thresholds; overall coverage is `93.87%` statements, `85.58%` branches, `95.29%` functions, and `95.51%` lines.
+- `npm.cmd run build` — passed, including TypeScript checking.
+- `npm.cmd audit` — passed (`0` vulnerabilities).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Physical-keyboard tab-order verification and Windows Explorer visual ZIP inspection remain manual release checks.
+
 ## 2026-07-04 — ExportPanel Export and Copy Failure Test Coverage
 
 ### Summary

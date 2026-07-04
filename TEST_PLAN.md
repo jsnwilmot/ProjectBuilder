@@ -2,13 +2,14 @@
 
 ## 2026-07-04 final MVP release-readiness evidence
 
-- `npm.cmd test`: passed (`14` files, `124` tests).
-- `npm.cmd run test:coverage`: passed; overall branch coverage is `84.05%`.
-- `src/lib/projectRepository.ts`: `100%` statements, branches, and functions.
+- `npm.cmd test`: passed (`14` files, `129` tests).
+- `npm.cmd run test:coverage`: passed with thresholds; overall coverage is `93.87%` statements, `85.58%` branches, `95.29%` functions, and `95.51%` lines.
+- `src/lib/projectRepository.ts`: `98.49%` statements, `100%` branches, `97.95%` functions, and `98.23%` lines.
 - `npm.cmd run lint`: passed.
 - `npm.cmd run build`: passed, including TypeScript checking.
 - `npm.cmd audit`: passed with `0` vulnerabilities.
-- `git diff --check`: passed.
+- CI coverage gate now runs `npm run test:coverage` with Vitest thresholds enforced in `vite.config.ts`.
+- Export download tests no longer emit jsdom navigation warnings after download behavior hardening.
 - Production QA completed the create, save, reopen, duplicate, archive, restore, cancel-delete, confirm-delete, generation, document review, and ZIP export journey.
 - Production generated `19/19` project-specific core documents with `55` exact `[MISSING: ...]` markers reported consistently in Package Preview and Export diagnostics.
 - Direct Windows ZIP inspection passed with `12` folders, `19` core documents, both valid manifests, and no missing, duplicate, empty, unsafe, unreadable, filler, or stale-project files.

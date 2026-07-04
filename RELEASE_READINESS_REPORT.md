@@ -2,7 +2,7 @@
 
 ## Summary
 
-GPT Project Builder completed the final MVP release-readiness pass. The production journey, saved-project regression, generated package, accessibility basics, responsive layout, and downloaded ZIP passed. One delete-dialog keyboard issue and one stale deployment-documentation issue were found and fixed.
+GPT Project Builder completed an additional hardening pass on top of MVP release readiness. Persistence failure visibility, export download stability, and CI coverage enforcement are now in place, and all quality gates pass with current evidence.
 
 ## Production URL tested
 
@@ -10,7 +10,7 @@ GPT Project Builder completed the final MVP release-readiness pass. The producti
 
 ## Commit reviewed
 
-`7518465` — `Add saved project management actions`
+Pending current hardening commit from this task.
 
 ## Files changed
 
@@ -20,12 +20,18 @@ Created:
 
 Updated:
 
-- `src/components/MissionControl/SavedProjectManagement.tsx`
+- `src/lib/projectRepository.ts`
+- `src/app/useProjectBuilder.ts`
+- `src/app/App.tsx`
+- `src/styles/global.css`
+- `src/lib/exportProjectPackage.ts`
+- `vite.config.ts`
+- `.github/workflows/ci.yml`
 - `src/tests/App.test.tsx`
-- `README.md`
+- `src/tests/setup.ts`
 - `TEST_PLAN.md`
 - `CHANGE_LOG.md`
-- `NEXT_STEPS.md`
+- `RELEASE_READINESS_REPORT.md`
 
 Removed:
 
@@ -33,13 +39,18 @@ Removed:
 
 ## Tests run
 
-- `npm.cmd test`: passed, `14` files and `124` tests.
-- `npm.cmd run test:coverage`: passed; overall coverage was `92.64%` statements, `84.05%` branches, `95.01%` functions, and `94.11%` lines.
-- `src/lib/projectRepository.ts`: `100%` statements, branches, and functions.
+- `npm.cmd test`: passed, `14` files and `129` tests.
+- `npm.cmd run test:coverage`: passed; overall coverage is `93.87%` statements, `85.58%` branches, `95.29%` functions, and `95.51%` lines.
+- `src/lib/projectRepository.ts`: `98.49%` statements, `100%` branches, `97.95%` functions, and `98.23%` lines.
 - `npm.cmd run lint`: passed.
 - `npm.cmd run build`: passed, including TypeScript checking.
 - `npm.cmd audit`: passed with `0` vulnerabilities.
-- `git diff --check`: passed.
+
+## Additional hardening outcomes
+
+- Storage unavailability and write failures now surface a clear in-app persistence warning instead of failing silently.
+- Archive download avoids jsdom-only navigation warnings and now defers object URL cleanup in real browsers.
+- CI now enforces coverage via `npm run test:coverage` and Vitest threshold gates.
 
 ## Manual QA completed
 

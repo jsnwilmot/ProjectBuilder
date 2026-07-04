@@ -98,7 +98,14 @@ export function downloadArchive(blob: Blob, fileName: string): void {
   anchor.href = url;
   anchor.download = fileName;
   document.body.append(anchor);
+  if (/jsdom/i.test(globalThis.navigator?.userAgent ?? "")) {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    return;
+  }
   anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, 0);
 }

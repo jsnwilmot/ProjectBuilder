@@ -226,6 +226,17 @@ h3 {
   min-width: 0;
 }
 
+.persistence-warning {
+  margin: 16px 28px 0;
+  padding: 10px 12px;
+  border: 1px solid #f3c55f;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #7f4a00;
+  font-size: 0.86rem;
+  font-weight: 640;
+}
+
 .app-header {
   position: sticky;
   top: 0;
@@ -2809,6 +2820,11 @@ tbody tr:hover {
 
   .app-content {
     min-width: 0;
+  }
+
+  .persistence-warning {
+    margin: 12px 18px 0;
+    font-size: 0.8rem;
   }
 
   .page {

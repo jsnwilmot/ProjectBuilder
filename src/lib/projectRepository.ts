@@ -25,6 +25,11 @@ import type {
 export const STORAGE_KEY = "gpt-project-builder.storage.v1";
 export const LEGACY_STORAGE_KEY = "gpt-project-builder:project:v1";
 
+const STORAGE_UNAVAILABLE_WARNING = "Saving is currently unavailable in this browser context. Keep this tab open to avoid losing unsaved changes.";
+const STORAGE_WRITE_WARNING = "We could not save project changes to browser storage. Free local storage space or check browser privacy settings.";
+
+let persistenceWarning: string | null = null;
+
 export interface StorageAdapter {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -37,10 +42,23 @@ const unavailableStorage: StorageAdapter = {
   removeItem: () => undefined
 };
 
+function setPersistenceWarning(message: string | null): void {
+  persistenceWarning = message;
+}
+
+export function getPersistenceWarning(): string | null {
+  return persistenceWarning;
+}
+
+export function clearPersistenceWarning(): void {
+  persistenceWarning = null;
+}
+
 function browserStorage(): StorageAdapter {
   try {
     return window.localStorage;
   } catch {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
     return unavailableStorage;
   }
 }
@@ -114,10 +132,16 @@ export function loadStorageState(storage: StorageAdapter = browserStorage()): St
 }
 
 export function saveStorageState(state: StorageState, storage: StorageAdapter = browserStorage()): void {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return;
+  }
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(synchronizeStorageState(migrateStorageState(state))));
+    setPersistenceWarning(null);
   } catch {
     // Storage can be unavailable or over quota; the caller remains in a safe in-memory state.
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
   }
 }
 
