@@ -15,7 +15,9 @@
 - Direct Windows ZIP inspection passed with `12` folders, `19` core documents, both valid manifests, and no missing, duplicate, empty, unsafe, unreadable, filler, or stale-project files.
 - The delete confirmation now traps focus between its actions, closes with Escape, restores focus after cancellation, and keeps Cancel as the initial focus target.
 - Desktop and `390 x 844` production checks passed with no console warnings/errors or page-level horizontal overflow.
-- Physical-keyboard tab-order verification and Windows Explorer visual inspection remain manual release checks.
+- Physical-keyboard tab-order verification passed in production Chrome across Mission Control, intake, generation, documents, saved-project actions, dialogs, and export.
+- Visual Windows Explorer inspection passed for the production ZIP: 12 approved folders, both manifests, readable/safe names, and a Markdown file opened normally.
+- Firefox production verification remains uncompleted because Firefox is not installed on the verification workstation.
 
 ## Automated coverage
 
@@ -258,17 +260,20 @@ Technical results:
 - Duplicate or unsafe paths: none.
 - Active-project identity and intake data: passed.
 
-Release-owner steps still required:
+Release-owner result:
 
-1. Download the ZIP from the deployed Cloudflare Worker site.
-2. Open it in Windows Explorer.
-3. Confirm the downloaded archive reproduces the verified technical results.
+1. Downloaded the ZIP from the deployed Cloudflare Worker site.
+2. Opened it in Windows Explorer.
+3. Confirmed the 12 approved folders and root `project-manifest.json`.
+4. Confirmed `00_Project_Overview/EXPORT_MANIFEST.md`.
+5. Confirmed readable folder/file names with no unsafe or unexpected names.
+6. Opened `00_Project_Overview/README.md` normally in VS Code from the archive.
 
 ## Deployment readiness checklist
 
 1. Run `npm.cmd test`, `npm.cmd run test:coverage`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd audit`, and `git diff --check`.
 2. Confirm TypeScript checking passes through the production build.
-3. Confirm the Cloudflare Workers Static Assets deployment and release owner are approved.
+3. Confirm the Cloudflare Workers Static Assets deployment and `[MISSING: production release owner]` are approved.
 4. Confirm HTTPS, root refresh behavior, cache headers, and security headers on the production Worker.
 5. Confirm no secrets or environment-specific credentials are present in the client bundle.
 6. Confirm backup/export guidance for local-only project data is documented.
@@ -276,4 +281,4 @@ Release-owner steps still required:
 
 ## Known testing boundary
 
-The production ZIP download completed and the downloaded archive passed direct Windows inspection. The in-app browser did not expose its download event, physical-keyboard tab movement was not available, and Windows Explorer visual inspection remains manual for the release owner.
+The production ZIP download passed direct archive inspection and a visual Windows Explorer check. Physical Chrome keyboard navigation passed, including focus order, visible focus, Shift+Tab, skip-link activation, dialog containment, Escape, and focus restoration. Firefox remains unverified because it is not installed on the verification workstation.

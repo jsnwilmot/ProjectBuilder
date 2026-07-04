@@ -79,7 +79,9 @@ Open **Documents** after generation to review the Project Package Preview before
 - Projects remain only in the current browser profile and are removed when browser storage is cleared.
 - Project package import is deferred.
 - Production hosting uses Cloudflare Workers Static Assets through the existing `projectbuilder` Worker.
-- Windows technical ZIP extraction passed, but user-visible download and Windows Explorer inspection remain manual release checks.
+- Production ZIP download and visual Windows Explorer inspection passed with the approved folder structure, both manifests, readable names, and normally opening Markdown files.
+- Firefox production verification remains outstanding because Firefox is not installed on the verification workstation.
+- Production release approval is owned by `[MISSING: production release owner]`.
 
 ## Run locally
 
@@ -94,15 +96,16 @@ Open the local URL printed by Vite.
 
 **Hosting target: Cloudflare Workers Static Assets**
 
-The MVP deploys as a static Vite build to the existing `projectbuilder` Worker:
+The MVP deploys as a static Vite build to the existing `projectbuilder` Worker. The confirmed normal production path is Cloudflare Workers Builds Git integration: an approved push to `main` creates the active deployment.
 
 - Build command: `npm.cmd run build`
 - Build output directory: `dist`
-- Deploy command: `npm.cmd run deploy`
+- Automatic deployment: approved push to `origin/main`
+- Manual fallback: `npm.cmd run deploy` with release-owner approval
 - Production URL: `https://projectbuilder.jsnwilmot.workers.dev/`
 - Environment variables: none required
 
-`wrangler.jsonc` deploys `dist` as static assets with single-page-application fallback handling. No Worker runtime code is required. See [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md) for the deployment checklist, rollback procedure, and post-deployment smoke test.
+`wrangler.jsonc` packages `dist` as static assets with single-page-application fallback handling. No Worker runtime code is required. See [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md) and [RELEASE_OPERATIONS_CHECKLIST.md](./RELEASE_OPERATIONS_CHECKLIST.md) for deployment verification, release gates, rollback, and post-deployment smoke testing.
 
 ## Verify
 
@@ -128,4 +131,4 @@ src/
   styles/       Shared visual system and responsive behavior
 ```
 
-See [APP_BLUEPRINT.md](./APP_BLUEPRINT.md), [TEST_PLAN.md](./TEST_PLAN.md), [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md), [RELEASE_NOTES.md](./RELEASE_NOTES.md), [RELEASE_READINESS_REPORT.md](./RELEASE_READINESS_REPORT.md), and [NEXT_STEPS.md](./NEXT_STEPS.md) for implementation details and release actions.
+See [APP_BLUEPRINT.md](./APP_BLUEPRINT.md), [TEST_PLAN.md](./TEST_PLAN.md), [DEPLOYMENT_NOTES.md](./DEPLOYMENT_NOTES.md), [RELEASE_OPERATIONS_CHECKLIST.md](./RELEASE_OPERATIONS_CHECKLIST.md), [RELEASE_NOTES.md](./RELEASE_NOTES.md), [RELEASE_READINESS_REPORT.md](./RELEASE_READINESS_REPORT.md), and [NEXT_STEPS.md](./NEXT_STEPS.md) for implementation details and release actions.

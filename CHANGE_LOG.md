@@ -1,5 +1,63 @@
 # Change Log
 
+## 2026-07-04 — Deployment Operations Lockdown
+
+### Summary
+
+- Confirmed Cloudflare Workers Builds Git integration as the normal production mechanism for the `projectbuilder` Worker.
+- Recorded the active Worker version, deployment timestamp, correlated commit, production asset, and verified local build asset.
+- Added a release-operations checklist with quality, deployment, smoke-test, ZIP, sign-off, and rollback gates.
+- Completed physical Chrome keyboard verification and visual Windows Explorer ZIP inspection.
+- Documented Firefox unavailability and the missing production release owner without inventing an assignment.
+
+### Files created
+
+- `RELEASE_OPERATIONS_CHECKLIST.md` — repeatable production release, verification, sign-off, and rollback controls.
+
+### Files updated
+
+- `DEPLOYMENT_NOTES.md` — confirmed automatic deployment path, Worker evidence, asset-match gate, dashboard locations, fallback, and ownership.
+- `RELEASE_READINESS_REPORT.md` — manual QA results, deployment evidence, remaining limitations, and final release control.
+- `README.md`, `TEST_PLAN.md`, and `NEXT_STEPS.md` — current deployment process, completed manual checks, and remaining actions.
+- `CHANGE_LOG.md` — this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- Physical Chrome Tab and Shift+Tab navigation passed across Mission Control, intake, generation, preview, saved-project actions, dialogs, and export.
+- Skip-link activation, visible focus, dialog focus containment, Escape dismissal, and focus restoration passed.
+- Windows Explorer opened the production ZIP and showed the 12 approved folders, `project-manifest.json`, and `EXPORT_MANIFEST.md`.
+- A Markdown file opened normally from the ZIP and displayed readable content.
+- Firefox could not be tested because it is not installed on the verification workstation.
+- `npm.cmd test` — passed (`14` files, `129` tests).
+- `npm.cmd run test:coverage` — passed; `93.87%` statements, `85.58%` branches, `95.29%` functions, and `95.51%` lines.
+- `npm.cmd run lint` — passed.
+- `npm.cmd run build` — passed, including TypeScript checking; emitted `/assets/index-D0rAfovZ.js`.
+- `npm.cmd audit` — passed with `0` vulnerabilities.
+- `git diff --check` — passed.
+- `npm.cmd exec wrangler -- deploy --dry-run` — unavailable in the managed filesystem sandbox because Wrangler could not read its installed template; the required escalation retry was blocked by the current Codex usage limit.
+
+### Issues found
+
+- An older browser tab retained `/assets/index-D9KLrGTS.js` during the first deployment check.
+- `[MISSING: production release owner]`
+- Wrangler dry-run could not be completed in this managed session.
+
+### Issues fixed
+
+- Rechecked production and confirmed `/assets/index-D0rAfovZ.js` and `/assets/index-DGk6c80k.css`, matching the verified local `main` build; added an explicit asset-match gate for future releases.
+- Replaced ambiguous direct-deploy instructions with the confirmed automatic path and an explicitly approved manual fallback.
+
+### Remaining work
+
+- Review and commit the release-operations documentation.
+- Complete the Wrangler dry-run outside the managed sandbox before pushing.
+- Assign `[MISSING: production release owner]`.
+- Run Firefox production verification when Firefox is available; do not install it solely for this task.
+
 ## 2026-07-04 — Persistence Warning, Coverage Gate, and Export Download Stability
 
 ### Summary

@@ -19,16 +19,18 @@ Draft generation and export are allowed with visible missing markers. Do not mar
 
 **Hosting target selected: Cloudflare Workers Static Assets**
 
-1. Assign the production release owner.
+1. Assign `[MISSING: production release owner]`.
 2. Push only a fully verified, clean `main` branch to GitHub.
-3. Build with `npm.cmd run build` and deploy with `npm.cmd run deploy` to the existing `projectbuilder` Worker.
-4. Verify `https://projectbuilder.jsnwilmot.workers.dev/` and record the Worker version in the release report.
-5. Download the production ZIP and complete the Windows Explorer inspection.
-6. Confirm the documented rollback process using Cloudflare Worker version history.
-7. Add a custom domain only after separate approval.
-8. Decide later if project package import belongs in a future version.
+3. Allow the confirmed Cloudflare Workers Builds Git integration to deploy the approved `main` commit to the existing `projectbuilder` Worker.
+4. Use `npm.cmd run deploy` only as an explicitly approved manual fallback.
+5. Verify `https://projectbuilder.jsnwilmot.workers.dev/`; record the commit, Worker version, deployment timestamp, and production asset hash; and confirm the asset matches the verified local build.
+6. Repeat the production smoke test and release-owner sign-off in `RELEASE_OPERATIONS_CHECKLIST.md`.
+7. Retain the completed physical-keyboard and Windows Explorer ZIP evidence in the release report.
+8. Confirm the documented rollback process using Cloudflare Worker version history.
+9. Add a custom domain only after separate approval.
+10. Decide later if project package import belongs in a future version.
 
 ## Deferred decisions
 
-- `[MISSING DECISION: Assign the production release owner.]`
+- `[MISSING: production release owner]`
 - `[MISSING DECISION: Decide whether project package import belongs in a future version. Import remains explicitly excluded from the MVP.]`
