@@ -43,7 +43,7 @@
 ### Issues found
 
 - An older browser tab retained `/assets/index-D9KLrGTS.js` during the first deployment check.
-- `[MISSING: production release owner]`
+- Production release owner: Jason Wilmot, Rose & Paw Digital Designs.
 - Wrangler dry-run could not be completed in this managed session.
 
 ### Issues fixed
@@ -55,7 +55,7 @@
 
 - Review and commit the release-operations documentation.
 - Complete the Wrangler dry-run outside the managed sandbox before pushing.
-- Assign `[MISSING: production release owner]`.
+- Production release owner assigned: Jason Wilmot, Rose & Paw Digital Designs.
 - Run Firefox production verification when Firefox is available; do not install it solely for this task.
 
 ## 2026-07-04 — Persistence Warning, Coverage Gate, and Export Download Stability

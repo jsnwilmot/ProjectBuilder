@@ -273,7 +273,7 @@ Release-owner result:
 
 1. Run `npm.cmd test`, `npm.cmd run test:coverage`, `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd audit`, and `git diff --check`.
 2. Confirm TypeScript checking passes through the production build.
-3. Confirm the Cloudflare Workers Static Assets deployment and `[MISSING: production release owner]` are approved.
+3. Confirm the Cloudflare Workers Static Assets deployment is approved by Jason Wilmot, Rose & Paw Digital Designs.
 4. Confirm HTTPS, root refresh behavior, cache headers, and security headers on the production Worker.
 5. Confirm no secrets or environment-specific credentials are present in the client bundle.
 6. Confirm backup/export guidance for local-only project data is documented.

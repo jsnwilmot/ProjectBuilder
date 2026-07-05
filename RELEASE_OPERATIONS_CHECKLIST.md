@@ -2,7 +2,7 @@
 
 ## Release owner
 
-`[MISSING: production release owner]`
+Jason Wilmot, Rose & Paw Digital Designs
 
 The release owner approves production promotion, confirms deployment success, performs or assigns the production smoke test, records evidence, and initiates rollback when a release gate fails.
 
@@ -78,7 +78,7 @@ Cloudflare checks:
 
 ## Sign-off
 
-- Release owner: `[MISSING: production release owner]`
+- Release owner: Jason Wilmot, Rose & Paw Digital Designs
 - Commit:
 - Worker version:
 - Deployment timestamp:

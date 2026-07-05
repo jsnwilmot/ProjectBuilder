@@ -118,8 +118,8 @@ Removed:
 - Firefox-specific production verification was not performed because Firefox is not installed on the verification workstation.
 - Wrangler dry-run remains a pre-push operator check because it could not complete in the managed filesystem sandbox.
 - Projects remain local to the current browser profile; there is no backend, authentication, cloud synchronization, import, analytics, billing, or external AI service.
-- `[MISSING: production release owner]`
+- Production release owner: Jason Wilmot, Rose & Paw Digital Designs.
 
 ## Final MVP recommendation
 
-The MVP application and current production asset are verified, with no known Critical or High application defects. Assign `[MISSING: production release owner]` before the next production release.
+The MVP application and current production asset are verified, with no known Critical or High application defects. Jason Wilmot, Rose & Paw Digital Designs owns production release approval and verification.

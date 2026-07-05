@@ -51,7 +51,7 @@ Final production verification confirmed that the deployed assets match the verif
 
 ## Deployment checklist
 
-1. Obtain approval from `[MISSING: production release owner]`.
+1. Obtain approval from Jason Wilmot, Rose & Paw Digital Designs.
 2. Confirm `main` is clean and matches `origin/main`.
 3. Run `npm.cmd ci`.
 4. Run `npm.cmd test`, `npm.cmd run test:coverage`, and `npm.cmd run lint`.
@@ -127,7 +127,7 @@ Rollback restores application assets only. It cannot restore browser data that a
 
 ## Release ownership
 
-`[MISSING: production release owner]`
+Jason Wilmot, Rose & Paw Digital Designs
 
 The assigned owner must:
 

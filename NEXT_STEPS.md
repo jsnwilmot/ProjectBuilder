@@ -19,7 +19,7 @@ Draft generation and export are allowed with visible missing markers. Do not mar
 
 **Hosting target selected: Cloudflare Workers Static Assets**
 
-1. Assign `[MISSING: production release owner]`.
+1. Obtain production release approval from Jason Wilmot, Rose & Paw Digital Designs.
 2. Push only a fully verified, clean `main` branch to GitHub.
 3. Allow the confirmed Cloudflare Workers Builds Git integration to deploy the approved `main` commit to the existing `projectbuilder` Worker.
 4. Use `npm.cmd run deploy` only as an explicitly approved manual fallback.
@@ -32,5 +32,5 @@ Draft generation and export are allowed with visible missing markers. Do not mar
 
 ## Deferred decisions
 
-- `[MISSING: production release owner]`
+- Production release owner: Jason Wilmot, Rose & Paw Digital Designs.
 - `[MISSING DECISION: Decide whether project package import belongs in a future version. Import remains explicitly excluded from the MVP.]`

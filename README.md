@@ -81,7 +81,7 @@ Open **Documents** after generation to review the Project Package Preview before
 - Production hosting uses Cloudflare Workers Static Assets through the existing `projectbuilder` Worker.
 - Production ZIP download and visual Windows Explorer inspection passed with the approved folder structure, both manifests, readable names, and normally opening Markdown files.
 - Firefox production verification remains outstanding because Firefox is not installed on the verification workstation.
-- Production release approval is owned by `[MISSING: production release owner]`.
+- Production release approval is owned by Jason Wilmot, Rose & Paw Digital Designs.
 
 ## Run locally
 
