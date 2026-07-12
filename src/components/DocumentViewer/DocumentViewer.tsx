@@ -5,6 +5,7 @@ import { getClientReviewReadiness } from "../../lib/clientReview";
 import { copyText } from "../../lib/copyText";
 import { getDocumentReviewItems } from "../../lib/documentReview";
 import { validateExportPackage } from "../../lib/exportIntegrity";
+import { expectedDocumentLocations } from "../../lib/powerPlatform";
 import type { DocumentReviewItem } from "../../lib/documentReview";
 import type { ProjectPackage, ProjectRecord } from "../../types/project";
 import { ArrowLeft, Check, CircleAlert, Copy, FileText, Search, X } from "../ui/Icons";
@@ -42,6 +43,7 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
     ? reviewItems.find((document) => document.fileName === selectedFile) ?? null
     : null;
   const checklistComplete = readiness?.checklist.filter((item) => item.passed).length ?? 0;
+  const expectedCount = project ? expectedDocumentLocations(project).length : DOCUMENT_LOCATIONS.length;
 
   if (!projectPackage || !project) {
     return (
@@ -145,7 +147,7 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
           <div className="section-heading document-review-heading">
             <div>
               <h2 id="document-review-list-title">Generated document review</h2>
-              <p>{filteredDocuments.length} of {DOCUMENT_LOCATIONS.length} documents shown.</p>
+              <p>{filteredDocuments.length} of {expectedCount} documents shown.</p>
             </div>
             <label className="document-search">
               <span className="sr-only">Search documents</span>

@@ -1,4 +1,5 @@
 import { GENERATE_STAGE_INDEX, REVIEW_STAGE_INDEX } from "../data/intakeStages";
+import { getProjectTypeLabel } from "../data/projectTypes";
 import { PROJECT_STATUSES } from "../types/project";
 import type {
   DashboardNextAction,
@@ -198,7 +199,7 @@ export function getActiveProjectSummary(project: ProjectRecord | null): ProjectS
     status: getProjectDisplayStatus(project),
     reviewStatus: getReviewStatus(project),
     clientName: project.client.clientName.trim() || "Missing",
-    appType: project.intake.appType.trim() || "Missing",
+    appType: getProjectTypeLabel(project.intake.appType).trim() || "Missing",
     lastUpdatedLabel: getLastUpdatedLabel(project),
     generatedFileCount: getGeneratedFileCount(project),
     outstandingQuestionCount: getOutstandingQuestionCount(project),

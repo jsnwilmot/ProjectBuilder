@@ -1,4 +1,5 @@
 import { createProject, EMPTY_PROJECT_INTAKE } from "./createProject";
+import { normalizePowerPlatformData } from "./powerPlatform";
 import type {
   ClientDetails,
   GeneratedDocument,
@@ -17,9 +18,9 @@ import {
   REVIEW_ITEM_STATUSES,
   REVIEW_STATUSES
 } from "../types/project";
-import { isProjectType } from "../data/projectTypes";
+import { normalizeProjectTypeValue } from "../data/projectTypes";
 
-export const CURRENT_STORAGE_VERSION: StorageVersion = 1;
+export const CURRENT_STORAGE_VERSION: StorageVersion = 2;
 
 export const EMPTY_STORAGE_STATE: StorageState = {
   version: CURRENT_STORAGE_VERSION,
@@ -108,7 +109,7 @@ function normalizeProject(value: unknown): ProjectRecord | null {
     Object.keys(EMPTY_PROJECT_INTAKE).map((field) => [field, asString(intake[field])])
   ) as unknown as ProjectIntake;
   const storedProjectType = asString(intake.appType);
-  normalizedIntake.appType = isProjectType(storedProjectType) ? storedProjectType : "";
+  normalizedIntake.appType = normalizeProjectTypeValue(storedProjectType);
 
   const project = createProject({
     identity: {
@@ -135,6 +136,7 @@ function normalizeProject(value: unknown): ProjectRecord | null {
     archivedAt: asString(value.archivedAt) || null,
     sourceProjectId: asString(value.sourceProjectId) || null,
     duplicatedAt: asString(value.duplicatedAt) || null,
+    powerPlatform: normalizePowerPlatformData(value.powerPlatform, normalizedIntake.appType),
     now: asString(value.createdAt) || new Date().toISOString()
   });
   return {
@@ -143,20 +145,45 @@ function normalizeProject(value: unknown): ProjectRecord | null {
   };
 }
 
-export function migrateStorageState(input: unknown): StorageState {
-  if (!isObject(input) || input.version !== CURRENT_STORAGE_VERSION || !Array.isArray(input.projects)) {
-    return { ...EMPTY_STORAGE_STATE, projects: [] };
-  }
+function normalizeStateProjects(projectsValue: unknown): ProjectRecord[] {
+  if (!Array.isArray(projectsValue)) return [];
+  return projectsValue
+    .map(normalizeProject)
+    .filter((project): project is ProjectRecord => project !== null);
+}
 
-  const projects = input.projects.map(normalizeProject).filter((project): project is ProjectRecord => project !== null);
-  const requestedActiveId = typeof input.activeProjectId === "string" ? input.activeProjectId : null;
-  const activeProjectId = projects.some((project) => project.identity.id === requestedActiveId)
+function finalizeState(version: StorageVersion, activeProjectId: unknown, projectsValue: unknown): StorageState {
+  const projects = normalizeStateProjects(projectsValue);
+  const requestedActiveId = typeof activeProjectId === "string" ? activeProjectId : null;
+  const safeActiveProjectId = projects.some((project) => project.identity.id === requestedActiveId)
     ? requestedActiveId
     : projects.find((project) => !project.archivedAt)?.identity.id ?? null;
 
   return {
-    version: CURRENT_STORAGE_VERSION,
-    activeProjectId,
+    version,
+    activeProjectId: safeActiveProjectId,
     projects
   };
+}
+
+function migrateFromVersion1(input: Record<string, unknown>): StorageState {
+  // v1 -> v2 migration: preserve all project data, normalize legacy app-type labels,
+  // and initialize safe optional Power Platform structures where applicable.
+  return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
+}
+
+export function migrateStorageState(input: unknown): StorageState {
+  if (!isObject(input)) {
+    return { ...EMPTY_STORAGE_STATE, projects: [] };
+  }
+
+  if (input.version === CURRENT_STORAGE_VERSION) {
+    return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
+  }
+
+  if (input.version === 1) {
+    return migrateFromVersion1(input);
+  }
+
+  return { ...EMPTY_STORAGE_STATE, projects: [] };
 }

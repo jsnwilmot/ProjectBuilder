@@ -100,7 +100,7 @@ describe("validateIntake", () => {
 
   it("requires structured branding for website projects", () => {
     const project = createSeedProject();
-    project.intake.appType = "Business website";
+    project.intake.appType = "businessWebsite";
     project.intake.brandStatus = "";
     project.intake.logoStatus = "";
     project.intake.primaryColors = "";
@@ -131,18 +131,18 @@ describe("validateIntake", () => {
 
   it("applies required fields for website, game, dashboard, API, and automation presets", () => {
     const cases = [
-      { appType: "Business website" as const, fields: ["websitePages", "domainStatus", "seoKeywords"] },
-      { appType: "Game" as const, fields: ["gameGenre", "gameplayLoop", "gameControls", "gameArtStyle"] },
-      { appType: "Dashboard or reporting project" as const, fields: ["dashboardDataSources", "dashboardKpis", "dashboardRefreshFrequency", "dashboardAudience"] },
-      { appType: "API or backend service" as const, fields: ["apiEndpoints", "dataContracts", "apiAuthentication", "apiConsumers"] },
-      { appType: "Automation or workflow tool" as const, fields: ["automationTrigger", "automationSteps", "sourceSystem", "automationErrorHandling", "notificationRules"] }
+      { appType: "businessWebsite" as const, fields: ["websitePages", "domainStatus", "seoKeywords"] },
+      { appType: "game" as const, fields: ["gameGenre", "gameplayLoop", "gameControls", "gameArtStyle"] },
+      { appType: "dashboardReporting" as const, fields: ["dashboardDataSources", "dashboardKpis", "dashboardRefreshFrequency", "dashboardAudience"] },
+      { appType: "apiBackend" as const, fields: ["apiEndpoints", "dataContracts", "apiAuthentication", "apiConsumers"] },
+      { appType: "automationWorkflow" as const, fields: ["automationTrigger", "automationSteps", "sourceSystem", "automationErrorHandling", "notificationRules"] }
     ];
 
     for (const testCase of cases) {
       const project = createSeedProject();
       project.intake.appType = testCase.appType;
       project.intake.audienceVisibility = "Internal";
-      if (testCase.appType === "API or backend service") {
+      if (testCase.appType === "apiBackend") {
         project.intake.authenticationExpectation = "";
       }
       const fields = validateIntake(project).missingFields.map((issue) => issue.field);

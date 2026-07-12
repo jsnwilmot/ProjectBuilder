@@ -1,4 +1,5 @@
-import { DOCUMENT_LOCATIONS } from "../data/folderStructure";
+import { expectedDocumentLocations } from "./powerPlatform";
+import { getProjectTypeLabel } from "../data/projectTypes";
 import type { ProjectRecord } from "../types/project";
 import {
   EXPORT_MANIFEST_PATH,
@@ -29,7 +30,7 @@ export interface ExportManifest {
   exportWarnings: string[];
   exportErrors: string[];
   rootFolder: string;
-  folderStructure: Array<{ folder: string; coreFileCount: number }>;
+  folderStructure: Array<{ folder: string; expectedFileCount: number }>;
   files: ExportManifestFile[];
   diagnosticFiles: string[];
 }
@@ -51,7 +52,7 @@ export function createExportManifest(
     activeProjectId: project.identity.id,
     projectName: project.identity.projectName.trim() || "Untitled project",
     clientName: project.client.clientName.trim() || "[MISSING: client name]",
-    appType: project.intake.appType.trim() || "[MISSING: project type]",
+    appType: getProjectTypeLabel(project.intake.appType).trim() || "[MISSING: project type]",
     projectStatus: project.status,
     reviewStatus: project.reviewStatus,
     exportedAt: integrity.generatedAt,
@@ -62,8 +63,8 @@ export function createExportManifest(
     exportWarnings: [...integrity.warnings],
     exportErrors: [...integrity.errors],
     rootFolder: integrity.manifestSummary.rootFolder,
-    folderStructure: getStableFolderSummary(),
-    files: DOCUMENT_LOCATIONS.map(({ fileName, folder }) => ({
+    folderStructure: getStableFolderSummary(project),
+    files: expectedDocumentLocations(project).map(({ fileName, folder }) => ({
       fileName,
       folder,
       path: `${folder}/${fileName}`
@@ -74,7 +75,7 @@ export function createExportManifest(
 
 export function renderExportManifestMarkdown(manifest: ExportManifest): string {
   const folders = manifest.folderStructure
-    .map(({ folder, coreFileCount }) => `| ${markdownCell(folder)} | ${coreFileCount} |`)
+    .map(({ folder, expectedFileCount }) => `| ${markdownCell(folder)} | ${expectedFileCount} |`)
     .join("\n");
   const files = manifest.files
     .map(({ fileName, folder, path }) =>
@@ -112,11 +113,11 @@ ${listOrNone(manifest.exportErrors)}
 
 ## Folder structure
 
-| Folder | Core files |
+| Folder | Expected files |
 | --- | ---: |
 ${folders}
 
-## Core file list
+## Expected file list
 
 | File | Folder | Export path |
 | --- | --- | --- |

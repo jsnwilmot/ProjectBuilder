@@ -13,7 +13,7 @@ describe("client review workflow", () => {
   it("derives missing and weak review items with client-friendly metadata", () => {
     const project = createProject({
       identity: { id: "review", projectName: "Review Project" },
-      intake: { appType: "Business website", audienceVisibility: "Public-facing" }
+      intake: { appType: "businessWebsite", audienceVisibility: "Public-facing" }
     });
     const items = deriveReviewItems(project, "2026-07-03T12:00:00.000Z");
 

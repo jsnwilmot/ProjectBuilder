@@ -7,11 +7,14 @@ import type {
   ProjectStatus,
   ReadinessConfirmations,
   ReviewItem,
-  ReviewStatus
+  ReviewStatus,
+  PowerPlatformProjectData
 } from "../types/project";
 import { deriveReviewItems } from "./clientReview";
 import { getOutstandingFields } from "./validateIntake";
 import { getReadinessSections } from "./projectSelectors";
+import { createDefaultPowerPlatformData } from "./powerPlatform";
+import { normalizeProjectTypeValue } from "../data/projectTypes";
 
 export interface CreateProjectOptions {
   identity?: Partial<ProjectIdentity>;
@@ -26,6 +29,7 @@ export interface CreateProjectOptions {
   archivedAt?: string | null;
   sourceProjectId?: string | null;
   duplicatedAt?: string | null;
+  powerPlatform?: PowerPlatformProjectData;
   now?: string;
 }
 
@@ -176,6 +180,12 @@ function createUniqueId(): string {
 
 export function createProject(options: CreateProjectOptions = {}): ProjectRecord {
   const now = options.now ?? new Date().toISOString();
+  const normalizedAppType = normalizeProjectTypeValue(options.intake?.appType ?? "");
+  const intake = {
+    ...EMPTY_PROJECT_INTAKE,
+    ...options.intake,
+    appType: normalizedAppType
+  };
   const project: ProjectRecord = {
     identity: {
       id: options.identity?.id ?? createUniqueId(),
@@ -185,7 +195,7 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
       clientName: options.client?.clientName ?? "",
       businessName: options.client?.businessName ?? ""
     },
-    intake: { ...EMPTY_PROJECT_INTAKE, ...options.intake },
+    intake,
     generatedDocuments: [...(options.generatedDocuments ?? [])],
     generatedFileCount: options.generatedDocuments?.length ?? 0,
     outstandingQuestions: [],
@@ -198,6 +208,7 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
     archivedAt: options.archivedAt ?? null,
     sourceProjectId: options.sourceProjectId ?? null,
     duplicatedAt: options.duplicatedAt ?? null,
+    powerPlatform: options.powerPlatform ?? createDefaultPowerPlatformData(normalizedAppType),
     createdAt: now,
     updatedAt: now
   };

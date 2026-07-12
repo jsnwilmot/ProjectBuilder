@@ -4,7 +4,7 @@ import type { ProjectRecord } from "../types/project";
 import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
 import {
   EXPORT_MANIFEST_PATH,
-  getStableCoreDocuments,
+  getStableExpectedDocuments,
   validateExportPackage,
   type ExportIntegrityResult
 } from "./exportIntegrity";
@@ -32,7 +32,7 @@ export function getExpectedArchivePaths(project: ProjectRecord): string[] {
   return [
     `${root}/`,
     ...PROJECT_FOLDERS.map((folder) => `${root}/${folder}/`),
-    ...getStableCoreDocuments(project).map((document) => `${root}/${document.path}`),
+    ...getStableExpectedDocuments(project).map((document) => `${root}/${document.path}`),
     `${root}/${EXPORT_MANIFEST_PATH}`,
     `${root}/project-manifest.json`
   ];
@@ -66,7 +66,7 @@ export async function createProjectArchive(
     zip.file(`${rootFolder}/${safeFolder}/`, "", directoryOptions);
   }
 
-  for (const document of getStableCoreDocuments(project)) {
+  for (const document of getStableExpectedDocuments(project)) {
     const safeFileName = normalizeFileName(document.fileName);
     const path = `${rootFolder}/${document.folder}/${safeFileName}`;
     zip.file(path, document.content, fileOptions);

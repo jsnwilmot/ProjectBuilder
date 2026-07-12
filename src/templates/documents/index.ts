@@ -10,7 +10,7 @@ import {
 import { PROJECT_FOLDERS } from "../../data/folderStructure";
 import { GENERATED_FILES } from "../../data/generatedFiles";
 import { PACKAGE_USAGE_STEPS } from "../../data/packageGuidance";
-import { getProjectTypeFields, getProjectTypePreset } from "../../data/projectTypes";
+import { getProjectTypeFields, getProjectTypeLabel, getProjectTypePreset } from "../../data/projectTypes";
 import { getClientReviewReadiness, groupClientQuestions } from "../../lib/clientReview";
 import type { ProjectRecord } from "../../types/project";
 
@@ -21,7 +21,7 @@ function header(project: ProjectRecord): string {
     `**Project:** ${safeText(project.identity.projectName, "app name")}`,
     `**Client:** ${safeText(project.client.clientName, "client name")}`,
     `**Business or department:** ${safeText(project.client.businessName, "business or department")}`,
-    `**Project type:** ${safeText(project.intake.appType, "project type")}`,
+    `**Project type:** ${safeText(getProjectTypeLabel(project.intake.appType), "project type")}`,
     `**Target platform:** ${safeText(project.intake.targetPlatform, "target platform")}`,
     `**Status:** ${project.status}`
   ].join("  \n");
@@ -143,7 +143,7 @@ const projectScope = (project: ProjectRecord) => join(
   `## Target users\n\n${listOrMissing(project.intake.targetUsers, "target users")}`,
   `## User roles\n\n${listOrMissing(project.intake.userRoles, "user roles")}`,
   sectionOrMissing("Target platform", project.intake.targetPlatform, "target platform"),
-  sectionOrMissing("Project type", project.intake.appType, "project type"),
+  sectionOrMissing("Project type", getProjectTypeLabel(project.intake.appType), "project type"),
   `## Constraints\n\n${listOrMissing(project.intake.constraints, "constraints")}`,
   `## Risks\n\n${listOrMissing(project.intake.risks, "risks")}`,
   `## Assumptions\n\n${listOrMissing(project.intake.assumptions, "assumptions")}`,
@@ -189,7 +189,7 @@ const appBlueprint = (project: ProjectRecord) => join(
   "# App Blueprint",
   header(project),
   sectionOrMissing("Product summary", project.intake.appPurpose, "app purpose"),
-  sectionOrMissing("Project type", project.intake.appType, "project type"),
+  sectionOrMissing("Project type", getProjectTypeLabel(project.intake.appType), "project type"),
   sectionOrMissing("Target platform", project.intake.targetPlatform, "target platform"),
   `## Core modules\n\n${listOrMissing(project.intake.requiredFeatures, "required features")}`,
   `## Screen map summary\n\n${listOrMissing(project.intake.screens, "screens")}`,
@@ -339,7 +339,7 @@ const architectInstructions = (project: ProjectRecord) => join(
   "# Architect Instructions",
   header(project),
   sectionOrMissing("Project purpose", project.intake.appPurpose, "app purpose"),
-  sectionOrMissing("Project type", project.intake.appType, "project type"),
+  sectionOrMissing("Project type", getProjectTypeLabel(project.intake.appType), "project type"),
   sectionOrMissing("Target platform", project.intake.targetPlatform, "target platform"),
   `## User roles\n\n${listOrMissing(project.intake.userRoles, "user roles")}`,
   `## Data sources\n\n${listOrMissing(project.intake.dataSources, "data sources")}`,
@@ -489,6 +489,14 @@ const handoffChecklist = (project: ProjectRecord) => join(
   "## Approval rule\n\nA Draft package may be reviewed and exported. Ready for Codex requires all blocking client review items and readiness checks to pass."
 );
 
+function developmentTemplate(fileName: string, project: ProjectRecord): string {
+  return join(
+    `# ${fileName.replace(".md", "")}`,
+    header(project),
+    "[MISSING: document template implementation pending]"
+  );
+}
+
 export const documentTemplates: Record<string, (project: ProjectRecord) => string> = {
   "README.md": readme,
   "PROJECT_SCOPE.md": projectScope,
@@ -508,7 +516,35 @@ export const documentTemplates: Record<string, (project: ProjectRecord) => strin
   "HANDOFF_CHECKLIST.md": handoffChecklist,
   "CLIENT_QUESTIONS.md": clientQuestions,
   "BRAND_GUIDE.md": brandGuide,
-  "PHASED_CODEX_PROMPTS.md": phasedPrompts
+  "PHASED_CODEX_PROMPTS.md": phasedPrompts,
+  "DATA_SOURCE_SCHEMA.md": (project) => developmentTemplate("DATA_SOURCE_SCHEMA.md", project),
+  "POWER_FX_STANDARDS.md": (project) => developmentTemplate("POWER_FX_STANDARDS.md", project),
+  "DELEGATION_REGISTER.md": (project) => developmentTemplate("DELEGATION_REGISTER.md", project),
+  "CONTROL_INVENTORY.md": (project) => developmentTemplate("CONTROL_INVENTORY.md", project),
+  "APP_CONFIGURATION.md": (project) => developmentTemplate("APP_CONFIGURATION.md", project),
+  "YAML_MANIFEST.md": (project) => developmentTemplate("YAML_MANIFEST.md", project),
+  "CONNECTOR_REGISTER.md": (project) => developmentTemplate("CONNECTOR_REGISTER.md", project),
+  "LICENSING_ASSESSMENT.md": (project) => developmentTemplate("LICENSING_ASSESSMENT.md", project),
+  "CONNECTION_REGISTER.md": (project) => developmentTemplate("CONNECTION_REGISTER.md", project),
+  "IMPLEMENTATION_LOG.md": (project) => developmentTemplate("IMPLEMENTATION_LOG.md", project),
+  "ALM_DEPLOYMENT_PLAN.md": (project) => developmentTemplate("ALM_DEPLOYMENT_PLAN.md", project),
+  "SHAREPOINT_SCHEMA.md": (project) => developmentTemplate("SHAREPOINT_SCHEMA.md", project),
+  "INTERNAL_COLUMN_NAMES.md": (project) => developmentTemplate("INTERNAL_COLUMN_NAMES.md", project),
+  "DATAVERSE_SCHEMA.md": (project) => developmentTemplate("DATAVERSE_SCHEMA.md", project),
+  "LOGICAL_NAMES.md": (project) => developmentTemplate("LOGICAL_NAMES.md", project),
+  "CONNECTOR_SCHEMA.md": (project) => developmentTemplate("CONNECTOR_SCHEMA.md", project),
+  "SOLUTION_ARCHITECTURE.md": (project) => developmentTemplate("SOLUTION_ARCHITECTURE.md", project),
+  "SOLUTION_COMPONENT_REGISTER.md": (project) => developmentTemplate("SOLUTION_COMPONENT_REGISTER.md", project),
+  "TABLE_RELATIONSHIPS.md": (project) => developmentTemplate("TABLE_RELATIONSHIPS.md", project),
+  "FORMS_AND_VIEWS.md": (project) => developmentTemplate("FORMS_AND_VIEWS.md", project),
+  "APP_NAVIGATION.md": (project) => developmentTemplate("APP_NAVIGATION.md", project),
+  "BUSINESS_RULES.md": (project) => developmentTemplate("BUSINESS_RULES.md", project),
+  "BUSINESS_PROCESS_FLOWS.md": (project) => developmentTemplate("BUSINESS_PROCESS_FLOWS.md", project),
+  "AUTOMATION_REGISTER.md": (project) => developmentTemplate("AUTOMATION_REGISTER.md", project),
+  "SECURITY_ROLES.md": (project) => developmentTemplate("SECURITY_ROLES.md", project),
+  "CUSTOM_PAGES.md": (project) => developmentTemplate("CUSTOM_PAGES.md", project),
+  "EXTENSION_REGISTER.md": (project) => developmentTemplate("EXTENSION_REGISTER.md", project),
+  "ENVIRONMENT_VARIABLES.md": (project) => developmentTemplate("ENVIRONMENT_VARIABLES.md", project)
 };
 
 export const REQUIRED_DOCUMENT_TEMPLATE_KEYS = Object.keys(documentTemplates);

@@ -52,9 +52,10 @@ describe("createProjectArchive", () => {
 
     const manifest = JSON.parse(
       await first.file(`${firstPaths[0]}project-manifest.json`)!.async("string")
-    ) as { files: unknown[]; generatedDocumentCount: number };
+    ) as { files: unknown[]; generatedDocumentCount: number; packageSchemaVersion: number };
     expect(manifest.files).toHaveLength(DOCUMENT_LOCATIONS.length);
     expect(manifest.generatedDocumentCount).toBe(DOCUMENT_LOCATIONS.length);
+    expect(manifest.packageSchemaVersion).toBe(2);
     const clientQuestions = await first.file(
       `${firstPaths[0]}01_Requirements/CLIENT_QUESTIONS.md`
     )!.async("string");

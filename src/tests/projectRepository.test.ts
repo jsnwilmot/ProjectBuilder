@@ -1,7 +1,12 @@
+import { CORE_DOCUMENT_LOCATIONS } from "../data/folderStructure";
 import { createSeedProject } from "../data/seedProject";
+import { expectedDocumentLocations } from "../lib/powerPlatform";
 import type { ProjectRecord } from "../types/project";
 import {
+  clearPersistenceWarning,
+  getPersistenceWarning,
   LEGACY_STORAGE_KEY,
+  PREVIOUS_STORAGE_KEY,
   STORAGE_KEY,
   archiveProject,
   createProject,
@@ -30,13 +35,22 @@ class MemoryStorage implements StorageAdapter {
   removeItem(key: string) { this.values.delete(key); }
 }
 
+class WriteFailStorage extends MemoryStorage {
+  override setItem(key: string, value: string) {
+    if (key === STORAGE_KEY) {
+      throw new Error("quota exceeded");
+    }
+    super.setItem(key, value);
+  }
+}
+
 describe("projectRepository", () => {
   it("saves and loads versioned state", () => {
     const storage = new MemoryStorage();
     const project = createSeedProject();
-    saveStorageState({ version: 1, activeProjectId: project.identity.id, projects: [project] }, storage);
+    saveStorageState({ version: 2, activeProjectId: project.identity.id, projects: [project] }, storage);
     const loaded = loadStorageState(storage);
-    expect(loaded.version).toBe(1);
+    expect(loaded.version).toBe(2);
     expect(loaded.activeProjectId).toBe(project.identity.id);
     expect(loaded.projects[0].identity.projectName).toBe("Community Services Portal");
     expect(loaded.projects[0].status).toBe("Intake Complete");
@@ -45,7 +59,138 @@ describe("projectRepository", () => {
   it("recovers safely from invalid localStorage data", () => {
     const storage = new MemoryStorage();
     storage.setItem(STORAGE_KEY, "{not-json");
-    expect(loadStorageState(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
+    expect(loadStorageState(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
+  });
+
+  it("does not fallback to older keys when the current storage key is corrupt", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(STORAGE_KEY, "{broken-json");
+    storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: "previous-id",
+      projects: [createProject({ identity: { id: "previous-id", projectName: "Previous" } }, new MemoryStorage())]
+    }));
+
+    const loaded = loadStorageState(storage);
+
+    expect(loaded).toEqual({ version: 2, activeProjectId: null, projects: [] });
+    expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("prioritizes the current storage key when both current and previous keys exist", () => {
+    const storage = new MemoryStorage();
+    const current = createProject({ identity: { id: "current", projectName: "Current" } }, new MemoryStorage());
+    const previous = createProject({ identity: { id: "previous", projectName: "Previous" } }, new MemoryStorage());
+    storage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, activeProjectId: current.identity.id, projects: [current] }));
+    storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({ version: 1, activeProjectId: previous.identity.id, projects: [previous] }));
+
+    const loaded = loadStorageState(storage);
+
+    expect(loaded.projects).toHaveLength(1);
+    expect(loaded.projects[0].identity.id).toBe("current");
+    expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
+  });
+
+  it("migrates previous versioned storage into v2 and removes the previous key after a successful write", () => {
+    const storage = new MemoryStorage();
+    const previous = createProject({ identity: { id: "previous", projectName: "Previous" } }, new MemoryStorage());
+    storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: previous.identity.id,
+      projects: [previous]
+    }));
+
+    const loaded = loadStorageState(storage);
+
+    expect(loaded.version).toBe(2);
+    expect(loaded.projects[0].identity.id).toBe("previous");
+    expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBeNull();
+  });
+
+  it("migrates a version-1 multi-project store while preserving active project, generated docs, review data, and legacy microsoft type", () => {
+    const sourceStorageA = new MemoryStorage();
+    const sourceStorageB = new MemoryStorage();
+
+    const projectA = createProject({
+      identity: { id: "project-a-stable", projectName: "Project A Stable" },
+      client: { clientName: "Client A", businessName: "Business A" },
+      intake: { appPurpose: "Track requests", requiredFeatures: "Dashboard" },
+      status: "Project Package Generated",
+      reviewStatus: "In review",
+      now: "2026-07-11T09:00:00.000Z"
+    }, sourceStorageA);
+    const reviewItem = projectA.reviewItems[0];
+    updateReviewItem(projectA.identity.id, reviewItem.id, {
+      status: "Not applicable",
+      notApplicableReason: "Handled in the source system."
+    }, sourceStorageA);
+    updateReadinessConfirmation(projectA.identity.id, "scopeReviewed", true, sourceStorageA);
+    saveGeneratedDocuments(projectA.identity.id, [
+      { fileName: "README.md", folder: "00_Project_Overview", content: "# Preserved" }
+    ], sourceStorageA);
+    const persistedA = getProjectById(projectA.identity.id, sourceStorageA)!;
+
+    const projectB = createProject({
+      identity: { id: "project-b-stable", projectName: "Project B Stable" },
+      client: { clientName: "Client B", businessName: "Business B" },
+      intake: { appType: "microsoft365", appPurpose: "Legacy flow", workflows: "Approve requests" },
+      status: "Intake Complete",
+      reviewStatus: "Review needed",
+      now: "2026-07-11T09:05:00.000Z"
+    }, sourceStorageB);
+
+    const storage = new MemoryStorage();
+    storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: projectB.identity.id,
+      projects: [persistedA, projectB]
+    }));
+
+    const loaded = loadStorageState(storage);
+    const loadedA = loaded.projects.find((project) => project.identity.id === "project-a-stable")!;
+    const loadedB = loaded.projects.find((project) => project.identity.id === "project-b-stable")!;
+
+    expect(loaded.version).toBe(2);
+    expect(loaded.projects).toHaveLength(2);
+    expect(loaded.projects.map((project) => project.identity.id)).toEqual(
+      expect.arrayContaining(["project-a-stable", "project-b-stable"])
+    );
+    expect(loaded.activeProjectId).toBe("project-b-stable");
+    expect(loadedA.generatedDocuments).toHaveLength(1);
+    expect(loadedA.generatedDocuments[0].fileName).toBe("README.md");
+    expect(loadedA.packageGeneratedAt).not.toBeNull();
+    expect(loadedA.reviewItems.find((item) => item.id === reviewItem.id)?.status).toBe("Not applicable");
+    expect(loadedA.readinessConfirmations.scopeReviewed).toBe(true);
+    expect(loadedB.intake.appType).toBe("microsoft365");
+    expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBeNull();
+  });
+
+  it("keeps the previous key when migration cannot write to the current key", () => {
+    clearPersistenceWarning();
+    try {
+      const storage = new WriteFailStorage();
+      const previous = createProject({ identity: { id: "previous", projectName: "Previous" } }, new MemoryStorage());
+      storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+        version: 1,
+        activeProjectId: previous.identity.id,
+        projects: [previous]
+      }));
+
+      let loaded: ReturnType<typeof loadStorageState> | undefined;
+      expect(() => {
+        loaded = loadStorageState(storage);
+      }).not.toThrow();
+
+      expect(loaded?.version).toBe(2);
+      expect(loaded?.projects[0].identity.id).toBe("previous");
+      expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
+      expect(storage.getItem(STORAGE_KEY)).toBeNull();
+      expect((getPersistenceWarning() ?? "").length).toBeGreaterThan(0);
+    } finally {
+      clearPersistenceWarning();
+    }
   });
 
   it("recovers invalid activeProjectId by selecting the first available project", () => {
@@ -63,7 +208,7 @@ describe("projectRepository", () => {
     const storage = new MemoryStorage();
     const project = createSeedProject();
     storage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1,
+      version: 2,
       activeProjectId: project.identity.id,
       projects: [{ ...project, reviewStatus: "Needs review" }]
     }));
@@ -77,13 +222,13 @@ describe("projectRepository", () => {
     const storedProject = JSON.parse(JSON.stringify(project)) as ProjectRecord;
     delete (storedProject.intake as unknown as Record<string, string>).brandStatus;
     storage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1,
+      version: 2,
       activeProjectId: project.identity.id,
       projects: [storedProject]
     }));
 
     const loaded = loadStorageState(storage).projects[0];
-    expect(loaded.intake.appType).toBe("Web application");
+    expect(loaded.intake.appType).toBe("webApplication");
     expect(loaded.intake.brandStatus).toBe("");
     expect(loaded.intake.websitePages).toBe("");
     expect(loaded.archivedAt).toBeNull();
@@ -99,7 +244,7 @@ describe("projectRepository", () => {
     delete storedProject.readinessConfirmations;
     delete storedProject.packageGeneratedAt;
     storage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1,
+      version: 2,
       activeProjectId: project.identity.id,
       projects: [storedProject]
     }));
@@ -116,12 +261,61 @@ describe("projectRepository", () => {
     const storedProject = JSON.parse(JSON.stringify(project)) as ProjectRecord;
     (storedProject.intake as unknown as Record<string, string>).appType = "Legacy custom app type";
     storage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1,
+      version: 2,
       activeProjectId: project.identity.id,
       projects: [storedProject]
     }));
 
     expect(loadStorageState(storage).projects[0].intake.appType).toBe("");
+  });
+
+  it("adds safe Power Platform defaults when loading legacy canvas projects", () => {
+    const storage = new MemoryStorage();
+    const project = createSeedProject();
+    const storedProject = JSON.parse(JSON.stringify(project)) as ProjectRecord;
+    (storedProject.intake as unknown as Record<string, string>).appType = "Power Apps Canvas App";
+    delete (storedProject as unknown as Record<string, unknown>).powerPlatform;
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: project.identity.id,
+      projects: [storedProject]
+    }));
+
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.intake.appType).toBe("powerAppsCanvas");
+    expect(loaded.powerPlatform?.canvas?.primaryDataSourceType).toBe("undecided");
+    expect(loaded.powerPlatform?.common.connectors).toEqual([]);
+  });
+
+  it("normalizes invalid connector classifications and keeps unknown instead of premium", () => {
+    const storage = new MemoryStorage();
+    const project = createSeedProject();
+    const storedProject = JSON.parse(JSON.stringify(project)) as Record<string, unknown>;
+    storedProject.intake = {
+      ...(storedProject.intake as Record<string, unknown>),
+      appType: "powerAppsCanvas"
+    };
+    storedProject.powerPlatform = {
+      common: {
+        connectors: [{
+          id: "c1",
+          displayName: "Unknown Connector",
+          connectorClassification: "invalid-value"
+        }]
+      },
+      canvas: {
+        primaryDataSourceType: "invalid-data-source"
+      }
+    };
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 2,
+      activeProjectId: "community-services-portal",
+      projects: [storedProject]
+    }));
+
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.powerPlatform?.common.connectors[0].connectorClassification).toBe("unknown");
+    expect(loaded.powerPlatform?.canvas?.primaryDataSourceType).toBe("undecided");
   });
 
   it("creates multiple projects without erasing existing projects and sets the active id", () => {
@@ -165,6 +359,351 @@ describe("projectRepository", () => {
     expect(state.projects).toHaveLength(2);
     expect(persistedSource.generatedDocuments).toHaveLength(1);
     expect(persistedSource.identity.projectName).toBe("Client Portal");
+  });
+
+  it("duplicates Power Platform details with deep copy semantics and reset implementation progress", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({
+      identity: { id: "canvas-source", projectName: "Canvas Source" },
+      intake: { appType: "powerAppsCanvas" }
+    }, storage);
+    updateProject(source.identity.id, (current) => ({
+      ...current,
+      powerPlatform: {
+        ...current.powerPlatform!,
+        common: {
+          ...current.powerPlatform!.common,
+          connectors: [{
+            id: "sp",
+            displayName: "SharePoint",
+            purpose: "Data",
+            dataSourceName: "Main List",
+            dataSourceType: "sharePointList",
+            connectorClassification: "standard",
+            classificationConfirmed: true,
+            licenceRequirement: "Included",
+            licensingConfirmed: true,
+            authenticationMethod: "AAD",
+            gatewayRequirement: "None",
+            environmentRequirement: "Default",
+            dlpImpact: "Low",
+            delegationSupport: "Partial",
+            expectedRecordVolume: "1000",
+            supportedOperations: { read: true },
+            offlineSupport: "No",
+            securityNotes: "",
+            limitations: "",
+            approvalStatus: "approved"
+          }]
+        },
+        canvas: {
+          ...current.powerPlatform!.canvas!,
+          primaryDataSourceType: "sharePointList",
+          sharePointLists: "Main List",
+          secondaryConnectorIds: ["sp"],
+          powerFxStatus: "Complete",
+          yamlStatus: "Ready",
+          manualInstallationStatus: "Installed",
+          studioValidationStatus: "Validated",
+          publicationStatus: "Published",
+          deploymentStatus: "Deployed"
+        },
+        progress: {
+          ...current.powerPlatform!.progress,
+          connectorSelection: "confirmed",
+          securityReview: "ready",
+          canvas: {
+            ...current.powerPlatform!.progress.canvas,
+            sharePointSchema: "confirmed",
+            powerFx: "confirmed",
+            yaml: "confirmed"
+          }
+        }
+      }
+    }), storage);
+
+    const duplicated = duplicateProject(source.identity.id, storage)!;
+
+    expect(duplicated.intake.appType).toBe("powerAppsCanvas");
+    expect(duplicated.powerPlatform?.canvas?.primaryDataSourceType).toBe("sharePointList");
+    expect(duplicated.powerPlatform?.canvas?.sharePointLists).toBe("Main List");
+    expect(duplicated.powerPlatform?.common.connectors[0].licenceRequirement).toBe("Included");
+    expect(duplicated.powerPlatform?.common.connectors).toHaveLength(1);
+    expect(duplicated.powerPlatform?.progress.connectorSelection).toBe("reviewNeeded");
+    expect(duplicated.powerPlatform?.progress.securityReview).toBe("notStarted");
+    expect(duplicated.powerPlatform?.progress.canvas.sharePointSchema).toBe("reviewNeeded");
+    expect(duplicated.powerPlatform?.progress.canvas.powerFx).toBe("notStarted");
+    expect(duplicated.powerPlatform?.progress.canvas.yaml).toBe("notStarted");
+    expect(duplicated.powerPlatform?.canvas?.powerFxStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.yamlStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.manualInstallationStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.studioValidationStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.publicationStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.deploymentStatus).toBe("");
+    expect(duplicated.generatedDocuments).toEqual([]);
+    expect(duplicated.packageGeneratedAt).toBeNull();
+
+    const sourcePersisted = getProjectById(source.identity.id, storage)!;
+    expect(duplicated.powerPlatform?.common.connectors).not.toBe(sourcePersisted.powerPlatform?.common.connectors);
+    expect(duplicated.powerPlatform?.common.connectors[0].supportedOperations).not.toBe(
+      sourcePersisted.powerPlatform?.common.connectors[0].supportedOperations
+    );
+    expect(duplicated.powerPlatform?.canvas?.secondaryConnectorIds).not.toBe(
+      sourcePersisted.powerPlatform?.canvas?.secondaryConnectorIds
+    );
+
+    duplicated.powerPlatform!.common.connectors[0].displayName = "Mutated";
+    expect(getProjectById(source.identity.id, storage)?.powerPlatform?.common.connectors[0].displayName).toBe("SharePoint");
+  });
+
+  it("duplicates a dataverse-backed canvas project with requirements preserved and implementation progress reset", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({
+      identity: { id: "canvas-dataverse-source", projectName: "Canvas Dataverse Source" },
+      intake: { appType: "powerAppsCanvas" }
+    }, storage);
+    updateProject(source.identity.id, (current) => ({
+      ...current,
+      powerPlatform: {
+        ...current.powerPlatform!,
+        common: {
+          ...current.powerPlatform!.common,
+          connectors: [{
+            id: "dv",
+            displayName: "Dataverse",
+            purpose: "Primary backend",
+            dataSourceName: "Dataverse",
+            dataSourceType: "dataverse",
+            connectorClassification: "premium",
+            classificationConfirmed: true,
+            licenceRequirement: "Per app plan",
+            licensingConfirmed: true,
+            authenticationMethod: "AAD",
+            gatewayRequirement: "None",
+            environmentRequirement: "Managed",
+            dlpImpact: "Review",
+            delegationSupport: "Full",
+            expectedRecordVolume: "50000",
+            supportedOperations: { read: true, create: true, update: true },
+            offlineSupport: "Limited",
+            securityNotes: "Environment isolation",
+            limitations: "",
+            approvalStatus: "approved"
+          }]
+        },
+        canvas: {
+          ...current.powerPlatform!.canvas!,
+          primaryDataSourceType: "dataverse",
+          dataverseTables: "Accounts, Cases",
+          logicalNameStatus: "Confirmed logical names",
+          secondaryConnectorIds: ["dv"],
+          powerFxStatus: "Done",
+          yamlStatus: "Done",
+          manualInstallationStatus: "Installed",
+          studioValidationStatus: "Validated",
+          publicationStatus: "Published",
+          deploymentStatus: "Deployed"
+        },
+        progress: {
+          ...current.powerPlatform!.progress,
+          schema: "confirmed",
+          canvas: {
+            ...current.powerPlatform!.progress.canvas,
+            dataverseSchema: "confirmed",
+            logicalNames: "confirmed",
+            powerFx: "confirmed",
+            yaml: "confirmed"
+          }
+        }
+      }
+    }), storage);
+
+    const duplicated = duplicateProject(source.identity.id, storage)!;
+    const persistedSource = getProjectById(source.identity.id, storage)!;
+
+    expect(duplicated.intake.appType).toBe("powerAppsCanvas");
+    expect(duplicated.powerPlatform?.canvas?.primaryDataSourceType).toBe("dataverse");
+    expect(duplicated.powerPlatform?.canvas?.dataverseTables).toBe("Accounts, Cases");
+    expect(duplicated.powerPlatform?.common.connectors[0].licenceRequirement).toBe("Per app plan");
+    expect(duplicated.powerPlatform?.progress.canvas.dataverseSchema).toBe("reviewNeeded");
+    expect(duplicated.powerPlatform?.progress.canvas.logicalNames).toBe("reviewNeeded");
+    expect(duplicated.powerPlatform?.progress.canvas.powerFx).toBe("notStarted");
+    expect(duplicated.powerPlatform?.progress.canvas.yaml).toBe("notStarted");
+    expect(duplicated.powerPlatform?.canvas?.powerFxStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.yamlStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.manualInstallationStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.studioValidationStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.publicationStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.deploymentStatus).toBe("");
+    expect(duplicated.powerPlatform?.common.connectors).not.toBe(persistedSource.powerPlatform?.common.connectors);
+    expect(duplicated.powerPlatform?.canvas).not.toBe(persistedSource.powerPlatform?.canvas);
+    expect(duplicated.powerPlatform?.canvas?.secondaryConnectorIds).not.toBe(
+      persistedSource.powerPlatform?.canvas?.secondaryConnectorIds
+    );
+  });
+
+  it("duplicates a model-driven project with requirements preserved and implementation progress reset", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({
+      identity: { id: "model-source", projectName: "Model Source" },
+      intake: { appType: "powerAppsModelDriven" }
+    }, storage);
+    updateProject(source.identity.id, (current) => ({
+      ...current,
+      powerPlatform: {
+        ...current.powerPlatform!,
+        common: {
+          ...current.powerPlatform!.common,
+          publisherName: "Contoso",
+          publisherPrefix: "cts",
+          licensingStatus: "Model-driven license required",
+          connectors: [{
+            id: "dv",
+            displayName: "Dataverse",
+            purpose: "Model data",
+            dataSourceName: "Dataverse",
+            dataSourceType: "dataverse",
+            connectorClassification: "premium",
+            classificationConfirmed: true,
+            licenceRequirement: "Per user",
+            licensingConfirmed: true,
+            authenticationMethod: "AAD",
+            gatewayRequirement: "None",
+            environmentRequirement: "Managed",
+            dlpImpact: "Review",
+            delegationSupport: "Full",
+            expectedRecordVolume: "200000",
+            supportedOperations: { read: true, create: true, update: true, delete: true },
+            offlineSupport: "No",
+            securityNotes: "Role based",
+            limitations: "",
+            approvalStatus: "approved"
+          }]
+        },
+        modelDriven: {
+          ...current.powerPlatform!.modelDriven!,
+          dataverseAvailability: "Dataverse available",
+          modelDrivenLicensingStatus: "Confirmed licensing note",
+          solutionArchitecture: "Managed solution architecture",
+          tables: "Accounts;Cases",
+          columns: "Name;Priority",
+          relationships: "Account to Case",
+          forms: "Main form",
+          views: "Active view",
+          securityRoles: "Case Manager",
+          automations: "Assignment flow",
+          plugins: "Validation plugin",
+          customApis: "Submit API",
+          pcfControls: "Status control",
+          environmentVariables: "EnvFlag",
+          connectionReferences: "DataverseConnection",
+          manualConfigurationStatus: "Completed",
+          testingStatus: "Completed",
+          importStatus: "Completed",
+          publicationStatus: "Completed",
+          deploymentStatus: "Completed",
+          solutionSourceStatus: "Exported"
+        },
+        progress: {
+          ...current.powerPlatform!.progress,
+          modelDriven: {
+            ...current.powerPlatform!.progress.modelDriven,
+            solutionComponents: "confirmed",
+            solutionValidation: "confirmed",
+            solutionImport: "confirmed",
+            publication: "confirmed"
+          }
+        }
+      }
+    }), storage);
+
+    const duplicated = duplicateProject(source.identity.id, storage)!;
+    const persistedSource = getProjectById(source.identity.id, storage)!;
+
+    expect(duplicated.intake.appType).toBe("powerAppsModelDriven");
+    expect(duplicated.powerPlatform?.modelDriven?.solutionArchitecture).toBe("Managed solution architecture");
+    expect(duplicated.powerPlatform?.modelDriven?.tables).toBe("Accounts;Cases");
+    expect(duplicated.powerPlatform?.modelDriven?.columns).toBe("Name;Priority");
+    expect(duplicated.powerPlatform?.modelDriven?.relationships).toBe("Account to Case");
+    expect(duplicated.powerPlatform?.modelDriven?.forms).toBe("Main form");
+    expect(duplicated.powerPlatform?.modelDriven?.views).toBe("Active view");
+    expect(duplicated.powerPlatform?.modelDriven?.securityRoles).toBe("Case Manager");
+    expect(duplicated.powerPlatform?.modelDriven?.automations).toBe("Assignment flow");
+    expect(duplicated.powerPlatform?.modelDriven?.plugins).toBe("Validation plugin");
+    expect(duplicated.powerPlatform?.modelDriven?.customApis).toBe("Submit API");
+    expect(duplicated.powerPlatform?.modelDriven?.pcfControls).toBe("Status control");
+    expect(duplicated.powerPlatform?.modelDriven?.environmentVariables).toBe("EnvFlag");
+    expect(duplicated.powerPlatform?.modelDriven?.connectionReferences).toBe("DataverseConnection");
+    expect(duplicated.powerPlatform?.common.publisherName).toBe("Contoso");
+    expect(duplicated.powerPlatform?.common.publisherPrefix).toBe("cts");
+    expect(duplicated.powerPlatform?.common.licensingStatus).toBe("Model-driven license required");
+    expect(duplicated.powerPlatform?.progress.modelDriven.solutionComponents).toBe("notStarted");
+    expect(duplicated.powerPlatform?.progress.modelDriven.solutionValidation).toBe("notStarted");
+    expect(duplicated.powerPlatform?.progress.modelDriven.solutionImport).toBe("notStarted");
+    expect(duplicated.powerPlatform?.progress.modelDriven.publication).toBe("notStarted");
+    expect(duplicated.powerPlatform?.modelDriven?.manualConfigurationStatus).toBe("");
+    expect(duplicated.powerPlatform?.modelDriven?.testingStatus).toBe("");
+    expect(duplicated.powerPlatform?.modelDriven?.importStatus).toBe("");
+    expect(duplicated.powerPlatform?.modelDriven?.publicationStatus).toBe("");
+    expect(duplicated.powerPlatform?.modelDriven?.deploymentStatus).toBe("");
+    expect(duplicated.powerPlatform?.modelDriven?.solutionSourceStatus).toBe("");
+    expect(duplicated.powerPlatform?.common.connectors).not.toBe(persistedSource.powerPlatform?.common.connectors);
+  });
+
+  it("reconciles Power Platform structures when app type changes", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({
+      identity: { id: "transition", projectName: "Transition" },
+      intake: { appType: "powerAppsCanvas" }
+    }, storage);
+    updateProject(source.identity.id, (current) => ({
+      ...current,
+      powerPlatform: {
+        ...current.powerPlatform!,
+        common: {
+          ...current.powerPlatform!.common,
+          connectors: [{
+            id: "sp",
+            displayName: "SharePoint",
+            purpose: "Data",
+            dataSourceName: "Main List",
+            dataSourceType: "sharePointList",
+            connectorClassification: "standard",
+            classificationConfirmed: true,
+            licenceRequirement: "Included",
+            licensingConfirmed: true,
+            authenticationMethod: "AAD",
+            gatewayRequirement: "None",
+            environmentRequirement: "Default",
+            dlpImpact: "Low",
+            delegationSupport: "Partial",
+            expectedRecordVolume: "1000",
+            supportedOperations: { read: true },
+            offlineSupport: "No",
+            securityNotes: "",
+            limitations: "",
+            approvalStatus: "approved"
+          }]
+        },
+        canvas: {
+          ...current.powerPlatform!.canvas!,
+          primaryDataSourceType: "sharePointList"
+        }
+      }
+    }), storage);
+
+    updateProjectFields(source.identity.id, { appType: "powerAppsModelDriven" }, storage);
+    const modelDriven = getProjectById(source.identity.id, storage)!;
+    expect(modelDriven.intake.appType).toBe("powerAppsModelDriven");
+    expect(modelDriven.powerPlatform?.canvas).toBeUndefined();
+    expect(modelDriven.powerPlatform?.modelDriven?.dataverseAvailability).toBe("missingInformation");
+    expect(modelDriven.powerPlatform?.common.connectors).toHaveLength(1);
+
+    updateProjectFields(source.identity.id, { appType: "powerAppsCanvas" }, storage);
+    const canvas = getProjectById(source.identity.id, storage)!;
+    expect(canvas.intake.appType).toBe("powerAppsCanvas");
+    expect(canvas.powerPlatform?.modelDriven).toBeUndefined();
+    expect(canvas.powerPlatform?.canvas?.primaryDataSourceType).toBe("undecided");
   });
 
   it("uses Untitled Project Copy when duplicating a project without a name", () => {
@@ -364,8 +903,250 @@ describe("projectRepository", () => {
   it("resets storage safely", () => {
     const storage = new MemoryStorage();
     createProject({ identity: { projectName: "Disposable" } }, storage);
-    expect(resetStorage(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
-    expect(loadStorageState(storage).projects).toEqual([]);
+    storage.setItem(PREVIOUS_STORAGE_KEY, "{\"version\":1,\"projects\":[]}");
+    storage.setItem(LEGACY_STORAGE_KEY, "{\"intake\":{\"appName\":\"Legacy\"}}");
+    expect(resetStorage(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
+    expect(storage.getItem(STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+  });
+
+  describe("project-type transition matrix", () => {
+    it("supports web application to canvas transition with connector-neutral defaults", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({
+        identity: { id: "transition-web-canvas", projectName: "Web to Canvas" },
+        intake: { appType: "webApplication" }
+      }, storage);
+
+      updateProjectFields(project.identity.id, { appType: "powerAppsCanvas" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform?.canvas).toBeDefined();
+      expect(loaded.powerPlatform?.canvas?.primaryDataSourceType).toBe("undecided");
+      expect(loaded.powerPlatform?.common.connectors).toEqual([]);
+      expect(loaded.powerPlatform?.common.connectors.some((connector) => connector.connectorClassification === "premium")).toBe(false);
+    });
+
+    it("supports web application to model-driven transition with unconfirmed defaults", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({
+        identity: { id: "transition-web-model", projectName: "Web to Model" },
+        intake: { appType: "webApplication" }
+      }, storage);
+
+      updateProjectFields(project.identity.id, { appType: "powerAppsModelDriven" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform?.modelDriven).toBeDefined();
+      expect(loaded.powerPlatform?.modelDriven?.dataverseAvailability).toBe("missingInformation");
+      expect(loaded.powerPlatform?.modelDriven?.modelDrivenLicensingStatus).toBe("missingInformation");
+    });
+
+    it("supports canvas to model-driven transition without carrying canvas progress", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({
+        identity: { id: "transition-canvas-model", projectName: "Canvas to Model" },
+        intake: { appType: "powerAppsCanvas" }
+      }, storage);
+      updateProject(project.identity.id, (current) => ({
+        ...current,
+        powerPlatform: {
+          ...current.powerPlatform!,
+          common: {
+            ...current.powerPlatform!.common,
+            appOwner: "Owner",
+            connectors: [{
+              id: "sp",
+              displayName: "SharePoint",
+              purpose: "Data",
+              dataSourceName: "Main",
+              dataSourceType: "sharePointList",
+              connectorClassification: "standard",
+              classificationConfirmed: true,
+              licenceRequirement: "Included",
+              licensingConfirmed: true,
+              authenticationMethod: "AAD",
+              gatewayRequirement: "None",
+              environmentRequirement: "Default",
+              dlpImpact: "Low",
+              delegationSupport: "Partial",
+              expectedRecordVolume: "500",
+              supportedOperations: { read: true },
+              offlineSupport: "No",
+              securityNotes: "",
+              limitations: "",
+              approvalStatus: "approved"
+            }]
+          },
+          progress: {
+            ...current.powerPlatform!.progress,
+            canvas: {
+              ...current.powerPlatform!.progress.canvas,
+              sharePointSchema: "confirmed",
+              powerFx: "confirmed"
+            }
+          }
+        }
+      }), storage);
+
+      updateProjectFields(project.identity.id, { appType: "powerAppsModelDriven" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform?.canvas).toBeUndefined();
+      expect(loaded.powerPlatform?.modelDriven).toBeDefined();
+      expect(loaded.powerPlatform?.common.appOwner).toBe("Owner");
+      expect(loaded.powerPlatform?.common.connectors).toHaveLength(1);
+      expect(loaded.powerPlatform?.modelDriven?.dataverseAvailability).toBe("missingInformation");
+      expect(loaded.powerPlatform?.modelDriven?.modelDrivenLicensingStatus).toBe("missingInformation");
+      expect(loaded.powerPlatform?.progress.modelDriven.solutionValidation).toBe("notStarted");
+    });
+
+    it("supports model-driven to canvas transition with undecided backend and no premium assumptions", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({
+        identity: { id: "transition-model-canvas", projectName: "Model to Canvas" },
+        intake: { appType: "powerAppsModelDriven" }
+      }, storage);
+      updateProject(project.identity.id, (current) => ({
+        ...current,
+        powerPlatform: {
+          ...current.powerPlatform!,
+          common: {
+            ...current.powerPlatform!.common,
+            connectors: [{
+              id: "dv",
+              displayName: "Dataverse",
+              purpose: "Data",
+              dataSourceName: "Dataverse",
+              dataSourceType: "dataverse",
+              connectorClassification: "unknown",
+              classificationConfirmed: false,
+              licenceRequirement: "",
+              licensingConfirmed: false,
+              authenticationMethod: "",
+              gatewayRequirement: "",
+              environmentRequirement: "",
+              dlpImpact: "",
+              delegationSupport: "",
+              expectedRecordVolume: "",
+              supportedOperations: {},
+              offlineSupport: "",
+              securityNotes: "",
+              limitations: "",
+              approvalStatus: ""
+            }]
+          },
+          modelDriven: {
+            ...current.powerPlatform!.modelDriven!,
+            dataverseAvailability: "Confirmed"
+          }
+        }
+      }), storage);
+
+      updateProjectFields(project.identity.id, { appType: "powerAppsCanvas" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform?.modelDriven).toBeUndefined();
+      expect(loaded.powerPlatform?.canvas).toBeDefined();
+      expect(loaded.powerPlatform?.canvas?.primaryDataSourceType).toBe("undecided");
+      expect(loaded.powerPlatform?.common.connectors.some((connector) => connector.connectorClassification === "premium")).toBe(false);
+    });
+
+    it("supports canvas to web application transition and clears power platform data", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage);
+
+      updateProjectFields(project.identity.id, { appType: "webApplication" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform).toBeUndefined();
+      expect(expectedDocumentLocations(loaded)).toEqual(CORE_DOCUMENT_LOCATIONS);
+    });
+
+    it("supports model-driven to business website transition and clears power platform data", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ intake: { appType: "powerAppsModelDriven" } }, storage);
+
+      updateProjectFields(project.identity.id, { appType: "businessWebsite" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform).toBeUndefined();
+      expect(expectedDocumentLocations(loaded)).toEqual(CORE_DOCUMENT_LOCATIONS);
+    });
+
+    it("supports canvas to legacy microsoft transition with common-only structure", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage);
+
+      updateProjectFields(project.identity.id, { appType: "microsoft365" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform).toBeDefined();
+      expect(loaded.powerPlatform?.common).toBeDefined();
+      expect(loaded.powerPlatform?.canvas).toBeUndefined();
+      expect(loaded.powerPlatform?.modelDriven).toBeUndefined();
+      expect(loaded.powerPlatform?.common.connectors.some((connector) => connector.connectorClassification === "premium")).toBe(false);
+    });
+
+    it("supports model-driven to legacy microsoft transition with common-only structure", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ intake: { appType: "powerAppsModelDriven" } }, storage);
+
+      updateProjectFields(project.identity.id, { appType: "microsoft365" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform).toBeDefined();
+      expect(loaded.powerPlatform?.common).toBeDefined();
+      expect(loaded.powerPlatform?.canvas).toBeUndefined();
+      expect(loaded.powerPlatform?.modelDriven).toBeUndefined();
+    });
+
+    it("supports canvas to canvas updates without discarding compatible data", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage);
+      updateProject(project.identity.id, (current) => ({
+        ...current,
+        powerPlatform: {
+          ...current.powerPlatform!,
+          canvas: {
+            ...current.powerPlatform!.canvas!,
+            primaryDataSourceType: "sharePointList",
+            sharePointLists: "Main List"
+          }
+        }
+      }), storage);
+
+      updateProjectFields(project.identity.id, { appType: "powerAppsCanvas" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform?.canvas?.primaryDataSourceType).toBe("sharePointList");
+      expect(loaded.powerPlatform?.canvas?.sharePointLists).toBe("Main List");
+    });
+
+    it("supports model-driven to model-driven updates without discarding compatible data", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({ intake: { appType: "powerAppsModelDriven" } }, storage);
+      updateProject(project.identity.id, (current) => ({
+        ...current,
+        powerPlatform: {
+          ...current.powerPlatform!,
+          modelDriven: {
+            ...current.powerPlatform!.modelDriven!,
+            tables: "Accounts",
+            dataverseAvailability: "missingInformation",
+            modelDrivenLicensingStatus: "missingInformation"
+          }
+        }
+      }), storage);
+
+      updateProjectFields(project.identity.id, { appType: "powerAppsModelDriven" }, storage);
+      const loaded = getProjectById(project.identity.id, storage)!;
+
+      expect(loaded.powerPlatform?.modelDriven?.tables).toBe("Accounts");
+      expect(loaded.powerPlatform?.modelDriven?.dataverseAvailability).toBe("missingInformation");
+      expect(loaded.powerPlatform?.modelDriven?.modelDrivenLicensingStatus).toBe("missingInformation");
+    });
   });
 
   describe("legacy project migration", () => {
@@ -383,6 +1164,7 @@ describe("projectRepository", () => {
 
       const loaded = loadStorageState(storage);
 
+      expect(loaded.version).toBe(2);
       expect(loaded.projects).toHaveLength(1);
       expect(loaded.activeProjectId).toBe(loaded.projects[0].identity.id);
       expect(loaded.projects[0].identity.projectName).toBe("Legacy App");
@@ -411,14 +1193,14 @@ describe("projectRepository", () => {
       const storage = new MemoryStorage();
       storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ metadata: { id: "orphaned" } }));
 
-      expect(loadStorageState(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
+      expect(loadStorageState(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
     });
 
     it("discards an unparsable legacy record instead of crashing", () => {
       const storage = new MemoryStorage();
       storage.setItem(LEGACY_STORAGE_KEY, "{not-valid-json");
 
-      expect(loadStorageState(storage)).toEqual({ version: 1, activeProjectId: null, projects: [] });
+      expect(loadStorageState(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
       expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     });
 
@@ -446,9 +1228,9 @@ describe("projectRepository", () => {
       });
 
       try {
-        expect(loadStorageState()).toEqual({ version: 1, activeProjectId: null, projects: [] });
-        expect(() => saveStorageState({ version: 1, activeProjectId: null, projects: [] })).not.toThrow();
-        expect(resetStorage()).toEqual({ version: 1, activeProjectId: null, projects: [] });
+        expect(loadStorageState()).toEqual({ version: 2, activeProjectId: null, projects: [] });
+        expect(() => saveStorageState({ version: 2, activeProjectId: null, projects: [] })).not.toThrow();
+        expect(resetStorage()).toEqual({ version: 2, activeProjectId: null, projects: [] });
       } finally {
         if (originalDescriptor) {
           Object.defineProperty(window, "localStorage", originalDescriptor);

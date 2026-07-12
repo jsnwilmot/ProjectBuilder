@@ -1,17 +1,17 @@
-import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
-import { GENERATED_FILES } from "../data/generatedFiles";
+import { CORE_DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import type { ProjectRecord } from "../types/project";
 import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
 import { getClientReviewReadiness } from "./clientReview";
 import { countPackageMissingMarkers } from "./documentReview";
+import { expectedDocumentLocations } from "./powerPlatform";
 
 export const EXPORT_MANIFEST_PATH = "00_Project_Overview/EXPORT_MANIFEST.md";
-export const EXPORT_SCHEMA_VERSION = 1;
+export const EXPORT_SCHEMA_VERSION = 2;
 
 export interface ExportManifestSummary {
   schemaVersion: number;
   rootFolder: string;
-  coreFileCount: number;
+  expectedFileCount: number;
   missingMarkerCount: number;
   readiness: "Draft" | "Ready for Codex";
   manifestPath: string;
@@ -75,7 +75,9 @@ export function validateExportPackage(
   const extraFiles: string[] = [];
   const unsafePaths: string[] = [];
   const duplicatePaths: string[] = [];
-  const expectedFileCount = GENERATED_FILES.length;
+  const expectedLocations = project ? expectedDocumentLocations(project) : CORE_DOCUMENT_LOCATIONS;
+  const expectedFiles = expectedLocations.map((location) => location.fileName);
+  const expectedFileCount = expectedFiles.length;
 
   if (!project) {
     errors.push("No active project is available to export.");
@@ -85,7 +87,7 @@ export function validateExportPackage(
       warnings,
       fileCount: 0,
       expectedFileCount,
-      missingFiles: [...GENERATED_FILES],
+      missingFiles: [...expectedFiles],
       extraFiles,
       unsafePaths,
       duplicatePaths,
@@ -94,7 +96,7 @@ export function validateExportPackage(
       manifestSummary: {
         schemaVersion: EXPORT_SCHEMA_VERSION,
         rootFolder: "untitled-project",
-        coreFileCount: 0,
+        expectedFileCount: 0,
         missingMarkerCount: 0,
         readiness: "Draft",
         manifestPath: EXPORT_MANIFEST_PATH
@@ -104,8 +106,8 @@ export function validateExportPackage(
 
   const documents = project.generatedDocuments;
   const rootFolder = sanitizeProjectFolderName(project.identity.projectName);
-  const expectedLocations = new Map<string, string>(
-    DOCUMENT_LOCATIONS.map((location) => [location.fileName, location.folder])
+  const expectedLocationMap = new Map<string, string>(
+    expectedLocations.map((location) => [location.fileName, location.folder])
   );
   const actualNames = new Set(documents.map((document) => document.fileName));
   const pathCounts = new Map<string, number>();
@@ -113,13 +115,13 @@ export function validateExportPackage(
 
   if (documents.length === 0) errors.push("Generate the project package before exporting.");
 
-  for (const fileName of GENERATED_FILES) {
+  for (const fileName of expectedFiles) {
     if (!actualNames.has(fileName)) missingFiles.push(fileName);
   }
 
   for (const document of documents) {
     const rawPath = document.folder ? `${document.folder}/${document.fileName}` : document.fileName;
-    const expectedFolder = expectedLocations.get(document.fileName);
+    const expectedFolder = expectedLocationMap.get(document.fileName);
 
     if (!expectedFolder) extraFiles.push(document.fileName);
     else if (document.folder !== expectedFolder) {
@@ -178,7 +180,7 @@ export function validateExportPackage(
     manifestSummary: {
       schemaVersion: EXPORT_SCHEMA_VERSION,
       rootFolder,
-      coreFileCount: documents.length,
+      expectedFileCount,
       missingMarkerCount,
       readiness,
       manifestPath: EXPORT_MANIFEST_PATH
@@ -186,19 +188,24 @@ export function validateExportPackage(
   };
 }
 
-export function getStableCoreDocuments(project: ProjectRecord) {
+export function getStableExpectedDocuments(project: ProjectRecord) {
   const documentsByName = new Map(project.generatedDocuments.map((document) => [document.fileName, document]));
-  return DOCUMENT_LOCATIONS.map((location) => ({
-    ...documentsByName.get(location.fileName)!,
+  return expectedDocumentLocations(project).map((location) => ({
+    ...(documentsByName.get(location.fileName) ?? { content: "" }),
     fileName: location.fileName,
     folder: location.folder,
     path: `${location.folder}/${location.fileName}`
   }));
 }
 
-export function getStableFolderSummary() {
+export function getStableFolderSummary(project: ProjectRecord) {
+  const expectedByFolder = expectedDocumentLocations(project).reduce((map, location) => {
+    map.set(location.folder, (map.get(location.folder) ?? 0) + 1);
+    return map;
+  }, new Map<string, number>());
+
   return PROJECT_FOLDERS.map((folder) => ({
     folder,
-    coreFileCount: DOCUMENT_LOCATIONS.filter((location) => location.folder === folder).length
+    expectedFileCount: expectedByFolder.get(folder) ?? 0
   }));
 }

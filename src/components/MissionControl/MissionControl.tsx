@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { EXAMPLE_PROJECT_WORKFLOW } from "../../data/onboarding";
-import { DOCUMENT_LOCATIONS } from "../../data/folderStructure";
 import { getClientReviewReadiness } from "../../lib/clientReview";
+import { expectedDocumentLocations } from "../../lib/powerPlatform";
 import {
   getActiveProjectSummary,
   getDashboardWarnings,
@@ -187,6 +187,7 @@ export function MissionControl({
   const activeSummary = getActiveProjectSummary(project);
   const dashboardWarnings = getDashboardWarnings(project);
   const statusExplanations = getStatusExplanations(project);
+  const expectedDocumentCount = expectedDocumentLocations(project).length;
 
   const openNextAction = () => {
     if (nextAction.targetView === "intake") onContinue(nextAction.targetStage ?? nextStep);
@@ -256,7 +257,7 @@ export function MissionControl({
             </div>
             <div className="summary-number">
               <small>Generated documents</small>
-              <strong>{generatedCount} <span>of {DOCUMENT_LOCATIONS.length}</span></strong>
+              <strong>{generatedCount} <span>of {expectedDocumentCount}</span></strong>
               <span>Documents generated</span>
             </div>
           </div>

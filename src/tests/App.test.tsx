@@ -285,7 +285,7 @@ describe("App", () => {
   it("reviews all 19 generated documents with purposes, marker counts, preview, and copy actions", async () => {
     const project = createDraftGeneratedProject(createProject({
       identity: { id: "document-review-ui", projectName: "Document Review UI" },
-      intake: { appType: "Business website" }
+      intake: { appType: "businessWebsite" }
     }));
     seedApp([project]);
     const user = userEvent.setup();
@@ -451,7 +451,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Create New Project" }));
     const projectType = screen.getByRole("combobox", { name: /Project type/i });
     expect(projectType).toBeRequired();
-    await user.selectOptions(projectType, "Business website");
+    await user.selectOptions(projectType, "businessWebsite");
 
     expect(screen.getByText("Use this for service business websites, local business sites, brochure sites, and marketing pages.")).toBeInTheDocument();
     expect(screen.getByLabelText(/Domain status/i)).toBeInTheDocument();
@@ -464,7 +464,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Create New Project" }));
-    await user.selectOptions(screen.getByRole("combobox", { name: /Project type/i }), "Game");
+    await user.selectOptions(screen.getByRole("combobox", { name: /Project type/i }), "game");
 
     expect(screen.getByText("Use this for projects with a gameplay loop, controls, progression, art, audio, levels, or scoring.")).toBeInTheDocument();
     expect(screen.getByLabelText(/Game genre/i)).toBeInTheDocument();

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { GENERATE_STAGE_INDEX, INTAKE_STAGES } from "../../data/intakeStages";
 import {
   getProjectTypeFields,
+  getProjectTypeLabel,
   getProjectTypePreset,
   isBrandingRequired
 } from "../../data/projectTypes";
@@ -317,7 +318,11 @@ function ProjectFieldList({
                 required={field.required}
               >
                 <option value="">{field.placeholder}</option>
-                {field.options?.map((option) => <option key={option} value={option}>{option}</option>)}
+                {field.options?.map((option) => (
+                  <option key={option} value={option}>
+                    {field.name === "appType" ? getProjectTypeLabel(option) : option}
+                  </option>
+                ))}
               </select>
             ) : field.multiline ? (
               <textarea

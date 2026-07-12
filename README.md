@@ -46,17 +46,33 @@ GPT Project Builder turns a rough app idea into a structured project package for
 
 ## MVP persistence
 
-The MVP uses one localStorage key: `gpt-project-builder.storage.v1`. Its versioned schema stores `activeProjectId` and a collection of complete project records. Creating or duplicating a project adds a new record without replacing existing projects. Archived records retain their data, are excluded from the default active list, and can be restored.
+The MVP persists to the current localStorage key `gpt-project-builder.storage.v2`.
+
+Load order is deterministic and safety-first:
+
+1. `gpt-project-builder.storage.v2` (current multi-project store)
+2. `gpt-project-builder.storage.v1` (previous multi-project store, migrated forward to v2)
+3. `gpt-project-builder:project:v1` (legacy single-project store)
+4. Safe empty version-2 state
+
+Migration safeguards:
+
+- The previous v1 key is removed only after a successful write to the v2 key.
+- The legacy single-project key is removed only after a successful write to the v2 key.
+- If the current v2 key is corrupt, the app returns a safe empty v2 state for that load and does not auto-fallback to older keys.
+- If writing the migrated state fails, source keys are retained to avoid data loss.
+
+The versioned schema stores `activeProjectId` and a collection of complete project records. Creating or duplicating a project adds a new record without replacing existing projects. Archived records retain their data, are excluded from the default active list, and can be restored.
 
 Duplicate records receive a new id, current timestamps, `sourceProjectId` and `duplicatedAt` lineage, an `Intake Started` lifecycle state, and no generated documents. Review decisions are reconciled against the copied intake, and the copied package must be regenerated before Ready for Codex. Delete always requires a second confirmation and permanently removes only the selected local record.
 
-If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-1 state instead of crashing. A new or recovered store opens the first-run welcome and does not create demo projects automatically. Opening the example workflow is read-only and does not write to storage.
+If stored JSON is missing, malformed, or incompatible, the repository returns a safe empty version-2 state instead of crashing. A new or recovered store opens the first-run welcome and does not create demo projects automatically. Opening the example workflow is read-only and does not write to storage.
 
 Because there is no backend or authentication in this phase, projects are available only in the browser profile where they were created. Clearing browser storage removes them.
 
 Existing stored free-text app types that do not match a supported preset are cleared during normalization so the user can make an explicit valid selection. Packages generated before the 19-document format remain stored, but they must be regenerated to add the three new required files before Export integrity will pass.
 
-Older stored projects are normalized with safe defaults for the client review workflow. Review decisions are stored in the existing version-1 record. Intake or review changes mark the generated package stale; regenerate after the final review before Ready for Codex can pass.
+Older stored projects are normalized with safe defaults for the client review workflow and migrated into the current version-2 structure. Intake or review changes mark the generated package stale; regenerate after the final review before Ready for Codex can pass.
 
 ## Export packages
 
@@ -65,7 +81,7 @@ Export uses the active project's persisted generated documents. Run **Generate a
 A valid ZIP contains:
 
 - The approved 12-folder structure.
-- Exactly 19 core Markdown documents.
+- The full expected Markdown document set for the project type (core documents plus any required conditional Power Platform documents).
 - `00_Project_Overview/EXPORT_MANIFEST.md` with project identity, status, file diagnostics, warning/error counts, folder summary, and stable file list.
 - `project-manifest.json` with the same machine-readable diagnostics.
 

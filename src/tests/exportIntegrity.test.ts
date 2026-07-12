@@ -16,6 +16,8 @@ describe("validateExportPackage", () => {
     expect(result.errors).toEqual([]);
     expect(result.warnings.some((warning) => warning.includes("missing-information marker"))).toBe(true);
     expect(result.folderMapStatus).toBe("valid");
+    expect(result.manifestSummary.schemaVersion).toBe(2);
+    expect(result.manifestSummary.expectedFileCount).toBe(DOCUMENT_LOCATIONS.length);
     expect(result.manifestSummary.readiness).toBe("Ready for Codex");
   });
 

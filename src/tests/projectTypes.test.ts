@@ -1,26 +1,33 @@
 import {
   PROJECT_TYPE_PRESETS,
   PROJECT_TYPE_VALUES,
+  isProjectType,
+  isSelectableProjectType,
   getProjectTypeFields,
   isBrandingRequired
 } from "../data/projectTypes";
 
 describe("project type presets", () => {
   it("defines every approved project type with complete preset metadata", () => {
-    expect(PROJECT_TYPE_VALUES).toHaveLength(15);
+    expect(PROJECT_TYPE_VALUES).toHaveLength(16);
     expect(PROJECT_TYPE_VALUES).toEqual(expect.arrayContaining([
-      "Static website",
-      "Business website",
-      "Web application",
-      "Mobile app",
-      "Game",
-      "Dashboard or reporting project",
-      "Power Apps or Microsoft 365 app",
-      "Automation or workflow tool",
-      "API or backend service",
-      "E-commerce site",
-      "AI assistant or chatbot"
+      "staticWebsite",
+      "businessWebsite",
+      "webApplication",
+      "mobileApp",
+      "game",
+      "dashboardReporting",
+      "powerAppsCanvas",
+      "powerAppsModelDriven",
+      "automationWorkflow",
+      "apiBackend",
+      "ecommerceSite",
+      "aiAssistantChatbot"
     ]));
+
+    expect(isProjectType("microsoft365")).toBe(true);
+    expect(isSelectableProjectType("microsoft365")).toBe(false);
+    expect(PROJECT_TYPE_VALUES).not.toContain("microsoft365");
 
     for (const preset of PROJECT_TYPE_PRESETS) {
       expect(preset.label).toBeTruthy();
@@ -32,14 +39,14 @@ describe("project type presets", () => {
   });
 
   it("changes relevant fields and branding rules by preset", () => {
-    const websiteFields = getProjectTypeFields("Business website", "Public-facing", "features");
-    const gameFields = getProjectTypeFields("Game", "Public-facing", "features");
+    const websiteFields = getProjectTypeFields("businessWebsite", "Public-facing", "features");
+    const gameFields = getProjectTypeFields("game", "Public-facing", "features");
 
     expect(websiteFields.map((field) => field.name)).toContain("websitePages");
     expect(websiteFields.map((field) => field.name)).not.toContain("gameControls");
     expect(gameFields.map((field) => field.name)).toContain("gameControls");
-    expect(isBrandingRequired("Business website", "Public-facing")).toBe(true);
-    expect(isBrandingRequired("Web application", "Internal")).toBe(false);
-    expect(isBrandingRequired("AI assistant or chatbot", "Public-facing")).toBe(true);
+    expect(isBrandingRequired("businessWebsite", "Public-facing")).toBe(true);
+    expect(isBrandingRequired("webApplication", "Internal")).toBe(false);
+    expect(isBrandingRequired("aiAssistantChatbot", "Public-facing")).toBe(true);
   });
 });

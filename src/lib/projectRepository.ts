@@ -13,6 +13,7 @@ import {
   reviewItemBlocksReadiness,
   updateReviewItemDecision
 } from "./clientReview";
+import { duplicatePowerPlatformForProject } from "./powerPlatform";
 import type {
   GeneratedDocument,
   ProjectInputField,
@@ -22,7 +23,8 @@ import type {
   StorageState
 } from "../types/project";
 
-export const STORAGE_KEY = "gpt-project-builder.storage.v1";
+export const STORAGE_KEY = "gpt-project-builder.storage.v2";
+export const PREVIOUS_STORAGE_KEY = "gpt-project-builder.storage.v1";
 export const LEGACY_STORAGE_KEY = "gpt-project-builder:project:v1";
 
 const STORAGE_UNAVAILABLE_WARNING = "Saving is currently unavailable in this browser context. Keep this tab open to avoid losing unsaved changes.";
@@ -92,6 +94,40 @@ function synchronizeStorageState(state: StorageState): StorageState {
   };
 }
 
+function writeCurrentStorageState(state: StorageState, storage: StorageAdapter): boolean {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return false;
+  }
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(synchronizeStorageState(migrateStorageState(state))));
+    setPersistenceWarning(null);
+    return true;
+  } catch {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return false;
+  }
+}
+
+function migratePreviousVersionedState(storage: StorageAdapter): StorageState | null {
+  const previousStored = storage.getItem(PREVIOUS_STORAGE_KEY);
+  if (!previousStored) return null;
+
+  let migrated: StorageState;
+  try {
+    migrated = synchronizeStorageState(migrateStorageState(JSON.parse(previousStored)));
+  } catch {
+    return null;
+  }
+
+  const wroteCurrentKey = writeCurrentStorageState(migrated, storage);
+  if (wroteCurrentKey) {
+    storage.removeItem(PREVIOUS_STORAGE_KEY);
+  }
+
+  return migrated;
+}
+
 function migrateLegacyProject(storage: StorageAdapter): StorageState | null {
   const legacy = storage.getItem(LEGACY_STORAGE_KEY);
   if (!legacy) return null;
@@ -110,10 +146,17 @@ function migrateLegacyProject(storage: StorageAdapter): StorageState | null {
       reviewStatus: parsed.metadata?.reviewStatus,
       now: parsed.metadata?.lastUpdated
     });
-    const state: StorageState = { version: 1, activeProjectId: project.identity.id, projects: [project] };
-    saveStorageState(state, storage);
-    storage.removeItem(LEGACY_STORAGE_KEY);
-    return synchronizeStorageState(state);
+    const state: StorageState = {
+      version: EMPTY_STORAGE_STATE.version,
+      activeProjectId: project.identity.id,
+      projects: [project]
+    };
+    const synchronized = synchronizeStorageState(state);
+    const wroteCurrentKey = writeCurrentStorageState(synchronized, storage);
+    if (wroteCurrentKey) {
+      storage.removeItem(LEGACY_STORAGE_KEY);
+    }
+    return synchronized;
   } catch {
     storage.removeItem(LEGACY_STORAGE_KEY);
     return null;
@@ -121,28 +164,24 @@ function migrateLegacyProject(storage: StorageAdapter): StorageState | null {
 }
 
 export function loadStorageState(storage: StorageAdapter = browserStorage()): StorageState {
-  try {
-    const stored = storage.getItem(STORAGE_KEY);
-    if (!stored) return migrateLegacyProject(storage) ?? { ...EMPTY_STORAGE_STATE, projects: [] };
-    return synchronizeStorageState(migrateStorageState(JSON.parse(stored)));
-  } catch {
-    // Corrupt or inaccessible browser storage must never prevent the app from loading.
-    return { ...EMPTY_STORAGE_STATE, projects: [] };
+  const currentStored = storage.getItem(STORAGE_KEY);
+  if (currentStored) {
+    try {
+      return synchronizeStorageState(migrateStorageState(JSON.parse(currentStored)));
+    } catch {
+      // Corrupt current storage returns a safe empty state. We do not auto-fallback to older keys in the same load.
+      return { ...EMPTY_STORAGE_STATE, projects: [] };
+    }
   }
+
+  const previousMigrated = migratePreviousVersionedState(storage);
+  if (previousMigrated) return previousMigrated;
+
+  return migrateLegacyProject(storage) ?? { ...EMPTY_STORAGE_STATE, projects: [] };
 }
 
 export function saveStorageState(state: StorageState, storage: StorageAdapter = browserStorage()): void {
-  if (storage === unavailableStorage) {
-    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
-    return;
-  }
-  try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(synchronizeStorageState(migrateStorageState(state))));
-    setPersistenceWarning(null);
-  } catch {
-    // Storage can be unavailable or over quota; the caller remains in a safe in-memory state.
-    setPersistenceWarning(STORAGE_WRITE_WARNING);
-  }
+  writeCurrentStorageState(state, storage);
 }
 
 export function listProjects(storage: StorageAdapter = browserStorage()): ProjectRecord[] {
@@ -188,6 +227,7 @@ export function duplicateProject(
     reviewStatus: "Review needed",
     sourceProjectId: source.identity.id,
     duplicatedAt: now,
+    powerPlatform: duplicatePowerPlatformForProject(source.powerPlatform, source.intake.appType),
     now
   }));
   saveStorageState({
@@ -363,6 +403,7 @@ export function getActiveProject(storage: StorageAdapter = browserStorage()): Pr
 
 export function resetStorage(storage: StorageAdapter = browserStorage()): StorageState {
   storage.removeItem(STORAGE_KEY);
+  storage.removeItem(PREVIOUS_STORAGE_KEY);
   storage.removeItem(LEGACY_STORAGE_KEY);
   return { ...EMPTY_STORAGE_STATE, projects: [] };
 }

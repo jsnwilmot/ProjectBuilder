@@ -17,7 +17,7 @@ const CORE_MODULES = [
 
 export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
   {
-    value: "Static website",
+    value: "staticWebsite",
     label: "Static website",
     description: "A focused informational site with mostly fixed content.",
     helperText: "Use this for informational sites, portfolios, landing pages, and small sites that do not need application workflows.",
@@ -28,7 +28,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Prioritize page structure, content readiness, SEO, accessibility, hosting, and launch assets."]
   },
   {
-    value: "Business website",
+    value: "businessWebsite",
     label: "Business website",
     description: "A public-facing company or service website designed to generate trust and enquiries.",
     helperText: "Use this for service business websites, local business sites, brochure sites, and marketing pages.",
@@ -39,7 +39,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Connect services, service area, conversion paths, local search, trust signals, and brand assets."]
   },
   {
-    value: "Web application",
+    value: "webApplication",
     label: "Web application",
     description: "An interactive browser-based product for internal or public users.",
     helperText: "Use this for browser-based tools with users, data, workflows, forms, dashboards, or permissions.",
@@ -50,7 +50,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Clarify whether the product is internal or public-facing before finalizing branding and deployment guidance."]
   },
   {
-    value: "Mobile app",
+    value: "mobileApp",
     label: "Mobile app",
     description: "A mobile product intended for both iOS and Android unless narrowed later.",
     helperText: "Use this for phone or tablet products that need mobile interactions, permissions, notifications, or app-store delivery.",
@@ -61,7 +61,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Cover mobile permissions, offline behavior, sync, notifications, privacy, and store submission."]
   },
   {
-    value: "Android app",
+    value: "androidApp",
     label: "Android app",
     description: "A native or cross-platform app targeted specifically to Android.",
     helperText: "Use this when Android is the confirmed target and device support, permissions, and Play Store delivery matter.",
@@ -72,7 +72,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Include Android device coverage, permissions, Play Store assets, privacy, and release requirements."]
   },
   {
-    value: "iOS app",
+    value: "iosApp",
     label: "iOS app",
     description: "A native or cross-platform app targeted specifically to Apple mobile devices.",
     helperText: "Use this when iPhone or iPad is the confirmed target and Apple permissions and App Store delivery matter.",
@@ -83,7 +83,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Include Apple device coverage, permissions, App Store assets, privacy, and review requirements."]
   },
   {
-    value: "Game",
+    value: "game",
     label: "Game",
     description: "An interactive game project with gameplay, art, audio, controls, and release needs.",
     helperText: "Use this for projects with a gameplay loop, controls, progression, art, audio, levels, or scoring.",
@@ -94,7 +94,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Treat the gameplay loop, controls, progression, content pipeline, performance, art, audio, and release target as first-class requirements."]
   },
   {
-    value: "Dashboard or reporting project",
+    value: "dashboardReporting",
     label: "Dashboard or reporting project",
     description: "A decision-support product centered on metrics, filters, refreshes, and exports.",
     helperText: "Use this for KPI dashboards, operational reports, scorecards, analytics views, and recurring reporting.",
@@ -105,8 +105,10 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Define KPI calculations, source ownership, refresh behavior, audience, permissions, and export expectations."]
   },
   {
-    value: "Power Apps or Microsoft 365 app",
-    label: "Power Apps or Microsoft 365 app",
+    value: "microsoft365",
+    label: "Power Apps or Microsoft 365 App, Legacy",
+    selectable: false,
+    isLegacy: true,
     description: "An internal Microsoft 365 solution using Power Platform or related services.",
     helperText: "Use this for internal Microsoft 365 solutions using Power Apps, SharePoint, Teams, Dataverse, or Power Automate.",
     recommendedTargetPlatforms: ["Power Apps", "Microsoft Teams", "SharePoint"],
@@ -116,7 +118,33 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Call out environments, connectors, data stores, DLP, licensing assumptions, permissions, flows, and reporting."]
   },
   {
-    value: "Automation or workflow tool",
+    value: "powerAppsCanvas",
+    label: "Power Apps Canvas App",
+    description: "A Power Apps Canvas App with connector-neutral backend selection.",
+    helperText: "Use this when building a Canvas App and confirm the backend during intake. Do not assume Dataverse or premium connectors.",
+    recommendedTargetPlatforms: ["Power Apps Canvas", "Microsoft Teams", "Mobile", "Web"],
+    requiredIntakeModules: [...CORE_MODULES, "microsoft365"],
+    optionalIntakeModules: ["branding", "automation", "dashboard"],
+    brandingRequirementLevel: "optional",
+    suggestedGeneratedDocumentNotes: [
+      "Capture connector choices, licensing assumptions, and schema confirmation before final Power Fx or YAML outputs."
+    ]
+  },
+  {
+    value: "powerAppsModelDriven",
+    label: "Power Apps Model-Driven App",
+    description: "A Dataverse-based model-driven application in a Power Platform solution.",
+    helperText: "Use this when building a model-driven app. Dataverse is required, but access, licensing, environment, and permissions must be confirmed.",
+    recommendedTargetPlatforms: ["Power Apps Model-driven", "Dataverse"],
+    requiredIntakeModules: [...CORE_MODULES, "microsoft365"],
+    optionalIntakeModules: ["branding", "automation", "dashboard"],
+    brandingRequirementLevel: "optional",
+    suggestedGeneratedDocumentNotes: [
+      "Capture Dataverse dependencies, licensing, solution architecture, and maker permissions before implementation readiness."
+    ]
+  },
+  {
+    value: "automationWorkflow",
     label: "Automation or workflow tool",
     description: "A system that moves work between triggers, approvals, systems, and notifications.",
     helperText: "Use this for trigger-based processes, approvals, notifications, scheduled jobs, and work moving between systems.",
@@ -127,7 +155,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Make triggers, ordered steps, approvals, retries, logging, failure recovery, and notification ownership explicit."]
   },
   {
-    value: "API or backend service",
+    value: "apiBackend",
     label: "API or backend service",
     description: "A service contract consumed by other applications or integrations.",
     helperText: "Use this for endpoints, service integrations, data contracts, authentication, and backend processing without a primary user interface.",
@@ -138,7 +166,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Define endpoints, consumers, data contracts, authentication expectations, errors, observability, and versioning."]
   },
   {
-    value: "E-commerce site",
+    value: "ecommerceSite",
     label: "E-commerce site",
     description: "A public website supporting product discovery and online transactions.",
     helperText: "Use this for product catalogues, shopping flows, online orders, payments, and customer account experiences.",
@@ -149,7 +177,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Include catalog structure, conversion flows, trust content, legal pages, transaction boundaries, brand assets, and operational ownership."]
   },
   {
-    value: "AI assistant or chatbot",
+    value: "aiAssistantChatbot",
     label: "AI assistant or chatbot",
     description: "A conversational assistant for internal teams or public users.",
     helperText: "Use this for conversational tools that need clear knowledge boundaries, data handling, safety, and human escalation.",
@@ -160,7 +188,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["State audience visibility, conversation boundaries, data handling, human escalation, tone, safety, and approved integrations."]
   },
   {
-    value: "Desktop software",
+    value: "desktopSoftware",
     label: "Desktop software",
     description: "Installed software for Windows, macOS, or Linux.",
     helperText: "Use this for installed Windows, macOS, or Linux software with local storage, permissions, updates, or offline behavior.",
@@ -171,7 +199,7 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
     suggestedGeneratedDocumentNotes: ["Clarify operating systems, installation, updates, local storage, permissions, and whether the product is public-facing."]
   },
   {
-    value: "Other digital project",
+    value: "otherDigitalProject",
     label: "Other digital project",
     description: "A digital product that does not fit the listed presets.",
     helperText: "Use this only when none of the listed presets describe the project; platform and delivery assumptions will need explicit review.",
@@ -183,11 +211,36 @@ export const PROJECT_TYPE_PRESETS: readonly ProjectTypePreset[] = [
   }
 ];
 
-export const PROJECT_TYPE_VALUES = PROJECT_TYPE_PRESETS.map((preset) => preset.value);
+export const ALL_PROJECT_TYPE_VALUES = PROJECT_TYPE_PRESETS.map((preset) => preset.value);
+
+export const PROJECT_TYPE_VALUES = PROJECT_TYPE_PRESETS
+  .filter((preset) => preset.selectable !== false)
+  .map((preset) => preset.value);
 
 const presetMap = new Map<ProjectType, ProjectTypePreset>(
   PROJECT_TYPE_PRESETS.map((preset) => [preset.value, preset])
 );
+
+const LEGACY_PROJECT_TYPE_ALIASES: Readonly<Record<string, ProjectType>> = {
+  "Static website": "staticWebsite",
+  "Business website": "businessWebsite",
+  "Web application": "webApplication",
+  "Mobile app": "mobileApp",
+  "Android app": "androidApp",
+  "iOS app": "iosApp",
+  "Game": "game",
+  "Dashboard or reporting project": "dashboardReporting",
+  "Power Apps or Microsoft 365 app": "microsoft365",
+  "Power Apps or Microsoft 365 App, Legacy": "microsoft365",
+  "Power Apps Canvas App": "powerAppsCanvas",
+  "Power Apps Model-Driven App": "powerAppsModelDriven",
+  "Automation or workflow tool": "automationWorkflow",
+  "API or backend service": "apiBackend",
+  "E-commerce site": "ecommerceSite",
+  "AI assistant or chatbot": "aiAssistantChatbot",
+  "Desktop software": "desktopSoftware",
+  "Other digital project": "otherDigitalProject"
+};
 
 export const AUDIENCE_VISIBILITY_OPTIONS = [
   "Public-facing",
@@ -349,8 +402,23 @@ export function isProjectType(value: string): value is ProjectType {
   return presetMap.has(value as ProjectType);
 }
 
+export function isSelectableProjectType(value: string): value is ProjectType {
+  const preset = getProjectTypePreset(value);
+  return Boolean(preset && preset.selectable !== false);
+}
+
 export function getProjectTypePreset(value: string): ProjectTypePreset | null {
   return isProjectType(value) ? presetMap.get(value) ?? null : null;
+}
+
+export function getProjectTypeLabel(value: string): string {
+  return getProjectTypePreset(value)?.label ?? value;
+}
+
+export function normalizeProjectTypeValue(value: string): ProjectType | "" {
+  if (!value.trim()) return "";
+  if (isProjectType(value)) return value;
+  return LEGACY_PROJECT_TYPE_ALIASES[value] ?? "";
 }
 
 export function isBrandingRequired(projectType: string, audienceVisibility: string): boolean {

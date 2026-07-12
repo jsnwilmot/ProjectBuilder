@@ -12,7 +12,7 @@ export function createSeedProject(): ProjectRecord {
       businessName: "Community Programs"
     },
     intake: {
-      appType: "Web application",
+      appType: "webApplication",
       appPurpose: "Give residents one place to discover local programs and submit service requests.",
       problemStatement: "Program information and service requests are spread across disconnected pages, email inboxes, and spreadsheets.",
       targetPlatform: "Desktop and mobile web browsers",

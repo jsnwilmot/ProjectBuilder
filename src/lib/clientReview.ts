@@ -160,8 +160,8 @@ function makeItem(
 }
 
 function screensAreRelevant(project: ProjectRecord): boolean {
-  return project.intake.appType !== "API or backend service"
-    && project.intake.appType !== "Automation or workflow tool";
+  return project.intake.appType !== "apiBackend"
+    && project.intake.appType !== "automationWorkflow";
 }
 
 export function deriveReviewItems(project: ProjectRecord, now = new Date().toISOString()): ReviewItem[] {

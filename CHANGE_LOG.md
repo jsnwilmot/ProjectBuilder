@@ -1,5 +1,52 @@
 # Change Log
 
+## 2026-07-12 — Phase 2 Corrections: Storage Migration and Power Platform State Safety
+
+### Summary
+
+- Implemented deterministic storage load precedence and safe migration behavior across current, previous, and legacy keys.
+- Corrected legacy single-project migration to write version-2 state and retain source keys when migration writes fail.
+- Added Power Platform duplication safeguards: deep-cloned copied state and reset implementation-progress gates to review-needed or not-started.
+- Added app-type transition reconciliation so Power Platform structures are rebuilt safely when switching between Canvas and Model-driven presets.
+- Replaced static export folder summary counts with dynamic expected-file counts per project.
+- Updated README persistence/export guidance to match v2 storage, migration safety semantics, and project-aware expected document sets.
+- Regenerated correction verification ZIP outside the repository and kept in-repo ZIP artifacts removed.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` — previous-key migration, safe write/delete semantics, legacy migration version correction, duplication PP copy hook, and reset cleanup for all known keys.
+- `src/lib/powerPlatform.ts` — project-type reconciliation helpers and duplication-safe Power Platform clone/progress reset utilities.
+- `src/lib/projectFields.ts` — app-type change flow now reconciles Power Platform structures.
+- `src/lib/exportIntegrity.ts` and `src/lib/exportManifest.ts` — dynamic folder summary expected counts and export schema v2.
+- `src/tests/projectRepository.test.ts` — migration precedence/safety, key-retention on failed writes, reset key cleanup, duplication deep-copy/progress reset, and app-type transition reconciliation tests.
+- `src/tests/exportManifest.test.ts`, `src/tests/exportIntegrity.test.ts`, and `src/tests/exportProjectPackage.test.ts` — schema/version and dynamic expected-count assertions.
+- `README.md` — corrected storage/migration and export expectations.
+- `CHANGE_LOG.md` — this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` — passed.
+- `npm.cmd test` — passed (`15` files, `162` tests).
+- `npm.cmd run build` — passed, including TypeScript checking and Vite production bundle output.
+- Verified old in-repo review ZIP is absent.
+- Generated corrected archive: `C:\Users\Jason\OneDrive\DEVELOPMENT\PHASE2_CORRECTED_REVIEW_2026-07-11.zip`.
+
+### Issues found
+
+- Initial syntax regressions in `src/tests/projectRepository.test.ts` from callback patching were detected by lint/build and corrected.
+
+### Remaining work
+
+- None identified for this correction scope.
+
 ## 2026-07-04 — Deployment Operations Lockdown
 
 ### Summary

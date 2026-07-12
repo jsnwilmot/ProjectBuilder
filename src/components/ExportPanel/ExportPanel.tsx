@@ -3,6 +3,7 @@ import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../../data/folderStructure"
 import { PACKAGE_USAGE_STEPS } from "../../data/packageGuidance";
 import { createProjectArchive, downloadArchive } from "../../lib/exportProjectPackage";
 import { validateExportPackage } from "../../lib/exportIntegrity";
+import { expectedDocumentLocations } from "../../lib/powerPlatform";
 import { copyText } from "../../lib/copyText";
 import type { ProjectPackage, ProjectRecord } from "../../types/project";
 import { Check, CircleAlert, Copy, Download, FileText, FolderArchive } from "../ui/Icons";
@@ -43,6 +44,7 @@ export function ExportPanel({
   onOpenGenerate
 }: ExportPanelProps) {
   const integrity = useMemo(() => validateExportPackage(project), [project]);
+  const expectedLocations = useMemo(() => project ? expectedDocumentLocations(project) : DOCUMENT_LOCATIONS, [project]);
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [lastAttempt, setLastAttempt] = useState<ExportAttempt | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
@@ -217,7 +219,7 @@ export function ExportPanel({
           <div className="folder-tree" aria-label="Export folder structure">
             <div className="tree-root"><FolderArchive size={18} />{integrity.manifestSummary.rootFolder}/</div>
             {PROJECT_FOLDERS.map((folder) => {
-              const fileCount = DOCUMENT_LOCATIONS.filter((document) => document.folder === folder).length;
+              const fileCount = expectedLocations.filter((document) => document.folder === folder).length;
               return (
                 <div className="tree-folder" key={folder}>
                   <FolderArchive size={16} />

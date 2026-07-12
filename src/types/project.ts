@@ -20,7 +20,7 @@ export const REVIEW_STATUSES = [
 ] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
-export type StorageVersion = 1;
+export type StorageVersion = 1 | 2;
 
 export const REVIEW_ITEM_STATUSES = [
   "Needs answer",
@@ -62,21 +62,287 @@ export type ReadinessChecklistId = (typeof READINESS_CHECKLIST_IDS)[number];
 export type ReadinessConfirmations = Partial<Record<ReadinessChecklistId, boolean>>;
 
 export type ProjectType =
-  | "Static website"
-  | "Business website"
-  | "Web application"
-  | "Mobile app"
-  | "Android app"
-  | "iOS app"
-  | "Game"
-  | "Dashboard or reporting project"
-  | "Power Apps or Microsoft 365 app"
-  | "Automation or workflow tool"
-  | "API or backend service"
-  | "E-commerce site"
-  | "AI assistant or chatbot"
-  | "Desktop software"
-  | "Other digital project";
+  | "staticWebsite"
+  | "businessWebsite"
+  | "webApplication"
+  | "mobileApp"
+  | "androidApp"
+  | "iosApp"
+  | "game"
+  | "dashboardReporting"
+  | "microsoft365"
+  | "powerAppsCanvas"
+  | "powerAppsModelDriven"
+  | "automationWorkflow"
+  | "apiBackend"
+  | "ecommerceSite"
+  | "aiAssistantChatbot"
+  | "desktopSoftware"
+  | "otherDigitalProject";
+
+export type PowerAppsCanvasSubtype =
+  | "blankResponsive"
+  | "tablet"
+  | "phone"
+  | "sharePointCustomized"
+  | "teamsEmbedded"
+  | "sharePointOnline"
+  | "microsoftLists"
+  | "dataverse"
+  | "otherConnector"
+  | "multipleDataSources"
+  | "customPage"
+  | "other";
+
+export type PowerAppsModelDrivenSubtype =
+  | "standardBusiness"
+  | "departmental"
+  | "caseManagement"
+  | "requestManagement"
+  | "assetInventory"
+  | "projectTracking"
+  | "complianceAudit"
+  | "customPages"
+  | "powerAutomate"
+  | "pcf"
+  | "pluginsCustomApis"
+  | "other";
+
+export type ConnectorClassification =
+  | "standard"
+  | "premium"
+  | "custom"
+  | "unknown"
+  | "notApplicable";
+
+export type ConnectorOperation =
+  | "read"
+  | "create"
+  | "update"
+  | "delete"
+  | "archive"
+  | "restore"
+  | "upload"
+  | "download";
+
+export type CanvasDataSourceType =
+  | "sharePointList"
+  | "sharePointLibrary"
+  | "microsoftList"
+  | "dataverse"
+  | "excel"
+  | "sqlServer"
+  | "microsoft365Connector"
+  | "customConnector"
+  | "externalApi"
+  | "otherConnector"
+  | "multiple"
+  | "undecided";
+
+export type PowerPlatformGateStatus =
+  | "notStarted"
+  | "missingInformation"
+  | "blocked"
+  | "reviewNeeded"
+  | "confirmed"
+  | "ready"
+  | "inProgress"
+  | "manualValidationRequired"
+  | "passed"
+  | "failed"
+  | "notApplicable";
+
+export interface PowerPlatformConnector {
+  id: string;
+  displayName: string;
+  purpose: string;
+  dataSourceName: string;
+  dataSourceType: string;
+  connectorClassification: ConnectorClassification;
+  classificationConfirmed: boolean;
+  licenceRequirement: string;
+  licensingConfirmed: boolean;
+  authenticationMethod: string;
+  gatewayRequirement: string;
+  environmentRequirement: string;
+  dlpImpact: string;
+  delegationSupport: string;
+  expectedRecordVolume: string;
+  supportedOperations: Partial<Record<ConnectorOperation, boolean>>;
+  offlineSupport: string;
+  securityNotes: string;
+  limitations: string;
+  approvalStatus: string;
+}
+
+export interface PowerPlatformCommonData {
+  appSubtype: PowerAppsCanvasSubtype | PowerAppsModelDrivenSubtype | "";
+  tenant: string;
+  environment: string;
+  environmentType: string;
+  developmentEnvironment: string;
+  testEnvironment: string;
+  productionEnvironment: string;
+  businessOwner: string;
+  appOwner: string;
+  technicalOwner: string;
+  supportOwner: string;
+  expectedUserCount: string;
+  existingLicences: string;
+  licensingStatus: string;
+  licensingAssumptions: string;
+  outstandingLicensingDecisions: string;
+  solutionAware: string;
+  solutionName: string;
+  solutionUniqueName: string;
+  publisherName: string;
+  publisherPrefix: string;
+  sourceControlApproach: string;
+  almApproach: string;
+  deploymentMethod: string;
+  authenticationRequirements: string;
+  authorizationRequirements: string;
+  accessibilityRequirements: string;
+  complianceRequirements: string;
+  dataClassification: string;
+  dataRetentionRequirements: string;
+  auditRequirements: string;
+  connectors: PowerPlatformConnector[];
+}
+
+export interface PowerPlatformCanvasData {
+  subtype: PowerAppsCanvasSubtype | "";
+  responsiveMode: string;
+  targetDevices: string;
+  targetScreenSizes: string;
+  orientation: string;
+  controlGeneration: string;
+  primaryDataSourceType: CanvasDataSourceType;
+  primaryConnectorId: string;
+  secondaryConnectorIds: string[];
+  sharePointSites: string;
+  sharePointLists: string;
+  sharePointLibraries: string;
+  dataverseTables: string;
+  otherDataSources: string;
+  expectedRecordCounts: string;
+  offlineRequirements: string;
+  synchronizationRequirements: string;
+  attachmentRequirements: string;
+  fileRequirements: string;
+  screens: string;
+  containers: string;
+  components: string;
+  controls: string;
+  namedFormulas: string;
+  globalVariables: string;
+  contextVariables: string;
+  collections: string;
+  schemaStatus: string;
+  internalNameStatus: string;
+  logicalNameStatus: string;
+  powerFxStatus: string;
+  yamlStatus: string;
+  delegationStatus: string;
+  manualInstallationStatus: string;
+  studioValidationStatus: string;
+  publicationStatus: string;
+  deploymentStatus: string;
+}
+
+export interface PowerPlatformModelDrivenData {
+  subtype: PowerAppsModelDrivenSubtype | "";
+  dataverseAvailability: string;
+  modelDrivenLicensingStatus: string;
+  environmentAccessStatus: string;
+  solutionPermissionStatus: string;
+  tableCreationPermissionStatus: string;
+  importPermissionStatus: string;
+  deploymentPermissionStatus: string;
+  solutionArchitecture: string;
+  tables: string;
+  columns: string;
+  relationships: string;
+  choices: string;
+  forms: string;
+  views: string;
+  charts: string;
+  dashboards: string;
+  appPages: string;
+  navigation: string;
+  customPages: string;
+  businessRules: string;
+  businessProcessFlows: string;
+  automations: string;
+  securityRoles: string;
+  teams: string;
+  fieldSecurityProfiles: string;
+  environmentVariables: string;
+  connectionReferences: string;
+  webResources: string;
+  plugins: string;
+  customApis: string;
+  pcfControls: string;
+  schemaStatus: string;
+  logicalNameStatus: string;
+  solutionArchitectureStatus: string;
+  solutionSourceStatus: string;
+  securityReviewStatus: string;
+  almReadinessStatus: string;
+  manualConfigurationStatus: string;
+  testingStatus: string;
+  importStatus: string;
+  publicationStatus: string;
+  deploymentStatus: string;
+}
+
+export interface PowerPlatformProgress {
+  connectorSelection: PowerPlatformGateStatus;
+  connectorClassification: PowerPlatformGateStatus;
+  licensing: PowerPlatformGateStatus;
+  environment: PowerPlatformGateStatus;
+  schema: PowerPlatformGateStatus;
+  nameConfirmation: PowerPlatformGateStatus;
+  securityReview: PowerPlatformGateStatus;
+  testing: PowerPlatformGateStatus;
+  manualImplementation: PowerPlatformGateStatus;
+  deployment: PowerPlatformGateStatus;
+  canvas: {
+    sharePointSchema: PowerPlatformGateStatus;
+    dataverseSchema: PowerPlatformGateStatus;
+    connectorSchema: PowerPlatformGateStatus;
+    internalNames: PowerPlatformGateStatus;
+    logicalNames: PowerPlatformGateStatus;
+    powerFx: PowerPlatformGateStatus;
+    yaml: PowerPlatformGateStatus;
+    delegation: PowerPlatformGateStatus;
+    studioValidation: PowerPlatformGateStatus;
+    publication: PowerPlatformGateStatus;
+  };
+  modelDriven: {
+    dataverseAvailability: PowerPlatformGateStatus;
+    modelDrivenLicensing: PowerPlatformGateStatus;
+    publisher: PowerPlatformGateStatus;
+    dataverseSchema: PowerPlatformGateStatus;
+    logicalNames: PowerPlatformGateStatus;
+    solutionArchitecture: PowerPlatformGateStatus;
+    solutionComponents: PowerPlatformGateStatus;
+    securityRoles: PowerPlatformGateStatus;
+    automation: PowerPlatformGateStatus;
+    extensions: PowerPlatformGateStatus;
+    sourceAvailability: PowerPlatformGateStatus;
+    solutionValidation: PowerPlatformGateStatus;
+    solutionImport: PowerPlatformGateStatus;
+    publication: PowerPlatformGateStatus;
+  };
+}
+
+export interface PowerPlatformProjectData {
+  common: PowerPlatformCommonData;
+  canvas?: PowerPlatformCanvasData;
+  modelDriven?: PowerPlatformModelDrivenData;
+  progress: PowerPlatformProgress;
+}
 
 export type BrandingRequirementLevel = "required" | "optional" | "conditional";
 
@@ -99,6 +365,8 @@ export type IntakeModuleId =
 export interface ProjectTypePreset {
   value: ProjectType;
   label: string;
+  selectable?: boolean;
+  isLegacy?: boolean;
   description: string;
   helperText: string;
   recommendedTargetPlatforms: readonly string[];
@@ -359,6 +627,7 @@ export interface ProjectRecord {
   archivedAt: string | null;
   sourceProjectId: string | null;
   duplicatedAt: string | null;
+  powerPlatform?: PowerPlatformProjectData;
   createdAt: string;
   updatedAt: string;
 }
