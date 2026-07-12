@@ -14,6 +14,7 @@ import type {
 } from "../types/project";
 import { getFirstIncompleteStep, validateIntake } from "./validateIntake";
 import { getClientReviewReadiness } from "./clientReview";
+import { calculatePowerPlatformReadiness } from "./powerPlatform";
 
 const readinessDefinitions = [
   { id: "requirements", label: "Requirements", steps: [0, 1, 2] },
@@ -133,6 +134,7 @@ export function getNextAction(project: ProjectRecord): string {
 export function getNextActionDetails(project: ProjectRecord): DashboardNextAction {
   const validation = validateIntake(project);
   const readiness = getClientReviewReadiness(project);
+  const powerPlatformReadiness = calculatePowerPlatformReadiness(project);
   const step = getFirstIncompleteStep(project);
 
   if (getGeneratedFileCount(project) > 0) {
@@ -152,6 +154,23 @@ export function getNextActionDetails(project: ProjectRecord): DashboardNextActio
   }
 
   if (validation.isValid) {
+    if (!powerPlatformReadiness.isReadyForCodex && powerPlatformReadiness.projectType !== "none") {
+      const action = powerPlatformReadiness.nextBlockingAction;
+      const normalizedAction = action.toLowerCase();
+      const targetStage = normalizedAction.includes("environment") || normalizedAction.includes("licens")
+        ? 0
+        : normalizedAction.includes("security") || normalizedAction.includes("testing")
+          ? 5
+          : normalizedAction.includes("solution architecture")
+            ? 4
+            : 3;
+      return {
+        label: action,
+        description: "Resolve the next Power Platform readiness gate before marking the package Ready for Codex.",
+        targetView: "intake",
+        targetStage
+      };
+    }
     return {
       label: "Generate project package",
       description: "Generate and persist all project package documents.",

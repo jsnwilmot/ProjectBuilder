@@ -13,6 +13,7 @@ import type {
   IntakeFieldDefinition,
   IntakeValidationResult,
   ProjectInputField,
+  PowerPlatformProjectData,
   ProjectRecord,
   ReadinessChecklistId,
   ReviewItem,
@@ -21,6 +22,7 @@ import type {
 import { ArrowLeft, ArrowRight, Check, CircleAlert } from "../ui/Icons";
 import { ClientReviewWorkflow } from "../ClientReview/ClientReviewWorkflow";
 import { PostGenerationGuidance } from "../Onboarding/PostGenerationGuidance";
+import { PowerPlatformIntake } from "./PowerPlatformIntake";
 
 interface IntakeBuilderProps {
   project: ProjectRecord;
@@ -29,6 +31,9 @@ interface IntakeBuilderProps {
   validationIssues: ValidationIssue[];
   onStepChange: (step: number) => void;
   onUpdate: (changes: Partial<Record<ProjectInputField, string>>) => void;
+  onUpdatePowerPlatform: (
+    updater: (current: PowerPlatformProjectData | undefined, project: ProjectRecord) => PowerPlatformProjectData | undefined
+  ) => void;
   onUpdateReviewItem: (
     reviewItemId: string,
     changes: Partial<Pick<ReviewItem, "status" | "notApplicableReason" | "deferredReason">>
@@ -46,6 +51,7 @@ export function IntakeBuilder({
   validationIssues,
   onStepChange,
   onUpdate,
+  onUpdatePowerPlatform,
   onUpdateReviewItem,
   onToggleReadiness,
   onGenerate,
@@ -223,7 +229,9 @@ export function IntakeBuilder({
               ) : null}
               <PostGenerationGuidance />
               <div className="form-actions" style={{ marginTop: "18px", paddingInline: 0, borderTop: "0", background: "transparent" }}>
-                <button className="button button-primary" onClick={onGenerate}>Generate and save package</button>
+                <button className="button button-primary" onClick={onGenerate}>
+                  {clientReviewReadiness.isReady ? "Generate ready package" : "Generate draft package"}
+                </button>
                 <button className="button button-secondary" onClick={onOpenDocuments}>Open generated documents</button>
                 <button className="button button-secondary" onClick={onOpenExport}>Open export</button>
               </div>
@@ -251,6 +259,11 @@ export function IntakeBuilder({
                   />
                 </section>
               ) : null}
+              <PowerPlatformIntake
+                project={project}
+                stageId={step.id}
+                onUpdatePowerPlatform={onUpdatePowerPlatform}
+              />
             </>
           ) : (
             <div className="generate-stage" />

@@ -15,6 +15,36 @@ import type {
   ValidationWarning
 } from "../types/project";
 import { getProjectFieldValue } from "./projectFields";
+import {
+  calculateCanvasDataverseSchemaGate,
+  calculateConnectorClassificationGate,
+  calculateConnectorSelectionGate,
+  calculateEnvironmentGate,
+  calculateInternalNameGate,
+  calculateLicensingGate,
+  calculateLogicalNameGate,
+  calculateAlmGate,
+  calculateModelDrivenBusinessLogicGate,
+  calculateModelDrivenDataverseSchemaGate,
+  calculateModelDrivenEligibilityGate,
+  calculateModelDrivenExtensionsGate,
+  calculateModelDrivenExternalConnectorClassificationGate,
+  calculateModelDrivenExternalConnectorLicensingGate,
+  calculateModelDrivenExternalConnectorSelectionGate,
+  calculateModelDrivenFormsAndViewsGate,
+  calculateModelDrivenNavigationGate,
+  calculateModelDrivenSecurityArchitectureGate,
+  calculateOtherConnectorSchemaGate,
+  calculateSecurityReviewGate,
+  calculateSharePointSchemaGate,
+  calculateTestingPreparationGate,
+  isCanvasProject,
+  isModelDrivenProject,
+  usesDataverse,
+  usesOtherConnector,
+  usesSharePoint
+} from "./powerPlatform";
+import type { PowerPlatformGateStatus } from "../types/project";
 
 const fieldLabels = new Map(
   [
@@ -52,6 +82,11 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
   const isDashboard = preset?.requiredIntakeModules.includes("dashboard") ?? false;
   const isAutomation = preset?.requiredIntakeModules.includes("automation") ?? false;
   const isApi = preset?.requiredIntakeModules.includes("api") ?? false;
+  const isPowerPlatform = isCanvasProject(project) || isModelDrivenProject(project);
+
+  const gateIsResolved = (gate: PowerPlatformGateStatus): boolean => gate === "confirmed" || gate === "notApplicable";
+  const gateIssue = (field: ProjectInputField, label: string, message: string, gateIsReady: boolean): ValidationIssue[] =>
+    gateIsReady ? [] : [{ field, label, message }];
 
   if (stageId === "foundation") {
     const issues: ValidationIssue[] = [];
@@ -78,6 +113,22 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     }
     if (isGame && !project.intake.gameTargetDevices.trim() && !project.intake.targetPlatform.trim()) {
       issues.push(missing("gameTargetDevices", "Target devices or target platform are required for game projects."));
+    }
+    if (isPowerPlatform) {
+      issues.push(
+        ...gateIssue(
+          "m365Environment",
+          "Power Platform environment",
+          "Power Platform projects require tenant, environment, and access status before readiness can pass.",
+          calculateEnvironmentGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "m365Connectors",
+          "Power Platform licensing",
+          "Confirm Power Apps licensing, Dataverse availability where applicable, and connector licensing before Codex readiness.",
+          calculateLicensingGate(project) === "confirmed"
+        )
+      );
     }
     return issues;
   }
@@ -165,6 +216,104 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     if (isApi && !project.intake.dataContracts.trim()) {
       issues.push(missing("dataContracts", "Data contracts are required for API or backend projects."));
     }
+    if (isCanvasProject(project)) {
+      issues.push(
+        ...gateIssue(
+          "dataSources",
+          "Canvas primary data source",
+          "Confirm the primary Canvas data source. The default remains undecided until selected.",
+          calculateConnectorSelectionGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "m365Connectors",
+          "Connector classification",
+          "Classify each connector as standard, premium, custom, or not applicable and confirm classification.",
+          calculateConnectorClassificationGate(project) === "confirmed"
+        )
+      );
+      if (usesSharePoint(project)) {
+        issues.push(
+          ...gateIssue(
+            "sharePointLists",
+            "SharePoint schema",
+            "SharePoint or Microsoft Lists projects require site/list/library schema before Ready for Codex.",
+            calculateSharePointSchemaGate(project) === "confirmed"
+          ),
+          ...gateIssue(
+            "keyFields",
+            "SharePoint internal column names",
+            "SharePoint schema must include confirmed internal column names, not display names only.",
+            calculateInternalNameGate(project) === "confirmed"
+          )
+        );
+      }
+      if (usesDataverse(project)) {
+        issues.push(
+          ...gateIssue(
+            "dataverseUse",
+            "Canvas Dataverse schema",
+            "Canvas Dataverse projects require environment, solution/table schema, and confirmed logical names.",
+            calculateCanvasDataverseSchemaGate(project) === "confirmed"
+          ),
+          ...gateIssue(
+            "fields",
+            "Dataverse logical names",
+            "Dataverse fields must include confirmed logical names before Codex-ready prompts are prepared.",
+            calculateLogicalNameGate(project) === "confirmed"
+          )
+        );
+      }
+      if (usesOtherConnector(project)) {
+        issues.push(
+          ...gateIssue(
+            "m365Connectors",
+            "Other connector schema",
+            "Custom, external, or other connectors require schema, fields, and confirmation source.",
+            calculateOtherConnectorSchemaGate(project) === "confirmed"
+          )
+        );
+      }
+    }
+    if (isModelDrivenProject(project)) {
+      issues.push(
+        ...gateIssue(
+          "dataverseUse",
+          "Model-driven eligibility",
+          "Model-driven apps require confirmed Dataverse, licensing, environment access, and solution/table permissions.",
+          calculateModelDrivenEligibilityGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "fields",
+          "Model-driven Dataverse schema",
+          "Model-driven apps require confirmed solution, publisher, table, column, relationship, and security-role schema.",
+          calculateModelDrivenDataverseSchemaGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "keyFields",
+          "Dataverse logical names",
+          "Model-driven table and column logical names must be confirmed before Codex-ready prompts are prepared.",
+          calculateLogicalNameGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "m365Connectors",
+          "External connector selection",
+          "External model-driven connectors are optional, but each connector requires purpose, source, authentication, gateway, DLP, and approval details when present.",
+          gateIsResolved(calculateModelDrivenExternalConnectorSelectionGate(project))
+        ),
+        ...gateIssue(
+          "m365Connectors",
+          "External connector classification",
+          "External model-driven connector classification must be explicitly confirmed when connectors exist.",
+          gateIsResolved(calculateModelDrivenExternalConnectorClassificationGate(project))
+        ),
+        ...gateIssue(
+          "m365Connectors",
+          "External connector licensing",
+          "External model-driven connector licensing must be explicitly confirmed when connectors exist.",
+          gateIsResolved(calculateModelDrivenExternalConnectorLicensingGate(project))
+        )
+      );
+    }
     return issues;
   }
 
@@ -197,6 +346,40 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     if (isAutomation && !project.intake.notificationRules.trim()) {
       issues.push(missing("notificationRules", "Notification rules are required for automation projects."));
     }
+    if (isModelDrivenProject(project)) {
+      issues.push(
+        ...gateIssue(
+          "workflows",
+          "Model-driven forms and views",
+          "Model-driven forms, views, charts, dashboards, app pages, and custom pages require confirmed requirements or applicability decisions.",
+          calculateModelDrivenFormsAndViewsGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "workflows",
+          "Model-driven navigation",
+          "Model-driven navigation requirements must be confirmed.",
+          calculateModelDrivenNavigationGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "workflows",
+          "Model-driven business logic",
+          "Business rules, business process flows, and automations require confirmed requirements or valid not-applicable decisions.",
+          calculateModelDrivenBusinessLogicGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "workflows",
+          "Model-driven extensions",
+          "Model-driven extension categories require confirmed applicability decisions.",
+          calculateModelDrivenExtensionsGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "workflows",
+          "Model-driven ALM",
+          "Model-driven ALM requires source control, deployment, rollback, release approval, and model-driven ALM readiness confirmation.",
+          calculateAlmGate(project) === "confirmed"
+        )
+      );
+    }
     return issues;
   }
 
@@ -213,6 +396,32 @@ function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationI
     }
     if (isApi && !project.intake.apiAuthentication.trim() && !project.intake.authenticationExpectation.trim()) {
       issues.push(missing("apiAuthentication", "Authentication expectation is required for API or backend projects."));
+    }
+    if (isPowerPlatform) {
+      issues.push(
+        ...gateIssue(
+          "permissionRules",
+          "Power Platform security review",
+          "Power Platform projects require authentication, authorization, record access, audit, and privacy decisions.",
+          calculateSecurityReviewGate(project) === "confirmed"
+        ),
+        ...gateIssue(
+          "successCriteria",
+          "Power Platform testing preparation",
+          "Power Platform projects require functional, connector, permission, accessibility, and deployment testing expectations.",
+          calculateTestingPreparationGate(project) === "confirmed"
+        )
+      );
+    }
+    if (isModelDrivenProject(project)) {
+      issues.push(
+        ...gateIssue(
+          "permissionRules",
+          "Model-driven security architecture",
+          "Model-driven security requires roles, business units, teams, privileges, ownership, sharing, and field security decisions.",
+          calculateModelDrivenSecurityArchitectureGate(project) === "confirmed"
+        )
+      );
     }
     return issues;
   }

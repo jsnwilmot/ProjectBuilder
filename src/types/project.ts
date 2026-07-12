@@ -40,7 +40,33 @@ export const CLIENT_REVIEW_SECTIONS = [
   "Security",
   "Content",
   "Deployment",
-  "Testing"
+  "Testing",
+  "Connector selection",
+  "Connector classification",
+  "Licensing",
+  "Environment",
+  "Data-source schema",
+  "Connector schema",
+  "Internal or logical names",
+  "Screen structure",
+  "Power Fx planning",
+  "YAML planning",
+  "Delegation planning",
+  "Dataverse eligibility",
+  "Dataverse schema",
+  "Solution architecture",
+  "Forms and views",
+  "Navigation",
+  "Security roles",
+  "Business logic",
+  "Business rules",
+  "Business process flows",
+  "Automations",
+  "Extensions",
+  "External connector selection",
+  "External connector classification",
+  "External connector licensing",
+  "ALM"
 ] as const;
 export type ClientReviewSection = (typeof CLIENT_REVIEW_SECTIONS)[number];
 
@@ -56,7 +82,8 @@ export const READINESS_CHECKLIST_IDS = [
   "acceptanceCriteriaReviewed",
   "clientQuestionsResolved",
   "draftPackageReviewed",
-  "codexInstructionsReady"
+  "codexInstructionsReady",
+  "powerPlatformGatesConfirmed"
 ] as const;
 export type ReadinessChecklistId = (typeof READINESS_CHECKLIST_IDS)[number];
 export type ReadinessConfirmations = Partial<Record<ReadinessChecklistId, boolean>>;
@@ -152,16 +179,33 @@ export type PowerPlatformGateStatus =
   | "failed"
   | "notApplicable";
 
+export type PowerPlatformDecisionStatus =
+  | "notStarted"
+  | "missingInformation"
+  | "reviewNeeded"
+  | "confirmed"
+  | "blocked"
+  | "notApplicable";
+
+export type PowerPlatformStatusValue = PowerPlatformDecisionStatus | (string & {});
+
+export type CanvasConnectorRole = "primary" | "secondary" | "";
+
+export type SelectableCanvasDataSourceType = Exclude<CanvasDataSourceType, "multiple" | "undecided">;
+
 export interface PowerPlatformConnector {
   id: string;
   displayName: string;
   purpose: string;
   dataSourceName: string;
   dataSourceType: string;
+  canvasRole?: CanvasConnectorRole;
   connectorClassification: ConnectorClassification;
   classificationConfirmed: boolean;
+  classificationConfirmationStatus?: PowerPlatformStatusValue;
   licenceRequirement: string;
   licensingConfirmed: boolean;
+  licensingConfirmationStatus?: PowerPlatformStatusValue;
   authenticationMethod: string;
   gatewayRequirement: string;
   environmentRequirement: string;
@@ -173,6 +217,158 @@ export interface PowerPlatformConnector {
   securityNotes: string;
   limitations: string;
   approvalStatus: string;
+  approvalConfirmationStatus?: PowerPlatformStatusValue;
+}
+
+export interface SharePointListSchema {
+  id: string;
+  displayName: string;
+  purpose: string;
+  expectedRecordCount: string;
+  attachmentsEnabled: string;
+  versioningExpectation: string;
+  permissionExpectation: string;
+  recordStatusModel: string;
+  archiveBehavior: string;
+  restoreBehavior: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface SharePointColumnSchema {
+  id: string;
+  parentType: "list" | "library" | "";
+  parentId: string;
+  displayName: string;
+  internalName: string;
+  columnType: string;
+  requiredStatus: string;
+  defaultValue: string;
+  choiceValues: string;
+  lookupList: string;
+  lookupColumn: string;
+  personFieldBehavior: string;
+  dateTimeBehavior: string;
+  indexedStatus: string;
+  uniqueValueStatus: string;
+  sensitiveDataStatus: string;
+  notes: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface SharePointLibrarySchema {
+  id: string;
+  displayName: string;
+  purpose: string;
+  folderStructure: string;
+  contentTypes: string;
+  fileTypes: string;
+  fileSizeExpectations: string;
+  uploadBehavior: string;
+  downloadBehavior: string;
+  versioning: string;
+  permissions: string;
+  retention: string;
+  metadataColumnIds: string[];
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface DataverseTableSchema {
+  id: string;
+  displayName: string;
+  pluralDisplayName: string;
+  logicalName: string;
+  schemaName: string;
+  ownershipType: string;
+  primaryNameColumn: string;
+  purpose: string;
+  expectedRecordCount: string;
+  auditStatus: string;
+  searchRequirement: string;
+  securityNotes: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface DataverseColumnSchema {
+  id: string;
+  tableId: string;
+  displayName: string;
+  logicalName: string;
+  schemaName: string;
+  dataType: string;
+  requiredLevel: string;
+  defaultValue: string;
+  choiceDefinition: string;
+  lookupTarget: string;
+  calculatedColumnRequirement: string;
+  formulaColumnRequirement: string;
+  rollupColumnRequirement: string;
+  auditStatus: string;
+  sensitiveDataStatus: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface DataverseRelationshipSchema {
+  id: string;
+  relationshipType: string;
+  parentTableId: string;
+  childTableId: string;
+  parentTable: string;
+  childTable: string;
+  relationshipSchemaName: string;
+  requiredStatus: string;
+  referentialBehavior: string;
+  cascadeBehavior: string;
+  navigationBehavior: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface ConnectorResourceSchema {
+  id: string;
+  connectorId: string;
+  resourceName: string;
+  resourceType: string;
+  purpose: string;
+  keyOrIdentifier: string;
+  authenticationRequirement: string;
+  queryLimitations: string;
+  pagination: string;
+  throttling: string;
+  gatewayRequirement: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface ConnectorFieldSchema {
+  id: string;
+  connectorId: string;
+  resourceId: string;
+  displayName: string;
+  fieldIdentifier: string;
+  fieldType: string;
+  requiredStatus: string;
+  keyStatus: string;
+  relationship: string;
+  readBehavior: string;
+  createBehavior: string;
+  updateBehavior: string;
+  deleteBehavior: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export type PowerPlatformApplicabilityStatus = "required" | "notApplicable" | "undecided";
+
+export interface PowerPlatformApplicabilityDecision {
+  status: PowerPlatformApplicabilityStatus;
+  details: string;
+  notApplicableReason: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
 }
 
 export interface PowerPlatformCommonData {
@@ -183,30 +379,81 @@ export interface PowerPlatformCommonData {
   developmentEnvironment: string;
   testEnvironment: string;
   productionEnvironment: string;
+  environmentAccessStatus: PowerPlatformStatusValue;
+  securityReviewStatus: PowerPlatformStatusValue;
+  testingPlanConfirmationStatus: PowerPlatformStatusValue;
+  almConfirmationStatus: PowerPlatformStatusValue;
+  environmentCreationResponsibility: string;
+  managedEnvironmentRequirement: string;
+  dlpPolicyRequirements: string;
+  administrativeLimitations: string;
   businessOwner: string;
   appOwner: string;
   technicalOwner: string;
   supportOwner: string;
   expectedUserCount: string;
   existingLicences: string;
+  currentPowerAppsLicences: string;
+  currentPowerAutomateLicences: string;
+  dataverseAvailability: PowerPlatformStatusValue;
+  premiumConnectorAvailability: PowerPlatformStatusValue;
+  customConnectorAvailability: PowerPlatformStatusValue;
+  powerBiLicensing: string;
+  pcfRequirements: string;
+  licensingBudgetConstraints: string;
   licensingStatus: string;
   licensingAssumptions: string;
   outstandingLicensingDecisions: string;
+  licensingConfirmationStatus: PowerPlatformStatusValue;
   solutionAware: string;
   solutionName: string;
   solutionUniqueName: string;
   publisherName: string;
   publisherPrefix: string;
   sourceControlApproach: string;
+  gitIntegration: string;
+  powerPlatformCliAvailability: string;
   almApproach: string;
   deploymentMethod: string;
+  deploymentResponsibility: string;
+  deploymentStrategy: string;
+  environmentVariables: string;
+  connectionReferences: string;
+  pipelineRequirements: string;
+  rollbackExpectations: string;
+  releaseApprovalResponsibility: string;
   authenticationRequirements: string;
   authorizationRequirements: string;
+  roleBasedInterfaceExpectations: string;
   accessibilityRequirements: string;
   complianceRequirements: string;
   dataClassification: string;
   dataRetentionRequirements: string;
   auditRequirements: string;
+  recordAccessRules: string;
+  loggingRequirements: string;
+  privacyRequirements: string;
+  keyboardNavigationRequirements: string;
+  screenReaderRequirements: string;
+  accessibleLabelRequirements: string;
+  focusOrderRequirements: string;
+  colourContrastRequirements: string;
+  errorMessageRequirements: string;
+  responsiveTextRequirements: string;
+  mobileAccessibilityRequirements: string;
+  knownAccommodations: string;
+  functionalTesting: string;
+  connectorTesting: string;
+  permissionTesting: string;
+  securityTesting: string;
+  accessibilityTesting: string;
+  performanceTesting: string;
+  volumeTesting: string;
+  integrationTesting: string;
+  regressionTesting: string;
+  userAcceptanceTesting: string;
+  deploymentTesting: string;
+  productionSmokeTesting: string;
   connectors: PowerPlatformConnector[];
 }
 
@@ -216,10 +463,52 @@ export interface PowerPlatformCanvasData {
   targetDevices: string;
   targetScreenSizes: string;
   orientation: string;
+  supportedBrowsers: string;
+  teamsEmbedding: string;
   controlGeneration: string;
+  componentLibraryRequirement: string;
+  customPageRequirement: string;
+  mobileDeviceCapabilities: string;
   primaryDataSourceType: CanvasDataSourceType;
+  selectedDataSourceTypes: SelectableCanvasDataSourceType[];
   primaryConnectorId: string;
   secondaryConnectorIds: string[];
+  secondaryDataSourceDetails: string;
+  sourcePurpose: string;
+  sourceOwnership: string;
+  readWriteResponsibilities: string;
+  synchronizationExpectations: string;
+  conflictHandling: string;
+  sourceOfTruthDecision: string;
+  sharePointSiteUrl: string;
+  sharePointSiteTitle: string;
+  sharePointSiteOwner: string;
+  sharePointEnvironment: string;
+  sharePointAccessStatus: string;
+  sharePointListDefinitions: string;
+  sharePointColumnDefinitions: string;
+  sharePointLibraryDefinitions: string;
+  sharePointListSchemas: SharePointListSchema[];
+  sharePointColumnSchemas: SharePointColumnSchema[];
+  sharePointLibrarySchemas: SharePointLibrarySchema[];
+  dataverseEnvironment: string;
+  dataverseSolution: string;
+  dataverseSolutionUniqueName: string;
+  dataversePublisher: string;
+  dataversePublisherPrefix: string;
+  dataverseTableDefinitions: string;
+  dataverseColumnDefinitions: string;
+  dataverseRelationshipDefinitions: string;
+  dataverseSchemaConfirmationStatus: PowerPlatformStatusValue;
+  dataverseTableSchemas: DataverseTableSchema[];
+  dataverseColumnSchemas: DataverseColumnSchema[];
+  dataverseRelationshipSchemas: DataverseRelationshipSchema[];
+  otherConnectorSchemaDefinitions: string;
+  otherConnectorFieldDefinitions: string;
+  otherConnectorConfirmationSource: string;
+  otherConnectorSchemaConfirmationStatus: PowerPlatformStatusValue;
+  connectorResourceSchemas: ConnectorResourceSchema[];
+  connectorFieldSchemas: ConnectorFieldSchema[];
   sharePointSites: string;
   sharePointLists: string;
   sharePointLibraries: string;
@@ -231,19 +520,67 @@ export interface PowerPlatformCanvasData {
   attachmentRequirements: string;
   fileRequirements: string;
   screens: string;
+  screenNames: string;
+  screenPurposes: string;
+  entryPoints: string;
+  exitPoints: string;
+  navigationStructure: string;
+  canvasUserRoles: string;
   containers: string;
   components: string;
+  galleries: string;
+  forms: string;
+  tables: string;
+  dialogs: string;
+  loadingStates: string;
+  emptyStates: string;
+  errorStates: string;
+  responsiveRules: string;
+  visibilityRules: string;
+  displayModeRules: string;
   controls: string;
+  appFormulasRequirements: string;
+  startScreenRequirements: string;
+  onStartRequirements: string;
+  namedFormulaRequirements: string;
+  globalVariableRequirements: string;
+  contextVariableRequirements: string;
+  collectionRequirements: string;
+  createBehavior: string;
+  readBehavior: string;
+  updateBehavior: string;
+  archiveBehavior: string;
+  restoreBehavior: string;
+  deleteRestrictions: string;
+  validationRequirements: string;
+  errorHandlingRequirements: string;
+  notificationRequirements: string;
+  searchRequirements: string;
+  filteringRequirements: string;
+  sortingRequirements: string;
+  delegationRequirements: string;
+  concurrentUpdateHandling: string;
+  fullScreenYamlRequired: string;
+  controlLevelYamlRequired: string;
+  containerYamlRequired: string;
+  componentYamlRequired: string;
+  paYamlSourceRequired: string;
+  expectedInstallationMethod: string;
+  codeViewPasteMethod: string;
+  existingSourceAvailability: string;
+  existingAppDependencies: string;
+  postPasteActions: string;
+  validationResponsibility: string;
   namedFormulas: string;
   globalVariables: string;
   contextVariables: string;
   collections: string;
-  schemaStatus: string;
-  internalNameStatus: string;
-  logicalNameStatus: string;
-  powerFxStatus: string;
-  yamlStatus: string;
-  delegationStatus: string;
+  schemaStatus: PowerPlatformStatusValue;
+  internalNameStatus: PowerPlatformStatusValue;
+  logicalNameStatus: PowerPlatformStatusValue;
+  powerFxStatus: PowerPlatformStatusValue;
+  yamlStatus: PowerPlatformStatusValue;
+  delegationStatus: PowerPlatformStatusValue;
   manualInstallationStatus: string;
   studioValidationStatus: string;
   publicationStatus: string;
@@ -252,48 +589,119 @@ export interface PowerPlatformCanvasData {
 
 export interface PowerPlatformModelDrivenData {
   subtype: PowerAppsModelDrivenSubtype | "";
-  dataverseAvailability: string;
-  modelDrivenLicensingStatus: string;
-  environmentAccessStatus: string;
-  solutionPermissionStatus: string;
-  tableCreationPermissionStatus: string;
-  importPermissionStatus: string;
-  deploymentPermissionStatus: string;
+  dataverseAvailability: PowerPlatformStatusValue;
+  modelDrivenLicensingStatus: PowerPlatformStatusValue;
+  environmentAccessStatus: PowerPlatformStatusValue;
+  solutionPermissionStatus: PowerPlatformStatusValue;
+  tableCreationPermissionStatus: PowerPlatformStatusValue;
+  securityRoleConfigurationPermissionStatus: PowerPlatformStatusValue;
+  importPermissionStatus: PowerPlatformStatusValue;
+  deploymentPermissionStatus: PowerPlatformStatusValue;
+  managedStrategy: string;
+  existingSolution: string;
+  existingDataverseTables: string;
+  newDataverseTables: string;
+  standardTablesReused: string;
+  activityTableRequirements: string;
+  virtualTableRequirements: string;
+  duplicateDetection: string;
+  dataMigration: string;
   solutionArchitecture: string;
   tables: string;
   columns: string;
   relationships: string;
   choices: string;
+  tableDefinitions: string;
+  columnDefinitions: string;
+  relationshipDefinitions: string;
   forms: string;
   views: string;
+  formDefinitions: string;
+  viewDefinitions: string;
   charts: string;
   dashboards: string;
   appPages: string;
+  chartsDecision: PowerPlatformApplicabilityDecision;
+  dashboardsDecision: PowerPlatformApplicabilityDecision;
+  appPagesDecision: PowerPlatformApplicabilityDecision;
+  formsAndViewsStatus: PowerPlatformStatusValue;
   navigation: string;
+  navigationDefinitions: string;
+  navigationStatus: PowerPlatformStatusValue;
   customPages: string;
+  customPagesDecision: PowerPlatformApplicabilityDecision;
   businessRules: string;
+  businessRulesDecision: PowerPlatformApplicabilityDecision;
+  validationRulesDecision: PowerPlatformApplicabilityDecision;
+  duplicatePreventionDecision: PowerPlatformApplicabilityDecision;
   businessProcessFlows: string;
+  businessProcessFlowsDecision: PowerPlatformApplicabilityDecision;
   automations: string;
+  automationsDecision: PowerPlatformApplicabilityDecision;
+  businessLogicStatus: PowerPlatformStatusValue;
   securityRoles: string;
   teams: string;
   fieldSecurityProfiles: string;
+  teamModelDecision: PowerPlatformApplicabilityDecision;
+  hierarchySecurityDecision: PowerPlatformApplicabilityDecision;
+  fieldSecurityDecision: PowerPlatformApplicabilityDecision;
+  applicationUsersDecision: PowerPlatformApplicabilityDecision;
+  servicePrincipalsDecision: PowerPlatformApplicabilityDecision;
   environmentVariables: string;
   connectionReferences: string;
+  clientSideJavaScript: string;
+  clientSideJavaScriptDecision: PowerPlatformApplicabilityDecision;
   webResources: string;
+  webResourcesDecision: PowerPlatformApplicabilityDecision;
+  htmlWebResourcesDecision: PowerPlatformApplicabilityDecision;
+  imageWebResourcesDecision: PowerPlatformApplicabilityDecision;
   plugins: string;
+  pluginsDecision: PowerPlatformApplicabilityDecision;
+  customWorkflowActivitiesDecision: PowerPlatformApplicabilityDecision;
   customApis: string;
+  customApisDecision: PowerPlatformApplicabilityDecision;
   pcfControls: string;
-  schemaStatus: string;
-  logicalNameStatus: string;
-  solutionArchitectureStatus: string;
+  pcfControlsDecision: PowerPlatformApplicabilityDecision;
+  commandBarRules: string;
+  commandBarRulesDecision: PowerPlatformApplicabilityDecision;
+  azureIntegrationsDecision: PowerPlatformApplicabilityDecision;
+  extensionsStatus: PowerPlatformStatusValue;
+  validationRules: string;
+  duplicatePrevention: string;
+  businessUnits: string;
+  ownerTeams: string;
+  accessTeams: string;
+  tablePrivileges: string;
+  privilegeDepth: string;
+  hierarchySecurity: string;
+  sharingExpectations: string;
+  recordOwnership: string;
+  sensitiveFields: string;
+  applicationUsers: string;
+  servicePrincipals: string;
+  htmlWebResources: string;
+  imageWebResources: string;
+  customWorkflowActivities: string;
+  azureIntegrations: string;
+  externalServices: string;
+  externalServicesDecision: PowerPlatformApplicabilityDecision;
+  schemaStatus: PowerPlatformStatusValue;
+  logicalNameStatus: PowerPlatformStatusValue;
+  solutionArchitectureStatus: PowerPlatformStatusValue;
   solutionSourceStatus: string;
-  securityReviewStatus: string;
-  almReadinessStatus: string;
+  securityReviewStatus: PowerPlatformStatusValue;
+  dataverseSchemaConfirmationStatus: PowerPlatformStatusValue;
+  solutionArchitectureConfirmationStatus: PowerPlatformStatusValue;
+  securityArchitectureStatus: PowerPlatformStatusValue;
+  almReadinessStatus: PowerPlatformStatusValue;
   manualConfigurationStatus: string;
   testingStatus: string;
   importStatus: string;
   publicationStatus: string;
   deploymentStatus: string;
+  dataverseTableSchemas: DataverseTableSchema[];
+  dataverseColumnSchemas: DataverseColumnSchema[];
+  dataverseRelationshipSchemas: DataverseRelationshipSchema[];
 }
 
 export interface PowerPlatformProgress {
@@ -546,7 +954,8 @@ export interface ReviewItem {
   deferredReason: string;
   blocking: boolean;
   allowDeferred: boolean;
-  source: "missing" | "warning" | "weak";
+  source: "missing" | "warning" | "weak" | "gate";
+  gateId?: string;
   updatedAt: string;
 }
 

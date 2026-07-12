@@ -434,8 +434,8 @@ describe("projectRepository", () => {
     expect(duplicated.powerPlatform?.progress.canvas.sharePointSchema).toBe("reviewNeeded");
     expect(duplicated.powerPlatform?.progress.canvas.powerFx).toBe("notStarted");
     expect(duplicated.powerPlatform?.progress.canvas.yaml).toBe("notStarted");
-    expect(duplicated.powerPlatform?.canvas?.powerFxStatus).toBe("");
-    expect(duplicated.powerPlatform?.canvas?.yamlStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.powerFxStatus).toBe("notStarted");
+    expect(duplicated.powerPlatform?.canvas?.yamlStatus).toBe("notStarted");
     expect(duplicated.powerPlatform?.canvas?.manualInstallationStatus).toBe("");
     expect(duplicated.powerPlatform?.canvas?.studioValidationStatus).toBe("");
     expect(duplicated.powerPlatform?.canvas?.publicationStatus).toBe("");
@@ -529,8 +529,8 @@ describe("projectRepository", () => {
     expect(duplicated.powerPlatform?.progress.canvas.logicalNames).toBe("reviewNeeded");
     expect(duplicated.powerPlatform?.progress.canvas.powerFx).toBe("notStarted");
     expect(duplicated.powerPlatform?.progress.canvas.yaml).toBe("notStarted");
-    expect(duplicated.powerPlatform?.canvas?.powerFxStatus).toBe("");
-    expect(duplicated.powerPlatform?.canvas?.yamlStatus).toBe("");
+    expect(duplicated.powerPlatform?.canvas?.powerFxStatus).toBe("notStarted");
+    expect(duplicated.powerPlatform?.canvas?.yamlStatus).toBe("notStarted");
     expect(duplicated.powerPlatform?.canvas?.manualInstallationStatus).toBe("");
     expect(duplicated.powerPlatform?.canvas?.studioValidationStatus).toBe("");
     expect(duplicated.powerPlatform?.canvas?.publicationStatus).toBe("");

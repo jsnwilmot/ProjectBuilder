@@ -1,5 +1,229 @@
 # Change Log
 
+## 2026-07-12 - Phase 3 Final Approval Blockers
+
+### Summary
+
+- Added controlled external connector approval status and removed readiness inference from approval notes.
+- Added controlled model-driven applicability decisions for team model, hierarchy security, field security, application users, service principals, validation rules, and duplicate prevention.
+- Updated model-driven security and business-logic gates so Ready for Codex cannot bypass the new decisions.
+- Updated Client Review, generated documents, normalization, and tests for the final approval blockers.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/types/project.ts` - connector approval status and new applicability decision fields.
+- `src/lib/powerPlatform.ts` - approval normalization, external connector selection gate, security gate, business-logic gate, defaults, and normalization.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - approval notes/status controls and new applicability editors.
+- `src/lib/clientReview.ts` - review items for connector approval and new applicability decisions.
+- `src/templates/documents/index.ts` - connector approval, security applicability, and business-rule applicability output.
+- `src/tests/App.test.tsx` - rendered UI tests for controlled approval and applicability decisions.
+- `src/tests/powerPlatform.test.ts` - approval, migration, security applicability, validation, and duplicate-prevention gate tests.
+- `CHANGE_LOG.md` - this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npm.cmd test` - passed (`15` files, `193` tests).
+- `npm.cmd run build` - passed.
+- `git diff --check` - passed.
+
+### Issues found
+
+- Existing approval notes such as "Approved by admin" previously could satisfy readiness by substring; replaced with exact controlled approval status.
+
+### Remaining work
+
+- Architect approval and then commit Phase 3 when approved.
+
+## 2026-07-12 - Phase 3 Model-Driven Readiness Completion
+
+### Summary
+
+- Added dedicated model-driven forms/views, navigation, business logic, extensions, security architecture, and ALM readiness controls.
+- Added controlled business-rule applicability and expanded model-driven extension applicability decisions.
+- Added model-driven external connector selection, classification, and licensing gates.
+- Removed visible legacy connector confirmation checkboxes while preserving storage compatibility.
+- Updated intake validation, Client Review, generated documents, normalization, and tests for current model-driven gates.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/types/project.ts` - model-driven statuses, business-rule decision, and extension applicability fields.
+- `src/lib/powerPlatform.ts` - model-driven gate logic, external connector gates, licensing behavior, defaults, and normalization.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - rendered controls for security, business logic, extensions, statuses, and external connectors.
+- `src/lib/validateIntake.ts` - validation now uses individual model-driven gates and honors not-applicable decisions.
+- `src/lib/clientReview.ts` - model-driven review groups and applicability review items.
+- `src/templates/documents/index.ts` - model-driven connector, licensing, data-source, applicability, and security output.
+- `src/tests/App.test.tsx` - rendered UI coverage for security completion, not-applicable decisions, and legacy checkbox removal.
+- `src/tests/powerPlatform.test.ts` - business-rule and external connector gate coverage.
+- `CHANGE_LOG.md` - this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npm.cmd test` - passed (`15` files, `188` tests).
+- `npm.cmd run build` - passed.
+- `git diff --check` - passed.
+
+### Issues found
+
+- Business-rule applicability was initially exposed under Features; moved it to Workflows because it controls the business-logic gate.
+- The rendered not-applicable workflow test needs a local timeout because the nested Power Platform intake section is large.
+
+### Remaining work
+
+- Architect review of the Phase 3 approval ZIP before commit.
+
+## 2026-07-12 - Phase 3 Final Correction: Schema Relationships and Complete Readiness
+
+### Summary
+
+- Added explicit parent relationships for SharePoint columns, Dataverse columns, Dataverse relationships, and connector fields.
+- Split combined schema controls into separate editable fields for SharePoint, Dataverse, connector, Canvas planning, and model-driven intake data.
+- Added deterministic Canvas connector role reconciliation with exactly one primary connector requirement.
+- Added Canvas Power Fx, YAML, delegation, and ALM readiness gates.
+- Added model-driven forms/views, navigation, security architecture, business logic, extensions, and ALM readiness gates with controlled applicability decisions.
+- Updated Client Review groups, readiness checks, generated schema documents, normalization, and regression coverage.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/types/project.ts` - relationship IDs, parent fields, and applicability decision types.
+- `src/lib/powerPlatform.ts` - relationship validation, connector role reconciliation, planning gates, applicability gates, ALM checks, and safe normalization.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - parent selectors, separated controls, connector role handling, planning fields, and applicability editors.
+- `src/lib/clientReview.ts` - review sections mapped to real readiness gates.
+- `src/templates/documents/index.ts` - grouped SharePoint, Dataverse, connector, internal-name, and logical-name output.
+- `src/tests/powerPlatform.test.ts` - schema relationship, connector role, readiness, applicability, and document grouping regressions.
+- `src/tests/App.test.tsx` - rendered UI coverage for separated relationship fields.
+- `CHANGE_LOG.md` - this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- Pending final validation run for this correction.
+
+### Issues found
+
+- UI label tests needed regex matching because accessible labels include required/optional suffixes.
+
+### Remaining work
+
+- Architect review of the final Phase 3 correction ZIP.
+
+## 2026-07-12 - Phase 3 Corrections: Reliable Gates and Structured Schema Intake
+
+### Summary
+
+- Replaced free-text confirmation inference with controlled decision statuses and exact `confirmed` comparisons.
+- Added explicit mixed-source Canvas backend selection, connector assessments, and structured SharePoint, Dataverse, and other-connector schema records.
+- Corrected Power Platform readiness gates so selected backends require connector, classification, licensing, schema, security, and testing decisions before Ready for Codex.
+- Prevented Client Review answers from bypassing unresolved Power Platform gates.
+- Updated Mission Control, generated templates, and tests for readable gate labels, draft/ready package behavior, and structured schema output.
+
+### Files created
+
+- None in this correction pass.
+
+### Files updated
+
+- `src/types/project.ts` - controlled status types, gate review metadata, mixed-source selections, and structured schema records.
+- `src/lib/powerPlatform.ts` - safe legacy status normalization, selected-backend helpers, structured gate calculations, and default/migration handling.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - shared, Canvas, connector, SharePoint, Dataverse, other-connector, and model-driven controlled intake sections.
+- `src/lib/clientReview.ts` - gate-backed review items and non-bypassable Power Platform readiness checklist item.
+- `src/components/IntakeBuilder/IntakeBuilder.tsx`, `src/components/MissionControl/ReadinessPanel.tsx`, `src/lib/projectSelectors.ts`, and `src/lib/validateIntake.ts` - draft/ready labels, readable gate summaries, next-action routing, and validation.
+- `src/templates/documents/index.ts` - structured Markdown tables for connector, licensing, data-source, SharePoint, Dataverse, connector schema, internal-name, and logical-name documents.
+- `src/styles/global.css` - structured schema editor layout.
+- `src/tests/*.test.*` - updated and expanded Phase 3 regression coverage.
+- `CHANGE_LOG.md` - this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npm.cmd test` - passed (`15` files, `179` tests).
+- `npm.cmd run build` - passed.
+- `git diff --check` - passed.
+
+### Issues found
+
+- The first correction test run found old assumptions that connector assessments and explicit status fields were not required; tests and implementation were corrected.
+- Add Connector UI coverage required accessible-label regex matching because required labels include extra accessible text.
+
+### Remaining work
+
+- Architect review of the corrected Phase 3 package.
+
+## 2026-07-12 — Phase 3: Power Platform Guided Intake and Readiness Gates
+
+### Summary
+
+- Added guided Power Platform intake support for Canvas and model-driven projects.
+- Added Canvas backend-conditional schema intake for SharePoint/Microsoft Lists, Dataverse, mixed sources, and other connectors.
+- Added connector, licensing, environment, schema, security, testing, and model-driven readiness gate helpers.
+- Integrated Power Platform gates with validation, Client Review, Mission Control summaries, and structured generated review documents.
+- Kept Phase 3 non-generative: no final Power Fx, Paste-Ready YAML, model-driven source, or deployment automation was generated.
+
+### Files created
+
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` — guided nested Power Platform intake editor.
+
+### Files updated
+
+- `src/types/project.ts` — expanded Power Platform data fields and review sections.
+- `src/lib/powerPlatform.ts` — added gate helpers, readiness summary, defaults, and normalization for Phase 3 fields.
+- `src/lib/projectRepository.ts`, `src/app/useProjectBuilder.ts`, `src/app/App.tsx`, and `src/components/IntakeBuilder/IntakeBuilder.tsx` — persisted nested Power Platform intake edits.
+- `src/lib/validateIntake.ts` — added backend-specific Power Platform validation.
+- `src/lib/clientReview.ts` — added explicit Power Platform gate review items.
+- `src/lib/projectSelectors.ts` and `src/components/MissionControl/ReadinessPanel.tsx` — added Mission Control readiness summaries and platform next-action support.
+- `src/templates/documents/index.ts` — replaced applicable temporary Power Platform document placeholders with structured review templates.
+- `src/styles/global.css` — added accessible layout styles for Power Platform intake and readiness summaries.
+- `src/tests/*.test.*` — added and updated Phase 3 regression coverage.
+- `CHANGE_LOG.md` — this entry.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` — passed.
+- `npm.cmd test` — passed (`15` files, `171` tests).
+- `npm.cmd run build` — passed, including TypeScript checking and Vite production bundle output.
+- `git diff --check` — passed.
+- Review ZIP created at `C:\Users\Jason\OneDrive\DEVELOPMENT\PHASE3_REVIEW_2026-07-12.zip`; protected/generated paths were excluded.
+
+### Issues found
+
+- Initial test/build regressions from new required Power Platform fields were detected and corrected before final validation.
+
+### Remaining work
+
+- Phase 4 should implement deeper Power Platform document generation and manual implementation planning only after Architect approval.
+
 ## 2026-07-12 — Phase 2 Corrections: Storage Migration and Power Platform State Safety
 
 ### Summary

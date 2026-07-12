@@ -1,11 +1,26 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../app/App";
 import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
 import { countDocumentMissingMarkers, countPackageMissingMarkers } from "../lib/documentReview";
 import * as exportProjectPackageModule from "../lib/exportProjectPackage";
+import {
+  createDefaultDataverseColumn,
+  createDefaultDataverseRelationship,
+  createDefaultDataverseTable,
+  createDefaultSharePointColumn,
+  createDefaultSharePointLibrary,
+  createDefaultSharePointList
+} from "../lib/powerPlatform";
 import { STORAGE_KEY, clearPersistenceWarning, saveStorageState } from "../lib/projectRepository";
+import {
+  calculateModelDrivenBusinessLogicGate,
+  calculateModelDrivenExtensionsGate,
+  calculateModelDrivenExternalConnectorSelectionGate,
+  calculateModelDrivenSecurityArchitectureGate
+} from "../lib/powerPlatform";
+import { validateIntake } from "../lib/validateIntake";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 
@@ -53,7 +68,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Preview README.md" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preview DATA_MODEL.md" }));
@@ -235,7 +250,7 @@ describe("App", () => {
     expect(screen.getByText(/Readiness blockers:/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What happens after generation?" })).toBeInTheDocument();
     expect(screen.getByText("Complete the Ready for Codex checklist.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
     expect(screen.getByText("19 generated documents")).toBeInTheDocument();
   });
@@ -257,6 +272,284 @@ describe("App", () => {
     expect(screen.getByLabelText(/App name/i)).toHaveValue("Stage Persistence App");
   });
 
+  it("shows conditional Power Platform intake sections for Canvas backends", async () => {
+    const project = createProject({
+      identity: { id: "canvas-ui", projectName: "Canvas UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+
+    expect(screen.getByRole("heading", { name: "Guided Power Platform readiness" })).toBeInTheDocument();
+    const sourceSelect = screen.getByLabelText(/Primary Canvas data source/i);
+    expect(sourceSelect).toHaveValue("undecided");
+
+    await user.selectOptions(sourceSelect, "sharePointList");
+    expect(screen.getByRole("heading", { name: "SharePoint or Microsoft Lists schema" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Canvas Dataverse schema" })).not.toBeInTheDocument();
+
+    await user.selectOptions(sourceSelect, "dataverse");
+    expect(screen.getByRole("heading", { name: "Canvas Dataverse schema" })).toBeInTheDocument();
+  });
+
+  it("shows only SharePoint and Dataverse schema sections for mixed Canvas selections through the UI", async () => {
+    const project = createProject({
+      identity: { id: "mixed-ui", projectName: "Mixed UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    await user.selectOptions(screen.getByLabelText(/Primary Canvas data source/i), "multiple");
+    await user.click(screen.getByLabelText("SharePoint list"));
+    await user.click(screen.getByLabelText("Dataverse"));
+    await user.click(screen.getByRole("button", { name: "Add connector" }));
+    await screen.findByLabelText(/Data-source type/i);
+    await user.click(screen.getByRole("button", { name: "Add connector" }));
+    const connectorTypes = await screen.findAllByLabelText(/Data-source type/i);
+    expect(connectorTypes[0]).toHaveValue("");
+    await user.selectOptions(connectorTypes[0], "sharePointList");
+    await user.selectOptions(connectorTypes[1], "dataverse");
+    await user.selectOptions(screen.getAllByLabelText(/Connector role/i)[0], "primary");
+    await user.selectOptions(screen.getAllByLabelText(/Connector role/i)[1], "secondary");
+
+    expect(screen.getByText(/Selected backend assessments required: SharePoint list, Dataverse/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "SharePoint or Microsoft Lists schema" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Canvas Dataverse schema" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Other connector schema" })).not.toBeInTheDocument();
+  }, 15000);
+
+  it("renders separated schema relationship fields through the guided intake UI", async () => {
+    const project = createProject({
+      identity: { id: "relationship-ui", projectName: "Relationship UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.canvas!.primaryDataSourceType = "multiple";
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList", "dataverse"];
+    project.powerPlatform!.canvas!.sharePointListSchemas = [
+      createDefaultSharePointList({ id: "sp-list-requests", displayName: "Requests" })
+    ];
+    project.powerPlatform!.canvas!.sharePointLibrarySchemas = [
+      createDefaultSharePointLibrary({ id: "sp-library-documents", displayName: "Documents" })
+    ];
+    project.powerPlatform!.canvas!.sharePointColumnSchemas = [
+      createDefaultSharePointColumn({
+        id: "sp-column-status",
+        displayName: "Status",
+        parentType: "list",
+        parentId: "sp-list-requests"
+      })
+    ];
+    project.powerPlatform!.canvas!.dataverseTableSchemas = [
+      createDefaultDataverseTable({ id: "dv-table-account", displayName: "Account" }),
+      createDefaultDataverseTable({ id: "dv-table-request", displayName: "Request" })
+    ];
+    project.powerPlatform!.canvas!.dataverseColumnSchemas = [
+      createDefaultDataverseColumn({
+        id: "dv-column-status",
+        displayName: "Status",
+        tableId: "dv-table-request"
+      })
+    ];
+    project.powerPlatform!.canvas!.dataverseRelationshipSchemas = [
+      createDefaultDataverseRelationship({
+        id: "dv-relationship-account-request",
+        relationshipSchemaName: "new_account_request",
+        parentTableId: "dv-table-account",
+        childTableId: "dv-table-request"
+      })
+    ];
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+
+    expect(screen.getByLabelText(/Parent type/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Parent list or library/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Lookup list/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Lookup column/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Indexed status/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Unique-value status/i)).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/Sensitive-data status/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByLabelText(/Folder structure/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/File-size expectations/i)).toBeInTheDocument();
+
+    expect(screen.getByLabelText(/Owning table/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Parent table/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Child table/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Required level/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Choice definition/i)).toBeInTheDocument();
+  });
+
+  it("shows SharePoint and external API schema sections for mixed Canvas selections through the UI", async () => {
+    const project = createProject({
+      identity: { id: "mixed-api-ui", projectName: "Mixed API UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    await user.selectOptions(screen.getByLabelText(/Primary Canvas data source/i), "multiple");
+    await user.click(screen.getByLabelText("SharePoint list"));
+    await user.click(screen.getByLabelText("External API"));
+
+    expect(screen.getByRole("heading", { name: "SharePoint or Microsoft Lists schema" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Other connector schema" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Canvas Dataverse schema" })).not.toBeInTheDocument();
+  });
+
+  it("shows model-driven Power Platform schema and solution intake", async () => {
+    const project = createProject({
+      identity: { id: "model-ui", projectName: "Model UI" },
+      intake: { appType: "powerAppsModelDriven" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+
+    expect(screen.getByRole("heading", { name: "Guided Power Platform readiness" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Dataverse availability/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add table" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Publisher prefix/i)).toBeInTheDocument();
+  });
+
+  it("completes model-driven security architecture status through the rendered UI", async () => {
+    const project = createProject({
+      identity: { id: "model-security-ui", projectName: "Model Security UI" },
+      intake: { appType: "powerAppsModelDriven" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Security: .* complete/i }));
+    fireEvent.change(screen.getByLabelText(/Security roles/i), { target: { value: "Operations Manager" } });
+    fireEvent.change(screen.getByLabelText(/Business units/i), { target: { value: "Operations" } });
+    fireEvent.change(screen.getByLabelText(/Owner teams/i), { target: { value: "Operations owners" } });
+    fireEvent.change(screen.getByLabelText(/Table privileges/i), { target: { value: "Read/write request tables" } });
+    fireEvent.change(screen.getByLabelText(/Privilege depth/i), { target: { value: "Business unit" } });
+    fireEvent.change(screen.getByLabelText(/Record ownership/i), { target: { value: "Team owned" } });
+    fireEvent.change(screen.getByLabelText(/Sharing expectations/i), { target: { value: "No manual sharing" } });
+    fireEvent.change(screen.getByLabelText(/Field security profiles/i), { target: { value: "Protect sensitive fields" } });
+    fireEvent.change(screen.getByLabelText(/Team model applicability/i), { target: { value: "required" } });
+    fireEvent.change(screen.getByLabelText(/Team model details/i), { target: { value: "Owner team and access team" } });
+    fireEvent.change(screen.getByLabelText(/Team model confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Hierarchy security applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Hierarchy security not-applicable reason/i), { target: { value: "No hierarchy security" } });
+    fireEvent.change(screen.getByLabelText(/Hierarchy security confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Field security applicability/i), { target: { value: "required" } });
+    fireEvent.change(screen.getByLabelText(/Field security details/i), { target: { value: "Protect sensitive fields" } });
+    fireEvent.change(screen.getByLabelText(/Field security confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Application users applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Application users not-applicable reason/i), { target: { value: "No application users" } });
+    fireEvent.change(screen.getByLabelText(/Application users confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Service principals applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Service principals not-applicable reason/i), { target: { value: "No service principals" } });
+    fireEvent.change(screen.getByLabelText(/Service principals confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Model-driven security architecture status/i), { target: { value: "confirmed" } });
+
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as { projects: ProjectRecord[] };
+    expect(calculateModelDrivenSecurityArchitectureGate(stored.projects[0])).toBe("confirmed");
+  }, 40000);
+
+  it("honors model-driven not-applicable decisions entered through the rendered UI", async () => {
+    const project = createProject({
+      identity: { id: "model-na-ui", projectName: "Model NA UI" },
+      intake: { appType: "powerAppsModelDriven" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Workflows: .* complete/i }));
+    fireEvent.change(screen.getByLabelText(/Business rules applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Business rules not-applicable reason/i), { target: { value: "No business rules." } });
+    fireEvent.change(screen.getByLabelText(/Business rules confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Business process flows applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Business process flows not-applicable reason/i), { target: { value: "No BPF." } });
+    fireEvent.change(screen.getByLabelText(/Business process flows confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Automations applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Automations not-applicable reason/i), { target: { value: "No automation." } });
+    fireEvent.change(screen.getByLabelText(/Automations confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Validation rules applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Validation rules not-applicable reason/i), { target: { value: "No validation rules." } });
+    fireEvent.change(screen.getByLabelText(/Validation rules confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Duplicate prevention applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Duplicate prevention not-applicable reason/i), { target: { value: "No duplicate prevention." } });
+    fireEvent.change(screen.getByLabelText(/Duplicate prevention confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Business logic status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Command bar applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Command bar not-applicable reason/i), { target: { value: "No command changes." } });
+    fireEvent.change(screen.getByLabelText(/Command bar confirmation status/i), { target: { value: "confirmed" } });
+    fireEvent.change(screen.getByLabelText(/Client-side JavaScript applicability/i), { target: { value: "notApplicable" } });
+    fireEvent.change(screen.getByLabelText(/Client-side JavaScript not-applicable reason/i), { target: { value: "No scripts." } });
+    fireEvent.change(screen.getByLabelText(/Client-side JavaScript confirmation status/i), { target: { value: "confirmed" } });
+
+    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as { projects: ProjectRecord[] };
+    expect(calculateModelDrivenBusinessLogicGate(stored.projects[0])).toBe("confirmed");
+    expect(validateIntake(stored.projects[0]).missingFields.some((issue) => issue.label.includes("business-process-flow"))).toBe(false);
+    expect(calculateModelDrivenExtensionsGate(stored.projects[0])).not.toBe("confirmed");
+  }, 40000);
+
+  it("renders model-driven connector editor without legacy connector checkboxes", async () => {
+    const project = createProject({
+      identity: { id: "model-connector-ui", projectName: "Model Connector UI" },
+      intake: { appType: "powerAppsModelDriven" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    await user.click(screen.getByRole("button", { name: "Add connector" }));
+
+    expect(screen.getByLabelText(/Data-source type/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Classification confirmation/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Licensing confirmation/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Legacy classification checkbox/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Legacy licensing checkbox/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Connector role/i)).not.toBeInTheDocument();
+  });
+
+  it("requires controlled approval status for model-driven external connectors through the rendered UI", async () => {
+    const project = createProject({
+      identity: { id: "model-approval-ui", projectName: "Model Approval UI" },
+      intake: { appType: "powerAppsModelDriven" }
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    await user.click(screen.getByRole("button", { name: "Add connector" }));
+    fireEvent.change(screen.getByLabelText(/Connector name/i), { target: { value: "External API" } });
+    fireEvent.change(screen.getByLabelText(/Connector purpose/i), { target: { value: "Read account status" } });
+    fireEvent.change(screen.getByLabelText(/Data source name/i), { target: { value: "Account API" } });
+    fireEvent.change(screen.getByLabelText(/Data-source type/i), { target: { value: "externalApi" } });
+    fireEvent.change(screen.getByLabelText(/Authentication method/i), { target: { value: "OAuth" } });
+    fireEvent.change(screen.getByLabelText(/Gateway requirement/i), { target: { value: "No gateway" } });
+    fireEvent.change(screen.getByLabelText(/Environment requirement/i), { target: { value: "Production variable" } });
+    fireEvent.change(screen.getByLabelText(/DLP impact/i), { target: { value: "Business DLP" } });
+    fireEvent.change(screen.getByLabelText(/Approval notes/i), { target: { value: "Not approved" } });
+    let stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as { projects: ProjectRecord[] };
+    expect(stored.projects[0].powerPlatform!.common.connectors[0].approvalStatus).toBe("Not approved");
+    expect(calculateModelDrivenExternalConnectorSelectionGate(stored.projects[0])).toBe("reviewNeeded");
+
+    fireEvent.change(screen.getByLabelText(/Approval confirmation status/i), { target: { value: "confirmed" } });
+    stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY)!) as { projects: ProjectRecord[] };
+    expect(calculateModelDrivenExternalConnectorSelectionGate(stored.projects[0])).toBe("confirmed");
+  });
+
   it("reads generated documents from the active project", async () => {
     const volunteerProject = createProject({
       identity: { id: "volunteer-management-app", projectName: "Volunteer Management App" },
@@ -268,7 +561,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preview README.md" }));
     expect(screen.getByRole("heading", { name: "README.md" })).toBeInTheDocument();
@@ -277,7 +570,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Mission Control" }));
     await user.click(screen.getByRole("button", { name: "Open Volunteer Management App" }));
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     await user.click(screen.getByRole("button", { name: "Preview README.md" }));
     expect(screen.getByText(/Volunteer Management App/)).toBeInTheDocument();
   });
@@ -335,7 +628,7 @@ describe("App", () => {
     const summary = screen.getByRole("region", { name: "Package summary" });
     expect(within(summary).getByText("Package status").closest("div")).toHaveTextContent("Ready for Codex");
     expect(within(summary).getByText("Ready for Codex blockers").closest("div")).toHaveTextContent("0");
-    expect(within(summary).getByText("Readiness checklist").closest("div")).toHaveTextContent("12/12");
+    expect(within(summary).getByText("Readiness checklist").closest("div")).toHaveTextContent("13/13");
     expect(within(summary).getByText("Final readiness").closest("div")).toHaveTextContent("Ready");
   });
 
@@ -372,7 +665,7 @@ describe("App", () => {
     expect(screen.getByText("0/19")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Generate project package first" }));
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Open export" }));
 
@@ -478,7 +771,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Open export" }));
     await user.click(screen.getByRole("button", { name: "Copy Architect Instructions" }));
@@ -589,7 +882,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.click(screen.getByRole("button", { name: "Generate and save package" }));
+    await user.click(screen.getByRole("button", { name: /Generate (draft|ready) package/ }));
     await user.click(screen.getByRole("button", { name: "Export" }));
     await user.click(screen.getByRole("button", { name: "Open export" }));
     await user.click(screen.getByRole("button", { name: "Copy Architect Instructions" }));

@@ -14,12 +14,14 @@ import {
   setActiveProject as persistActiveProject,
   updateReadinessConfirmation,
   updateReviewItem,
-  updateProjectFields
+  updateProjectFields,
+  updateProjectPowerPlatform
 } from "../lib/projectRepository";
 import { validateIntake } from "../lib/validateIntake";
 import type {
   ProjectInputField,
   ProjectPackage,
+  PowerPlatformProjectData,
   ProjectRecord,
   ReadinessChecklistId,
   ReviewItem,
@@ -69,6 +71,14 @@ export function useProjectBuilder() {
   const updateIntake = (changes: Partial<Record<ProjectInputField, string>>) => {
     if (!project) return;
     updateProjectFields(project.identity.id, changes);
+    refresh();
+  };
+
+  const updatePowerPlatform = (
+    updater: (current: PowerPlatformProjectData | undefined, project: ProjectRecord) => PowerPlatformProjectData | undefined
+  ) => {
+    if (!project) return;
+    updateProjectPowerPlatform(project.identity.id, updater);
     refresh();
   };
 
@@ -133,6 +143,7 @@ export function useProjectBuilder() {
     project,
     projects,
     updateIntake,
+    updatePowerPlatform,
     updateClientReviewItem,
     setReadinessConfirmation,
     markGenerated,

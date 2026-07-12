@@ -11,6 +11,7 @@ import {
   type ReviewItemStatus
 } from "../types/project";
 import { validateIntake } from "./validateIntake";
+import { calculatePowerPlatformReadiness, formatPowerPlatformGateStatus } from "./powerPlatform";
 
 const FIELD_SECTIONS: Partial<Record<ProjectInputField, ClientReviewSection>> = {
   appName: "Foundation",
@@ -159,6 +160,84 @@ function makeItem(
   };
 }
 
+function makeSectionItem(
+  section: ClientReviewSection,
+  field: ProjectInputField,
+  label: string,
+  reason: string,
+  source: ReviewItem["source"],
+  now: string
+): ReviewItem {
+  const blocking = source !== "warning";
+  return {
+    id: itemId(section, field),
+    section,
+    fieldKey: field,
+    label,
+    reason,
+    recommendedQuestion: questionFor(field, label),
+    status: "Needs answer",
+    notApplicableReason: "",
+    deferredReason: "",
+    blocking,
+    allowDeferred: source === "warning",
+    source,
+    updatedAt: now
+  };
+}
+
+function powerPlatformReviewSection(gateId: string): ClientReviewSection {
+  const sections: Record<string, ClientReviewSection> = {
+    connectorSelection: "Connector selection",
+    connectorClassification: "Connector classification",
+    licensing: "Licensing",
+    environment: "Environment",
+    schema: "Data-source schema",
+    internalNames: "Internal or logical names",
+    logicalNames: "Internal or logical names",
+    powerFxPlanning: "Power Fx planning",
+    yamlPlanning: "YAML planning",
+    delegationPlanning: "Delegation planning",
+    alm: "ALM",
+    eligibility: "Dataverse eligibility",
+    formsAndViews: "Forms and views",
+    navigation: "Navigation",
+    securityArchitecture: "Security roles",
+    businessLogic: "Business logic",
+    extensions: "Extensions",
+    externalConnectorSelection: "External connector selection",
+    externalConnectorClassification: "External connector classification",
+    externalConnectorLicensing: "External connector licensing",
+    architecture: "Solution architecture",
+    connectors: "Connector classification",
+    security: "Security",
+    testing: "Testing"
+  };
+  return sections[gateId] ?? "Data-source schema";
+}
+
+function powerPlatformReviewField(gateId: string): ProjectInputField {
+  if (gateId === "connectorSelection") return "dataSources";
+  if (gateId === "connectorClassification" || gateId === "connectors" || gateId === "externalConnectorSelection" || gateId === "externalConnectorClassification" || gateId === "externalConnectorLicensing") return "m365Connectors";
+  if (gateId === "licensing" || gateId === "eligibility") return "dataverseUse";
+  if (gateId === "environment") return "m365Environment";
+  if (gateId === "schema") return "fields";
+  if (gateId === "internalNames" || gateId === "logicalNames") return "keyFields";
+  if (gateId === "powerFxPlanning" || gateId === "yamlPlanning" || gateId === "delegationPlanning" || gateId === "businessLogic" || gateId === "alm") return "workflows";
+  if (gateId === "formsAndViews" || gateId === "navigation" || gateId === "architecture") return "screens";
+  if (gateId === "security" || gateId === "securityArchitecture") return "permissionRules";
+  if (gateId === "extensions") return "integrations";
+  if (gateId === "testing") return "successCriteria";
+  return "appType";
+}
+
+function applicabilityDecisionIsComplete(decision: { status: string; details: string; notApplicableReason: string; confirmationStatus: string }): boolean {
+  if (decision.status === "undecided") return false;
+  if (decision.status === "required" && !decision.details.trim()) return false;
+  if (decision.status === "notApplicable" && !decision.notApplicableReason.trim()) return false;
+  return decision.confirmationStatus === "confirmed";
+}
+
 function screensAreRelevant(project: ProjectRecord): boolean {
   return project.intake.appType !== "apiBackend"
     && project.intake.appType !== "automationWorkflow";
@@ -185,6 +264,66 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
       now
     );
     derived.set(item.id, item);
+  }
+
+  const powerPlatformReadiness = calculatePowerPlatformReadiness(project);
+  for (const gate of powerPlatformReadiness.gates) {
+    if (gate.status === "confirmed" || gate.status === "notApplicable") continue;
+    const section = powerPlatformReviewSection(gate.id);
+    const field = powerPlatformReviewField(gate.id);
+    const item = makeSectionItem(
+      section,
+      field,
+      gate.label,
+      `${gate.description} Current gate status: ${formatPowerPlatformGateStatus(gate.status)}.`,
+      "gate",
+      now
+    );
+    item.gateId = gate.id;
+    if (!derived.has(item.id)) derived.set(item.id, item);
+  }
+
+  if (project.intake.appType === "powerAppsModelDriven" && project.powerPlatform?.modelDriven) {
+    const hasUnconfirmedConnectorApproval = project.powerPlatform.common.connectors.some((connector) =>
+      connector.approvalConfirmationStatus !== "confirmed"
+    );
+    if (hasUnconfirmedConnectorApproval) {
+      const item = makeSectionItem(
+        "External connector selection",
+        "m365Connectors",
+        "Confirm external connector approval.",
+        "External connector approval must use the controlled approval confirmation status. Approval notes do not satisfy readiness.",
+        "gate",
+        now
+      );
+      item.gateId = "connectorApproval";
+      if (!derived.has(item.id)) derived.set(item.id, item);
+    }
+    const decisions = [
+      { section: "Business rules" as const, label: "Confirm business-rule applicability.", gateId: "businessRules", decision: project.powerPlatform.modelDriven.businessRulesDecision },
+      { section: "Business process flows" as const, label: "Confirm business-process-flow applicability.", gateId: "businessProcessFlows", decision: project.powerPlatform.modelDriven.businessProcessFlowsDecision },
+      { section: "Automations" as const, label: "Confirm automation applicability.", gateId: "automations", decision: project.powerPlatform.modelDriven.automationsDecision },
+      { section: "Business logic" as const, label: "Confirm validation rules applicability.", gateId: "validationRules", decision: project.powerPlatform.modelDriven.validationRulesDecision },
+      { section: "Business logic" as const, label: "Confirm duplicate prevention applicability.", gateId: "duplicatePrevention", decision: project.powerPlatform.modelDriven.duplicatePreventionDecision },
+      { section: "Security roles" as const, label: "Confirm team model applicability.", gateId: "teamModel", decision: project.powerPlatform.modelDriven.teamModelDecision },
+      { section: "Security roles" as const, label: "Confirm hierarchy security applicability.", gateId: "hierarchySecurity", decision: project.powerPlatform.modelDriven.hierarchySecurityDecision },
+      { section: "Security roles" as const, label: "Confirm field security applicability.", gateId: "fieldSecurity", decision: project.powerPlatform.modelDriven.fieldSecurityDecision },
+      { section: "Security roles" as const, label: "Confirm application users applicability.", gateId: "applicationUsers", decision: project.powerPlatform.modelDriven.applicationUsersDecision },
+      { section: "Security roles" as const, label: "Confirm service principals applicability.", gateId: "servicePrincipals", decision: project.powerPlatform.modelDriven.servicePrincipalsDecision }
+    ];
+    for (const decision of decisions) {
+      if (applicabilityDecisionIsComplete(decision.decision)) continue;
+      const item = makeSectionItem(
+        decision.section,
+        "workflows",
+        decision.label,
+        "This model-driven applicability decision must be required with details or not applicable with a reason, then confirmed.",
+        "gate",
+        now
+      );
+      item.gateId = decision.gateId;
+      if (!derived.has(item.id)) derived.set(item.id, item);
+    }
   }
 
   const previous = new Map((project.reviewItems ?? []).map((item) => [item.id, item]));
@@ -255,6 +394,7 @@ function manualConfirmation(
 export function getClientReviewReadiness(project: ProjectRecord): ClientReviewReadiness {
   const unresolvedItems = getReviewBlockers(project);
   const brandingRequired = isBrandingRequired(project.intake.appType, project.intake.audienceVisibility);
+  const powerPlatformReadiness = calculatePowerPlatformReadiness(project);
   const checklist: ReadinessChecklistItem[] = [
     {
       id: "projectTypeConfirmed",
@@ -325,6 +465,13 @@ export function getClientReviewReadiness(project: ProjectRecord): ClientReviewRe
       "Draft package reviewed",
       "Generate and review a Draft package before final readiness."
     ),
+    {
+      id: "powerPlatformGatesConfirmed",
+      label: "Power Platform gates confirmed",
+      passed: powerPlatformReadiness.isReadyForCodex,
+      manual: false,
+      reason: powerPlatformReadiness.nextBlockingAction || "Resolve applicable Power Platform readiness gates."
+    },
     {
       id: "codexInstructionsReady",
       label: "Codex instructions ready",

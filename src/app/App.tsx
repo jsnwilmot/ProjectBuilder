@@ -15,6 +15,7 @@ export function App() {
     project,
     projects,
     updateIntake,
+    updatePowerPlatform,
     updateClientReviewItem,
     setReadinessConfirmation,
     markGenerated,
@@ -116,6 +117,7 @@ export function App() {
             validationIssues={validationIssues}
             onStepChange={setIntakeStep}
             onUpdate={updateIntake}
+            onUpdatePowerPlatform={updatePowerPlatform}
             onUpdateReviewItem={updateClientReviewItem}
             onToggleReadiness={setReadinessConfirmation}
             onGenerate={generateAndOpenDocuments}

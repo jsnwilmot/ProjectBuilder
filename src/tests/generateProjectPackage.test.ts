@@ -1,6 +1,7 @@
 import { DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import { GENERATED_FILES } from "../data/generatedFiles";
 import { createSeedProject } from "../data/seedProject";
+import { createProject } from "../lib/createProject";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
 import { deriveReviewItems } from "../lib/clientReview";
 
@@ -113,5 +114,39 @@ describe("generateProjectPackage", () => {
     expect(questions?.content).toContain(deferred.recommendedQuestion);
     expect(questions?.content).toContain("Confirm during the client design review.");
     expect(nextSteps?.content).toContain("Confirm during the client design review.");
+  });
+
+  it("generates structured Power Platform schema documents without final implementation code", () => {
+    const project = createProject({
+      identity: { id: "power-docs", projectName: "Power Docs" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    project.powerPlatform!.canvas!.sourcePurpose = "Track requests";
+    project.powerPlatform!.canvas!.sourceOwnership = "Operations";
+    project.powerPlatform!.canvas!.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+    project.powerPlatform!.canvas!.sharePointListDefinitions = "Requests list";
+    project.powerPlatform!.canvas!.sharePointColumnDefinitions = "Title / Title / Text";
+
+    const result = generateProjectPackage(project);
+    const connectorRegister = result.documents.find((document) => document.fileName === "CONNECTOR_REGISTER.md");
+    const licensing = result.documents.find((document) => document.fileName === "LICENSING_ASSESSMENT.md");
+    const dataSource = result.documents.find((document) => document.fileName === "DATA_SOURCE_SCHEMA.md");
+    const sharePoint = result.documents.find((document) => document.fileName === "SHAREPOINT_SCHEMA.md");
+    const internalNames = result.documents.find((document) => document.fileName === "INTERNAL_COLUMN_NAMES.md");
+
+    expect(result.documents.map((document) => document.fileName)).toEqual(expect.arrayContaining([
+      "CONNECTOR_REGISTER.md",
+      "LICENSING_ASSESSMENT.md",
+      "DATA_SOURCE_SCHEMA.md",
+      "SHAREPOINT_SCHEMA.md",
+      "INTERNAL_COLUMN_NAMES.md"
+    ]));
+    expect(connectorRegister?.content).toContain("## Connector selection gate");
+    expect(licensing?.content).toContain("## Current licence information");
+    expect(dataSource?.content).toContain("This document captures schema requirements only.");
+    expect(sharePoint?.content).toContain("Display names are not enough");
+    expect(internalNames?.content).toContain("Do not guess internal names");
+    expect(result.documents.map((document) => document.content).join("\n")).not.toContain("Patch(");
   });
 });

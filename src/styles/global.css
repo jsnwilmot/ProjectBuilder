@@ -1558,6 +1558,191 @@ tbody tr:hover {
   font-weight: 650;
 }
 
+.field-error.neutral {
+  grid-column: 1 / -1;
+  padding: 10px;
+  border: 1px solid #c9dcff;
+  border-radius: 8px;
+  background: #f7faff;
+  color: var(--navy);
+}
+
+.power-platform-gate-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 18px 25px 0;
+}
+
+.power-platform-gate {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+}
+
+.power-platform-gate strong {
+  color: var(--ink);
+  font-size: 0.74rem;
+}
+
+.power-platform-gate span {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--amber-soft);
+  color: #995602;
+  font-size: 0.63rem;
+  font-weight: 800;
+}
+
+.power-platform-gate.gate-confirmed span,
+.power-platform-gate.gate-ready span,
+.power-platform-gate.gate-passed span,
+.power-platform-gate.gate-notApplicable span {
+  background: var(--green-soft);
+  color: #086a49;
+}
+
+.power-platform-gate small {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.power-platform-schema-section,
+.connector-editor,
+.connector-card {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 15px;
+}
+
+.power-platform-schema-section {
+  padding-top: 8px;
+}
+
+.power-platform-schema-section h4,
+.connector-editor h4 {
+  margin: 0;
+}
+
+.connector-editor {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+}
+
+.tailored-intake-heading.compact {
+  padding: 0;
+}
+
+.connector-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.structured-schema-editor,
+.record-group,
+.schema-card {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 14px;
+}
+
+.record-group {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: white;
+}
+
+.record-group h5 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
+.schema-card {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fbfcfe;
+}
+
+.connector-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.connector-operations {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.connector-operations legend {
+  padding: 0 5px;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.power-platform-readiness-summary {
+  margin-top: 16px;
+  padding: 13px;
+  border: 1px solid #c9dcff;
+  border-radius: 8px;
+  background: #f7faff;
+}
+
+.power-platform-readiness-summary h3 {
+  margin: 0 0 5px;
+  font-size: 0.82rem;
+}
+
+.power-platform-readiness-summary p {
+  margin: 0 0 9px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.power-platform-readiness-summary ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.power-platform-readiness-summary li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 0.67rem;
+}
+
 .generate-stage {
   min-height: 310px;
   padding: 28px;

@@ -1,4 +1,10 @@
 import { getReadinessSections } from "../../lib/projectSelectors";
+import {
+  calculatePowerPlatformReadiness,
+  formatCanvasDataSourceType,
+  formatPowerPlatformGateStatus,
+  getSelectedCanvasDataSourceTypes
+} from "../../lib/powerPlatform";
 import type { ProjectRecord } from "../../types/project";
 import { ClipboardCheck, Database, Network, Rocket, ShieldCheck, Sparkles } from "../ui/Icons";
 
@@ -17,6 +23,8 @@ const readinessIcons = {
 
 export function ReadinessPanel({ project }: ReadinessPanelProps) {
   const sections = getReadinessSections(project);
+  const powerPlatformReadiness = calculatePowerPlatformReadiness(project);
+  const selectedBackends = getSelectedCanvasDataSourceTypes(project);
   return (
     <aside className="readiness-panel" aria-labelledby="readiness-title">
       <h2 id="readiness-title">Project readiness</h2>
@@ -50,6 +58,23 @@ export function ReadinessPanel({ project }: ReadinessPanelProps) {
           Resolve missing details to build a stronger handoff.
         </p>
       </div>
+      {powerPlatformReadiness.projectType !== "none" ? (
+        <div className="power-platform-readiness-summary">
+          <h3>Power Platform gates</h3>
+          {selectedBackends.length ? (
+            <p>Selected backends: {selectedBackends.map(formatCanvasDataSourceType).join(", ")}</p>
+          ) : null}
+          <p>{powerPlatformReadiness.nextBlockingAction}</p>
+          <ul>
+            {powerPlatformReadiness.gates.slice(0, 6).map((gate) => (
+              <li key={gate.id}>
+                <span>{gate.label}</span>
+                <strong>{formatPowerPlatformGateStatus(gate.status)}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </aside>
   );
 }

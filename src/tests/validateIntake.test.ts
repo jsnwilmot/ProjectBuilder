@@ -149,4 +149,50 @@ describe("validateIntake", () => {
       expect(fields, testCase.appType).toEqual(expect.arrayContaining(testCase.fields));
     }
   });
+
+  it("surfaces Canvas Power Platform gates as intake blockers", () => {
+    const project = createSeedProject();
+    project.intake.appType = "powerAppsCanvas";
+    project.powerPlatform = createProject({ intake: { appType: "powerAppsCanvas" } }).powerPlatform;
+
+    const fields = validateIntake(project).missingFields.map((issue) => issue.field);
+
+    expect(fields).toEqual(expect.arrayContaining([
+      "m365Environment",
+      "dataSources",
+      "permissionRules",
+      "successCriteria"
+    ]));
+  });
+
+  it("requires SharePoint internal names when Canvas uses SharePoint", () => {
+    const project = createSeedProject();
+    project.intake.appType = "powerAppsCanvas";
+    project.powerPlatform = createProject({ intake: { appType: "powerAppsCanvas" } }).powerPlatform;
+    project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    project.powerPlatform!.canvas!.sourcePurpose = "Track requests";
+    project.powerPlatform!.canvas!.sourceOwnership = "Operations";
+
+    const issues = validateIntake(project).missingFields;
+
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "sharePointLists" }),
+      expect.objectContaining({ field: "keyFields" })
+    ]));
+  });
+
+  it("requires model-driven Dataverse eligibility and schema gates", () => {
+    const project = createSeedProject();
+    project.intake.appType = "powerAppsModelDriven";
+    project.powerPlatform = createProject({ intake: { appType: "powerAppsModelDriven" } }).powerPlatform;
+
+    const fields = validateIntake(project).missingFields.map((issue) => issue.field);
+
+    expect(fields).toEqual(expect.arrayContaining([
+      "dataverseUse",
+      "fields",
+      "keyFields",
+      "workflows"
+    ]));
+  });
 });

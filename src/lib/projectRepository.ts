@@ -13,10 +13,11 @@ import {
   reviewItemBlocksReadiness,
   updateReviewItemDecision
 } from "./clientReview";
-import { duplicatePowerPlatformForProject } from "./powerPlatform";
+import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
 import type {
   GeneratedDocument,
   ProjectInputField,
+  PowerPlatformProjectData,
   ProjectRecord,
   ReadinessChecklistId,
   ReviewItem,
@@ -282,6 +283,23 @@ export function updateProjectFields(
     const updated = applyProjectFieldChanges(project, changes);
     return {
       ...updated,
+      packageGeneratedAt: null,
+      reviewStatus: "Review needed",
+      status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
+    };
+  }, storage);
+}
+
+export function updateProjectPowerPlatform(
+  id: string,
+  updater: (current: PowerPlatformProjectData | undefined, project: ProjectRecord) => PowerPlatformProjectData | undefined,
+  storage: StorageAdapter = browserStorage()
+): ProjectRecord | null {
+  return updateProject(id, (project) => {
+    const nextPowerPlatform = updater(project.powerPlatform, project);
+    return {
+      ...project,
+      powerPlatform: normalizePowerPlatformData(nextPowerPlatform, project.intake.appType),
       packageGeneratedAt: null,
       reviewStatus: "Review needed",
       status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
