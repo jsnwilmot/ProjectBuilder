@@ -41,6 +41,7 @@ export const CORE_DOCUMENT_LOCATIONS: readonly DocumentLocation[] = [
 ] as const;
 
 export const CANVAS_COMMON_DOCUMENT_LOCATIONS: readonly DocumentLocation[] = [
+  { fileName: "DECISION_LOG.md", folder: "00_Project_Overview" },
   { fileName: "DATA_SOURCE_SCHEMA.md", folder: "03_Data_Model" },
   { fileName: "POWER_FX_STANDARDS.md", folder: "07_Development" },
   { fileName: "DELEGATION_REGISTER.md", folder: "07_Development" },
@@ -70,6 +71,7 @@ export const CANVAS_OTHER_CONNECTOR_DOCUMENT_LOCATIONS: readonly DocumentLocatio
 ] as const;
 
 export const MODEL_DRIVEN_DOCUMENT_LOCATIONS: readonly DocumentLocation[] = [
+  { fileName: "DECISION_LOG.md", folder: "00_Project_Overview" },
   { fileName: "DATAVERSE_SCHEMA.md", folder: "03_Data_Model" },
   { fileName: "LOGICAL_NAMES.md", folder: "03_Data_Model" },
   { fileName: "SOLUTION_ARCHITECTURE.md", folder: "02_Architecture" },

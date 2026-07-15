@@ -829,7 +829,7 @@ describe("projectRepository", () => {
     const loaded = getProjectById(project.identity.id, storage)!;
     expect(loaded.generatedDocuments).toHaveLength(1);
     expect(loaded.generatedFileCount).toBe(1);
-    expect(loaded.status).toBe("Project Package Generated");
+    expect(loaded.status).toBe("Needs Review");
     expect(loaded.reviewStatus).toBe("Review needed");
   });
 
@@ -886,7 +886,7 @@ describe("projectRepository", () => {
     expect(loaded.generatedDocuments).toHaveLength(2);
     expect(loaded.generatedDocuments[0].content).toBe("# Second");
     expect(loaded.generatedFileCount).toBe(2);
-    expect(loaded.status).toBe("Project Package Generated");
+    expect(loaded.status).toBe("Needs Review");
   });
 
   it("does not overwrite another project during intake updates", () => {

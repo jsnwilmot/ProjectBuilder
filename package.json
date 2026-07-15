@@ -8,8 +8,9 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "deploy": "wrangler deploy",
     "lint": "eslint .",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test": "node scripts/run-tests.mjs",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:coverage": "node scripts/run-tests-with-coverage.mjs",
     "test:watch": "vitest",
     "preview": "vite preview"
   },

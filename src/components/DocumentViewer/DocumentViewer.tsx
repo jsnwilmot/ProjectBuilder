@@ -5,6 +5,7 @@ import { getClientReviewReadiness } from "../../lib/clientReview";
 import { copyText } from "../../lib/copyText";
 import { getDocumentReviewItems } from "../../lib/documentReview";
 import { validateExportPackage } from "../../lib/exportIntegrity";
+import { evaluateGeneratedPackageReadiness } from "../../lib/generatedPackageReadiness";
 import { expectedDocumentLocations } from "../../lib/powerPlatform";
 import type { DocumentReviewItem } from "../../lib/documentReview";
 import type { ProjectPackage, ProjectRecord } from "../../types/project";
@@ -22,12 +23,16 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
   const [copyStatus, setCopyStatus] = useState("");
 
   const reviewItems = useMemo(
-    () => getDocumentReviewItems(projectPackage?.documents ?? []),
-    [projectPackage]
+    () => getDocumentReviewItems(projectPackage?.documents ?? [], project ?? undefined),
+    [projectPackage, project]
   );
   const integrity = useMemo(() => validateExportPackage(project), [project]);
   const readiness = useMemo(
     () => project ? getClientReviewReadiness(project) : null,
+    [project]
+  );
+  const generatedReadiness = useMemo(
+    () => project ? evaluateGeneratedPackageReadiness(project) : null,
     [project]
   );
   const filteredDocuments = useMemo(() => {
@@ -43,6 +48,8 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
     ? reviewItems.find((document) => document.fileName === selectedFile) ?? null
     : null;
   const checklistComplete = readiness?.checklist.filter((item) => item.passed).length ?? 0;
+  const finalReady = Boolean(readiness?.isReady && generatedReadiness?.status === "Ready for Codex" && integrity.isValid);
+  const finalBlockerCount = (readiness?.blockerCount ?? 0) + (generatedReadiness?.blockers.length ?? 0) + integrity.errors.length;
   const expectedCount = project ? expectedDocumentLocations(project).length : DOCUMENT_LOCATIONS.length;
 
   if (!projectPackage || !project) {
@@ -89,10 +96,13 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
           <div><dt>Package status</dt><dd>{integrity.manifestSummary.readiness}</dd></div>
           <div><dt>Documents</dt><dd>{integrity.fileCount}/{integrity.expectedFileCount}</dd></div>
           <div><dt>Missing markers</dt><dd>{integrity.manifestSummary.missingMarkerCount}</dd></div>
-          <div><dt>Ready for Codex blockers</dt><dd>{readiness?.blockerCount ?? 0}</dd></div>
+          <div><dt>Client Review blockers</dt><dd>{readiness?.blockerCount ?? 0}</dd></div>
+          <div><dt>Generated-content blockers</dt><dd>{generatedReadiness?.blockers.length ?? 0}</dd></div>
+          <div><dt>Export-integrity blockers</dt><dd>{integrity.errors.length}</dd></div>
+          <div><dt>Ready for Codex blockers</dt><dd>{finalBlockerCount}</dd></div>
           <div><dt>Readiness checklist</dt><dd>{checklistComplete}/{readiness?.checklist.length ?? 12}</dd></div>
           <div><dt>ZIP export</dt><dd>{integrity.isValid ? "Available" : "Unavailable"}</dd></div>
-          <div><dt>Final readiness</dt><dd>{readiness?.isReady ? "Ready" : "Not ready"}</dd></div>
+          <div><dt>Final readiness</dt><dd>{finalReady ? "Ready" : "Not ready"}</dd></div>
         </dl>
         {integrity.manifestSummary.missingMarkerCount > 0 ? (
           <div className="package-marker-warning" role="status">
@@ -247,8 +257,9 @@ function DocumentPreview({
 }
 
 function statusClassName(status: DocumentReviewItem["status"]) {
-  if (status === "Needs Info") return "needs-info";
-  if (status === "Review Recommended") return "review-recommended";
+  if (status === "Draft") return "needs-info";
+  if (status === "Review Required") return "review-recommended";
+  if (status === "Not Applicable") return "not-applicable";
   return "ready";
 }
 

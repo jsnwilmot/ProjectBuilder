@@ -215,9 +215,103 @@ export interface PowerPlatformConnector {
   supportedOperations: Partial<Record<ConnectorOperation, boolean>>;
   offlineSupport: string;
   securityNotes: string;
+  requiredConnectorPermissions?: string;
+  permissionOwner?: string;
+  permissionValidationMethod?: string;
+  permissionConfirmationStatus?: PowerPlatformDecisionStatus;
   limitations: string;
+  connectionOwner?: string;
+  connectionOwnerRole?: string;
+  connectionOwnershipStatus?: PowerPlatformDecisionStatus;
+  connectionOwnershipNotes?: string;
   approvalStatus: string;
   approvalConfirmationStatus?: PowerPlatformStatusValue;
+}
+
+export interface CanvasTargetDataSourceReference {
+  connectorId: string;
+  entityId: string;
+}
+
+export interface CanvasScreenTarget {
+  id: string;
+  displayName: string;
+  approvedScreenName: string;
+  purpose: string;
+  screenType: string;
+  entryPoints: string;
+  exitPoints: string;
+  dataSourceApplicabilityDecision: PowerPlatformApplicabilityDecision;
+  dataSourceIds: string[];
+  dataSourceEntityIds: string[];
+  dataSourceReferences: CanvasTargetDataSourceReference[];
+  referenceReviewNotes: string;
+  yamlOutputDecision: PowerPlatformApplicabilityDecision;
+  yamlOutputType: string;
+  yamlParentType: "app" | "screen" | "control" | "component" | "none" | "";
+  yamlParentId: string;
+  yamlInstallationLocation: string;
+  yamlValidationResponsibility: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface CanvasControlTarget {
+  id: string;
+  screenId: string;
+  parentControlId: string;
+  approvedControlName: string;
+  controlType: string;
+  purpose: string;
+  formulaOutputDecision: PowerPlatformApplicabilityDecision;
+  operation: string;
+  formulaProperties: string;
+  connectorId: string;
+  entityId: string;
+  dataSourceId: string;
+  dataSourceEntityId: string;
+  requiredFieldIds: string[];
+  dependencies: string;
+  dependencyApplicabilityDecision: PowerPlatformApplicabilityDecision;
+  referenceReviewNotes: string;
+  visibilityRequirement: string;
+  displayModeRequirement: string;
+  accessibleLabelRequirement: string;
+  yamlOutputDecision: PowerPlatformApplicabilityDecision;
+  yamlOutputType: string;
+  yamlParentType: "app" | "screen" | "control" | "component" | "none" | "";
+  yamlParentId: string;
+  yamlInstallationLocation: string;
+  yamlValidationResponsibility: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface CanvasComponentUsageTarget {
+  id: string;
+  targetType: "screen" | "control";
+  targetId: string;
+  purpose: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
+}
+
+export interface CanvasComponentTarget {
+  id: string;
+  approvedComponentName: string;
+  purpose: string;
+  inputs: string;
+  outputs: string;
+  parentOrUsageLocations: string;
+  usageTargets: CanvasComponentUsageTarget[];
+  yamlOutputDecision: PowerPlatformApplicabilityDecision;
+  yamlOutputType: string;
+  yamlParentType: "app" | "screen" | "control" | "component" | "none" | "";
+  yamlParentId: string;
+  yamlInstallationLocation: string;
+  yamlValidationResponsibility: string;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  confirmationSource: string;
 }
 
 export interface SharePointListSchema {
@@ -416,12 +510,16 @@ export interface PowerPlatformCommonData {
   almApproach: string;
   deploymentMethod: string;
   deploymentResponsibility: string;
+  deploymentOwner: string;
+  deploymentResponsibilityStatus: PowerPlatformDecisionStatus;
   deploymentStrategy: string;
   environmentVariables: string;
   connectionReferences: string;
   pipelineRequirements: string;
   rollbackExpectations: string;
   releaseApprovalResponsibility: string;
+  releaseApprover: string;
+  releaseApprovalStatus: PowerPlatformDecisionStatus;
   authenticationRequirements: string;
   authorizationRequirements: string;
   roleBasedInterfaceExpectations: string;
@@ -467,6 +565,7 @@ export interface PowerPlatformCanvasData {
   teamsEmbedding: string;
   controlGeneration: string;
   componentLibraryRequirement: string;
+  componentApplicabilityDecision: PowerPlatformApplicabilityDecision;
   customPageRequirement: string;
   mobileDeviceCapabilities: string;
   primaryDataSourceType: CanvasDataSourceType;
@@ -517,8 +616,27 @@ export interface PowerPlatformCanvasData {
   expectedRecordCounts: string;
   offlineRequirements: string;
   synchronizationRequirements: string;
+  fileApplicabilityDecision: PowerPlatformApplicabilityDecision;
+  fileUploadRequirements: string;
+  fileDownloadRequirements: string;
+  fileMetadataRequirements: string;
+  fileSizeRequirements: string;
+  filePermissionRequirements: string;
+  fileValidationRequirements: string;
   attachmentRequirements: string;
   fileRequirements: string;
+  screenTargets: CanvasScreenTarget[];
+  controlTargets: CanvasControlTarget[];
+  componentTargets: CanvasComponentTarget[];
+  screenNamingConvention: string;
+  controlNamingConvention: string;
+  controlTypePrefixes: string;
+  variableNamingConvention: string;
+  collectionNamingConvention: string;
+  componentNamingConvention: string;
+  formulaFileNamingConvention: string;
+  yamlFileNamingConvention: string;
+  namingStandardConfirmationStatus: PowerPlatformDecisionStatus;
   screens: string;
   screenNames: string;
   screenPurposes: string;
@@ -689,6 +807,14 @@ export interface PowerPlatformModelDrivenData {
   logicalNameStatus: PowerPlatformStatusValue;
   solutionArchitectureStatus: PowerPlatformStatusValue;
   solutionSourceStatus: string;
+  sourceAvailabilityStatus: PowerPlatformStatusValue;
+  sourceLocation: string;
+  sourceType: string;
+  sourceValidationStatus: PowerPlatformStatusValue;
+  sourceValidationEvidence: string;
+  solutionVersion: string;
+  lastUnpackedDate: string;
+  sourceNotes: string;
   securityReviewStatus: PowerPlatformStatusValue;
   dataverseSchemaConfirmationStatus: PowerPlatformStatusValue;
   solutionArchitectureConfirmationStatus: PowerPlatformStatusValue;

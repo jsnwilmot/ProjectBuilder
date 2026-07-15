@@ -1,12 +1,16 @@
 import { CORE_DOCUMENT_LOCATIONS, PROJECT_FOLDERS } from "../data/folderStructure";
 import type { ProjectRecord } from "../types/project";
 import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
-import { getClientReviewReadiness } from "./clientReview";
 import { countPackageMissingMarkers } from "./documentReview";
 import { expectedDocumentLocations } from "./powerPlatform";
+import { documentTemplates } from "../templates/documents";
+import {
+  evaluateGeneratedPackageReadiness,
+  PROHIBITED_GENERATED_CONTENT_PATTERNS
+} from "./generatedPackageReadiness";
 
 export const EXPORT_MANIFEST_PATH = "00_Project_Overview/EXPORT_MANIFEST.md";
-export const EXPORT_SCHEMA_VERSION = 2;
+export const EXPORT_SCHEMA_VERSION = 3;
 
 export interface ExportManifestSummary {
   schemaVersion: number;
@@ -34,6 +38,7 @@ export interface ExportIntegrityResult {
 
 // eslint-disable-next-line no-control-regex -- intentional check for unsafe path characters
 const controlCharacters = /[\u0000-\u001f\u007f]/;
+const requiredBlankSectionPattern = /^##\s+(.+)\s*\n\s*(?=##\s+|$)/gm;
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
@@ -77,7 +82,9 @@ export function validateExportPackage(
   const duplicatePaths: string[] = [];
   const expectedLocations = project ? expectedDocumentLocations(project) : CORE_DOCUMENT_LOCATIONS;
   const expectedFiles = expectedLocations.map((location) => location.fileName);
+  const expectedPaths = expectedLocations.map((location) => `${location.folder}/${location.fileName}`);
   const expectedFileCount = expectedFiles.length;
+  const duplicateExpectedPaths = expectedPaths.filter((path, index) => expectedPaths.indexOf(path) !== index);
 
   if (!project) {
     errors.push("No active project is available to export.");
@@ -111,12 +118,14 @@ export function validateExportPackage(
   );
   const actualNames = new Set(documents.map((document) => document.fileName));
   const pathCounts = new Map<string, number>();
+  const prohibitedFindings: string[] = [];
   let folderMapStatus: ExportIntegrityResult["folderMapStatus"] = "valid";
 
   if (documents.length === 0) errors.push("Generate the project package before exporting.");
 
   for (const fileName of expectedFiles) {
     if (!actualNames.has(fileName)) missingFiles.push(fileName);
+    if (!documentTemplates[fileName]) errors.push(`${fileName} has no registered document template.`);
   }
 
   for (const document of documents) {
@@ -137,6 +146,13 @@ export function validateExportPackage(
     pathCounts.set(normalizedPath, (pathCounts.get(normalizedPath) ?? 0) + 1);
 
     if (!document.content.trim()) errors.push(`${document.fileName} has empty generated content.`);
+    for (const { pattern, label } of PROHIBITED_GENERATED_CONTENT_PATTERNS) {
+      if (pattern.test(document.content)) prohibitedFindings.push(`${document.fileName} contains prohibited ${label}.`);
+    }
+    const blankSections = [...document.content.matchAll(requiredBlankSectionPattern)].map((match) => match[1].trim());
+    if (blankSections.length > 0) {
+      warnings.push(`${document.fileName} contains blank section(s): ${blankSections.join(", ")}.`);
+    }
   }
 
   for (const [path, count] of pathCounts) {
@@ -147,18 +163,26 @@ export function validateExportPackage(
   if (extraFiles.length > 0) errors.push(`${extraFiles.length} unexpected generated file(s) were found.`);
   if (unsafePaths.length > 0) errors.push(`${unsafePaths.length} unsafe export path(s) were found.`);
   if (duplicatePaths.length > 0) errors.push(`${duplicatePaths.length} duplicate export path(s) were found.`);
+  if (duplicateExpectedPaths.length > 0) errors.push(`${duplicateExpectedPaths.length} duplicate expected document path(s) were registered.`);
   if (documents.length !== expectedFileCount) {
     errors.push(`Expected ${expectedFileCount} generated documents but found ${documents.length}.`);
   }
 
   const missingMarkerCount = countMissingMarkers(project);
-  const clientReview = getClientReviewReadiness(project);
-  const readiness = clientReview.isReady ? "Ready for Codex" : "Draft";
+  const missingTemplates = expectedFiles.filter((fileName) => !documentTemplates[fileName]);
+  const generatedReadiness = evaluateGeneratedPackageReadiness(project, documents, missingTemplates);
+  const readiness = generatedReadiness.status;
+  for (const finding of prohibitedFindings) {
+    if (readiness === "Ready for Codex") errors.push(finding);
+    else warnings.push(finding);
+  }
   if (missingMarkerCount > 0) {
-    warnings.push(`${missingMarkerCount} missing-information marker(s) will remain in the export.`);
+    const message = `${missingMarkerCount} missing-information marker(s) will remain in the export.`;
+    if (readiness === "Ready for Codex") errors.push(`Ready for Codex export is invalid: ${message}`);
+    else warnings.push(message);
   }
   if (readiness === "Draft") {
-    warnings.push(`Package readiness is Draft because ${clientReview.blockerCount} client review blocker(s) remain.`);
+    warnings.push(`Package readiness is Draft because ${generatedReadiness.blockers.length} readiness blocker(s) remain.`);
   }
   const sourceName = project.identity.projectName.trim();
   if (!sourceName || rootFolder !== sourceName.toLowerCase().replace(/\s+/g, "-")) {

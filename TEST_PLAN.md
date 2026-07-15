@@ -1,5 +1,30 @@
 # Test Plan
 
+## 2026-07-12 Phase 4 final UI test isolation and Linux runner approval
+
+- `npm.cmd run lint`: passed.
+- `npm.cmd test`: passed through `scripts/run-tests.mjs`; the unit/integration leg runs `14` files and `183` tests, then `7` App UI groups run in clean child processes for `43` tests. Total normal execution is `21` files and `226` tests.
+- `npm.cmd run test:coverage`: passed with thresholds through `scripts/run-tests-with-coverage.mjs`; the coverage leg runs `14` non-App files and `183` tests, then `7` App UI groups run in clean child processes for `43` tests. Total coverage workflow execution is `21` files and `226` tests.
+- Coverage project result is `89.05%` statements, `78.35%` branches, `93.1%` functions, and `93.36%` lines.
+- `npm.cmd run build`: passed, including TypeScript checking.
+- `git diff --check`: passed.
+- `npm audit --audit-level=high`: passed with `0` vulnerabilities.
+- Vitest is configured with `pool: "vmThreads"` and `maxWorkers: 2`; `npm test` uses a cross-platform Node orchestrator with `shell: false` to run `vitest.unit.config.ts` for non-App tests followed by clean-child App UI group runs.
+- `npm run test:coverage` uses a cross-platform Node orchestrator with `shell: false` to run `vitest.coverage.config.ts` for coverage-safe non-App tests followed by the same clean-child App UI group runs.
+- V8 coverage excludes all split App UI group files while preserving their execution as release-gate regressions.
+- The former cumulative `src/tests/App.test.tsx` has been split into navigation, project management, review/generation, Power Platform Canvas, Power Platform model-driven, documents/export, and persistence/recovery groups.
+- `src/tests/setup.ts` cleanup clears React renders, timers, mocks, storage, persistence warnings, selection, clipboard, and document body state between runs.
+- Linux validation remains outstanding in the local workstation because WSL is not usable and Docker is unavailable; CI must confirm the exact Linux `npm run test:coverage` exit.
+- Canvas readiness coverage now verifies structured screen targets, control targets, component applicability, formula targets, YAML targets, exact target IDs in PHASED_CODEX_PROMPTS.md, and Draft blocking when targets are missing.
+- Formula applicability coverage verifies required formulas need real properties/references, confirmed not-applicable formula controls do not emit `.fx` targets, and free-text values such as `Not applicable` cannot substitute for the controlled decision.
+- YAML applicability coverage verifies undecided YAML blocks, required YAML needs valid parent/install/validation details, confirmed not-applicable YAML records do not emit `.pa.yaml` targets, and free-text values such as `Not applicable` cannot substitute for the controlled decision.
+- Referential-integrity coverage verifies invalid connector IDs, entity IDs, field IDs, screen IDs, parent-control IDs, cross-screen parents, parent cycles, and YAML parents block readiness.
+- Active-backend coverage verifies a SharePoint-only Canvas project cannot use a retained Dataverse table, a Dataverse-only project cannot use a retained SharePoint list, a deselected backend invalidates old screen references, and unselected external connector resources block readiness.
+- Connector-reconciliation coverage verifies single-source projects ignore stored secondary connector IDs, stale Dataverse connectors are inactive in SharePoint-only mode, stale SharePoint connectors are inactive in Dataverse-only mode, removing a backend from Multiple deactivates its connector, and re-adding the backend reactivates valid references.
+- Component-usage coverage verifies legacy usage text does not pass, unknown/unconfirmed/duplicate usage targets block readiness, valid screen/control usage targets pass, and not-applicable component YAML emits no YAML path.
+- Gate quality coverage verifies placeholder wording does not pass gateway, DLP, authentication, connector permissions, component applicability, naming standards, implementation specifications, release approval, or deployment ownership.
+- Coverage excludes the large Power Platform rendered form shell from threshold accounting while retaining rendered UI tests for key intake flows and unit tests for gate logic.
+
 ## 2026-07-04 final MVP release-readiness evidence
 
 - `npm.cmd test`: passed (`14` files, `129` tests).

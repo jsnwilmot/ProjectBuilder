@@ -13,6 +13,11 @@ import type {
   ConnectorOperation,
   PowerAppsCanvasSubtype,
   PowerAppsModelDrivenSubtype,
+  CanvasComponentTarget,
+  CanvasComponentUsageTarget,
+  CanvasControlTarget,
+  CanvasScreenTarget,
+  CanvasTargetDataSourceReference,
   PowerPlatformCommonData,
   PowerPlatformConnector,
   PowerPlatformCanvasData,
@@ -25,6 +30,7 @@ import type {
   ProjectType,
   SelectableCanvasDataSourceType
 } from "../types/project";
+import { reconcileCanvasConnectorSelection, validateCanvasTargets } from "./canvasTargetValidation";
 
 type AnyPowerPlatformType = ProjectType | "";
 
@@ -175,6 +181,16 @@ function toDecisionStatus(value: unknown, fallback: PowerPlatformDecisionStatus 
   return fallback;
 }
 
+function migrateSourceAvailabilityStatus(value: unknown): PowerPlatformDecisionStatus {
+  if (value === "confirmed") return "confirmed";
+  if (value === "notApplicable") return "notApplicable";
+  if (value === "blocked") return "blocked";
+  if (value === "reviewNeeded") return "reviewNeeded";
+  if (value === "missingInformation") return "missingInformation";
+  if (value === "notStarted") return "notStarted";
+  return asString(value).trim() ? "reviewNeeded" : "missingInformation";
+}
+
 function toConnectorApprovalConfirmationStatus(value: unknown, legacyNotes: unknown): PowerPlatformDecisionStatus {
   if (VALID_DECISION_STATUSES.includes(value as PowerPlatformDecisionStatus)) {
     return value as PowerPlatformDecisionStatus;
@@ -224,7 +240,15 @@ export function createDefaultConnector(overrides: Partial<PowerPlatformConnector
     }, {} as Partial<Record<ConnectorOperation, boolean>>),
     offlineSupport: overrides.offlineSupport ?? "",
     securityNotes: overrides.securityNotes ?? "",
+    requiredConnectorPermissions: overrides.requiredConnectorPermissions ?? "",
+    permissionOwner: overrides.permissionOwner ?? "",
+    permissionValidationMethod: overrides.permissionValidationMethod ?? "",
+    permissionConfirmationStatus: toDecisionStatus(overrides.permissionConfirmationStatus),
     limitations: overrides.limitations ?? "",
+    connectionOwner: overrides.connectionOwner ?? "",
+    connectionOwnerRole: overrides.connectionOwnerRole ?? "",
+    connectionOwnershipStatus: toDecisionStatus(overrides.connectionOwnershipStatus, "reviewNeeded"),
+    connectionOwnershipNotes: overrides.connectionOwnershipNotes ?? "",
     approvalStatus: overrides.approvalStatus ?? "",
     approvalConfirmationStatus: toDecisionStatus(overrides.approvalConfirmationStatus)
   };
@@ -276,12 +300,16 @@ function createDefaultCommonData(): PowerPlatformCommonData {
     almApproach: "",
     deploymentMethod: "",
     deploymentResponsibility: "",
+    deploymentOwner: "",
+    deploymentResponsibilityStatus: "missingInformation",
     deploymentStrategy: "",
     environmentVariables: "",
     connectionReferences: "",
     pipelineRequirements: "",
     rollbackExpectations: "",
     releaseApprovalResponsibility: "",
+    releaseApprover: "",
+    releaseApprovalStatus: "missingInformation",
     authenticationRequirements: "",
     authorizationRequirements: "",
     roleBasedInterfaceExpectations: "",
@@ -476,6 +504,111 @@ export function createDefaultConnectorField(overrides: Partial<PowerPlatformCanv
   };
 }
 
+export function createDefaultCanvasScreenTarget(overrides: Partial<CanvasScreenTarget> = {}): CanvasScreenTarget {
+  const legacyEntityIds = Array.isArray(overrides.dataSourceEntityIds) ? overrides.dataSourceEntityIds : Array.isArray(overrides.dataSourceIds) ? overrides.dataSourceIds : [];
+  const hasAmbiguousLegacyReference = legacyEntityIds.length > 0 && !Array.isArray(overrides.dataSourceReferences);
+  return {
+    id: overrides.id ?? createId("screen"),
+    displayName: overrides.displayName ?? "",
+    approvedScreenName: overrides.approvedScreenName ?? "",
+    purpose: overrides.purpose ?? "",
+    screenType: overrides.screenType ?? "",
+    entryPoints: overrides.entryPoints ?? "",
+    exitPoints: overrides.exitPoints ?? "",
+    dataSourceApplicabilityDecision: createApplicabilityDecision(overrides.dataSourceApplicabilityDecision ?? {}),
+    dataSourceIds: Array.isArray(overrides.dataSourceIds) ? overrides.dataSourceIds : [],
+    dataSourceEntityIds: legacyEntityIds,
+    dataSourceReferences: Array.isArray(overrides.dataSourceReferences)
+      ? overrides.dataSourceReferences.map(createDefaultCanvasDataSourceReference)
+      : [],
+    referenceReviewNotes: overrides.referenceReviewNotes ?? (hasAmbiguousLegacyReference ? "Legacy screen data-source/entity IDs require review as structured connector/entity pairs." : ""),
+    yamlOutputDecision: createApplicabilityDecision(overrides.yamlOutputDecision ?? {}),
+    yamlOutputType: overrides.yamlOutputType ?? "",
+    yamlParentType: overrides.yamlParentType ?? "",
+    yamlParentId: overrides.yamlParentId ?? "",
+    yamlInstallationLocation: overrides.yamlInstallationLocation ?? "",
+    yamlValidationResponsibility: overrides.yamlValidationResponsibility ?? "",
+    confirmationStatus: toDecisionStatus(overrides.confirmationStatus),
+    confirmationSource: overrides.confirmationSource ?? ""
+  };
+}
+
+export function createDefaultCanvasDataSourceReference(overrides: Partial<CanvasTargetDataSourceReference> = {}): CanvasTargetDataSourceReference {
+  return {
+    connectorId: overrides.connectorId ?? "",
+    entityId: overrides.entityId ?? ""
+  };
+}
+
+export function createDefaultCanvasControlTarget(overrides: Partial<CanvasControlTarget> = {}): CanvasControlTarget {
+  const legacyConnectorId = overrides.connectorId ?? overrides.dataSourceId ?? "";
+  const legacyEntityId = overrides.entityId ?? overrides.dataSourceEntityId ?? "";
+  const hasLegacyReference = Boolean((overrides.dataSourceId && !overrides.connectorId) || (overrides.dataSourceEntityId && !overrides.entityId));
+  return {
+    id: overrides.id ?? createId("control"),
+    screenId: overrides.screenId ?? "",
+    parentControlId: overrides.parentControlId ?? "",
+    approvedControlName: overrides.approvedControlName ?? "",
+    controlType: overrides.controlType ?? "",
+    purpose: overrides.purpose ?? "",
+    formulaOutputDecision: createApplicabilityDecision(overrides.formulaOutputDecision ?? {}),
+    operation: overrides.operation ?? "",
+    formulaProperties: overrides.formulaProperties ?? "",
+    connectorId: legacyConnectorId,
+    entityId: legacyEntityId,
+    dataSourceId: overrides.dataSourceId ?? "",
+    dataSourceEntityId: overrides.dataSourceEntityId ?? "",
+    requiredFieldIds: Array.isArray(overrides.requiredFieldIds) ? overrides.requiredFieldIds : [],
+    dependencies: overrides.dependencies ?? "",
+    dependencyApplicabilityDecision: createApplicabilityDecision(overrides.dependencyApplicabilityDecision ?? {}),
+    referenceReviewNotes: overrides.referenceReviewNotes ?? (hasLegacyReference ? "Review migrated legacy dataSourceId/dataSourceEntityId values and confirm connector/entity meaning." : ""),
+    visibilityRequirement: overrides.visibilityRequirement ?? "",
+    displayModeRequirement: overrides.displayModeRequirement ?? "",
+    accessibleLabelRequirement: overrides.accessibleLabelRequirement ?? "",
+    yamlOutputDecision: createApplicabilityDecision(overrides.yamlOutputDecision ?? {}),
+    yamlOutputType: overrides.yamlOutputType ?? "",
+    yamlParentType: overrides.yamlParentType ?? "",
+    yamlParentId: overrides.yamlParentId ?? "",
+    yamlInstallationLocation: overrides.yamlInstallationLocation ?? "",
+    yamlValidationResponsibility: overrides.yamlValidationResponsibility ?? "",
+    confirmationStatus: toDecisionStatus(overrides.confirmationStatus),
+    confirmationSource: overrides.confirmationSource ?? ""
+  };
+}
+
+export function createDefaultCanvasComponentTarget(overrides: Partial<CanvasComponentTarget> = {}): CanvasComponentTarget {
+  return {
+    id: overrides.id ?? createId("component"),
+    approvedComponentName: overrides.approvedComponentName ?? "",
+    purpose: overrides.purpose ?? "",
+    inputs: overrides.inputs ?? "",
+    outputs: overrides.outputs ?? "",
+    parentOrUsageLocations: overrides.parentOrUsageLocations ?? "",
+    usageTargets: Array.isArray(overrides.usageTargets)
+      ? overrides.usageTargets.map(createDefaultCanvasComponentUsageTarget)
+      : [],
+    yamlOutputDecision: createApplicabilityDecision(overrides.yamlOutputDecision ?? {}),
+    yamlOutputType: overrides.yamlOutputType ?? "",
+    yamlParentType: overrides.yamlParentType ?? "",
+    yamlParentId: overrides.yamlParentId ?? "",
+    yamlInstallationLocation: overrides.yamlInstallationLocation ?? "",
+    yamlValidationResponsibility: overrides.yamlValidationResponsibility ?? "",
+    confirmationStatus: toDecisionStatus(overrides.confirmationStatus),
+    confirmationSource: overrides.confirmationSource ?? ""
+  };
+}
+
+export function createDefaultCanvasComponentUsageTarget(overrides: Partial<CanvasComponentUsageTarget> = {}): CanvasComponentUsageTarget {
+  return {
+    id: overrides.id ?? createId("usage"),
+    targetType: overrides.targetType === "screen" || overrides.targetType === "control" ? overrides.targetType : "screen",
+    targetId: overrides.targetId ?? "",
+    purpose: overrides.purpose ?? "",
+    confirmationStatus: toDecisionStatus(overrides.confirmationStatus),
+    confirmationSource: overrides.confirmationSource ?? ""
+  };
+}
+
 export function createApplicabilityDecision(overrides: Partial<PowerPlatformApplicabilityDecision> = {}): PowerPlatformApplicabilityDecision {
   return {
     status: overrides.status === "required" || overrides.status === "notApplicable" || overrides.status === "undecided"
@@ -541,6 +674,7 @@ function createDefaultCanvasData(): PowerPlatformCanvasData {
     teamsEmbedding: "",
     controlGeneration: "",
     componentLibraryRequirement: "",
+    componentApplicabilityDecision: createApplicabilityDecision(),
     customPageRequirement: "",
     mobileDeviceCapabilities: "",
     primaryDataSourceType: "undecided" as CanvasDataSourceType,
@@ -591,8 +725,27 @@ function createDefaultCanvasData(): PowerPlatformCanvasData {
     expectedRecordCounts: "",
     offlineRequirements: "",
     synchronizationRequirements: "",
+    fileApplicabilityDecision: createApplicabilityDecision(),
+    fileUploadRequirements: "",
+    fileDownloadRequirements: "",
+    fileMetadataRequirements: "",
+    fileSizeRequirements: "",
+    filePermissionRequirements: "",
+    fileValidationRequirements: "",
     attachmentRequirements: "",
     fileRequirements: "",
+    screenTargets: [],
+    controlTargets: [],
+    componentTargets: [],
+    screenNamingConvention: "",
+    controlNamingConvention: "",
+    controlTypePrefixes: "",
+    variableNamingConvention: "",
+    collectionNamingConvention: "",
+    componentNamingConvention: "",
+    formulaFileNamingConvention: "",
+    yamlFileNamingConvention: "",
+    namingStandardConfirmationStatus: "missingInformation",
     screens: "",
     screenNames: "",
     screenPurposes: "",
@@ -765,6 +918,14 @@ function createDefaultModelDrivenData(): PowerPlatformModelDrivenData {
     logicalNameStatus: "missingInformation",
     solutionArchitectureStatus: "missingInformation",
     solutionSourceStatus: "",
+    sourceAvailabilityStatus: "missingInformation",
+    sourceLocation: "",
+    sourceType: "",
+    sourceValidationStatus: "missingInformation",
+    sourceValidationEvidence: "",
+    solutionVersion: "",
+    lastUnpackedDate: "",
+    sourceNotes: "",
     securityReviewStatus: "missingInformation",
     dataverseSchemaConfirmationStatus: "missingInformation",
     solutionArchitectureConfirmationStatus: "missingInformation",
@@ -904,7 +1065,12 @@ function resetPowerPlatformProgressForDuplicate(data: PowerPlatformProjectData):
   cloned.progress.modelDriven.extensions = hasAnyValue([cloned.modelDriven?.plugins, cloned.modelDriven?.customApis, cloned.modelDriven?.pcfControls, cloned.modelDriven?.webResources])
     ? "reviewNeeded"
     : "notStarted";
-  cloned.progress.modelDriven.sourceAvailability = hasAnyValue([cloned.modelDriven?.solutionSourceStatus])
+  cloned.progress.modelDriven.sourceAvailability = hasAnyValue([
+    cloned.modelDriven?.sourceAvailabilityStatus,
+    cloned.modelDriven?.sourceLocation,
+    cloned.modelDriven?.sourceType,
+    cloned.modelDriven?.sourceValidationEvidence
+  ])
     ? "reviewNeeded"
     : "notStarted";
   cloned.progress.modelDriven.solutionComponents = "notStarted";
@@ -993,19 +1159,12 @@ export function duplicatePowerPlatformForProject(
 export function getSelectedCanvasDataSourceTypes(project: ProjectRecord): SelectableCanvasDataSourceType[] {
   const selected = new Set<SelectableCanvasDataSourceType>();
   const canvas = project.powerPlatform?.canvas;
-  const connectors = project.powerPlatform?.common.connectors ?? [];
   if (!canvas) return [];
 
   if (canvas.primaryDataSourceType === "multiple") {
     for (const sourceType of canvas.selectedDataSourceTypes) selected.add(sourceType);
   } else if (isSelectableCanvasDataSourceType(canvas.primaryDataSourceType)) {
     selected.add(canvas.primaryDataSourceType);
-  }
-
-  for (const connectorId of canvas.secondaryConnectorIds) {
-    const connector = connectors.find((candidate) => candidate.id === connectorId);
-    if (!connector) continue;
-    if (isSelectableCanvasDataSourceType(connector.dataSourceType)) selected.add(connector.dataSourceType);
   }
 
   return [...selected];
@@ -1030,10 +1189,10 @@ export function formatPowerPlatformGateStatus(status: PowerPlatformGateStatus | 
 
 export function formatCanvasDataSourceType(sourceType: SelectableCanvasDataSourceType): string {
   const labels: Record<SelectableCanvasDataSourceType, string> = {
-    sharePointList: "SharePoint list",
-    sharePointLibrary: "SharePoint document library",
+    sharePointList: "SharePoint Online List",
+    sharePointLibrary: "SharePoint Online Document Library",
     microsoftList: "Microsoft List",
-    dataverse: "Dataverse",
+    dataverse: "Microsoft Dataverse",
     excel: "Excel",
     sqlServer: "SQL Server",
     microsoft365Connector: "Microsoft 365 connector",
@@ -1122,6 +1281,11 @@ function hasText(value: string | undefined): boolean {
   return Boolean(value?.trim());
 }
 
+function hasMeaningfulText(value: string | undefined): boolean {
+  if (!hasText(value)) return false;
+  return !/^(not decided|unknown|pending|tbd|to be determined|n\/a pending|none yet|needs review|unconfirmed|missing|no decision yet|no confirmation|no approved approach)$/i.test((value ?? "").trim());
+}
+
 function hasMissingMarker(value: string | undefined): boolean {
   return /\[MISSING:/i.test(value ?? "");
 }
@@ -1169,11 +1333,9 @@ export function reconcileCanvasConnectorRoles(
 function assignedCanvasAssessments(project: ProjectRecord): PowerPlatformConnector[] {
   const canvas = project.powerPlatform?.canvas;
   if (!canvas) return [];
+  const activeIds = new Set(reconcileCanvasConnectorSelection(project).activeConnectorIds);
   return (project.powerPlatform?.common.connectors ?? []).filter((connector) =>
-    connector.id === canvas.primaryConnectorId
-    || canvas.secondaryConnectorIds.includes(connector.id)
-    || connector.canvasRole === "primary"
-    || connector.canvasRole === "secondary"
+    activeIds.has(connector.id)
   );
 }
 
@@ -1181,12 +1343,11 @@ function canvasConnectorRolesAreValid(project: ProjectRecord): boolean {
   const canvas = project.powerPlatform?.canvas;
   if (!canvas) return false;
   const connectors = project.powerPlatform?.common.connectors ?? [];
-  const reconciled = reconcileCanvasConnectorRoles(connectors, canvas.primaryConnectorId, canvas.secondaryConnectorIds);
-  if (!reconciled.primaryConnectorId) return false;
-  if (reconciled.connectors.filter((connector) => connector.canvasRole === "primary").length !== 1) return false;
+  const reconciledSelection = reconcileCanvasConnectorSelection(project);
+  if (!reconciledSelection.primaryConnectorId || reconciledSelection.blockers.length > 0) return false;
   const assignedSourceTypes = new Set(
-    reconciled.connectors
-      .filter((connector) => connector.canvasRole === "primary" || connector.canvasRole === "secondary")
+    connectors
+      .filter((connector) => reconciledSelection.activeConnectorIds.includes(connector.id))
       .map((connector) => connector.dataSourceType)
       .filter(isSelectableCanvasDataSourceType)
   );
@@ -1702,6 +1863,79 @@ export function calculateModelDrivenExtensionsGate(project: ProjectRecord): Powe
   ]);
 }
 
+export function calculateConnectionOwnershipGate(project: ProjectRecord): PowerPlatformGateStatus {
+  const relevantConnectors = isCanvasProject(project)
+    ? assignedCanvasAssessments(project)
+    : modelDrivenExternalConnectors(project);
+  if (relevantConnectors.length === 0) return "notApplicable";
+  if (relevantConnectors.some((connector) => !hasText(connector.connectionOwner) || !hasText(connector.connectionOwnerRole))) return "missingInformation";
+  if (relevantConnectors.some((connector) => connector.connectionOwnershipStatus !== "confirmed")) return "reviewNeeded";
+  return "confirmed";
+}
+
+export function calculateCanvasFileApplicabilityGate(project: ProjectRecord): PowerPlatformGateStatus {
+  if (!isCanvasProject(project)) return "notApplicable";
+  const canvas = project.powerPlatform?.canvas;
+  if (!canvas) return "missingInformation";
+  const decision = canvas.fileApplicabilityDecision;
+  if (decision.status === "undecided") return "missingInformation";
+  if (decision.status === "notApplicable") {
+    if (!hasText(decision.notApplicableReason)) return "missingInformation";
+    return decision.confirmationStatus === "confirmed" ? "notApplicable" : "reviewNeeded";
+  }
+  const requiredValues = [
+    decision.details,
+    canvas.fileRequirements,
+    canvas.attachmentRequirements,
+    canvas.fileUploadRequirements,
+    canvas.fileDownloadRequirements,
+    canvas.fileMetadataRequirements,
+    canvas.fileSizeRequirements,
+    canvas.filePermissionRequirements,
+    canvas.fileValidationRequirements
+  ];
+  if (requiredValues.some((value) => !hasText(value))) return "missingInformation";
+  if (
+    canvas.sharePointLibrarySchemas.length === 0
+    && canvas.connectorResourceSchemas.length === 0
+    && canvas.connectorFieldSchemas.length === 0
+  ) return "missingInformation";
+  return decision.confirmationStatus === "confirmed" ? "confirmed" : "reviewNeeded";
+}
+
+export function calculateCanvasScreenTargetGate(project: ProjectRecord): PowerPlatformGateStatus {
+  return validateCanvasTargets(project).screenStatus;
+}
+
+export function calculateCanvasControlTargetGate(project: ProjectRecord): PowerPlatformGateStatus {
+  return validateCanvasTargets(project).controlStatus;
+}
+
+export function calculateCanvasComponentTargetGate(project: ProjectRecord): PowerPlatformGateStatus {
+  return validateCanvasTargets(project).componentStatus;
+}
+
+export function calculateCanvasFormulaTargetGate(project: ProjectRecord): PowerPlatformGateStatus {
+  return validateCanvasTargets(project).formulaStatus;
+}
+
+export function calculateCanvasYamlTargetGate(project: ProjectRecord): PowerPlatformGateStatus {
+  return validateCanvasTargets(project).yamlStatus;
+}
+
+export function calculateModelDrivenSourceAvailabilityGate(project: ProjectRecord): PowerPlatformGateStatus {
+  if (!isModelDrivenProject(project)) return "notApplicable";
+  const modelDriven = project.powerPlatform?.modelDriven;
+  if (!modelDriven) return "missingInformation";
+  if (modelDriven.sourceAvailabilityStatus === "notStarted" || modelDriven.sourceAvailabilityStatus === "missingInformation") return "missingInformation";
+  if (modelDriven.sourceAvailabilityStatus === "reviewNeeded") return "reviewNeeded";
+  if (modelDriven.sourceAvailabilityStatus === "blocked") return "blocked";
+  if (modelDriven.sourceAvailabilityStatus === "notApplicable") return "notApplicable";
+  if (modelDriven.sourceAvailabilityStatus !== "confirmed") return "missingInformation";
+  if (!hasText(modelDriven.sourceLocation) || !hasText(modelDriven.sourceType) || !hasText(modelDriven.sourceValidationEvidence) || !hasText(modelDriven.solutionVersion) || !hasText(modelDriven.lastUnpackedDate)) return "missingInformation";
+  return modelDriven.sourceValidationStatus === "confirmed" ? "confirmed" : "reviewNeeded";
+}
+
 export interface PowerPlatformReadinessSummary {
   projectType: "canvas" | "modelDriven" | "legacy" | "none";
   gates: Array<{ id: string; label: string; status: PowerPlatformGateStatus; description: string }>;
@@ -1712,6 +1946,20 @@ export interface PowerPlatformReadinessSummary {
 function nextActionForGate(label: string, status: PowerPlatformGateStatus): string | null {
   if (status === "confirmed" || status === "ready" || status === "passed" || status === "notApplicable") return null;
   return label;
+}
+
+function commonReleaseApprovalGate(project: ProjectRecord): PowerPlatformGateStatus {
+  const common = project.powerPlatform?.common;
+  if (!common) return "notApplicable";
+  if (!hasMeaningfulText(common.releaseApprover) || !hasMeaningfulText(common.releaseApprovalResponsibility)) return "missingInformation";
+  return common.releaseApprovalStatus === "confirmed" ? "confirmed" : "reviewNeeded";
+}
+
+function commonDeploymentResponsibilityGate(project: ProjectRecord): PowerPlatformGateStatus {
+  const common = project.powerPlatform?.common;
+  if (!common) return "notApplicable";
+  if (!hasMeaningfulText(common.deploymentOwner) || !hasMeaningfulText(common.deploymentResponsibility)) return "missingInformation";
+  return common.deploymentResponsibilityStatus === "confirmed" ? "confirmed" : "reviewNeeded";
 }
 
 export function calculatePowerPlatformReadiness(project: ProjectRecord): PowerPlatformReadinessSummary {
@@ -1735,11 +1983,20 @@ export function calculatePowerPlatformReadiness(project: ProjectRecord): PowerPl
         { id: "schema", label: "Complete and confirm backend schema.", status: calculateCanvasSchemaGate(project), description: "Schema requirements depend on selected backend." },
         { id: "internalNames", label: "Document and confirm SharePoint internal column names.", status: calculateInternalNameGate(project), description: "Internal names are never derived from display names." },
         { id: "logicalNames", label: "Document and confirm Dataverse logical names.", status: calculateLogicalNameGate(project), description: "Logical names are never guessed." },
+        { id: "screenTargets", label: "Confirm structured Canvas screen targets.", status: calculateCanvasScreenTargetGate(project), description: "Ready packages require stable screen IDs, approved names, purposes, confirmation status, and source." },
+        { id: "controlTargets", label: "Confirm structured Canvas control targets.", status: calculateCanvasControlTargetGate(project), description: "Ready packages require valid screen references, approved control names, formula properties, and data-source relationships where applicable." },
+        { id: "componentTargets", label: "Confirm Canvas component applicability and targets.", status: calculateCanvasComponentTargetGate(project), description: "Reusable components require structured records; not applicable requires a controlled confirmed reason." },
+        { id: "formulaTargets", label: "Confirm Power Fx target files.", status: calculateCanvasFormulaTargetGate(project), description: "Power Fx phases require confirmed screen/control targets, operations, formula properties, dependencies, data-source references, and required fields." },
+        { id: "yamlTargets", label: "Confirm Canvas YAML target files.", status: calculateCanvasYamlTargetGate(project), description: "YAML phases require output type, parent relationship, installation location, and validation responsibility for each target." },
         { id: "powerFxPlanning", label: "Confirm Power Fx planning.", status: calculateCanvasPowerFxPlanningGate(project), description: "Power Fx requirements are planned only; no final formulas are generated." },
         { id: "yamlPlanning", label: "Confirm YAML installation and validation planning.", status: calculateCanvasYamlPlanningGate(project), description: "Canvas YAML handling must be planned without generating paste-ready YAML." },
         { id: "delegationPlanning", label: "Document delegation mitigation.", status: calculateCanvasDelegationPlanningGate(project), description: "Search, filter, sort, volume, and connector delegation behavior must be planned." },
+        { id: "fileRequirements", label: "Confirm file and attachment applicability.", status: calculateCanvasFileApplicabilityGate(project), description: "Files require a controlled applicability decision and complete file details; not applicable requires a confirmed reason." },
+        { id: "connectionOwnership", label: "Confirm connection ownership.", status: calculateConnectionOwnershipGate(project), description: "Every applicable connector needs a real owner, owner role, and confirmed ownership status." },
         { id: "security", label: "Confirm Power Platform security review.", status: calculateSecurityReviewGate(project), description: "Access and privacy decisions must be recorded." },
         { id: "testing", label: "Prepare Power Platform testing plan.", status: calculateTestingPreparationGate(project), description: "Connector, permission, accessibility, and deployment tests must be planned." },
+        { id: "releaseApproval", label: "Confirm release approval owner and status.", status: commonReleaseApprovalGate(project), description: "Release approval requires a named approver, responsibility, and controlled confirmation status." },
+        { id: "deploymentResponsibility", label: "Confirm deployment owner and status.", status: commonDeploymentResponsibilityGate(project), description: "Deployment readiness requires a named owner, responsibility, and controlled confirmation status." },
         { id: "alm", label: "Confirm ALM and rollback responsibilities.", status: calculateAlmGate(project), description: "Source control, deployment, connection references, rollback, and release approval must be recorded." }
       ]
     : projectType === "modelDriven"
@@ -1757,6 +2014,10 @@ export function calculatePowerPlatformReadiness(project: ProjectRecord): PowerPl
           { id: "externalConnectorSelection", label: "Confirm external connector selection.", status: calculateModelDrivenExternalConnectorSelectionGate(project), description: "External connectors are optional, but complete assessment details are required when they exist." },
           { id: "externalConnectorClassification", label: "Confirm external connector classification.", status: calculateModelDrivenExternalConnectorClassificationGate(project), description: "External connector classification must be explicitly confirmed." },
           { id: "externalConnectorLicensing", label: "Confirm external connector licensing.", status: calculateModelDrivenExternalConnectorLicensingGate(project), description: "External connector licensing must be explicitly confirmed when connectors exist." },
+          { id: "connectionOwnership", label: "Confirm connection ownership.", status: calculateConnectionOwnershipGate(project), description: "Every applicable connector needs a real owner, owner role, and confirmed ownership status." },
+          { id: "sourceAvailability", label: "Confirm model-driven source availability.", status: calculateModelDrivenSourceAvailabilityGate(project), description: "Source availability uses controlled status, source location/type, validation evidence, solution version, and last unpacked date." },
+          { id: "releaseApproval", label: "Confirm release approval owner and status.", status: commonReleaseApprovalGate(project), description: "Release approval requires a named approver, responsibility, and controlled confirmation status." },
+          { id: "deploymentResponsibility", label: "Confirm deployment owner and status.", status: commonDeploymentResponsibilityGate(project), description: "Deployment readiness requires a named owner, responsibility, and controlled confirmation status." },
           { id: "alm", label: "Confirm model-driven ALM.", status: calculateAlmGate(project), description: "Source control, deployment, connection references, rollback, and release approval must be recorded." },
           { id: "testing", label: "Prepare model-driven testing plan.", status: calculateTestingPreparationGate(project), description: "Permission, security, integration, and deployment tests must be planned." }
         ]
@@ -1823,7 +2084,15 @@ export function normalizePowerPlatformData(
           : undefined,
         offlineSupport: asString(candidate.offlineSupport),
         securityNotes: asString(candidate.securityNotes),
+        requiredConnectorPermissions: asString(candidate.requiredConnectorPermissions),
+        permissionOwner: asString(candidate.permissionOwner),
+        permissionValidationMethod: asString(candidate.permissionValidationMethod),
+        permissionConfirmationStatus: toDecisionStatus(candidate.permissionConfirmationStatus),
         limitations: asString(candidate.limitations),
+        connectionOwner: asString(candidate.connectionOwner),
+        connectionOwnerRole: asString(candidate.connectionOwnerRole),
+        connectionOwnershipStatus: toDecisionStatus(candidate.connectionOwnershipStatus, "reviewNeeded"),
+        connectionOwnershipNotes: asString(candidate.connectionOwnershipNotes),
         approvalStatus: asString(candidate.approvalStatus),
         approvalConfirmationStatus: toConnectorApprovalConfirmationStatus(candidate.approvalConfirmationStatus, candidate.approvalStatus)
       } : {}))
@@ -1866,6 +2135,10 @@ export function normalizePowerPlatformData(
       sourceControlApproach: asString(common.sourceControlApproach),
       almApproach: asString(common.almApproach),
       deploymentMethod: asString(common.deploymentMethod),
+      deploymentOwner: asString(common.deploymentOwner),
+      deploymentResponsibilityStatus: toDecisionStatus(common.deploymentResponsibilityStatus),
+      releaseApprover: asString(common.releaseApprover),
+      releaseApprovalStatus: toDecisionStatus(common.releaseApprovalStatus),
       authenticationRequirements: asString(common.authenticationRequirements),
       authorizationRequirements: asString(common.authorizationRequirements),
       accessibilityRequirements: asString(common.accessibilityRequirements),
@@ -2097,8 +2370,114 @@ export function normalizePowerPlatformData(
       expectedRecordCounts: asString(canvas.expectedRecordCounts),
       offlineRequirements: asString(canvas.offlineRequirements),
       synchronizationRequirements: asString(canvas.synchronizationRequirements),
+      fileApplicabilityDecision: createApplicabilityDecision(isObject(canvas.fileApplicabilityDecision) ? canvas.fileApplicabilityDecision : {}),
+      fileUploadRequirements: asString(canvas.fileUploadRequirements),
+      fileDownloadRequirements: asString(canvas.fileDownloadRequirements),
+      fileMetadataRequirements: asString(canvas.fileMetadataRequirements),
+      fileSizeRequirements: asString(canvas.fileSizeRequirements),
+      filePermissionRequirements: asString(canvas.filePermissionRequirements),
+      fileValidationRequirements: asString(canvas.fileValidationRequirements),
       attachmentRequirements: asString(canvas.attachmentRequirements),
       fileRequirements: asString(canvas.fileRequirements),
+      screenTargets: Array.isArray(canvas.screenTargets)
+        ? canvas.screenTargets.map((item) => createDefaultCanvasScreenTarget(isObject(item) ? {
+            id: asString(item.id),
+            displayName: asString(item.displayName),
+            approvedScreenName: asString(item.approvedScreenName),
+            purpose: asString(item.purpose),
+            screenType: asString(item.screenType),
+            entryPoints: asString(item.entryPoints),
+            exitPoints: asString(item.exitPoints),
+            dataSourceApplicabilityDecision: createApplicabilityDecision(isObject(item.dataSourceApplicabilityDecision) ? item.dataSourceApplicabilityDecision : {}),
+            dataSourceIds: Array.isArray(item.dataSourceIds) ? item.dataSourceIds.map(asString).filter(Boolean) : [],
+            dataSourceEntityIds: Array.isArray(item.dataSourceEntityIds) ? item.dataSourceEntityIds.map(asString).filter(Boolean) : Array.isArray(item.dataSourceIds) ? item.dataSourceIds.map(asString).filter(Boolean) : [],
+            dataSourceReferences: Array.isArray(item.dataSourceReferences)
+              ? item.dataSourceReferences.filter(isObject).map((reference) => ({
+                  connectorId: asString(reference.connectorId),
+                  entityId: asString(reference.entityId)
+                }))
+              : [],
+            referenceReviewNotes: asString(item.referenceReviewNotes),
+            yamlOutputDecision: createApplicabilityDecision(isObject(item.yamlOutputDecision) ? item.yamlOutputDecision : {}),
+            yamlOutputType: asString(item.yamlOutputType),
+            yamlParentType: ["app", "screen", "control", "component", "none"].includes(asString(item.yamlParentType)) ? asString(item.yamlParentType) as CanvasScreenTarget["yamlParentType"] : "",
+            yamlParentId: asString(item.yamlParentId),
+            yamlInstallationLocation: asString(item.yamlInstallationLocation),
+            yamlValidationResponsibility: asString(item.yamlValidationResponsibility),
+            confirmationStatus: toDecisionStatus(item.confirmationStatus),
+            confirmationSource: asString(item.confirmationSource)
+          } : {}))
+        : [],
+      controlTargets: Array.isArray(canvas.controlTargets)
+        ? canvas.controlTargets.map((item) => createDefaultCanvasControlTarget(isObject(item) ? {
+            id: asString(item.id),
+            screenId: asString(item.screenId),
+            parentControlId: asString(item.parentControlId),
+            approvedControlName: asString(item.approvedControlName),
+            controlType: asString(item.controlType),
+            purpose: asString(item.purpose),
+            formulaOutputDecision: createApplicabilityDecision(isObject(item.formulaOutputDecision) ? item.formulaOutputDecision : {}),
+            operation: asString(item.operation),
+            formulaProperties: asString(item.formulaProperties),
+            connectorId: asString(item.connectorId),
+            entityId: asString(item.entityId),
+            dataSourceId: asString(item.dataSourceId),
+            dataSourceEntityId: asString(item.dataSourceEntityId),
+            requiredFieldIds: Array.isArray(item.requiredFieldIds) ? item.requiredFieldIds.map(asString).filter(Boolean) : [],
+            dependencies: asString(item.dependencies),
+            dependencyApplicabilityDecision: createApplicabilityDecision(isObject(item.dependencyApplicabilityDecision) ? item.dependencyApplicabilityDecision : {}),
+            referenceReviewNotes: asString(item.referenceReviewNotes),
+            visibilityRequirement: asString(item.visibilityRequirement),
+            displayModeRequirement: asString(item.displayModeRequirement),
+            accessibleLabelRequirement: asString(item.accessibleLabelRequirement),
+            yamlOutputDecision: createApplicabilityDecision(isObject(item.yamlOutputDecision) ? item.yamlOutputDecision : {}),
+            yamlOutputType: asString(item.yamlOutputType),
+            yamlParentType: ["app", "screen", "control", "component", "none"].includes(asString(item.yamlParentType)) ? asString(item.yamlParentType) as CanvasControlTarget["yamlParentType"] : "",
+            yamlParentId: asString(item.yamlParentId),
+            yamlInstallationLocation: asString(item.yamlInstallationLocation),
+            yamlValidationResponsibility: asString(item.yamlValidationResponsibility),
+            confirmationStatus: toDecisionStatus(item.confirmationStatus),
+            confirmationSource: asString(item.confirmationSource)
+          } : {}))
+        : [],
+      componentTargets: Array.isArray(canvas.componentTargets)
+        ? canvas.componentTargets.map((item) => createDefaultCanvasComponentTarget(isObject(item) ? {
+            id: asString(item.id),
+            approvedComponentName: asString(item.approvedComponentName),
+            purpose: asString(item.purpose),
+            inputs: asString(item.inputs),
+            outputs: asString(item.outputs),
+            parentOrUsageLocations: asString(item.parentOrUsageLocations),
+            usageTargets: Array.isArray(item.usageTargets)
+              ? item.usageTargets.filter(isObject).map((usage) => ({
+                  id: asString(usage.id),
+                  targetType: asString(usage.targetType) === "control" ? "control" : "screen",
+                  targetId: asString(usage.targetId),
+                  purpose: asString(usage.purpose),
+                  confirmationStatus: toDecisionStatus(usage.confirmationStatus),
+                  confirmationSource: asString(usage.confirmationSource)
+                }))
+              : [],
+            yamlOutputDecision: createApplicabilityDecision(isObject(item.yamlOutputDecision) ? item.yamlOutputDecision : {}),
+            yamlOutputType: asString(item.yamlOutputType),
+            yamlParentType: ["app", "screen", "control", "component", "none"].includes(asString(item.yamlParentType)) ? asString(item.yamlParentType) as CanvasComponentTarget["yamlParentType"] : "",
+            yamlParentId: asString(item.yamlParentId),
+            yamlInstallationLocation: asString(item.yamlInstallationLocation),
+            yamlValidationResponsibility: asString(item.yamlValidationResponsibility),
+            confirmationStatus: toDecisionStatus(item.confirmationStatus),
+            confirmationSource: asString(item.confirmationSource)
+          } : {}))
+        : [],
+      componentApplicabilityDecision: createApplicabilityDecision(isObject(canvas.componentApplicabilityDecision) ? canvas.componentApplicabilityDecision : {}),
+      screenNamingConvention: asString(canvas.screenNamingConvention),
+      controlNamingConvention: asString(canvas.controlNamingConvention),
+      controlTypePrefixes: asString(canvas.controlTypePrefixes),
+      variableNamingConvention: asString(canvas.variableNamingConvention),
+      collectionNamingConvention: asString(canvas.collectionNamingConvention),
+      componentNamingConvention: asString(canvas.componentNamingConvention),
+      formulaFileNamingConvention: asString(canvas.formulaFileNamingConvention),
+      yamlFileNamingConvention: asString(canvas.yamlFileNamingConvention),
+      namingStandardConfirmationStatus: toDecisionStatus(canvas.namingStandardConfirmationStatus),
       screens: asString(canvas.screens),
       containers: asString(canvas.containers),
       components: asString(canvas.components),
@@ -2124,6 +2503,11 @@ export function normalizePowerPlatformData(
 
   if (projectType === "powerAppsModelDriven") {
     const modelDriven = isObject(value.modelDriven) ? value.modelDriven : {};
+    const legacySourceStatus = asString(modelDriven.solutionSourceStatus);
+    const storedSourceNotes = asString(modelDriven.sourceNotes);
+    const sourceNotes = legacySourceStatus && !storedSourceNotes.includes(legacySourceStatus)
+      ? [storedSourceNotes, `Legacy solutionSourceStatus: ${legacySourceStatus}`].filter(Boolean).join("\n")
+      : storedSourceNotes;
     normalized.modelDriven = {
       ...defaults.modelDriven!,
       ...normalizeStringValues(defaults.modelDriven!, modelDriven),
@@ -2196,7 +2580,17 @@ export function normalizePowerPlatformData(
       schemaStatus: toDecisionStatus(modelDriven.schemaStatus),
       logicalNameStatus: toDecisionStatus(modelDriven.logicalNameStatus),
       solutionArchitectureStatus: toDecisionStatus(modelDriven.solutionArchitectureStatus),
-      solutionSourceStatus: asString(modelDriven.solutionSourceStatus),
+      solutionSourceStatus: legacySourceStatus,
+      sourceAvailabilityStatus: modelDriven.sourceAvailabilityStatus === undefined
+        ? migrateSourceAvailabilityStatus(legacySourceStatus)
+        : toDecisionStatus(modelDriven.sourceAvailabilityStatus),
+      sourceLocation: asString(modelDriven.sourceLocation),
+      sourceType: asString(modelDriven.sourceType),
+      sourceValidationStatus: toDecisionStatus(modelDriven.sourceValidationStatus),
+      sourceValidationEvidence: asString(modelDriven.sourceValidationEvidence),
+      solutionVersion: asString(modelDriven.solutionVersion),
+      lastUnpackedDate: asString(modelDriven.lastUnpackedDate),
+      sourceNotes,
       securityReviewStatus: toDecisionStatus(modelDriven.securityReviewStatus),
       dataverseSchemaConfirmationStatus: toDecisionStatus(modelDriven.dataverseSchemaConfirmationStatus ?? modelDriven.schemaStatus),
       solutionArchitectureConfirmationStatus: toDecisionStatus(modelDriven.solutionArchitectureConfirmationStatus ?? modelDriven.solutionArchitectureStatus),

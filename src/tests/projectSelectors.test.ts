@@ -1,5 +1,8 @@
 import { createSeedProject } from "../data/seedProject";
+import { DOCUMENT_LOCATIONS } from "../data/folderStructure";
 import { createProject } from "../lib/createProject";
+import { deriveReviewItems } from "../lib/clientReview";
+import { validateExportPackage } from "../lib/exportIntegrity";
 import {
   getActiveProjectSummary,
   getDashboardWarnings,
@@ -17,6 +20,68 @@ import {
   getReviewStatus
 } from "../lib/projectSelectors";
 import { PROJECT_STATUSES, REVIEW_STATUSES } from "../types/project";
+import type { ProjectRecord } from "../types/project";
+
+function createSelectorReadyProject(): ProjectRecord {
+  const project = createProject({
+    identity: { id: "selector-ready", projectName: "Selector Ready" },
+    client: { clientName: "Client", businessName: "Business" },
+    intake: {
+      appType: "webApplication",
+      appPurpose: "Coordinate approved work.",
+      problemStatement: "Teams need one governed workflow.",
+      targetPlatform: "Responsive web",
+      targetUsers: "Staff",
+      userRoles: "Requester\nReviewer",
+      requiredFeatures: "Create request\nReview request",
+      workflows: "Submit and review",
+      screens: "Home\nRequest detail",
+      dataSources: "Application data store",
+      dataEntities: "Request",
+      dataCollections: "Requests",
+      fields: "Title, Status",
+      fieldTypes: "Title: text\nStatus: choice",
+      requiredDataFields: "Title\nStatus",
+      relationships: "Request has status history",
+      dataOwnership: "Business owns records",
+      dataRetentionNotes: "Retain per policy",
+      permissionRules: "Requesters view own requests; reviewers view assigned requests.",
+      sensitiveDataNotes: "No secrets",
+      authenticationExpectation: "Organization sign-in",
+      authorizationExpectation: "Application roles",
+      auditLoggingNeeds: "Track status changes",
+      dataProtectionExpectations: "Least privilege",
+      complianceNotes: "Internal use",
+      automations: "Notify reviewers",
+      notifications: "Submission confirmation",
+      integrations: "Email notification service",
+      reportsDashboards: "Open requests by status",
+      brandingNotes: "Approved brand",
+      accessibilityNotes: "Keyboard and focus support",
+      acceptanceNotes: "Submit and review flow passes",
+      constraints: "Keep scope focused",
+      risks: "Permissions must be correct",
+      assumptions: "Email service available",
+      outOfScope: "Payments",
+      successCriteria: "Requests can be submitted and reviewed."
+    }
+  });
+  project.readinessConfirmations = {
+    scopeReviewed: true,
+    acceptanceCriteriaReviewed: true,
+    draftPackageReviewed: true
+  };
+  project.reviewItems = deriveReviewItems(project).map((item) => ({ ...item, status: "Answered" }));
+  project.generatedDocuments = DOCUMENT_LOCATIONS.map((location) => ({
+    fileName: location.fileName,
+    folder: location.folder,
+    content: `# ${location.fileName}\n\nComplete approved content.`
+  }));
+  project.generatedFileCount = project.generatedDocuments.length;
+  project.packageGeneratedAt = "2026-07-12T12:00:00.000Z";
+  project.status = "Project Package Generated";
+  return project;
+}
 
 describe("project selectors", () => {
   it("calculates dashboard values without mutating the project", () => {
@@ -128,5 +193,34 @@ describe("project selectors", () => {
     });
 
     expect(getProjectDisplayStatus(project)).toBe("Needs Review");
+  });
+
+  it("keeps client-review-ready projects with incomplete generated content out of Ready counts", () => {
+    const project = createSelectorReadyProject();
+    project.generatedDocuments[0] = {
+      ...project.generatedDocuments[0],
+      content: `${project.generatedDocuments[0].content}\n[MISSING: generated blocker]`
+    };
+
+    expect(getProjectDisplayStatus(project)).toBe("Project Package Generated");
+    expect(validateExportPackage(project).manifestSummary.readiness).toBe("Draft");
+    expect(validateExportPackage(project).isValid).toBe(true);
+    expect(getProjectManagementCounts([project])).toMatchObject({
+      readyForCodex: 0,
+      draft: 1,
+      withBlockers: 1
+    });
+  });
+
+  it("counts a fully ready generated project as Ready everywhere selectors can report it", () => {
+    const project = createSelectorReadyProject();
+
+    expect(validateExportPackage(project).manifestSummary.readiness).toBe("Ready for Codex");
+    expect(getProjectDisplayStatus(project)).toBe("Ready for Codex");
+    expect(getProjectManagementCounts([project])).toMatchObject({
+      readyForCodex: 1,
+      draft: 0,
+      withBlockers: 0
+    });
   });
 });

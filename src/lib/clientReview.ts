@@ -210,6 +210,7 @@ function powerPlatformReviewSection(gateId: string): ClientReviewSection {
     externalConnectorLicensing: "External connector licensing",
     architecture: "Solution architecture",
     connectors: "Connector classification",
+    connectionOwnership: "Connector classification",
     security: "Security",
     testing: "Testing"
   };
@@ -218,7 +219,7 @@ function powerPlatformReviewSection(gateId: string): ClientReviewSection {
 
 function powerPlatformReviewField(gateId: string): ProjectInputField {
   if (gateId === "connectorSelection") return "dataSources";
-  if (gateId === "connectorClassification" || gateId === "connectors" || gateId === "externalConnectorSelection" || gateId === "externalConnectorClassification" || gateId === "externalConnectorLicensing") return "m365Connectors";
+  if (gateId === "connectorClassification" || gateId === "connectors" || gateId === "connectionOwnership" || gateId === "externalConnectorSelection" || gateId === "externalConnectorClassification" || gateId === "externalConnectorLicensing") return "m365Connectors";
   if (gateId === "licensing" || gateId === "eligibility") return "dataverseUse";
   if (gateId === "environment") return "m365Environment";
   if (gateId === "schema") return "fields";

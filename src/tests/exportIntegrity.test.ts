@@ -3,20 +3,29 @@ import { createSeedProject } from "../data/seedProject";
 import { createProject } from "../lib/createProject";
 import { validateExportPackage } from "../lib/exportIntegrity";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
+import type { ProjectRecord } from "../types/project";
+
+function withResolvedGeneratedContent(project: ProjectRecord): ProjectRecord {
+  project.generatedDocuments = project.generatedDocuments.map((document) => ({
+    ...document,
+    content: document.content.replace(/\[MISSING: [^\]]+]/g, "Confirmed test value")
+  }));
+  return project;
+}
 
 describe("validateExportPackage", () => {
-  it("accepts a complete generated package and reports missing markers as warnings", () => {
+  it("accepts a complete Ready generated package without missing marker warnings", () => {
     const result = validateExportPackage(
-      createGeneratedProject(),
+      withResolvedGeneratedContent(createGeneratedProject()),
       "2026-06-28T18:00:00.000Z"
     );
     expect(result.isValid).toBe(true);
     expect(result.fileCount).toBe(DOCUMENT_LOCATIONS.length);
     expect(result.expectedFileCount).toBe(DOCUMENT_LOCATIONS.length);
     expect(result.errors).toEqual([]);
-    expect(result.warnings.some((warning) => warning.includes("missing-information marker"))).toBe(true);
+    expect(result.warnings.some((warning) => warning.includes("missing-information marker"))).toBe(false);
     expect(result.folderMapStatus).toBe("valid");
-    expect(result.manifestSummary.schemaVersion).toBe(2);
+    expect(result.manifestSummary.schemaVersion).toBe(3);
     expect(result.manifestSummary.expectedFileCount).toBe(DOCUMENT_LOCATIONS.length);
     expect(result.manifestSummary.readiness).toBe("Ready for Codex");
   });
@@ -41,7 +50,7 @@ describe("validateExportPackage", () => {
     expect(result.manifestSummary.readiness).toBe("Draft");
     expect(result.warnings.some((warning) =>
       warning.includes("Package readiness is Draft because")
-      && warning.includes("client review blocker")
+      && warning.includes("readiness blocker")
     )).toBe(true);
   });
 

@@ -12,12 +12,12 @@ describe("export manifest", () => {
     const manifest = createExportManifest(project, integrity);
     const markdown = renderExportManifestMarkdown(manifest);
 
-    expect(manifest.packageSchemaVersion).toBe(2);
+    expect(manifest.packageSchemaVersion).toBe(3);
     expect(manifest.activeProjectId).toBe(project.identity.id);
     expect(manifest.generatedDocumentCount).toBe(DOCUMENT_LOCATIONS.length);
     expect(manifest.expectedDocumentCount).toBe(DOCUMENT_LOCATIONS.length);
     expect(manifest.files).toHaveLength(DOCUMENT_LOCATIONS.length);
-    expect(manifest.readiness).toBe("Ready for Codex");
+    expect(manifest.readiness).toBe("Draft");
     expect(manifest.files[0]).toEqual({
       fileName: "README.md",
       folder: "00_Project_Overview",
@@ -25,7 +25,7 @@ describe("export manifest", () => {
     });
     expect(markdown).toContain("# Export Manifest");
     expect(markdown).toContain("| Exported date | 2026-06-28T18:00:00.000Z |");
-    expect(markdown).toContain("| Package readiness | Ready for Codex |");
+    expect(markdown).toContain("| Package readiness | Draft |");
     expect(markdown).toContain("00_Project_Overview/EXPORT_MANIFEST.md");
   });
 
@@ -94,8 +94,33 @@ describe("export manifest", () => {
       limitations: "",
       approvalStatus: ""
     }];
-    mixedSource.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    mixedSource.powerPlatform!.canvas!.primaryDataSourceType = "multiple";
+    mixedSource.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList", "dataverse"];
+    mixedSource.powerPlatform!.canvas!.primaryConnectorId = "sp";
     mixedSource.powerPlatform!.canvas!.secondaryConnectorIds = ["dv"];
+    mixedSource.powerPlatform!.common.connectors.unshift({
+      id: "sp",
+      displayName: "SharePoint",
+      purpose: "Primary list",
+      dataSourceName: "SharePoint",
+      dataSourceType: "sharePointList",
+      connectorClassification: "standard",
+      classificationConfirmed: true,
+      licenceRequirement: "Included",
+      licensingConfirmed: true,
+      authenticationMethod: "",
+      gatewayRequirement: "",
+      environmentRequirement: "",
+      dlpImpact: "",
+      delegationSupport: "",
+      expectedRecordVolume: "",
+      supportedOperations: {},
+      offlineSupport: "",
+      securityNotes: "",
+      limitations: "",
+      canvasRole: "primary",
+      approvalStatus: ""
+    });
     mixedSource.powerPlatform!.canvas!.sharePointLists = "Main List";
     const mixedCanvas = createGeneratedProject(mixedSource);
 

@@ -55,7 +55,7 @@ describe("createProjectArchive", () => {
     ) as { files: unknown[]; generatedDocumentCount: number; packageSchemaVersion: number };
     expect(manifest.files).toHaveLength(DOCUMENT_LOCATIONS.length);
     expect(manifest.generatedDocumentCount).toBe(DOCUMENT_LOCATIONS.length);
-    expect(manifest.packageSchemaVersion).toBe(2);
+    expect(manifest.packageSchemaVersion).toBe(3);
     const clientQuestions = await first.file(
       `${firstPaths[0]}01_Requirements/CLIENT_QUESTIONS.md`
     )!.async("string");
@@ -83,7 +83,7 @@ describe("createProjectArchive", () => {
     });
   });
 
-  it("exports a large project with a sanitized root and preserved missing markers", async () => {
+  it("exports a large Draft project with a sanitized root and preserved missing markers", async () => {
     const project = createLargeGeneratedProject();
     const archive = await blobToArchive(await createProjectArchive(project, {
       exportedAt: "2026-06-28T18:00:00.000Z"
@@ -95,6 +95,7 @@ describe("createProjectArchive", () => {
     const scope = await archive.file(`${root}00_Project_Overview/PROJECT_SCOPE.md`)!.async("string");
     expect(scope.length).toBeGreaterThan(1000);
     expect(scope).toContain("[MISSING:");
+    expect(scope).not.toContain(["Resolved", "for", "Ready", "package"].join(" "));
   });
 
   it("exports only the active project's persisted documents after switching projects", async () => {

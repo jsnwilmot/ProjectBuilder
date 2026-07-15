@@ -1,6 +1,6 @@
 export const PACKAGE_USAGE_STEPS = [
   "Review PROJECT_SCOPE.md.",
-  "Resolve all [MISSING: ...] markers.",
+  "Resolve every missing-information marker in the generated documents.",
   "Review CLIENT_REQUIREMENTS.md with the client.",
   "Review APP_BLUEPRINT.md as the Architect.",
   "Copy ARCHITECT_INSTRUCTIONS.md into the GPT Architect project or chat.",

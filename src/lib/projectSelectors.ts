@@ -15,6 +15,7 @@ import type {
 import { getFirstIncompleteStep, validateIntake } from "./validateIntake";
 import { getClientReviewReadiness } from "./clientReview";
 import { calculatePowerPlatformReadiness } from "./powerPlatform";
+import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
 
 const readinessDefinitions = [
   { id: "requirements", label: "Requirements", steps: [0, 1, 2] },
@@ -97,11 +98,13 @@ export function getProjectDisplayStatus(project: ProjectRecord): ProjectStatus {
     return project.status;
   }
   const readiness = getClientReviewReadiness(project);
-  if (readiness.isReady) return "Ready for Codex";
-  if (project.status === "Ready for Codex") return "Needs Review";
   if (getGeneratedFileCount(project) > 0) {
-    return project.status === "Needs Review" ? "Needs Review" : "Project Package Generated";
+    const generatedReadiness = evaluateGeneratedPackageReadiness(project);
+    if (readiness.isReady && generatedReadiness.status === "Ready for Codex") return "Ready for Codex";
+    if (!readiness.isReady || project.status === "Needs Review") return "Needs Review";
+    return "Project Package Generated";
   }
+  if (project.status === "Ready for Codex") return readiness.isReady ? "Project Package Generated" : "Needs Review";
   if (project.status === "Architect Review Needed") return "Architect Review Needed";
   if (validateIntake(project).isValid) return "Intake Complete";
   return "Intake Started";
@@ -115,10 +118,10 @@ export function getDashboardWarnings(project: ProjectRecord): DashboardWarning[]
       message: "Status shows Project Package Generated but no generated documents are stored."
     });
   }
-  if (!getClientReviewReadiness(project).isReady && project.status === "Ready for Codex") {
+  if (project.status === "Ready for Codex" && getProjectDisplayStatus(project) !== "Ready for Codex") {
     warnings.push({
       level: "error",
-      message: "Project is marked Ready for Codex but client review blockers remain."
+      message: "Project is marked Ready for Codex but final generated-content readiness is not complete."
     });
   }
   if (!normalizedDate(project.updatedAt)) {
@@ -138,12 +141,20 @@ export function getNextActionDetails(project: ProjectRecord): DashboardNextActio
   const step = getFirstIncompleteStep(project);
 
   if (getGeneratedFileCount(project) > 0) {
+    const generatedReadiness = evaluateGeneratedPackageReadiness(project);
     if (!readiness.isReady) {
       return {
         label: `Resolve ${readiness.blockerCount} readiness blocker${readiness.blockerCount === 1 ? "" : "s"}`,
         description: "Complete the client review workflow, then regenerate the package.",
         targetView: "scope",
         targetStage: REVIEW_STAGE_INDEX
+      };
+    }
+    if (generatedReadiness.status !== "Ready for Codex") {
+      return {
+        label: generatedReadiness.blockers[0] ?? "Resolve generated-content readiness blocker",
+        description: "Review generated documents, resolve missing markers or generated-content blockers, then regenerate the package.",
+        targetView: "documents"
       };
     }
     return {
@@ -231,17 +242,22 @@ export function getProjectManagementCounts(projects: ProjectRecord[]): ProjectMa
   const activeProjects = projects.filter((project) => !project.archivedAt);
   const readiness = activeProjects.map((project) => ({
     project,
-    clientReview: getClientReviewReadiness(project)
+    clientReview: getClientReviewReadiness(project),
+    generatedReadiness: getGeneratedFileCount(project) > 0 ? evaluateGeneratedPackageReadiness(project) : null
   }));
 
   return {
     active: activeProjects.length,
     archived: projects.length - activeProjects.length,
-    readyForCodex: readiness.filter(({ clientReview }) => clientReview.isReady).length,
-    draft: readiness.filter(({ project, clientReview }) =>
-      getGeneratedFileCount(project) > 0 && !clientReview.isReady
+    readyForCodex: readiness.filter(({ clientReview, generatedReadiness }) =>
+      clientReview.isReady && generatedReadiness?.status === "Ready for Codex"
     ).length,
-    withBlockers: readiness.filter(({ clientReview }) => clientReview.blockerCount > 0).length
+    draft: readiness.filter(({ project, clientReview, generatedReadiness }) =>
+      getGeneratedFileCount(project) > 0 && (!clientReview.isReady || generatedReadiness?.status !== "Ready for Codex")
+    ).length,
+    withBlockers: readiness.filter(({ clientReview, generatedReadiness }) =>
+      clientReview.blockerCount > 0 || (generatedReadiness?.blockers.length ?? 0) > 0
+    ).length
   };
 }
 

@@ -4,6 +4,11 @@ import {
   createDefaultConnector,
   createDefaultConnectorField,
   createDefaultConnectorResource,
+  createDefaultCanvasComponentTarget,
+  createDefaultCanvasComponentUsageTarget,
+  createDefaultCanvasControlTarget,
+  createDefaultCanvasDataSourceReference,
+  createDefaultCanvasScreenTarget,
   createDefaultDataverseColumn,
   createDefaultDataverseRelationship,
   createDefaultDataverseTable,
@@ -20,6 +25,7 @@ import {
 import type {
   CanvasDataSourceType,
   SelectableCanvasDataSourceType,
+  PowerPlatformApplicabilityDecision,
   PowerPlatformCanvasData,
   PowerPlatformCommonData,
   PowerPlatformConnector,
@@ -231,6 +237,27 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
       const next = clonePowerPlatformData(current, currentProject);
       if (!next.canvas) return next;
       next.canvas[field] = value as never;
+      if (field === "primaryDataSourceType" || field === "selectedDataSourceTypes") {
+        const primaryType = next.canvas.primaryDataSourceType;
+        if (primaryType !== "multiple") {
+          next.canvas.selectedDataSourceTypes = [];
+          next.canvas.secondaryConnectorIds = [];
+          const primaryConnector = next.common.connectors.find((connector) => connector.id === next.canvas?.primaryConnectorId);
+          if (!primaryConnector || primaryConnector.dataSourceType !== primaryType) next.canvas.primaryConnectorId = "";
+        } else {
+          const selectedTypes = new Set(next.canvas.selectedDataSourceTypes);
+          next.canvas.secondaryConnectorIds = next.canvas.secondaryConnectorIds.filter((id) => {
+            const connector = next.common.connectors.find((candidate) => candidate.id === id);
+            return connector && selectedTypes.has(connector.dataSourceType as SelectableCanvasDataSourceType);
+          });
+          const primaryConnector = next.common.connectors.find((connector) => connector.id === next.canvas?.primaryConnectorId);
+          if (!primaryConnector || !selectedTypes.has(primaryConnector.dataSourceType as SelectableCanvasDataSourceType)) next.canvas.primaryConnectorId = "";
+        }
+        const reconciled = reconcileCanvasConnectorRoles(next.common.connectors, next.canvas.primaryConnectorId, next.canvas.secondaryConnectorIds);
+        next.common.connectors = reconciled.connectors;
+        next.canvas.primaryConnectorId = reconciled.primaryConnectorId;
+        next.canvas.secondaryConnectorIds = reconciled.secondaryConnectorIds;
+      }
       return next;
     });
   };
@@ -441,6 +468,20 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "sourcePurpose")} label="Source purpose" description="Explain what this source stores or retrieves." value={canvas.sourcePurpose} onChange={(value) => updateCanvas("sourcePurpose", value)} required />
           <TextField id={fieldId(stageId, "sourceOwnership")} label="Source ownership" description="Who owns schema and access decisions for this source?" value={canvas.sourceOwnership} onChange={(value) => updateCanvas("sourceOwnership", value)} required />
           <TextField id={fieldId(stageId, "sourceOfTruthDecision")} label="Source of truth decision" description="Identify which system wins when data conflicts." value={canvas.sourceOfTruthDecision} onChange={(value) => updateCanvas("sourceOfTruthDecision", value)} multiline />
+          <ApplicabilityDecisionEditor
+            id={fieldId(stageId, "fileApplicabilityDecision")}
+            label="Files and attachments"
+            value={canvas.fileApplicabilityDecision}
+            onChange={(value) => updateCanvas("fileApplicabilityDecision", value)}
+          />
+          <TextField id={fieldId(stageId, "fileRequirements")} label="File storage requirement" description="Required file, attachment, library, or explicit file storage detail." value={canvas.fileRequirements} onChange={(value) => updateCanvas("fileRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "attachmentRequirements")} label="Attachment requirement" description="Attachment behavior, list/library linkage, or no-attachment detail." value={canvas.attachmentRequirements} onChange={(value) => updateCanvas("attachmentRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "fileUploadRequirements")} label="File upload requirement" description="Upload limits, user action, destination, and validation expectations." value={canvas.fileUploadRequirements} onChange={(value) => updateCanvas("fileUploadRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "fileDownloadRequirements")} label="File download requirement" description="Download, preview, or access behavior." value={canvas.fileDownloadRequirements} onChange={(value) => updateCanvas("fileDownloadRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "fileMetadataRequirements")} label="File metadata requirement" description="Metadata columns, naming, retention, and linkage requirements." value={canvas.fileMetadataRequirements} onChange={(value) => updateCanvas("fileMetadataRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "fileSizeRequirements")} label="File size requirement" description="Maximum file sizes, file types, and volume expectations." value={canvas.fileSizeRequirements} onChange={(value) => updateCanvas("fileSizeRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "filePermissionRequirements")} label="File permission requirement" description="Who can upload, view, download, delete, or share files." value={canvas.filePermissionRequirements} onChange={(value) => updateCanvas("filePermissionRequirements", value)} multiline />
+          <TextField id={fieldId(stageId, "fileValidationRequirements")} label="File validation requirement" description="Required validation for types, size, metadata, malware, or business rules." value={canvas.fileValidationRequirements} onChange={(value) => updateCanvas("fileValidationRequirements", value)} multiline />
 
           <ConnectorEditor
             connectors={common.connectors}
@@ -511,6 +552,7 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "teamsEmbedding")} label="Teams embedding" description="Teams embedding requirement or not-applicable decision." value={canvas.teamsEmbedding} onChange={(value) => updateCanvas("teamsEmbedding", value)} />
           <TextField id={fieldId(stageId, "controlGeneration")} label="Modern or classic controls" description="Modern/classic control preference and constraints." value={canvas.controlGeneration} onChange={(value) => updateCanvas("controlGeneration", value)} />
           <TextField id={fieldId(stageId, "componentLibraryRequirement")} label="Component-library requirements" description="Reusable component/library requirements." value={canvas.componentLibraryRequirement} onChange={(value) => updateCanvas("componentLibraryRequirement", value)} />
+          <ApplicabilityDecisionEditor id={fieldId(stageId, "componentApplicabilityDecision")} label="Canvas component applicability" value={canvas.componentApplicabilityDecision} onChange={(value) => updateCanvas("componentApplicabilityDecision", value)} />
           <TextField id={fieldId(stageId, "customPageRequirement")} label="Custom-page requirements" description="Custom page requirement or not-applicable decision." value={canvas.customPageRequirement} onChange={(value) => updateCanvas("customPageRequirement", value)} />
           <TextField id={fieldId(stageId, "offlineRequirements")} label="Offline requirements" description="Offline support requirement or not-applicable decision." value={canvas.offlineRequirements} onChange={(value) => updateCanvas("offlineRequirements", value)} />
           <TextField id={fieldId(stageId, "mobileDeviceCapabilities")} label="Mobile device capabilities" description="Camera, GPS, barcode, file, notification, or other mobile needs." value={canvas.mobileDeviceCapabilities} onChange={(value) => updateCanvas("mobileDeviceCapabilities", value)} />
@@ -538,6 +580,16 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "globalVariableRequirements")} label="Global variables" description="Global variable planning." value={canvas.globalVariableRequirements} onChange={(value) => updateCanvas("globalVariableRequirements", value)} multiline />
           <TextField id={fieldId(stageId, "contextVariableRequirements")} label="Context variables" description="Context variable planning." value={canvas.contextVariableRequirements} onChange={(value) => updateCanvas("contextVariableRequirements", value)} multiline />
           <TextField id={fieldId(stageId, "collectionRequirements")} label="Collections" description="Collection planning." value={canvas.collectionRequirements} onChange={(value) => updateCanvas("collectionRequirements", value)} multiline />
+          <CanvasImplementationTargetEditor canvas={canvas} common={common} updateRows={updateCanvasRows} />
+          <TextField id={fieldId(stageId, "screenNamingConvention")} label="Screen naming convention" description="Approved convention for screen names." value={canvas.screenNamingConvention} onChange={(value) => updateCanvas("screenNamingConvention", value)} required />
+          <TextField id={fieldId(stageId, "controlNamingConvention")} label="Control naming convention" description="Approved convention for control names." value={canvas.controlNamingConvention} onChange={(value) => updateCanvas("controlNamingConvention", value)} required />
+          <TextField id={fieldId(stageId, "controlTypePrefixes")} label="Control-type prefixes" description="Approved prefixes for galleries, forms, buttons, labels, inputs, containers, and other controls." value={canvas.controlTypePrefixes} onChange={(value) => updateCanvas("controlTypePrefixes", value)} multiline required />
+          <TextField id={fieldId(stageId, "variableNamingConvention")} label="Variable naming convention" description="Approved convention for global and context variables." value={canvas.variableNamingConvention} onChange={(value) => updateCanvas("variableNamingConvention", value)} required />
+          <TextField id={fieldId(stageId, "collectionNamingConvention")} label="Collection naming convention" description="Approved convention for collections." value={canvas.collectionNamingConvention} onChange={(value) => updateCanvas("collectionNamingConvention", value)} required />
+          <TextField id={fieldId(stageId, "componentNamingConvention")} label="Component naming convention" description="Approved convention for reusable components, even when components are not applicable." value={canvas.componentNamingConvention} onChange={(value) => updateCanvas("componentNamingConvention", value)} required />
+          <TextField id={fieldId(stageId, "formulaFileNamingConvention")} label="Formula file naming convention" description="Approved convention for intended Power Fx output paths." value={canvas.formulaFileNamingConvention} onChange={(value) => updateCanvas("formulaFileNamingConvention", value)} required />
+          <TextField id={fieldId(stageId, "yamlFileNamingConvention")} label="YAML file naming convention" description="Approved convention for intended Canvas YAML output paths." value={canvas.yamlFileNamingConvention} onChange={(value) => updateCanvas("yamlFileNamingConvention", value)} required />
+          <DecisionStatusField id={fieldId(stageId, "namingStandardConfirmationStatus")} label="Naming-standard confirmation status" description="Controlled confirmation for all Canvas naming standards." value={canvas.namingStandardConfirmationStatus} onChange={(value) => updateCanvas("namingStandardConfirmationStatus", value)} required />
           <DecisionStatusField id={fieldId(stageId, "powerFxStatus")} label="Power Fx planning status" description="Controlled planning status. Does not generate formulas." value={canvas.powerFxStatus} onChange={(value) => updateCanvas("powerFxStatus", value)} />
           <TextField id={fieldId(stageId, "fullScreenYamlRequired")} label="YAML planning requirements" description="State whether full-screen YAML, control YAML, or source export is expected. Do not generate final YAML." value={canvas.fullScreenYamlRequired} onChange={(value) => updateCanvas("fullScreenYamlRequired", value)} multiline />
           <TextField id={fieldId(stageId, "controlLevelYamlRequired")} label="Control YAML requirement" description="Control-level YAML planning only." value={canvas.controlLevelYamlRequired} onChange={(value) => updateCanvas("controlLevelYamlRequired", value)} multiline />
@@ -573,13 +625,17 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "validationResponsibility")} label="Validation responsibility" description="Who validates the app after manual build/paste/source import." value={canvas.validationResponsibility} onChange={(value) => updateCanvas("validationResponsibility", value)} />
           <TextField id={fieldId(stageId, "sourceControlApproach")} label="Source-control decision" description="Source-control approach for the Power Platform assets." value={common.sourceControlApproach} onChange={(value) => updateCommon("sourceControlApproach", value)} multiline />
           <TextField id={fieldId(stageId, "deploymentMethod")} label="Deployment method" description="Deployment method." value={common.deploymentMethod} onChange={(value) => updateCommon("deploymentMethod", value)} multiline />
+          <TextField id={fieldId(stageId, "deploymentOwner")} label="Deployment owner" description="Named owner or team responsible for deployment." value={common.deploymentOwner} onChange={(value) => updateCommon("deploymentOwner", value)} required />
           <TextField id={fieldId(stageId, "deploymentResponsibility")} label="Deployment responsibility" description="Who handles deployment." value={common.deploymentResponsibility} onChange={(value) => updateCommon("deploymentResponsibility", value)} multiline />
+          <DecisionStatusField id={fieldId(stageId, "deploymentResponsibilityStatus")} label="Deployment responsibility status" description="Controlled confirmation for deployment ownership." value={common.deploymentResponsibilityStatus} onChange={(value) => updateCommon("deploymentResponsibilityStatus", value)} required />
           <TextField id={fieldId(stageId, "deploymentStrategy")} label="Environment approach" description="Environment/deployment strategy." value={common.deploymentStrategy} onChange={(value) => updateCommon("deploymentStrategy", value)} multiline />
           <TextField id={fieldId(stageId, "connectionReferences")} label="Connection references decision" description="Connection references decision." value={common.connectionReferences} onChange={(value) => updateCommon("connectionReferences", value)} multiline />
           <TextField id={fieldId(stageId, "environmentVariables")} label="Environment variables decision" description="Environment variables decision." value={common.environmentVariables} onChange={(value) => updateCommon("environmentVariables", value)} multiline />
           <TextField id={fieldId(stageId, "pipelineRequirements")} label="Pipeline decision" description="Pipeline decision." value={common.pipelineRequirements} onChange={(value) => updateCommon("pipelineRequirements", value)} multiline />
           <TextField id={fieldId(stageId, "rollbackExpectations")} label="Rollback decision" description="Rollback expectations." value={common.rollbackExpectations} onChange={(value) => updateCommon("rollbackExpectations", value)} multiline />
+          <TextField id={fieldId(stageId, "releaseApprover")} label="Release approver" description="Named approver or approval role." value={common.releaseApprover} onChange={(value) => updateCommon("releaseApprover", value)} required />
           <TextField id={fieldId(stageId, "releaseApprovalResponsibility")} label="Release approval decision" description="Release approval responsibility." value={common.releaseApprovalResponsibility} onChange={(value) => updateCommon("releaseApprovalResponsibility", value)} multiline />
+          <DecisionStatusField id={fieldId(stageId, "releaseApprovalStatus")} label="Release approval status" description="Controlled confirmation for release approval." value={common.releaseApprovalStatus} onChange={(value) => updateCommon("releaseApprovalStatus", value)} required />
           <DecisionStatusField id={fieldId(stageId, "almConfirmationStatus")} label="ALM confirmation status" description="Controlled ALM readiness status." value={common.almConfirmationStatus} onChange={(value) => updateCommon("almConfirmationStatus", value)} />
         </div>
       ) : null}
@@ -752,7 +808,29 @@ function ConnectorEditor({
           </fieldset>
           <TextField id={`connector-${connector.id}-offline`} label="Offline support" description="Offline behavior or explicit no-offline decision." value={connector.offlineSupport} onChange={(value) => updateConnector(connector.id, "offlineSupport", value)} />
           <TextField id={`connector-${connector.id}-security`} label="Security notes" description="Security and permission notes for the connector." value={connector.securityNotes} onChange={(value) => updateConnector(connector.id, "securityNotes", value)} multiline />
+          <TextField id={`connector-${connector.id}-required-permissions`} label="Required connector permissions" description="Exact permissions required for this connector. Generic security notes do not satisfy the permission gate." value={connector.requiredConnectorPermissions ?? ""} onChange={(value) => updateConnector(connector.id, "requiredConnectorPermissions", value)} multiline required />
+          <TextField id={`connector-${connector.id}-permission-owner`} label="Permission owner" description="Named person or team that confirms connector permissions." value={connector.permissionOwner ?? ""} onChange={(value) => updateConnector(connector.id, "permissionOwner", value)} required />
+          <TextField id={`connector-${connector.id}-permission-validation`} label="Permission validation method" description="How connector permissions will be tested or verified." value={connector.permissionValidationMethod ?? ""} onChange={(value) => updateConnector(connector.id, "permissionValidationMethod", value)} multiline required />
+          <DecisionStatusField
+            id={`connector-${connector.id}-permission-confirmation`}
+            label="Permission confirmation status"
+            description="Controlled status for connector permission readiness."
+            value={connector.permissionConfirmationStatus ?? "missingInformation"}
+            onChange={(value) => updateConnector(connector.id, "permissionConfirmationStatus", value)}
+            required
+          />
           <TextField id={`connector-${connector.id}-limitations`} label="Limitations" description="Known connector limitations, constraints, or blockers." value={connector.limitations} onChange={(value) => updateConnector(connector.id, "limitations", value)} multiline />
+          <TextField id={`connector-${connector.id}-connectionOwner`} label="Connection owner" description="Named person or team that owns this connection after handoff. Approval notes do not satisfy ownership." value={connector.connectionOwner ?? ""} onChange={(value) => updateConnector(connector.id, "connectionOwner", value)} required />
+          <TextField id={`connector-${connector.id}-connectionOwnerRole`} label="Connection owner role" description="Owner role, responsibility, or operational handoff responsibility." value={connector.connectionOwnerRole ?? ""} onChange={(value) => updateConnector(connector.id, "connectionOwnerRole", value)} required />
+          <DecisionStatusField
+            id={`connector-${connector.id}-connectionOwnershipStatus`}
+            label="Connection ownership status"
+            description="Exact controlled ownership status. Approval notes never confirm this gate."
+            value={connector.connectionOwnershipStatus ?? "reviewNeeded"}
+            onChange={(value) => updateConnector(connector.id, "connectionOwnershipStatus", value)}
+            required
+          />
+          <TextField id={`connector-${connector.id}-connectionOwnershipNotes`} label="Connection ownership notes" description="Optional ownership limitations, service-account notes, or handoff notes." value={connector.connectionOwnershipNotes ?? ""} onChange={(value) => updateConnector(connector.id, "connectionOwnershipNotes", value)} multiline />
           <TextField id={`connector-${connector.id}-approvalNotes`} label="Approval notes" description="Approval, review, or blocker notes. Notes do not confirm readiness." value={connector.approvalStatus} onChange={(value) => updateConnector(connector.id, "approvalStatus", value)} />
           <DecisionStatusField
             id={`connector-${connector.id}-approvalConfirmationStatus`}
@@ -913,6 +991,155 @@ function RecordGroup({ title, addLabel, onAdd, children }: { title: string; addL
         <button className="button button-secondary" type="button" onClick={onAdd}>{addLabel}</button>
       </div>
       {children}
+    </section>
+  );
+}
+
+function listFromText(value: string): string[] {
+  return value.split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean);
+}
+
+function textFromList(value: string[]): string {
+  return value.join("; ");
+}
+
+function CanvasImplementationTargetEditor({
+  canvas,
+  common,
+  updateRows
+}: {
+  canvas: PowerPlatformCanvasData;
+  common: PowerPlatformCommonData;
+  updateRows: CanvasRowUpdater;
+}) {
+  const screenOptions = canvas.screenTargets.map((screen) => ({ value: screen.id, label: screen.approvedScreenName || screen.displayName || screen.id }));
+  const controlOptions = canvas.controlTargets.map((control) => ({ value: control.id, label: control.approvedControlName || control.id }));
+  const connectorOptions = common.connectors.map((connector) => ({ value: connector.id, label: connector.displayName || connector.id }));
+  const dataSourceOptions = [
+    ...canvas.sharePointListSchemas.map((row) => ({ value: row.id, label: `SharePoint list: ${row.displayName || row.id}` })),
+    ...canvas.sharePointLibrarySchemas.map((row) => ({ value: row.id, label: `SharePoint library: ${row.displayName || row.id}` })),
+    ...canvas.dataverseTableSchemas.map((row) => ({ value: row.id, label: `Dataverse table: ${row.displayName || row.id}` })),
+    ...canvas.connectorResourceSchemas.map((row) => ({ value: row.id, label: `Connector resource: ${row.resourceName || row.id}` }))
+  ];
+
+  return (
+    <section className="structured-schema-editor" aria-label="Canvas implementation targets">
+      <div className="field-error neutral">
+        <CircleAlert size={15} aria-hidden="true" />
+        Structured targets are future Codex output targets only. GPT Project Builder does not generate Power Fx or Canvas YAML source files.
+      </div>
+      <RecordGroup title="Structured screen targets" addLabel="Add screen target" onAdd={() => updateRows("screenTargets", (rows) => [...rows, createDefaultCanvasScreenTarget()])}>
+        {canvas.screenTargets.map((row) => (
+          <article className="schema-card" key={row.id}>
+            <TextField id={`canvas-screen-${row.id}-id`} label="Stable screen ID" description="Traceable ID used in intended output paths. Do not derive from display label." value={row.id} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
+            <TextField id={`canvas-screen-${row.id}-display`} label="Display name" description="Human-facing screen label." value={row.displayName} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} />
+            <TextField id={`canvas-screen-${row.id}-approved`} label="Approved screen name" description="Exact Power Apps screen name approved by Architect/client." value={row.approvedScreenName} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, approvedScreenName: value } : item))} required />
+            <TextField id={`canvas-screen-${row.id}-purpose`} label="Purpose" description="Purpose of this screen." value={row.purpose} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} multiline required />
+            <TextField id={`canvas-screen-${row.id}-type`} label="Screen type" description="Home, form, queue, detail, settings, dialog host, or other." value={row.screenType} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, screenType: value } : item))} />
+            <TextField id={`canvas-screen-${row.id}-entry`} label="Entry points" description="How users reach this screen." value={row.entryPoints} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, entryPoints: value } : item))} multiline />
+            <TextField id={`canvas-screen-${row.id}-exit`} label="Exit points" description="How users leave this screen." value={row.exitPoints} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, exitPoints: value } : item))} multiline />
+            <ApplicabilityDecisionEditor id={`canvas-screen-${row.id}-data-source-decision`} label="Screen data-source applicability" value={row.dataSourceApplicabilityDecision} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceApplicabilityDecision: value } : item))} />
+            <div className="nested-record-group" aria-label={`Data-source references for ${row.id}`}>
+              <div className="connector-card-heading">
+                <h6>Structured data-source references</h6>
+                <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: [...item.dataSourceReferences, createDefaultCanvasDataSourceReference()] } : item))}>Add data-source reference</button>
+              </div>
+              {row.dataSourceReferences.map((reference, referenceIndex) => (
+                <div className="inline-field-grid" key={`${row.id}-reference-${referenceIndex}`}>
+                  <SelectField id={`canvas-screen-${row.id}-reference-${referenceIndex}-connector`} label="Connector" description="Selected and assigned connector assessment." value={reference.connectorId} options={[{ value: "", label: "Select connector" }, ...connectorOptions]} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.map((candidate, index) => index === referenceIndex ? { ...candidate, connectorId: value } : candidate) } : item))} />
+                  <SelectField id={`canvas-screen-${row.id}-reference-${referenceIndex}-entity`} label="Entity" description="Confirmed active list, library, table, or connector resource." value={reference.entityId} options={[{ value: "", label: "Select entity" }, ...dataSourceOptions]} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.map((candidate, index) => index === referenceIndex ? { ...candidate, entityId: value } : candidate) } : item))} />
+                  <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.filter((_, index) => index !== referenceIndex) } : item))}>Remove reference</button>
+                </div>
+              ))}
+            </div>
+            <TextField id={`canvas-screen-${row.id}-entities`} label="Legacy screen entity IDs" description="Legacy review notes only; readiness uses structured connector/entity references above." value={textFromList(row.dataSourceEntityIds)} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceEntityIds: listFromText(value), referenceReviewNotes: item.referenceReviewNotes || "Legacy screen entity IDs require structured connector/entity review." } : item))} />
+            <TextField id={`canvas-screen-${row.id}-sources`} label="Legacy data-source IDs" description="Legacy review notes only; readiness uses structured connector/entity references." value={textFromList(row.dataSourceIds)} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceIds: listFromText(value), referenceReviewNotes: item.referenceReviewNotes || "Legacy screen data-source IDs require review." } : item))} />
+            <TextField id={`canvas-screen-${row.id}-reference-notes`} label="Reference review notes" description="Notes for migrated or ambiguous target references." value={row.referenceReviewNotes} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, referenceReviewNotes: value } : item))} multiline />
+            <ApplicabilityDecisionEditor id={`canvas-screen-${row.id}-yaml-decision`} label="Screen YAML output" value={row.yamlOutputDecision} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputDecision: value } : item))} />
+            <TextField id={`canvas-screen-${row.id}-yaml-type`} label="YAML output type" description="Screen YAML output requirement or not applicable." value={row.yamlOutputType} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputType: value } : item))} />
+            <SelectField id={`canvas-screen-${row.id}-yaml-parent-type`} label="YAML parent type" description="Screen YAML parent must be app when YAML is required." value={row.yamlParentType} options={[{ value: "", label: "Select parent type" }, { value: "app", label: "App" }, { value: "none", label: "None" }]} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlParentType: value as never } : item))} />
+            <TextField id={`canvas-screen-${row.id}-yaml-parent`} label="YAML parent ID" description="Parent relationship for intended YAML output, such as app-root." value={row.yamlParentId} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlParentId: value } : item))} />
+            <TextField id={`canvas-screen-${row.id}-yaml-location`} label="YAML installation location" description="Where this YAML would be validated in Power Apps Studio." value={row.yamlInstallationLocation} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlInstallationLocation: value } : item))} />
+            <TextField id={`canvas-screen-${row.id}-yaml-validation`} label="YAML validation responsibility" description="Person or team responsible for validation." value={row.yamlValidationResponsibility} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlValidationResponsibility: value } : item))} />
+            <DecisionStatusField id={`canvas-screen-${row.id}-confirmation`} label="Confirmation status" description="Controlled screen target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
+            <TextField id={`canvas-screen-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this screen target." value={row.confirmationSource} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
+            <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove screen target</button>
+          </article>
+        ))}
+      </RecordGroup>
+      <RecordGroup title="Structured control targets" addLabel="Add control target" onAdd={() => updateRows("controlTargets", (rows) => [...rows, createDefaultCanvasControlTarget()])}>
+        {canvas.controlTargets.map((row) => (
+          <article className="schema-card" key={row.id}>
+            <TextField id={`canvas-control-${row.id}-id`} label="Stable control ID" description="Traceable ID used in intended output paths. Do not derive from display label." value={row.id} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
+            <SelectField id={`canvas-control-${row.id}-screen`} label="Screen target" description="Confirmed parent screen target." value={row.screenId} options={[{ value: "", label: "Select screen" }, ...screenOptions]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, screenId: value } : item))} required />
+            <SelectField id={`canvas-control-${row.id}-parent`} label="Parent control ID" description="Optional parent container/control target." value={row.parentControlId} options={[{ value: "", label: "No parent control" }, ...controlOptions.filter((option) => option.value !== row.id)]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, parentControlId: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-approved`} label="Approved control name" description="Exact approved Power Apps control name." value={row.approvedControlName} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, approvedControlName: value } : item))} required />
+            <TextField id={`canvas-control-${row.id}-type`} label="Control type" description="Gallery, form, button, text input, label, container, component instance, etc." value={row.controlType} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, controlType: value } : item))} required />
+            <TextField id={`canvas-control-${row.id}-purpose`} label="Purpose" description="What this control does." value={row.purpose} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} multiline required />
+            <ApplicabilityDecisionEditor id={`canvas-control-${row.id}-formula-decision`} label="Formula output" value={row.formulaOutputDecision} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, formulaOutputDecision: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-operation`} label="Operation" description="read, create, update, archive, restore, search, upload, download, or other." value={row.operation} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, operation: value } : item))} required />
+            <TextField id={`canvas-control-${row.id}-formulas`} label="Formula properties" description="Semicolon/comma-separated properties such as Items, OnSelect, OnSuccess." value={row.formulaProperties} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, formulaProperties: value } : item))} required />
+            <TextField id={`canvas-control-${row.id}-connector`} label="Connector ID" description="Connector assessment ID used by formulas." value={row.connectorId} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, connectorId: value } : item))} />
+            <SelectField id={`canvas-control-${row.id}-entity`} label="Entity ID" description="Structured list, library, table, or connector resource ID used by formulas." value={row.entityId} options={[{ value: "", label: "Select entity" }, ...dataSourceOptions]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, entityId: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-legacy-source`} label="Legacy data-source ID" description="Legacy review note only; readiness uses Connector ID and Entity ID." value={row.dataSourceId} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceId: value, referenceReviewNotes: item.referenceReviewNotes || "Legacy data-source ID requires review." } : item))} />
+            <TextField id={`canvas-control-${row.id}-legacy-entity`} label="Legacy data-source entity ID" description="Legacy review note only; readiness uses Entity ID." value={row.dataSourceEntityId} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceEntityId: value, referenceReviewNotes: item.referenceReviewNotes || "Legacy data-source entity ID requires review." } : item))} />
+            <TextField id={`canvas-control-${row.id}-fields`} label="Required field IDs" description="Semicolon/comma-separated required field IDs for this target." value={textFromList(row.requiredFieldIds)} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, requiredFieldIds: listFromText(value) } : item))} />
+            <ApplicabilityDecisionEditor id={`canvas-control-${row.id}-dependency-decision`} label="Formula dependencies" value={row.dependencyApplicabilityDecision} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dependencyApplicabilityDecision: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-dependencies`} label="Dependencies" description="Other controls, variables, collections, or data sources required by this target." value={row.dependencies} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dependencies: value } : item))} multiline />
+            <TextField id={`canvas-control-${row.id}-reference-notes`} label="Reference review notes" description="Notes for migrated or ambiguous target references." value={row.referenceReviewNotes} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, referenceReviewNotes: value } : item))} multiline />
+            <TextField id={`canvas-control-${row.id}-visibility`} label="Visibility requirement" description="Visibility rule requirement." value={row.visibilityRequirement} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, visibilityRequirement: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-displaymode`} label="Display-mode requirement" description="Display mode rule requirement." value={row.displayModeRequirement} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, displayModeRequirement: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-accessible-label`} label="Accessible label requirement" description="Accessible label requirement." value={row.accessibleLabelRequirement} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, accessibleLabelRequirement: value } : item))} />
+            <ApplicabilityDecisionEditor id={`canvas-control-${row.id}-yaml-decision`} label="Control YAML output" value={row.yamlOutputDecision} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputDecision: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-yaml-type`} label="YAML output type" description="Control/container YAML output requirement." value={row.yamlOutputType} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputType: value } : item))} />
+            <SelectField id={`canvas-control-${row.id}-yaml-parent-type`} label="YAML parent type" description="Control YAML parent must be a valid screen or same-screen control." value={row.yamlParentType} options={[{ value: "", label: "Select parent type" }, { value: "screen", label: "Screen" }, { value: "control", label: "Control" }, { value: "none", label: "None" }]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlParentType: value as never } : item))} />
+            <TextField id={`canvas-control-${row.id}-yaml-parent`} label="YAML parent ID" description="Parent screen/container/control ID for intended YAML output." value={row.yamlParentId} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlParentId: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-yaml-location`} label="YAML installation location" description="Where this control YAML would be validated." value={row.yamlInstallationLocation} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlInstallationLocation: value } : item))} />
+            <TextField id={`canvas-control-${row.id}-yaml-validation`} label="YAML validation responsibility" description="Person or team responsible for validation." value={row.yamlValidationResponsibility} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlValidationResponsibility: value } : item))} />
+            <DecisionStatusField id={`canvas-control-${row.id}-confirmation`} label="Confirmation status" description="Controlled control target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
+            <TextField id={`canvas-control-${row.id}-confirm-source`} label="Confirmation source" description="Who or what confirmed this control target." value={row.confirmationSource} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
+            <button className="button button-secondary" type="button" onClick={() => updateRows("controlTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove control target</button>
+          </article>
+        ))}
+      </RecordGroup>
+      <RecordGroup title="Structured component targets" addLabel="Add component target" onAdd={() => updateRows("componentTargets", (rows) => [...rows, createDefaultCanvasComponentTarget()])}>
+        {canvas.componentTargets.map((row) => (
+          <article className="schema-card" key={row.id}>
+            <TextField id={`canvas-component-${row.id}-id`} label="Stable component ID" description="Traceable component target ID." value={row.id} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
+            <TextField id={`canvas-component-${row.id}-approved`} label="Approved component name" description="Exact approved component name." value={row.approvedComponentName} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, approvedComponentName: value } : item))} required />
+            <TextField id={`canvas-component-${row.id}-purpose`} label="Purpose" description="Reusable component purpose." value={row.purpose} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} multiline required />
+            <TextField id={`canvas-component-${row.id}-inputs`} label="Inputs" description="Component inputs." value={row.inputs} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, inputs: value } : item))} multiline />
+            <TextField id={`canvas-component-${row.id}-outputs`} label="Outputs" description="Component outputs." value={row.outputs} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, outputs: value } : item))} multiline />
+            <TextField id={`canvas-component-${row.id}-locations`} label="Legacy parent or usage locations" description="Legacy review notes only; readiness uses structured usage targets below." value={row.parentOrUsageLocations} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, parentOrUsageLocations: value } : item))} multiline />
+            <div className="nested-record-group" aria-label={`Usage targets for ${row.id}`}>
+              <div className="connector-card-heading">
+                <h6>Structured component usage targets</h6>
+                <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: [...item.usageTargets, createDefaultCanvasComponentUsageTarget()] } : item))}>Add usage target</button>
+              </div>
+              {row.usageTargets.map((usage, usageIndex) => (
+                <div className="schema-card compact" key={usage.id || `${row.id}-usage-${usageIndex}`}>
+                  <TextField id={`canvas-component-${row.id}-usage-${usageIndex}-id`} label="Usage target ID" description="Stable usage record ID." value={usage.id} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, id: value } : candidate) } : item))} />
+                  <SelectField id={`canvas-component-${row.id}-usage-${usageIndex}-type`} label="Target type" description="Component usage target type." value={usage.targetType} options={[{ value: "screen", label: "Screen" }, { value: "control", label: "Control" }]} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, targetType: (value === "control" ? "control" : "screen") as "screen" | "control", targetId: "" } : candidate) } : item))} />
+                  <SelectField id={`canvas-component-${row.id}-usage-${usageIndex}-target`} label="Target" description="Structured screen or control target." value={usage.targetId} options={[{ value: "", label: usage.targetType === "control" ? "Select control" : "Select screen" }, ...(usage.targetType === "control" ? controlOptions : screenOptions)]} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, targetId: value } : candidate) } : item))} />
+                  <TextField id={`canvas-component-${row.id}-usage-${usageIndex}-purpose`} label="Purpose" description="Why the component is used at this screen/control." value={usage.purpose} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, purpose: value } : candidate) } : item))} />
+                  <DecisionStatusField id={`canvas-component-${row.id}-usage-${usageIndex}-status`} label="Usage confirmation status" description="Controlled confirmation for this usage target." value={usage.confirmationStatus} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, confirmationStatus: value } : candidate) } : item))} />
+                  <TextField id={`canvas-component-${row.id}-usage-${usageIndex}-source`} label="Usage confirmation source" description="Who or what confirmed this usage target." value={usage.confirmationSource} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, confirmationSource: value } : candidate) } : item))} />
+                  <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.filter((_, index) => index !== usageIndex) } : item))}>Remove usage target</button>
+                </div>
+              ))}
+            </div>
+            <ApplicabilityDecisionEditor id={`canvas-component-${row.id}-yaml-decision`} label="Component YAML output" value={row.yamlOutputDecision} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputDecision: value } : item))} />
+            <TextField id={`canvas-component-${row.id}-yaml-type`} label="YAML output type" description="Component YAML output requirement." value={row.yamlOutputType} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputType: value } : item))} />
+            <SelectField id={`canvas-component-${row.id}-yaml-parent-type`} label="YAML parent type" description="Component YAML parent must use approved component root or none." value={row.yamlParentType} options={[{ value: "", label: "Select parent type" }, { value: "component", label: "Component root" }, { value: "none", label: "None" }]} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlParentType: value as never } : item))} />
+            <TextField id={`canvas-component-${row.id}-yaml-parent`} label="YAML parent ID" description="Parent relationship for intended component YAML output." value={row.yamlParentId} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlParentId: value } : item))} />
+            <TextField id={`canvas-component-${row.id}-yaml-location`} label="YAML installation location" description="Where this component YAML would be validated." value={row.yamlInstallationLocation} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlInstallationLocation: value } : item))} />
+            <TextField id={`canvas-component-${row.id}-yaml-validation`} label="YAML validation responsibility" description="Person or team responsible for validation." value={row.yamlValidationResponsibility} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlValidationResponsibility: value } : item))} />
+            <DecisionStatusField id={`canvas-component-${row.id}-confirmation`} label="Confirmation status" description="Controlled component target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
+            <TextField id={`canvas-component-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this component target." value={row.confirmationSource} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
+            <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove component target</button>
+          </article>
+        ))}
+      </RecordGroup>
     </section>
   );
 }
@@ -1086,8 +1313,8 @@ function ApplicabilityDecisionEditor({
 }: {
   id: string;
   label: string;
-  value: PowerPlatformModelDrivenData["chartsDecision"];
-  onChange: (value: PowerPlatformModelDrivenData["chartsDecision"]) => void;
+  value: PowerPlatformApplicabilityDecision;
+  onChange: (value: PowerPlatformApplicabilityDecision) => void;
 }) {
   return (
     <fieldset className="applicability-decision">
@@ -1233,6 +1460,14 @@ function ModelDrivenSections({
         <TextField id={fieldId(stageId, "environmentVariables")} label="Environment variables" description="Environment variable values needed for ALM." value={common.environmentVariables} onChange={(value) => updateCommon("environmentVariables", value)} multiline />
         <TextField id={fieldId(stageId, "connectionReferences")} label="Connection references" description="Connection references needed for flows, custom connectors, or integrations." value={common.connectionReferences} onChange={(value) => updateCommon("connectionReferences", value)} multiline />
         <TextField id={fieldId(stageId, "sourceControlApproach")} label="Source-control decision" description="Source-control approach." value={common.sourceControlApproach} onChange={(value) => updateCommon("sourceControlApproach", value)} multiline />
+        <DecisionStatusField id={fieldId(stageId, "sourceAvailabilityStatus")} label="Source availability status" description="Controlled source availability. Free-text descriptions do not confirm source availability." value={modelDriven.sourceAvailabilityStatus} onChange={(value) => updateModelDriven("sourceAvailabilityStatus", value)} required />
+        <TextField id={fieldId(stageId, "sourceLocation")} label="Source location" description="Repository, solution export path, or approved source location when source is required." value={modelDriven.sourceLocation} onChange={(value) => updateModelDriven("sourceLocation", value)} />
+        <TextField id={fieldId(stageId, "sourceType")} label="Source type" description="Unpacked solution, managed/unmanaged export, repository source, or not-applicable context." value={modelDriven.sourceType} onChange={(value) => updateModelDriven("sourceType", value)} />
+        <DecisionStatusField id={fieldId(stageId, "sourceValidationStatus")} label="Source validation status" description="Controlled validation status for the source package or repository." value={modelDriven.sourceValidationStatus} onChange={(value) => updateModelDriven("sourceValidationStatus", value)} />
+        <TextField id={fieldId(stageId, "sourceValidationEvidence")} label="Source validation evidence" description="How the source was validated, by whom, and when." value={modelDriven.sourceValidationEvidence} onChange={(value) => updateModelDriven("sourceValidationEvidence", value)} multiline />
+        <TextField id={fieldId(stageId, "solutionVersion")} label="Solution version" description="Version of the model-driven solution represented by the source." value={modelDriven.solutionVersion} onChange={(value) => updateModelDriven("solutionVersion", value)} />
+        <TextField id={fieldId(stageId, "lastUnpackedDate")} label="Last unpacked date" description="Date the solution source was last unpacked or synchronized." value={modelDriven.lastUnpackedDate} onChange={(value) => updateModelDriven("lastUnpackedDate", value)} />
+        <TextField id={fieldId(stageId, "sourceNotes")} label="Source notes" description="Preserved legacy source notes, gaps, and source limitations." value={modelDriven.sourceNotes} onChange={(value) => updateModelDriven("sourceNotes", value)} multiline />
         <TextField id={fieldId(stageId, "deploymentMethod")} label="Deployment method" description="Deployment method." value={common.deploymentMethod} onChange={(value) => updateCommon("deploymentMethod", value)} multiline />
         <TextField id={fieldId(stageId, "deploymentResponsibility")} label="Deployment responsibility" description="Deployment responsibility." value={common.deploymentResponsibility} onChange={(value) => updateCommon("deploymentResponsibility", value)} multiline />
         <TextField id={fieldId(stageId, "deploymentStrategy")} label="Deployment strategy" description="Deployment strategy." value={common.deploymentStrategy} onChange={(value) => updateCommon("deploymentStrategy", value)} multiline />
