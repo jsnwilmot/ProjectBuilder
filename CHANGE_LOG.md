@@ -1,5 +1,56 @@
 # Change Log
 
+## 2026-07-15 - Phase 5A Implementation Asset Registry and Readiness
+
+### Summary
+
+- Added a Phase 5A implementation-asset registry for applicable Power Platform projects.
+- Added typed implementation asset statuses, categories, dependency records, gate snapshots, checksums, manual boundary fields, and manifest foundations.
+- Added Canvas asset plan records for required structured Power Fx and Canvas YAML targets without generating executable Power Fx or YAML source.
+- Added model-driven specification registry records without fabricating solution XML or importable solution packages.
+- Added registry normalization that rebuilds from current project data and preserves only safe approval statuses for matching regenerated asset IDs.
+- Confirmed non-Power-Platform projects return a not-applicable empty registry.
+- Corrected Phase 5A registry integrity after Architect review: one Power Fx plan per confirmed formula property, typed gate identifiers, structured dependency resolution, duplicate dependency validation, dependency-driven installation assets, deterministic graph evaluation, canonical checksums, stale-approval invalidation, model-driven source/entity separation, effective implementation readiness, manifest validation, and safe legacy normalization.
+- Completed final derived-state and manifest-integrity correction: centralized asset status evaluation, current asset dependency resolution, current record dependency resolution, complete registry state derivation, stale derived-field rejection, canonical manifest projection validation, strict connector quality checks, free-text model-driven dependency blocking, and duplicate persisted approval handling.
+- Completed Phase 5A.1 current-project dependency and gate-truth correction: dependencies now retain relationship context, Canvas fields are revalidated against their parent entity and connector, Canvas entities are revalidated against their required connector, current gate snapshots are rebuilt from `requiredGateIds`, and gate/relationship changes invalidate checksums and approvals.
+- Completed Phase 5A.1A canonical Canvas dependency regeneration: Power Fx planning assets now rebuild dependencies from the current control target, stale but internally valid relationship context is rejected, and Canvas/model-driven dependency resolution is separated by asset platform.
+- Completed Phase 5A.2 manifest validation against derived registry truth: manifest creation now requires the current project, derives readiness and asset data from current registry state, validates manifests against current-project truth, rejects stale Ready registries/manifests, validates project identity, and preserves per-asset tamper detection.
+
+### Files created
+
+- `src/lib/implementationAssets.ts` - Phase 5A asset registry, readiness, dependency validation, checksum, normalization, and manifest foundation helpers.
+- `src/tests/implementationAssets.test.ts` - focused Phase 5A registry, Canvas, model-driven, manifest, checksum, and normalization coverage.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts for the corrected Phase 5A test file.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts for the corrected Phase 5A test file.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5A validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `99` tests).
+- `npm.cmd test` - passed (`15` unit/integration files and `282` tests, plus `7` App UI files and `43` tests; `22` files and `325` tests total).
+- `npm.cmd run test:coverage` - passed (`15` coverage files and `282` tests, plus `7` App UI files and `43` tests; `22` files and `325` tests total); coverage result was `90.46%` statements, `79.7%` branches, `94.48%` functions, and `94.72%` lines.
+- `npm.cmd run build` - passed.
+- `npm.cmd audit --audit-level=high` - passed with `0` vulnerabilities.
+- `git diff --check` - passed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B must not begin until Phase 5A is approved.
+
 ## 2026-07-12 - Phase 4 Power Platform Document Generation and Codex Handoff
 
 ### Summary

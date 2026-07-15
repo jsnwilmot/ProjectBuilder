@@ -1,5 +1,32 @@
 # Test Plan
 
+## 2026-07-15 Phase 5A implementation asset registry and readiness
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- `npm.cmd test`: passed through `scripts/run-tests.mjs`; the unit/integration leg runs `15` files and `282` tests, then `7` App UI groups run in clean child processes for `43` tests. Total normal execution is `22` files and `325` tests.
+- `npm.cmd run test:coverage`: passed through `scripts/run-tests-with-coverage.mjs`; the coverage leg runs `15` files and `282` tests, then `7` App UI groups run in clean child processes for `43` tests. Total coverage workflow execution is `22` files and `325` tests.
+- Coverage project result is `90.46%` statements, `79.7%` branches, `94.48%` functions, and `94.72%` lines.
+- `npm.cmd run build`: passed, including TypeScript checking.
+- `npm.cmd audit --audit-level=high`: passed with `0` vulnerabilities.
+- `git diff --check`: passed.
+- Phase 5A coverage verifies non-Power-Platform projects produce a not-applicable empty registry.
+- Asset registry coverage verifies one Power Fx plan asset per formula property, unique asset IDs, unique paths, typed gate snapshots, structured dependencies, checksums, target references, and manifest paths.
+- Formula-property coverage verifies newline, comma, semicolon, duplicate, blank, placeholder, and path-collision behavior.
+- Dependency coverage verifies valid structured dependencies resolve and invalid screen, connector, entity, field, missing asset, duplicate dependency, self-dependency, and circular dependencies block readiness.
+- Graph coverage verifies dependency-driven installation assets and deterministic dependency-before-dependant ordering.
+- Checksum coverage verifies deterministic canonical payloads across timestamps and changed paths, dependencies, gate snapshots, connector/entity/field IDs, installation requirements, validation requirements, and source content.
+- Approval coverage verifies unchanged checksum/version approvals can be preserved and changed metadata, dependencies, gates, stale versions, missing checksums, and malformed approval states reset to Review required.
+- Model-driven coverage verifies source records, entity IDs, field IDs, and connector IDs remain semantically distinct, and no solution XML or importable source is fabricated.
+- Manifest coverage verifies counts, paths, checksums, project package readiness, asset package readiness, effective implementation readiness, dependency issues, circular dependency issues, generation order, installation order, and tamper rejection.
+- Final Phase 5A correction coverage verifies centralized asset status derivation, current asset dependency recalculation, current record dependency recalculation, YAML formula readiness, installation dependency readiness, unapproved connector blocking, free-text model-driven structured-reference blocking, duplicate persisted approval reset, stale registry summary/order rejection, and canonical manifest projection tamper rejection.
+- Phase 5A.1 focused coverage verifies dependency relationship context, field-to-entity validation, entity-to-connector validation, multiple active connector relationship isolation, current gate snapshot rebuilding, gate-derived checksum invalidation, gate-derived approval reset, relationship checksum invalidation, and relationship-derived approval reset.
+- Phase 5A.1A focused coverage verifies canonical Canvas Power Fx dependency regeneration from the current control target, stale relationship context rejection even with recomputed checksums, Canvas dependency isolation from model-driven records, and model-driven dependency isolation from Canvas records.
+- Phase 5A.2 focused coverage verifies current-project-aware manifest creation, canonical derived registry projection, stale registry rejection, stale Ready manifest rejection, current gate and relationship invalidation, project identity validation, existing per-asset tamper rejection, and manifest creation mutation safety.
+- Normalization coverage verifies null, non-object, missing asset arrays, malformed records, unknown statuses, legacy checksums, legacy generation versions, and duplicate persisted asset records rebuild safely from current project data.
+- Phase 5A intentionally does not generate executable Power Fx, Canvas YAML, model-driven source patches, exports, live environment changes, installation, publishing, deployment, or Studio validation claims.
+- Phase 5B remains blocked until Architect review approves Phase 5A.
+
 ## 2026-07-12 Phase 4 final UI test isolation and Linux runner approval
 
 - `npm.cmd run lint`: passed.
