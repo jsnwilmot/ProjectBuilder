@@ -316,6 +316,22 @@ export interface CanvasComponentUsageTarget {
   confirmationSource: string;
 }
 
+export type CanvasStateInitialValue =
+  | { kind: "blank" }
+  | { kind: "boolean"; value: boolean }
+  | { kind: "number"; value: number }
+  | { kind: "text"; value: string };
+
+export interface CanvasStateVariableTarget {
+  id: string;
+  implementationName: string;
+  purpose: string;
+  initialValue: CanvasStateInitialValue;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  required: boolean;
+  sortOrder: number;
+}
+
 export interface CanvasComponentTarget {
   id: string;
   approvedComponentName: string;
@@ -648,6 +664,7 @@ export interface PowerPlatformCanvasData {
   screenTargets: CanvasScreenTarget[];
   controlTargets: CanvasControlTarget[];
   componentTargets: CanvasComponentTarget[];
+  stateVariableTargets: CanvasStateVariableTarget[];
   screenNamingConvention: string;
   controlNamingConvention: string;
   controlTypePrefixes: string;

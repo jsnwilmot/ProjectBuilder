@@ -3,10 +3,19 @@ import { activeCanvasEntityReferences, reconcileCanvasConnectorSelection } from 
 import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
 import { evaluatePhaseGate, isPhaseGatePassing, type PhaseGateId, type PhaseGateResult } from "./phaseGates";
 import { isCanvasProject, isModelDrivenProject } from "./powerPlatform";
+import {
+  CANVAS_STATE_INITIALIZATION_ASSET_ID,
+  CANVAS_STATE_INITIALIZATION_OPERATION,
+  CANVAS_STATE_INITIALIZATION_PATH,
+  CANVAS_STATE_INITIALIZATION_TARGET_ID,
+  canvasStateVariableGenerationInputs,
+  validateCanvasStateVariables
+} from "./stateInitialization";
 import type {
   CanvasComponentTarget,
   CanvasControlTarget,
   CanvasScreenTarget,
+  CanvasStateInitialValue,
   DataverseColumnSchema,
   DataverseTableSchema,
   PowerPlatformGateStatus,
@@ -94,6 +103,15 @@ export interface ImplementationAssetGenerationInputs {
   navigationTransition?: string;
   navigationTransitionDefaultRule?: string;
   destinationImplementationName?: string;
+  stateVariables?: Array<{
+    id: string;
+    implementationName: string;
+    purpose: string;
+    initialValue: CanvasStateInitialValue;
+    required: boolean;
+    confirmationStatus: string;
+    sortOrder: number;
+  }>;
 }
 
 export interface ImplementationAsset {
@@ -429,6 +447,9 @@ function assetDependency(asset: ImplementationAsset): ImplementationAssetDepende
 }
 
 function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCategory" | "assetType" | "targetDisplayName" | "approvedPropertyName" | "blockingIssues" | "generationInputs">): string {
+  const stateVariableLines = (asset.generationInputs?.stateVariables ?? []).map((variable, index) =>
+    `- State variable ${index + 1}: ${variable.id} / ${variable.implementationName} / ${variable.initialValue.kind} value stored structurally / required ${variable.required} / ${variable.confirmationStatus} / sort ${variable.sortOrder}`
+  );
   const generationInputs = asset.generationInputs
     ? [
         "",
@@ -441,7 +462,9 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
         asset.generationInputs.destinationScreenId ? `- Destination screen ID: ${asset.generationInputs.destinationScreenId}` : "",
         asset.generationInputs.navigationTransition ? `- Navigation transition: ${asset.generationInputs.navigationTransition}` : "",
         asset.generationInputs.navigationTransitionDefaultRule ? `- Navigation transition default rule: ${asset.generationInputs.navigationTransitionDefaultRule}` : "",
-        asset.generationInputs.destinationImplementationName ? `- Destination implementation name: ${asset.generationInputs.destinationImplementationName}` : ""
+        asset.generationInputs.destinationImplementationName ? `- Destination implementation name: ${asset.generationInputs.destinationImplementationName}` : "",
+        asset.generationInputs.stateVariables ? "- State initialization plan: formula generation is deferred to Phase 5B.2B." : "",
+        ...stateVariableLines
       ].filter((line) => line !== "")
     : [];
   return [
@@ -726,6 +749,58 @@ function canvasPowerFxAssets(project: ProjectRecord, target: CanvasControlTarget
   });
 }
 
+function canvasStateInitializationAsset(project: ProjectRecord, now: string): ImplementationAsset[] {
+  const canvas = project.powerPlatform?.canvas;
+  if (!canvas || canvas.stateVariableTargets.length === 0) return [];
+  const validation = validateCanvasStateVariables(canvas.stateVariableTargets);
+  if (validation.includedVariables.length === 0 && validation.blockingIssues.length === 0) return [];
+  const gateIds: PhaseGateId[] = ["namingStandards"];
+  const gateEvaluationSnapshot = snapshotGates(project, gateIds);
+  const gateIssues = blockingGateIssues(gateEvaluationSnapshot);
+  const stateVariables = canvasStateVariableGenerationInputs(validation.includedVariables);
+  return [finalizeAsset({
+    assetId: CANVAS_STATE_INITIALIZATION_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_STATE_INITIALIZATION_TARGET_ID,
+    targetDisplayName: "App OnStart state initialization plan",
+    intendedPath: CANVAS_STATE_INITIALIZATION_PATH,
+    applicabilityStatus: "required",
+    required: true,
+    requiredGateIds: gateIds,
+    gateEvaluationSnapshot,
+    sourceRecordIds: validation.variables.map((variable) => variable.id),
+    connectorIds: [],
+    entityIds: [],
+    fieldIds: [],
+    dependencies: [],
+    generationInputs: {
+      operation: CANVAS_STATE_INITIALIZATION_OPERATION,
+      formulaProperty: "OnStart",
+      stateVariables
+    },
+    generationTimestamp: now,
+    generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
+    manualInstallationRequirements: [
+      "Manual Power Apps Studio App OnStart update required in a later approved phase.",
+      "Do not claim installation until an implementer applies future generated source in the real app."
+    ],
+    validationRequirements: [
+      "Validate future App OnStart state initialization in Power Apps Studio.",
+      "Confirm variable names and scalar initial values before executable formula generation."
+    ],
+    knownLimitations: [
+      "Phase 5B.2A creates a planning asset only.",
+      "Executable App OnStart formula generation is deferred to Phase 5B.2B."
+    ],
+    blockingIssues: [...gateIssues, ...validation.blockingIssues],
+    approvalStatus: "Review required",
+    approvedPropertyName: "OnStart"
+  })];
+}
+
 function yamlAssetPath(targetKind: "screen" | "control" | "component", targetId: string, outputType: string): string {
   const extension = outputType.toLowerCase().includes("pa.yaml") ? "pa.yaml" : "yaml";
   return `07_Development/Canvas_YAML/${targetKind}-${safeSegment(targetId, targetKind)}.${extension}`;
@@ -983,6 +1058,7 @@ function modelDrivenSpecAsset(input: {
 function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[] {
   const canvas = project.powerPlatform?.canvas;
   if (!canvas) return [];
+  const stateAssets = canvasStateInitializationAsset(project, now);
   const formulaAssets = canvas.controlTargets.flatMap((target) => canvasPowerFxAssets(project, target, now));
   const formulaAssetsByControlId = formulaAssets.reduce((map, asset) => {
     const existing = map.get(asset.targetId) ?? [];
@@ -999,6 +1075,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
     .filter((target) => target.yamlOutputDecision.status === "required")
     .map((target) => canvasYamlAsset(project, target, "component", now));
   return [
+    ...stateAssets,
     ...formulaAssets,
     ...yamlScreenAssets,
     ...yamlControlAssets,
@@ -1258,6 +1335,7 @@ function resolvedAssetDependency(item: ImplementationAssetDependency, currentAss
 }
 
 function currentCanvasPowerFxAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
+  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID) return currentCanvasStateInitializationAsset(project, asset);
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return asset;
   const target = project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === asset.targetId);
   if (!target) return asset;
@@ -1273,7 +1351,26 @@ function currentCanvasPowerFxAsset(project: ProjectRecord, asset: Implementation
   };
 }
 
+function currentCanvasStateInitializationAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
+  const variables = project.powerPlatform?.canvas?.stateVariableTargets ?? [];
+  const validation = validateCanvasStateVariables(variables);
+  return {
+    ...asset,
+    sourceRecordIds: validation.variables.map((variable) => variable.id),
+    connectorIds: [],
+    entityIds: [],
+    fieldIds: [],
+    dependencies: [],
+    generationInputs: {
+      operation: CANVAS_STATE_INITIALIZATION_OPERATION,
+      formulaProperty: "OnStart",
+      stateVariables: canvasStateVariableGenerationInputs(validation.includedVariables)
+    }
+  };
+}
+
 function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
+  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID) return [];
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
   const approvedProperty = asset.approvedPropertyName ?? "";
   const currentProperties = asset.generationInputs?.currentFormulaProperties ?? [];
@@ -1282,11 +1379,13 @@ function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
 }
 
 function deriveAssetFromCurrentState(project: ProjectRecord, asset: ImplementationAsset, assetById: Map<string, ImplementationAsset>): ImplementationAsset {
+  const approvedChecksum = asset.approvalStatus === "Approved" ? asset.contentChecksum : "";
   const canonicalAsset = currentCanvasPowerFxAsset(project, asset);
   const dependencies = canonicalAsset.dependencies.map((item) => resolvedAssetDependency(resolvedRecordDependency(project, canonicalAsset, item), canonicalAsset, assetById));
   const gateEvaluationSnapshot = snapshotGates(project, asset.requiredGateIds);
   const blockingIssues = unique([
     ...blockingGateIssues(gateEvaluationSnapshot),
+    ...(canonicalAsset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID ? validateCanvasStateVariables(project.powerPlatform?.canvas?.stateVariableTargets ?? []).blockingIssues : []),
     ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
@@ -1304,10 +1403,25 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
     ...withoutChecksum,
     assetStatus: evaluateImplementationAssetStatus(withoutChecksum)
   };
-  return {
+  const withChecksum = {
     ...withStatus,
     contentChecksum: calculateImplementationAssetChecksum(withStatus)
   };
+  if (asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID) return withChecksum;
+  const approvalStillValid = asset.approvalStatus === "Approved"
+    && asset.assetId === withChecksum.assetId
+    && approvedChecksum === withChecksum.contentChecksum
+    && COMPATIBLE_GENERATION_VERSIONS.has(asset.generationVersion)
+    && withChecksum.applicabilityStatus === "required"
+    && withChecksum.blockingIssues.length === 0
+    && evaluateImplementationAssetStatus(withChecksum) !== "Blocked";
+  return approvalStillValid
+    ? withChecksum
+    : {
+        ...withChecksum,
+        approvalStatus: "Review required",
+        assetStatus: evaluateImplementationAssetStatus({ ...withChecksum, approvalStatus: "Review required" })
+      };
 }
 
 export function evaluateImplementationAssetDependencies(project: ProjectRecord, assets: ImplementationAsset[]): ImplementationAssetDependencyEvaluation {

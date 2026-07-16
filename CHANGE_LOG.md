@@ -1,5 +1,51 @@
 # Change Log
 
+## 2026-07-16 - Phase 5B.2A State Initialization Planning
+
+### Summary
+
+- Added a typed Canvas global state-variable model for future App `OnStart` state initialization.
+- Added normalization and validation for blank, Boolean, finite number, and text initial scalar values without allowing raw Power Fx expressions.
+- Added a planning-only Phase 5A App `OnStart` state-initialization asset with structured generation inputs, deterministic ordering, canonical checksum binding, and approval invalidation.
+- Corrected current-state approval derivation so stale state-plan approvals cannot remain `Ready for Export` after variable changes.
+- Changed readable planning content so formula-looking text values remain in structured generation inputs without being printed raw in source content.
+- Documented the no-variable behavior as no planning asset, and optional unconfirmed variables as excluded from the plan.
+- Confirmed the planning asset creates no connector, entity, or field dependencies and emits no executable state formula.
+- Preserved Phase 5B.1 navigation generation behavior and kept executable App `OnStart` formula generation deferred to Phase 5B.2B.
+
+### Files created
+
+- `src/lib/stateInitialization.ts` - Canvas state-variable normalization, validation, ordering, and generation-input helpers.
+- `src/tests/stateInitialization.test.ts` - focused Phase 5B.2A state-initialization planning coverage.
+
+### Files updated
+
+- `src/types/project.ts` - typed Canvas state initial-value and state-variable target model.
+- `src/lib/powerPlatform.ts` - Canvas defaults and legacy normalization for state-variable targets.
+- `src/lib/implementationAssets.ts` - planning-only App `OnStart` implementation asset, current-project checksum re-derivation, stale approval invalidation, and safe source-content formatting for structured state values.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.2A validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `59` tests).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B.2B must not begin until Phase 5B.2A is approved.
+
 ## 2026-07-15 - Phase 5B.1B Approved Property Binding
 
 ### Summary

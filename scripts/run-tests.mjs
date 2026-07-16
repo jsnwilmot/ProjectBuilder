@@ -76,5 +76,5 @@ for (const uiTestFile of uiTestFiles) {
 }
 
 console.log(
-  "\n[test-runner] Summary: unit/integration files 16, unit/integration tests 352, UI files 7, UI tests 43, combined files 23, combined tests 395."
+  "\n[test-runner] Summary: unit/integration files 17, unit/integration tests 411, UI files 7, UI tests 43, combined files 24, combined tests 454."
 );

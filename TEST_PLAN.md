@@ -1,5 +1,26 @@
 # Test Plan
 
+## 2026-07-16 Phase 5B.2A state-initialization model and asset planning
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests after Phase 5B.2A.1 corrections).
+- Phase 5B.2A coverage verifies new Canvas projects default to an empty `stateVariableTargets` list and legacy projects missing the field normalize safely.
+- Normalization coverage verifies malformed records do not throw, valid blank/Boolean/finite-number/text values normalize, unknown value kinds are removed, and `NaN`/infinite numbers are rejected.
+- Validation coverage verifies invalid implementation names, duplicate IDs, duplicate names, case-insensitive duplicate names, and duplicate sort orders block the planning asset.
+- Ordering coverage verifies deterministic state-variable order by `sortOrder` and stable ID tie-breaker.
+- Planning-asset coverage verifies no variables produce no planning asset, confirmed variables produce one combined App `OnStart` planning asset, structured variable inputs are stored, and source content contains no executable `Set` or `ClearCollect` statements.
+- Readiness coverage verifies required unconfirmed variables block readiness, optional unconfirmed variables are excluded, planning assets begin as `Review Required`, and explicit approval permits `Ready for Export`.
+- Phase 5B.2A.1 approval coverage verifies unchanged approvals remain valid, changed initial values reset approval to `Review required`, changed names/additions/removals are non-Ready, stale state plans are excluded from ready counts, manifests do not overstate readiness, and installation dependencies do not treat stale state plans as Ready.
+- Phase 5B.2A.1 safe-content coverage verifies formula-looking text values such as `Set(`, `ClearCollect(`, and `Patch(` remain intact in structured `generationInputs` without being printed raw in planning source content.
+- Checksum coverage verifies variable addition, removal, rename, value-kind change, initial-value change, required-flag change, confirmation change, sort-order change, and timestamp stability.
+- Formula-looking text checksum coverage verifies distinct text literals still produce distinct checksums while safe source-content output remains deterministic.
+- Dependency coverage verifies scalar state initialization creates no connector, entity, or field dependencies.
+- Regression coverage verifies the Phase 5B.1 navigation generator rejects state-initialization assets and emits no executable state formulas.
+- Mutation coverage verifies project and registry inputs are not mutated.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.2A commit gate by Architect instruction.
+- Normal runner summaries have been updated for the corrected focused file: unit/integration execution is now `17` files and `411` tests, plus `7` App UI files and `43` tests, for `24` files and `454` tests total.
+- Coverage runner summaries have been updated for the corrected focused file: coverage execution is now `17` files and `411` tests, plus `7` App UI files and `43` tests, for `24` files and `454` tests total.
+
 ## 2026-07-15 Phase 5B.1B approved property binding
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
