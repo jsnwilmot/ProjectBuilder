@@ -1,5 +1,51 @@
 # Test Plan
 
+## 2026-07-15 Phase 5B.1B approved property binding
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- Phase 5B.1B coverage verifies an approved property still present on the current control can generate after explicit approval.
+- Property-removal coverage verifies removing the approved property after approval blocks generation and returns no executable formula.
+- Property-replacement coverage verifies replacing `OnSelect` with `OnSuccess` blocks the old `OnSelect` asset.
+- Canonical property-set coverage deliberately invalidates an old asset when `OnSuccess` is added while retaining `OnSelect`, because the full normalized property set is approval-bound.
+- Checksum coverage verifies current normalized formula properties contribute to the Phase 5A asset checksum, and removal/replacement changes the derived checksum.
+- Approval coverage verifies normalization resets approval after a property-set change.
+- Registry regeneration coverage verifies obsolete property assets are removed, newly applicable property assets are created, and new assets begin as `Review required`.
+- Reapproval coverage verifies explicit approval permits the new supported navigation property.
+- Generator-defence coverage verifies a manually constructed registry cannot bypass current-property membership.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.1 commit gate by Architect instruction.
+- Normal runner summaries have been updated for the corrected focused file: unit/integration execution is now `16` files and `352` tests, plus `7` App UI files and `43` tests, for `23` files and `395` tests total.
+- Coverage runner summaries have been updated for the corrected focused file: coverage execution is now `16` files and `352` tests, plus `7` App UI files and `43` tests, for `23` files and `395` tests total.
+
+## 2026-07-15 Phase 5B.1A navigation approval binding
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests after Phase 5B.1B corrections).
+- Phase 5B.1A coverage verifies default Canvas controls include typed navigation fields.
+- Legacy normalization coverage verifies missing navigation fields and malformed transition/default-rule values reset safely.
+- Phase 5A checksum coverage verifies destination ID, transition, transition default rule, and destination implementation name contribute to Power Fx plan checksums.
+- Stale approval coverage verifies changed destination, changed transition, changed default rule, and changed destination implementation name block generation from the old approved asset.
+- Reapproval coverage verifies registry regeneration resets approval, explicit approval of the new checksum allows generation, generated formulas reflect the newly approved destination, and generated checksums reflect the newly approved transition.
+- Shared transition model coverage verifies the generator uses the project model transition list and existing transition mapping behavior continues to pass.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.1 commit gate by Architect instruction.
+- Normal runner summaries have been updated for the corrected focused file: unit/integration execution is now `16` files and `352` tests, plus `7` App UI files and `43` tests, for `23` files and `395` tests total.
+- Coverage runner summaries have been updated for the corrected focused file: coverage execution is now `16` files and `352` tests, plus `7` App UI files and `43` tests, for `23` files and `395` tests total.
+
+## 2026-07-15 Phase 5B.1 Power Fx navigation generation framework
+
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `57` tests after Phase 5B.1A corrections).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation are deferred to the Phase 5B.1 commit gate by Architect instruction.
+- Normal runner summaries have been updated for the corrected focused file: unit/integration execution is now `16` files and `339` tests, plus `7` App UI files and `43` tests, for `23` files and `382` tests total.
+- Coverage runner summaries have been updated for the corrected focused file: coverage execution is now `16` files and `339` tests, plus `7` App UI files and `43` tests, for `23` files and `382` tests total.
+- Power Fx generation coverage verifies approved Ready navigation assets generate executable Power Fx using the confirmed destination implementation name.
+- Transition coverage verifies `None`, `Cover`, `CoverRight`, `Fade`, `UnCover`, and `UnCoverRight` map to valid `ScreenTransition` values.
+- Determinism coverage verifies identical structured inputs produce identical formulas/checksums and destination, transition, implementation-name, and source-checksum changes alter checksums.
+- Formatting coverage verifies generated formulas end with exactly one newline and contain no Markdown fences or unresolved placeholders.
+- Blocking coverage verifies missing destination IDs, missing/unconfirmed destinations, missing destination implementation names, unknown transitions, unsupported properties, unsupported operations, Draft assets, Review Required assets, Blocked assets, unapproved assets, invalid source checksums, failed gates, unresolved dependencies, and non-Canvas projects do not produce executable formulas.
+- Mutation coverage verifies generation does not mutate the project, registry, or source asset.
+- Boundary coverage verifies generated formulas contain no data-access functions, CRUD functions, Canvas YAML, model-driven source, validation formulas, permission formulas, UI integration, export integration, installation, publishing, deployment, or Phase 5B.2 behavior.
+
 ## 2026-07-15 Phase 5A implementation asset registry and readiness
 
 - `npm.cmd run lint`: passed.

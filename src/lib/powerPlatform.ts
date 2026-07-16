@@ -7,6 +7,7 @@ import {
   MODEL_DRIVEN_DOCUMENT_LOCATIONS,
   type DocumentLocation
 } from "../data/folderStructure";
+import { CANVAS_NAVIGATION_TRANSITIONS } from "../types/project";
 import type {
   CanvasDataSourceType,
   ConnectorClassification,
@@ -18,6 +19,8 @@ import type {
   CanvasControlTarget,
   CanvasScreenTarget,
   CanvasTargetDataSourceReference,
+  CanvasNavigationTransition,
+  CanvasNavigationTransitionDefaultRule,
   PowerPlatformCommonData,
   PowerPlatformConnector,
   PowerPlatformCanvasData,
@@ -143,6 +146,17 @@ const VALID_MODEL_DRIVEN_SUBTYPES: readonly PowerAppsModelDrivenSubtype[] = [
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function toCanvasNavigationTransition(value: unknown): CanvasNavigationTransition {
+  const normalized = asString(value).trim();
+  return (CANVAS_NAVIGATION_TRANSITIONS as readonly string[]).includes(normalized)
+    ? normalized as CanvasNavigationTransition
+    : "";
+}
+
+function toCanvasNavigationTransitionDefaultRule(value: unknown): CanvasNavigationTransitionDefaultRule {
+  return asString(value).trim() === "defaultToNoneWhenBlank" ? "defaultToNoneWhenBlank" : "";
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -554,6 +568,9 @@ export function createDefaultCanvasControlTarget(overrides: Partial<CanvasContro
     formulaOutputDecision: createApplicabilityDecision(overrides.formulaOutputDecision ?? {}),
     operation: overrides.operation ?? "",
     formulaProperties: overrides.formulaProperties ?? "",
+    navigationDestinationScreenId: overrides.navigationDestinationScreenId?.trim() ?? "",
+    navigationTransition: toCanvasNavigationTransition(overrides.navigationTransition),
+    navigationTransitionDefaultRule: toCanvasNavigationTransitionDefaultRule(overrides.navigationTransitionDefaultRule),
     connectorId: legacyConnectorId,
     entityId: legacyEntityId,
     dataSourceId: overrides.dataSourceId ?? "",
@@ -2419,6 +2436,9 @@ export function normalizePowerPlatformData(
             formulaOutputDecision: createApplicabilityDecision(isObject(item.formulaOutputDecision) ? item.formulaOutputDecision : {}),
             operation: asString(item.operation),
             formulaProperties: asString(item.formulaProperties),
+            navigationDestinationScreenId: asString(item.navigationDestinationScreenId).trim(),
+            navigationTransition: toCanvasNavigationTransition(item.navigationTransition),
+            navigationTransitionDefaultRule: toCanvasNavigationTransitionDefaultRule(item.navigationTransitionDefaultRule),
             connectorId: asString(item.connectorId),
             entityId: asString(item.entityId),
             dataSourceId: asString(item.dataSourceId),

@@ -1,5 +1,134 @@
 # Change Log
 
+## 2026-07-15 - Phase 5B.1B Approved Property Binding
+
+### Summary
+
+- Bound each approved Power Fx plan asset to the formula properties currently approved on its Canvas control target.
+- Added normalized current formula-property selection to Phase 5A Power Fx plan generation inputs and canonical checksum content.
+- Added current-property membership blocking so removed or replaced approved properties cannot remain Ready.
+- Added generator-side membership defense using the shared Phase 5A formula-property parser.
+- Added focused regression coverage for property removal, replacement, property-set checksum changes, obsolete asset removal, new asset creation, approval reset, and explicit reapproval.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - added current formula-property selection to generation inputs and derived blocking issues.
+- `src/lib/powerFxGeneration.ts` - added independent current-property membership defense.
+- `src/tests/powerFxGeneration.test.ts` - focused Phase 5B.1B property-binding regressions.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.1B validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `70` tests).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B.2 must not begin until Phase 5B.1B is approved.
+
+## 2026-07-15 - Phase 5B.1A Navigation Approval Binding
+
+### Summary
+
+- Bound Phase 5B.1 navigation formula generation to typed Canvas navigation decisions stored on `CanvasControlTarget`.
+- Added typed navigation transition and default-rule model values to the project schema.
+- Added safe defaults and legacy normalization for navigation destination, transition, and default-rule fields.
+- Added navigation source-generation inputs to Phase 5A Power Fx plan assets so destination, transition, default rule, operation, formula property, source IDs, and destination implementation name contribute to the existing canonical asset checksum.
+- Updated the Power Fx generator to consume the shared typed transition model directly instead of local unknown navigation fields.
+- Added focused regression coverage proving changed navigation decisions after approval make the approved asset stale and block generation until registry regeneration and explicit reapproval.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/types/project.ts` - typed Canvas navigation fields and shared transition constants.
+- `src/lib/powerPlatform.ts` - Canvas control-target defaults and legacy normalization for navigation fields.
+- `src/lib/implementationAssets.ts` - approval-relevant source-generation inputs for Power Fx plan assets.
+- `src/lib/powerFxGeneration.ts` - generator consumes typed navigation fields and shared transition constants.
+- `src/tests/powerFxGeneration.test.ts` - focused approval-binding and normalization regressions.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.1A validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `70` tests after Phase 5B.1B corrections).
+
+### Issues found
+
+- Initial TypeScript validation caught import-style and optional-return type issues; both were fixed before final validation.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B.2 must not begin until Phase 5B.1A is approved.
+
+## 2026-07-15 - Phase 5B.1 Power Fx Navigation Generation Framework
+
+### Summary
+
+- Added a controlled Power Fx generation framework for Phase 5B.1.
+- Added typed generation results, navigation-only operation handling, deterministic formula/checksum output, source asset traceability, structured blocked results, and mutation protection.
+- Added Canvas navigation formula generation only for approved, checksum-valid, current, Ready-for-Export Phase 5A Power Fx plan assets.
+- Added strict navigation target resolution from structured source control, source screen, destination screen, destination implementation name, property, operation, transition, gate, and dependency data.
+- Confirmed unsupported operations, unsupported formula properties, unapproved assets, stale assets, invalid checksums, failed gates, unresolved dependencies, missing destinations, unconfirmed destinations, and unknown transitions block without returning executable Power Fx.
+- Preserved the Phase 5B.1 boundary: no data loading, CRUD, validation, permissions, Canvas YAML, model-driven source, UI integration, export integration, installation, publishing, or deployment.
+
+### Files created
+
+- `src/lib/powerFxGeneration.ts` - Phase 5B.1 Power Fx generation contracts and navigation-only generator.
+- `src/tests/powerFxGeneration.test.ts` - focused navigation generation, blocking, checksum, formatting, traceability, mutation, and boundary coverage.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts for the new Phase 5B.1 test file.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts for the new Phase 5B.1 test file.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `57` tests after Phase 5B.1A corrections).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `99` tests).
+- Full Phase 5B.1 commit-gate testing, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the commit gate by Architect instruction.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B.2 must not begin until Phase 5B.1 is approved.
+
 ## 2026-07-15 - Phase 5A Implementation Asset Registry and Readiness
 
 ### Summary

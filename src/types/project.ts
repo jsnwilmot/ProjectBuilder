@@ -187,6 +187,23 @@ export type PowerPlatformDecisionStatus =
   | "blocked"
   | "notApplicable";
 
+export const CANVAS_NAVIGATION_TRANSITIONS = [
+  "None",
+  "Cover",
+  "CoverRight",
+  "Fade",
+  "UnCover",
+  "UnCoverRight"
+] as const;
+
+export type CanvasNavigationTransition =
+  | (typeof CANVAS_NAVIGATION_TRANSITIONS)[number]
+  | "";
+
+export type CanvasNavigationTransitionDefaultRule =
+  | ""
+  | "defaultToNoneWhenBlank";
+
 export type PowerPlatformStatusValue = PowerPlatformDecisionStatus | (string & {});
 
 export type CanvasConnectorRole = "primary" | "secondary" | "";
@@ -266,6 +283,9 @@ export interface CanvasControlTarget {
   formulaOutputDecision: PowerPlatformApplicabilityDecision;
   operation: string;
   formulaProperties: string;
+  navigationDestinationScreenId: string;
+  navigationTransition: CanvasNavigationTransition;
+  navigationTransitionDefaultRule: CanvasNavigationTransitionDefaultRule;
   connectorId: string;
   entityId: string;
   dataSourceId: string;

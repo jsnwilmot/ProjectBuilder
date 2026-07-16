@@ -84,6 +84,18 @@ export interface ImplementationAssetGateSnapshot {
   passed: boolean;
 }
 
+export interface ImplementationAssetGenerationInputs {
+  operation?: string;
+  formulaProperty?: string;
+  currentFormulaProperties?: string[];
+  sourceScreenId?: string;
+  sourceControlId?: string;
+  destinationScreenId?: string;
+  navigationTransition?: string;
+  navigationTransitionDefaultRule?: string;
+  destinationImplementationName?: string;
+}
+
 export interface ImplementationAsset {
   assetId: string;
   projectId: string;
@@ -104,6 +116,7 @@ export interface ImplementationAsset {
   entityIds: string[];
   fieldIds: string[];
   dependencies: ImplementationAssetDependency[];
+  generationInputs?: ImplementationAssetGenerationInputs;
   generationTimestamp: string;
   generationVersion: string;
   contentChecksum: string;
@@ -338,6 +351,7 @@ export function createCanonicalAssetPayload(asset: ImplementationAsset): string 
       blockingIssue: dependencyItem.blockingIssue ?? "",
       sourceSection: dependencyItem.sourceSection
     })),
+    generationInputs: stableSortObject(asset.generationInputs ?? {}),
     manualInstallationRequirements: asset.manualInstallationRequirements.map((item) => item.replace(/\r\n/g, "\n").replace(/\r/g, "\n")),
     validationRequirements: asset.validationRequirements.map((item) => item.replace(/\r\n/g, "\n").replace(/\r/g, "\n")),
     knownLimitations: asset.knownLimitations.map((item) => item.replace(/\r\n/g, "\n").replace(/\r/g, "\n")),
@@ -414,7 +428,22 @@ function assetDependency(asset: ImplementationAsset): ImplementationAssetDepende
   });
 }
 
-function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCategory" | "assetType" | "targetDisplayName" | "approvedPropertyName" | "blockingIssues">): string {
+function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCategory" | "assetType" | "targetDisplayName" | "approvedPropertyName" | "blockingIssues" | "generationInputs">): string {
+  const generationInputs = asset.generationInputs
+    ? [
+        "",
+        "Approved source-generation inputs:",
+        asset.generationInputs.operation ? `- Operation: ${asset.generationInputs.operation}` : "",
+        asset.generationInputs.formulaProperty ? `- Formula property: ${asset.generationInputs.formulaProperty}` : "",
+        asset.generationInputs.currentFormulaProperties ? `- Current control formula properties: ${asset.generationInputs.currentFormulaProperties.join(", ") || "None"}` : "",
+        asset.generationInputs.sourceScreenId ? `- Source screen ID: ${asset.generationInputs.sourceScreenId}` : "",
+        asset.generationInputs.sourceControlId ? `- Source control ID: ${asset.generationInputs.sourceControlId}` : "",
+        asset.generationInputs.destinationScreenId ? `- Destination screen ID: ${asset.generationInputs.destinationScreenId}` : "",
+        asset.generationInputs.navigationTransition ? `- Navigation transition: ${asset.generationInputs.navigationTransition}` : "",
+        asset.generationInputs.navigationTransitionDefaultRule ? `- Navigation transition default rule: ${asset.generationInputs.navigationTransitionDefaultRule}` : "",
+        asset.generationInputs.destinationImplementationName ? `- Destination implementation name: ${asset.generationInputs.destinationImplementationName}` : ""
+      ].filter((line) => line !== "")
+    : [];
   return [
     `# ${asset.targetDisplayName}`,
     "",
@@ -425,6 +454,7 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
     "",
     "Phase 5A registry output only. This record evaluates readiness, dependencies, manifest metadata, and manual boundaries.",
     "Implementation source generation is intentionally deferred to the approved Phase 5B-5E stages.",
+    ...generationInputs,
     "",
     "Installation status: Not installed.",
     "Studio testing status: Not tested in Power Apps Studio.",
@@ -434,6 +464,21 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
     "Blocking issues:",
     asset.blockingIssues.length > 0 ? asset.blockingIssues.map((issue) => `- ${issue}`).join("\n") : "- None."
   ].filter((line) => line !== "").join("\n");
+}
+
+function canvasNavigationGenerationInputs(project: ProjectRecord, target: CanvasControlTarget, property: string): ImplementationAssetGenerationInputs {
+  const destination = project.powerPlatform?.canvas?.screenTargets.find((screen) => screen.id === target.navigationDestinationScreenId);
+  return {
+    operation: target.operation.trim(),
+    formulaProperty: property,
+    currentFormulaProperties: parseFormulaProperties(target.formulaProperties),
+    sourceScreenId: target.screenId,
+    sourceControlId: target.id,
+    destinationScreenId: target.navigationDestinationScreenId,
+    navigationTransition: target.navigationTransition,
+    navigationTransitionDefaultRule: target.navigationTransitionDefaultRule,
+    destinationImplementationName: destination?.confirmationStatus === "confirmed" ? destination.approvedScreenName.trim() : ""
+  };
 }
 
 export function evaluateImplementationAssetStatus(asset: ImplementationAsset): ImplementationAssetStatus {
@@ -662,6 +707,7 @@ function canvasPowerFxAssets(project: ProjectRecord, target: CanvasControlTarget
       entityIds: dependencyInfo.entityIds,
       fieldIds: dependencyInfo.fieldIds,
       dependencies: dependencyInfo.dependencies,
+      generationInputs: canvasNavigationGenerationInputs(project, target, property),
       generationTimestamp: now,
       generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
       manualInstallationRequirements: [
@@ -1222,8 +1268,17 @@ function currentCanvasPowerFxAsset(project: ProjectRecord, asset: Implementation
     connectorIds: dependencyInfo.connectorIds,
     entityIds: dependencyInfo.entityIds,
     fieldIds: dependencyInfo.fieldIds,
-    dependencies: dependencyInfo.dependencies
+    dependencies: dependencyInfo.dependencies,
+    generationInputs: canvasNavigationGenerationInputs(project, target, asset.approvedPropertyName ?? "")
   };
+}
+
+function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
+  if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
+  const approvedProperty = asset.approvedPropertyName ?? "";
+  const currentProperties = asset.generationInputs?.currentFormulaProperties ?? [];
+  if (!approvedProperty || currentProperties.includes(approvedProperty)) return [];
+  return [`Approved formula property ${approvedProperty} is no longer present on current control ${asset.targetId || "[missing]"}.`];
 }
 
 function deriveAssetFromCurrentState(project: ProjectRecord, asset: ImplementationAsset, assetById: Map<string, ImplementationAsset>): ImplementationAsset {
@@ -1232,9 +1287,10 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
   const gateEvaluationSnapshot = snapshotGates(project, asset.requiredGateIds);
   const blockingIssues = unique([
     ...blockingGateIssues(gateEvaluationSnapshot),
+    ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
-  const sourceContent = sourceContentFor({ ...asset, blockingIssues });
+  const sourceContent = sourceContentFor({ ...canonicalAsset, blockingIssues });
   const withoutChecksum: ImplementationAsset = {
     ...canonicalAsset,
     gateEvaluationSnapshot,
