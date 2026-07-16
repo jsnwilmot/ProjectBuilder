@@ -1,5 +1,51 @@
 # Change Log
 
+## 2026-07-16 - Phase 5B.2B Scalar App OnStart Power Fx Generation
+
+### Summary
+
+- Added deterministic App `OnStart` Power Fx generation for approved scalar state-initialization planning assets.
+- Generated only one controlled operation shape: `Set(variableName, scalarValue)`.
+- Added scalar serialization for `Blank()`, Boolean literals, finite numbers, quoted text, escaped double quotes, and multiline text with `Char(10)`.
+- Added eligibility checks for current Canvas project state, source asset identity, approval binding, current checksum, structured input matching, gates, dependencies, and stale approvals.
+- Corrected canonical source-asset binding so approved registries cannot redefine project ownership, platform, target identity, category, type, required gates, source records, structured inputs, dependency boundary, or approved checksum evidence.
+- Corrected registry-envelope validation so generation blocks mismatched registry project IDs, unsupported registry schema versions, incompatible registry generation versions, malformed registry envelopes, duplicate canonical source assets, and duplicate asset IDs before trusting any source asset.
+- Corrected malformed-registry safety so invalid asset-list entries and malformed canonical source-asset structures return controlled blocked results instead of throwing, including registry-level generation calls.
+- Corrected complete registry asset runtime safety so every asset and nested asset array entry is validated before duplicate detection, source selection, or shared Phase 5A derivation.
+- Corrected complete structured generation-input runtime safety so malformed formula-property collections, optional input fields, state-variable entries, initial values, approved property names, and dependency relationship context block before shared derivation.
+- Corrected registry-validation ordering so malformed registries and stale state assets cannot be hidden by early no-variable or non-Canvas `Not Applicable` returns.
+- Preserved Phase 5B.1 navigation generation behavior and kept collections, connector loading, CRUD, Canvas YAML, model-driven source, UI integration, export integration, installation, publishing, and deployment out of scope.
+
+### Files created
+
+- `src/lib/statePowerFxGeneration.ts` - scalar App `OnStart` state Power Fx generation contract and generator.
+- `src/tests/statePowerFxGeneration.test.ts` - focused Phase 5B.2B scalar generation coverage.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.2B validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `175` tests after Phase 5B.2B.6 corrections).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B.2C must not begin until Phase 5B.2B is approved.
+
 ## 2026-07-16 - Phase 5B.2A State Initialization Planning
 
 ### Summary
