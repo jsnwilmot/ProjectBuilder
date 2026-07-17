@@ -1,5 +1,46 @@
 # Change Log
 
+## 2026-07-16 - Phase 5B.2D Basic Canvas Collection-Loading Power Fx Generation
+
+### Summary
+
+- Added controlled Canvas App `OnStart` collection-loading Power Fx generation for approved Phase 5B.2C planning assets.
+- Generated only the supported `ClearCollect(collectionName, sourceName)` pattern from current canonical approved collection targets.
+- Added registry-envelope validation, canonical source-asset binding, current-project defence, deterministic formatting, checksum binding, traceability, and mutation-safety coverage.
+- Corrected stored source status enforcement so only raw stored `Ready for Export` planning assets can generate, independent of valid approval and checksum evidence.
+- Preserved scalar App `OnStart` generation as a separate fragment and kept connector data reads, filtering, sorting, field shaping, relationships, pagination, CRUD, Canvas YAML, model-driven source, UI integration, export integration, installation, publishing, deployment, and Phase 5B.3 out of scope.
+
+### Files created
+
+- `src/lib/collectionPowerFxGeneration.ts` - controlled collection-loading Power Fx generation contract and generator.
+- `src/tests/collectionPowerFxGeneration.test.ts` - focused Phase 5B.2D collection generation coverage.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.2D validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `55` tests after Phase 5B.2D.1 correction).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Full test, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.2D commit gate.
+- Phase 5B.3 must not begin until Phase 5B.2D is approved.
+
 ## 2026-07-16 - Phase 5B.2C Collection Loading Target Model
 
 ### Summary

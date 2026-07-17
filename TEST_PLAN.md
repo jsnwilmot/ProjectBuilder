@@ -1,5 +1,20 @@
 # Test Plan
 
+## 2026-07-16 Phase 5B.2D basic Canvas collection-loading Power Fx generation
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests after Phase 5B.2D.1 correction).
+- Generation coverage verifies approved current Phase 5B.2C planning assets generate only `ClearCollect(collectionName, sourceName)` statements with one statement per line, semicolons only between statements, no final semicolon, exactly one trailing newline, no Markdown, no comments/prose, no placeholders, and deterministic canonical ordering.
+- Registry and source-binding coverage verifies malformed registries, malformed unrelated assets, malformed nested collection inputs, duplicate asset IDs, missing or duplicate source assets, wrong project/platform/category/type/target/operation/property/path/version/required/applicability values, altered gates, altered dependencies, altered structured generation inputs, missing approvals, stale checksums, and non-Ready source assets block without throwing or generating formula output.
+- Stored-status coverage verifies raw stored source assets must be exactly `Ready for Export`; `Blocked`, `Draft`, `Review Required`, `Not Applicable`, `Exported`, unknown source statuses, and malformed unrelated asset statuses block even when approval and checksum evidence otherwise remain valid.
+- Current-project defence coverage verifies connector, entity, source implementation name, collection implementation name, data scope, confirmation, and gate changes block generation until the current collection-loading plan is regenerated and explicitly reapproved.
+- Safety coverage verifies invalid or formula-looking collection/source identifiers block; raw purpose text is not accepted as formula input; no connector data is read; no `Collect`, standalone `Clear`, CRUD, filtering, sorting, shaping, pagination, Canvas YAML, model-driven source, UI/export integration, installation, publishing, deployment, or Phase 5B.3 functionality is generated.
+- Checksum and traceability coverage verifies formula checksums bind to project ID, approved planning asset/checksum, operation, property, intended path, ordered target IDs, collection names, connector IDs, entity IDs, source names, formula, and generation version; generation timestamps do not affect generated checksums; and traceability remains structured outside the generated formula.
+- Mutation coverage verifies project, registry, source asset, collection target, connector, and entity inputs are not mutated.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `20` files and `738` tests, plus `7` App UI files and `43` tests, for `27` files and `781` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `20` files and `738` tests, plus `7` App UI files and `43` tests, for `27` files and `781` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.2D commit gate by Architect instruction.
+
 ## 2026-07-16 Phase 5B.2C collection loading target model
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
