@@ -9,6 +9,17 @@ import {
 } from "./collectionInitialization";
 import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
 import { evaluatePhaseGate, isPhaseGatePassing, type PhaseGateId, type PhaseGateResult } from "./phaseGates";
+import {
+  buildCanvasFormOperationPlanningModel,
+  canvasFormOperationEntityType,
+  CANVAS_FORM_OPERATIONS_ASSET_ID,
+  CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY,
+  CANVAS_FORM_OPERATIONS_OPERATION,
+  CANVAS_FORM_OPERATIONS_PLAN_PATH,
+  CANVAS_FORM_OPERATIONS_TARGET_DISPLAY_NAME,
+  CANVAS_FORM_OPERATIONS_TARGET_ID,
+  type CanvasFormOperationGenerationInput
+} from "./formOperationPlanning";
 import { isCanvasProject, isModelDrivenProject } from "./powerPlatform";
 import {
   CANVAS_STATE_INITIALIZATION_ASSET_ID,
@@ -133,6 +144,7 @@ export interface ImplementationAssetGenerationInputs {
     confirmationStatus: string;
     sortOrder: number;
   }>;
+  formOperationTargets?: CanvasFormOperationGenerationInput[];
 }
 
 export interface ImplementationAsset {
@@ -467,19 +479,37 @@ function assetDependency(asset: ImplementationAsset): ImplementationAssetDepende
   });
 }
 
+const FORMULA_LIKE_TOKEN_PATTERN = /\b(SubmitForm|NewForm|EditForm|ResetForm|ViewForm|Patch|Defaults|Set|UpdateContext|Navigate|Notify|IfError|Errors|Refresh|Remove|RemoveIf|ClearCollect|Collect|Clear)\s*\(/;
+const SIMPLE_POWER_FX_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+function isSafeReadableIdentifier(value: string): boolean {
+  return SIMPLE_POWER_FX_IDENTIFIER_PATTERN.test(value) && !FORMULA_LIKE_TOKEN_PATTERN.test(value);
+}
+
+function safeReadableIdentifier(value: string, fallback: string): string {
+  return isSafeReadableIdentifier(value) ? value : fallback;
+}
+
 function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCategory" | "assetType" | "targetDisplayName" | "approvedPropertyName" | "blockingIssues" | "generationInputs">): string {
   const stateVariableLines = (asset.generationInputs?.stateVariables ?? []).map((variable, index) =>
     `- State variable ${index + 1}: ${variable.id} / ${variable.implementationName} / ${variable.initialValue.kind} value stored structurally / required ${variable.required} / ${variable.confirmationStatus} / sort ${variable.sortOrder}`
   );
   const isCollectionPlan = asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID;
+  const isFormOperationPlan = asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID;
   const collectionTargetLines = (asset.generationInputs?.collectionTargets ?? []).map((target, index) =>
     isCollectionPlan
       ? `- Collection target ${index + 1}: collection and source identifiers stored structurally / ${target.loadTrigger} / ${target.loadMode} / ${target.dataScope} / required ${target.required} / confirmation stored structurally / sort ${target.sortOrder}`
       : `- Collection target ${index + 1}: collection name ${target.implementationName} / source identifiers stored structurally / ${target.loadTrigger} / ${target.loadMode} / ${target.dataScope} / required ${target.required} / ${target.confirmationStatus} / sort ${target.sortOrder}`
   );
-  const blockingIssueLines = isCollectionPlan
+  const formOperationTargetLines = (asset.generationInputs?.formOperationTargets ?? []).map((target, index) => {
+    if (isFormOperationPlan && asset.blockingIssues.length > 0) {
+      return `- Form operation target ${index + 1}: ${target.operation} / implementation identifiers stored structurally / ${target.formulaProperty} / required ${target.required} / confirmation ${target.confirmationStatus} / sort ${target.sortOrder}`;
+    }
+    return `- Form operation target ${index + 1}: ${target.operation} / form ${safeReadableIdentifier(target.formControlImplementationName, "form identifier stored structurally")} / submit button ${safeReadableIdentifier(target.submitControlImplementationName, "submit-button identifier stored structurally")} / entity ${safeReadableIdentifier(target.sourceImplementationName, "entity identifier stored structurally")} / ${target.formulaProperty} / required ${target.required} / confirmation ${target.confirmationStatus} / sort ${target.sortOrder}`;
+  });
+  const blockingIssueLines = isCollectionPlan || isFormOperationPlan
     ? (asset.blockingIssues.length > 0
-        ? [`- ${asset.blockingIssues.length} collection planning issues are stored structurally. Review the asset blockingIssues field.`]
+        ? [`- ${asset.blockingIssues.length} ${isFormOperationPlan ? "form-operation planning" : "collection planning"} issues are stored structurally. Review the asset blockingIssues field.`]
         : ["- None."])
     : (asset.blockingIssues.length > 0 ? asset.blockingIssues.map((issue) => `- ${issue}`) : ["- None."]);
   const generationInputs = asset.generationInputs
@@ -497,8 +527,10 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
         asset.generationInputs.destinationImplementationName ? `- Destination implementation name: ${asset.generationInputs.destinationImplementationName}` : "",
         asset.generationInputs.stateVariables ? "- State initialization plan: formula generation is deferred to Phase 5B.2B." : "",
         asset.generationInputs.collectionTargets ? "- Collection loading plan: executable collection generation is deferred to Phase 5B.2D." : "",
+        asset.generationInputs.formOperationTargets ? "- Form operation plan: executable form-submission generation is deferred to Phase 5B.3C." : "",
         ...stateVariableLines,
-        ...collectionTargetLines
+        ...collectionTargetLines,
+        ...formOperationTargetLines
       ].filter((line) => line !== "")
     : [];
   return [
@@ -576,6 +608,30 @@ function confirmedCanvasScreen(project: ProjectRecord, screenId: string): Canvas
 
 function confirmedCanvasControl(project: ProjectRecord, controlId: string): CanvasControlTarget | undefined {
   return project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === controlId && control.confirmationStatus === "confirmed");
+}
+
+function normalizeCanvasControlType(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isConfirmedEditableFormControlForInput(control: CanvasControlTarget | undefined, input: CanvasFormOperationGenerationInput): boolean {
+  return Boolean(
+    control
+    && control.screenId === input.screenId
+    && control.approvedControlName.trim() === input.formControlImplementationName
+    && isSafeReadableIdentifier(control.approvedControlName.trim())
+    && ["form", "editform", "edit form"].includes(normalizeCanvasControlType(control.controlType))
+  );
+}
+
+function isConfirmedSubmitButtonControlForInput(control: CanvasControlTarget | undefined, input: CanvasFormOperationGenerationInput): boolean {
+  return Boolean(
+    control
+    && control.screenId === input.screenId
+    && control.approvedControlName.trim() === input.submitControlImplementationName
+    && isSafeReadableIdentifier(control.approvedControlName.trim())
+    && normalizeCanvasControlType(control.controlType) === "button"
+  );
 }
 
 function confirmedCanvasComponent(project: ProjectRecord, componentId: string): CanvasComponentTarget | undefined {
@@ -909,6 +965,183 @@ function canvasCollectionInitializationAsset(project: ProjectRecord, now: string
   })];
 }
 
+const CANVAS_FORM_OPERATION_GATE_IDS: PhaseGateId[] = [
+  "screenTargets",
+  "controlTargets",
+  "connectorSelection",
+  "schema",
+  "namingStandards",
+  "connectorPermissions",
+  "dataSourcePermissions",
+  "security",
+  "accessibility"
+];
+
+function formOperationDependencies(project: ProjectRecord, inputs: CanvasFormOperationGenerationInput[]): ImplementationAssetDependency[] {
+  return inputs.flatMap((input) => {
+    const screen = confirmedCanvasScreen(project, input.screenId);
+    const formControl = confirmedCanvasControl(project, input.formControlId);
+    const submitControl = confirmedCanvasControl(project, input.submitControlId);
+    const entityType = canvasFormOperationEntityType(project, input.sourceEntityId);
+    const screenResolved = Boolean(
+      screen
+      && screen.id === input.screenId
+      && screen.approvedScreenName.trim() === input.screenImplementationName
+      && isSafeReadableIdentifier(screen.approvedScreenName.trim())
+    );
+    const formControlResolved = isConfirmedEditableFormControlForInput(formControl, input);
+    const submitControlResolved = isConfirmedSubmitButtonControlForInput(submitControl, input);
+    const entityContext = {
+      connectorId: input.sourceConnectorId,
+      entityId: input.sourceEntityId,
+      parentConnectorId: input.sourceConnectorId,
+      targetType: entityType
+    };
+    const entityResolved = Boolean(
+      entityType
+      && isSafeReadableIdentifier(input.sourceImplementationName)
+      && canvasEntityMatchesContext(project, input.sourceEntityId, entityContext)
+    );
+    return [
+      dependency({
+        id: `form-operation:${input.id}:screen:${input.screenId || "missing"}`,
+        type: "screen",
+        label: "Confirmed form-operation screen",
+        targetRecordId: input.screenId,
+        relationshipContext: { targetType: "canvasScreen" },
+        resolved: screenResolved,
+        resolutionReason: screenResolved ? "Screen exists, is confirmed, has the expected current implementation name, and uses a valid simple identifier." : "Screen is missing, unconfirmed, renamed, or has an invalid implementation name.",
+        blockingIssue: `Form-operation screen ${input.screenId || "[missing]"} is missing, unconfirmed, renamed, or has an invalid implementation name.`,
+        sourceSection: "Canvas form operations"
+      }),
+      dependency({
+        id: `form-operation:${input.id}:control:form:${input.formControlId || "missing"}`,
+        type: "control",
+        label: "Confirmed editable form control",
+        targetRecordId: input.formControlId,
+        relationshipContext: {
+          targetType: "canvasControl",
+          parentEntityId: input.screenId
+        },
+        resolved: formControlResolved,
+        resolutionReason: formControlResolved ? "Editable form control exists, is confirmed, remains on the expected screen, has the expected current implementation name, and uses an accepted editable form type." : "Editable form control is missing, unconfirmed, moved, renamed, has an invalid implementation name, or is not an editable form control.",
+        blockingIssue: `Form control ${input.formControlId || "[missing]"} is missing, unconfirmed, moved, renamed, invalid, or no longer an editable form control.`,
+        sourceSection: "Canvas form operations"
+      }),
+      dependency({
+        id: `form-operation:${input.id}:control:submit:${input.submitControlId || "missing"}`,
+        type: "control",
+        label: "Confirmed submit button control",
+        targetRecordId: input.submitControlId,
+        relationshipContext: {
+          targetType: "canvasControl",
+          parentEntityId: input.screenId
+        },
+        resolved: submitControlResolved,
+        resolutionReason: submitControlResolved ? "Submit button exists, is confirmed, remains on the expected screen, has the expected current implementation name, and uses the button control type." : "Submit button is missing, unconfirmed, moved, renamed, has an invalid implementation name, or is not a button.",
+        blockingIssue: `Submit control ${input.submitControlId || "[missing]"} is missing, unconfirmed, moved, renamed, invalid, or no longer a button.`,
+        sourceSection: "Canvas form operations"
+      }),
+      { ...connectorDependency(project, input.sourceConnectorId, "Canvas form operations"), id: `form-operation:${input.id}:connector:${input.sourceConnectorId || "missing"}` },
+      dependency({
+        id: `form-operation:${input.id}:entity:${input.sourceEntityId || "missing"}`,
+        type: "entity",
+        label: "Confirmed form-operation entity",
+        targetRecordId: input.sourceEntityId,
+        relationshipContext: entityContext,
+        resolved: entityResolved,
+        resolutionReason: entityResolved ? "Entity exists, is active, confirmed, belongs to the expected connector, and uses a valid simple implementation identifier." : "Entity is missing, inactive, unconfirmed, belongs to another connector, or has an invalid implementation identifier.",
+        blockingIssue: `Form-operation entity ${input.sourceEntityId || "[missing]"} is missing, inactive, unconfirmed, belongs to another connector, or has an invalid implementation identifier.`,
+        sourceSection: "Canvas form operations"
+      }),
+      ...input.requiredFieldIds.map((fieldId) => dependency({
+        id: `form-operation:${input.id}:field:${fieldId || "missing"}`,
+        type: "field" as const,
+        label: `Confirmed form-operation required field ${fieldId || "[missing]"}`,
+        targetRecordId: fieldId,
+        relationshipContext: {
+          connectorId: input.sourceConnectorId,
+          entityId: input.sourceEntityId,
+          fieldId,
+          parentConnectorId: input.sourceConnectorId,
+          parentEntityId: input.sourceEntityId,
+          targetType: entityType
+        },
+        resolved: canvasFieldMatchesContext(project, fieldId, {
+          connectorId: input.sourceConnectorId,
+          entityId: input.sourceEntityId,
+          fieldId,
+          parentConnectorId: input.sourceConnectorId,
+          parentEntityId: input.sourceEntityId,
+          targetType: entityType
+        }),
+        resolutionReason: canvasFieldMatchesContext(project, fieldId, {
+          connectorId: input.sourceConnectorId,
+          entityId: input.sourceEntityId,
+          fieldId,
+          parentConnectorId: input.sourceConnectorId,
+          parentEntityId: input.sourceEntityId,
+          targetType: entityType
+        }) ? "Required field exists, is confirmed, and belongs to the selected entity." : "Required field is missing, unconfirmed, stale, or belongs to another entity.",
+        blockingIssue: `Required field ${fieldId || "[missing]"} is missing, unconfirmed, stale, or belongs to entity ${input.sourceEntityId || "[missing]"}.`,
+        sourceSection: "Canvas form operations"
+      }))
+    ];
+  });
+}
+
+function canvasFormOperationPlanningAsset(project: ProjectRecord, now: string): ImplementationAsset[] {
+  const model = buildCanvasFormOperationPlanningModel(project);
+  if (!model) return [];
+  const gateEvaluationSnapshot = snapshotGates(project, CANVAS_FORM_OPERATION_GATE_IDS);
+  const gateIssues = blockingGateIssues(gateEvaluationSnapshot);
+  const dependencies = formOperationDependencies(project, model.generationInputs);
+  const dependencyIssues = dependencies.flatMap((item) => item.resolved ? [] : [item.blockingIssue ?? `${item.label} is unresolved.`]);
+  return [finalizeAsset({
+    assetId: CANVAS_FORM_OPERATIONS_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_FORM_OPERATIONS_TARGET_ID,
+    targetDisplayName: CANVAS_FORM_OPERATIONS_TARGET_DISPLAY_NAME,
+    intendedPath: CANVAS_FORM_OPERATIONS_PLAN_PATH,
+    applicabilityStatus: "required",
+    required: model.required,
+    requiredGateIds: CANVAS_FORM_OPERATION_GATE_IDS,
+    gateEvaluationSnapshot,
+    sourceRecordIds: model.sourceRecordIds,
+    connectorIds: model.connectorIds,
+    entityIds: model.entityIds,
+    fieldIds: model.fieldIds,
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_FORM_OPERATIONS_OPERATION,
+      formulaProperty: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY,
+      formOperationTargets: model.generationInputs
+    },
+    generationTimestamp: now,
+    generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
+    manualInstallationRequirements: [
+      "Manual Power Apps Studio submit-button OnSelect update required in a later approved phase.",
+      "Do not claim installation until an implementer applies future generated source in the real app."
+    ],
+    validationRequirements: [
+      "Validate future form submission behavior in Power Apps Studio.",
+      "Confirm form mode initiation, selected record behavior, success behavior, failure behavior, reset behavior, and notifications before executable formula generation."
+    ],
+    knownLimitations: [
+      "Phase 5B.3B creates a planning asset only.",
+      "Executable form-submission formula generation is deferred to Phase 5B.3C.",
+      "Record selection, navigation, NewForm/EditForm initiation, success, failure, reset, notification, and custom field mapping behavior are not modeled in this phase.",
+      ...model.missingDecisions
+    ],
+    blockingIssues: [...gateIssues, ...model.blockingIssues, ...dependencyIssues],
+    approvalStatus: "Review required",
+    approvedPropertyName: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY
+  })];
+}
+
 function yamlAssetPath(targetKind: "screen" | "control" | "component", targetId: string, outputType: string): string {
   const extension = outputType.toLowerCase().includes("pa.yaml") ? "pa.yaml" : "yaml";
   return `07_Development/Canvas_YAML/${targetKind}-${safeSegment(targetId, targetKind)}.${extension}`;
@@ -1168,6 +1401,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
   if (!canvas) return [];
   const stateAssets = canvasStateInitializationAsset(project, now);
   const collectionAssets = canvasCollectionInitializationAsset(project, now);
+  const formOperationAssets = canvasFormOperationPlanningAsset(project, now);
   const formulaAssets = canvas.controlTargets.flatMap((target) => canvasPowerFxAssets(project, target, now));
   const formulaAssetsByControlId = formulaAssets.reduce((map, asset) => {
     const existing = map.get(asset.targetId) ?? [];
@@ -1186,6 +1420,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
   return [
     ...stateAssets,
     ...collectionAssets,
+    ...formOperationAssets,
     ...formulaAssets,
     ...yamlScreenAssets,
     ...yamlControlAssets,
@@ -1370,6 +1605,12 @@ function isAssetChecksumValid(asset: ImplementationAsset): boolean {
 
 function resolvedRecordDependency(project: ProjectRecord, asset: ImplementationAsset, item: ImplementationAssetDependency): ImplementationAssetDependency {
   if (item.type === "asset") return item;
+  if (
+    asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID
+    && item.id.startsWith("form-operation:")
+  ) {
+    return item;
+  }
   if (item.type === "screen") {
     const resolved = item.targetRecordId === undefined || item.id === "parent:app" || item.id === "parent:none"
       ? true
@@ -1384,7 +1625,10 @@ function resolvedRecordDependency(project: ProjectRecord, asset: ImplementationA
     const resolved = Boolean(item.targetRecordId && confirmedCanvasComponent(project, item.targetRecordId));
     return { ...item, resolved, resolutionReason: resolved ? "Component reference is currently valid." : "Component reference is missing or unconfirmed.", blockingIssue: resolved ? undefined : `Component reference ${item.targetRecordId || "[missing]"} is missing or unconfirmed.` };
   }
-  if (item.type === "connector") return connectorDependency(project, item.targetRecordId ?? "", item.sourceSection);
+  if (item.type === "connector") {
+    const resolved = connectorDependency(project, item.targetRecordId ?? "", item.sourceSection);
+    return { ...resolved, id: item.id, label: item.label, relationshipContext: item.relationshipContext };
+  }
   if (item.type === "entity") {
     const recordId = item.targetRecordId ?? "";
     const canvasEntity = asset.platform === "Power Apps Canvas" ? canvasEntityMatchesContext(project, recordId, item.relationshipContext) : false;
@@ -1447,6 +1691,7 @@ function resolvedAssetDependency(item: ImplementationAssetDependency, currentAss
 function currentCanvasPowerFxAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
   if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID) return currentCanvasStateInitializationAsset(project, asset);
   if (asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return currentCanvasCollectionInitializationAsset(project, asset);
+  if (asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID) return currentCanvasFormOperationPlanningAsset(project, asset);
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return asset;
   const target = project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === asset.targetId);
   if (!target) return asset;
@@ -1459,6 +1704,65 @@ function currentCanvasPowerFxAsset(project: ProjectRecord, asset: Implementation
     fieldIds: dependencyInfo.fieldIds,
     dependencies: dependencyInfo.dependencies,
     generationInputs: canvasNavigationGenerationInputs(project, target, asset.approvedPropertyName ?? "")
+  };
+}
+
+function currentCanvasFormOperationPlanningAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
+  const model = buildCanvasFormOperationPlanningModel(project);
+  const gateIds = CANVAS_FORM_OPERATION_GATE_IDS;
+  if (!model) {
+    return {
+      ...asset,
+      assetId: CANVAS_FORM_OPERATIONS_ASSET_ID,
+      projectId: project.identity.id,
+      platform: "Power Apps Canvas",
+      assetCategory: "Power Fx",
+      assetType: "powerFxPlan",
+      targetId: CANVAS_FORM_OPERATIONS_TARGET_ID,
+      targetDisplayName: CANVAS_FORM_OPERATIONS_TARGET_DISPLAY_NAME,
+      intendedPath: CANVAS_FORM_OPERATIONS_PLAN_PATH,
+      applicabilityStatus: "notApplicable",
+      required: false,
+      requiredGateIds: gateIds,
+      sourceRecordIds: [],
+      connectorIds: [],
+      entityIds: [],
+      fieldIds: [],
+      dependencies: [],
+      generationInputs: {
+        operation: CANVAS_FORM_OPERATIONS_OPERATION,
+        formulaProperty: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY,
+        formOperationTargets: []
+      },
+      generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
+      approvedPropertyName: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY
+    };
+  }
+  return {
+    ...asset,
+    assetId: CANVAS_FORM_OPERATIONS_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_FORM_OPERATIONS_TARGET_ID,
+    targetDisplayName: CANVAS_FORM_OPERATIONS_TARGET_DISPLAY_NAME,
+    intendedPath: CANVAS_FORM_OPERATIONS_PLAN_PATH,
+    applicabilityStatus: "required",
+    required: model.required,
+    requiredGateIds: gateIds,
+    sourceRecordIds: model.sourceRecordIds,
+    connectorIds: model.connectorIds,
+    entityIds: model.entityIds,
+    fieldIds: model.fieldIds,
+    dependencies: formOperationDependencies(project, model.generationInputs),
+    generationInputs: {
+      operation: CANVAS_FORM_OPERATIONS_OPERATION,
+      formulaProperty: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY,
+      formOperationTargets: model.generationInputs
+    },
+    generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
+    approvedPropertyName: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY
   };
 }
 
@@ -1551,7 +1855,7 @@ function storedCanonicalContractMatches(asset: ImplementationAsset, canonicalAss
 }
 
 function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
-  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID || asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return [];
+  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID || asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID || asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID) return [];
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
   const approvedProperty = asset.approvedPropertyName ?? "";
   const currentProperties = asset.generationInputs?.currentFormulaProperties ?? [];
@@ -1568,6 +1872,7 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
     ...blockingGateIssues(gateEvaluationSnapshot),
     ...(canonicalAsset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID ? validateCanvasStateVariables(project.powerPlatform?.canvas?.stateVariableTargets ?? []).blockingIssues : []),
     ...(canonicalAsset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID ? validateCanvasCollectionTargets(project, project.powerPlatform?.canvas?.collectionTargets ?? []).blockingIssues : []),
+    ...(canonicalAsset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID ? buildCanvasFormOperationPlanningModel(project)?.blockingIssues ?? [] : []),
     ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
@@ -1589,7 +1894,7 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
     ...withStatus,
     contentChecksum: calculateImplementationAssetChecksum(withStatus)
   };
-  if (asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID && asset.assetId !== CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return withChecksum;
+  if (asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID && asset.assetId !== CANVAS_COLLECTION_INITIALIZATION_ASSET_ID && asset.assetId !== CANVAS_FORM_OPERATIONS_ASSET_ID) return withChecksum;
   const approvalStillValid = asset.approvalStatus === "Approved"
     && asset.assetId === withChecksum.assetId
     && storedCanonicalContractMatches(asset, withChecksum)

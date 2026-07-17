@@ -1,5 +1,88 @@
 # Change Log
 
+## 2026-07-17 - Phase 5B.3B.1 Safe Blocked Content and Relationship-Aware Dependencies
+
+### Summary
+
+- Corrected Canvas form-operation planning readable content so blocked plans do not print arbitrary invalid implementation identifiers.
+- Limited displayed form, submit-button, and entity implementation names to valid simple Power Fx identifiers while preserving exact values structurally for review and checksums.
+- Strengthened form-operation screen, editable-form, submit-button, and entity dependencies so moved controls, wrong control types, invalid implementation names, and stale relationship context block readiness.
+- Preserved canonical form-operation dependency results during current-state derivation so generic ID-only dependency checks cannot weaken the specialized relationship-aware checks.
+- Kept executable SubmitForm/NewForm/EditForm/Patch generation, `.fx` files, UI/export integration, Canvas YAML, model-driven source, publishing, deployment, and Phase 5B.3C out of scope.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - safe identifier rendering, blocked form-operation source summaries, relationship-aware dependency checks, and specialized dependency preservation.
+- `src/tests/formOperationPlanning.test.ts` - focused regression coverage for safe blocked content, hidden checksum evidence, dependency resolution, readiness consistency, and specialized dependency preservation.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3B.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `63` tests).
+- Focused Phase 5A through Phase 5B.3A regression validation completed for this correction.
+
+### Issues found
+
+- None.
+
+## 2026-07-17 - Phase 5B.3B Canvas Form-Operation Planning Asset
+
+### Summary
+
+- Added one canonical planning-only implementation asset for approved Canvas create/edit form-operation targets.
+- Added structured generation inputs, deterministic future fragment paths, canonical gates, current-project dependencies, checksum binding, approval invalidation, safe readable planning content, and registry/manifest integration.
+- Updated the Phase 5B.3A regression expectation so valid form-operation targets create only the canonical planning asset while still generating no executable Power Fx.
+- Kept SubmitForm/NewForm/EditForm/Patch generation, executable `.fx` files, connector/entity reads, field-value mapping, Canvas YAML, model-driven source, UI/export integration, publishing, deployment, and Phase 5B.3C out of scope.
+
+### Files created
+
+- `src/lib/formOperationPlanning.ts` - constants and structured derivation helpers for the combined Canvas form-operation planning asset.
+- `src/tests/formOperationPlanning.test.ts` - focused Phase 5B.3B planning asset coverage.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - registry integration, current-state derivation, dependencies, safe source content, approval invalidation, and manifest readiness for the form-operation planning asset.
+- `src/tests/formOperationTargets.test.ts` - updated regression expectation for the new planning-only asset.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3B validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `44` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `78` tests).
+- Focused Phase 5A through Phase 5B.2D regression tests passed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Full test, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3B commit gate.
+- Phase 5B.3C must not begin until Phase 5B.3B is approved.
+
 ## 2026-07-17 - Phase 5B.3A.2 Canonical Entity-Connector Compatibility
 
 ### Summary

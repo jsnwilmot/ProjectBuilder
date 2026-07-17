@@ -1,5 +1,49 @@
 # Test Plan
 
+## 2026-07-17 Phase 5B.3B.1 safe blocked content and relationship-aware dependencies
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed during correction validation.
+- Safe-content coverage verifies valid unblocked plans may print simple implementation identifiers, blocked plans redact invalid form-control, submit-control, and entity names, whitespace and punctuation values are not printed, formula-looking values are not printed, exact invalid values remain structurally available, different hidden values still produce different checksums, and blocked readable content remains deterministic.
+- Relationship-dependency coverage verifies valid screen/form/submit/entity/field dependencies resolve; moved forms, wrong form control types, invalid form names, moved submit controls, wrong submit control types, invalid submit names, and invalid screen names become unresolved and block the asset.
+- Current-state coverage verifies generic dependency evaluation does not overwrite specialized unresolved form-operation dependencies; failed relationship dependencies appear in the dependency graph, exclude the asset from Ready counts, prevent Ready manifest status, and are not treated as installation-ready.
+- Regression coverage verifies entity and field dependency protections, canonical identity, canonical gate contract, checksum and approval invalidation, mutation safety, no Power Fx generation, no `.fx` files, no UI/export integration, and Phase 5B.3C absence remain intact.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `22` files and `879` tests, plus `7` App UI files and `43` tests, for `29` files and `922` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `22` files and `879` tests, plus `7` App UI files and `43` tests, for `29` files and `922` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3B commit gate by Architect instruction.
+
+## 2026-07-17 Phase 5B.3B Canvas form-operation planning asset
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `44` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- Planning coverage verifies no targets create no form-operation planning asset; create, edit, and multiple targets create exactly one combined canonical asset; target ordering follows Phase 5B.3A; canonical ID, target ID, display name, platform, category, type, operation, approved property, and planning path match the Phase 5B.3B contract.
+- Structured-input coverage verifies current screen, form-control, submit-control, entity implementation names, required field IDs, target required flags, confirmation statuses, sort orders, and deterministic future fragment paths are stored structurally.
+- Dependency coverage verifies screen, editable form control, submit button control, connector, entity, and required-field dependencies are created with current-project context, while state, collection, navigation, environment, credential, installation, and external URL dependencies are not introduced.
+- Gate coverage verifies the canonical nine-gate contract and blocks failing screen-target, control-target, connector-selection, schema, naming, connector-permissions, data-source-permissions, security, and accessibility gates.
+- Checksum and approval coverage verifies target addition/removal/reordering, operation, screen, form control, submit control, connector, entity, required fields, implementation names, trigger, required flag, confirmation, and sort-order changes affect readiness, while timestamp changes do not.
+- Current-project defence coverage verifies stored identity, gates, dependencies, and structured inputs are rebuilt from the current project and tampered stored values cannot remain Ready.
+- Safe-content coverage verifies readable content omits raw target IDs, connector IDs, entity IDs, field IDs, raw blocker text, and formula-like tokens while preserving structural evidence.
+- Boundary coverage verifies no executable SubmitForm, NewForm, EditForm, Patch, `.fx` file creation, connector/entity data read, field-value mapping, Canvas YAML, model-driven source, UI/export integration, publishing, deployment, or Phase 5B.3C behavior was added.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `22` files and `860` tests, plus `7` App UI files and `43` tests, for `29` files and `903` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `22` files and `860` tests, plus `7` App UI files and `43` tests, for `29` files and `903` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3B commit gate by Architect instruction.
+
 ## 2026-07-17 Phase 5B.3A.2 canonical entity-connector compatibility
 
 - `npm.cmd run lint`: passed.

@@ -5,6 +5,7 @@ import {
   orderCanvasFormOperationTargets,
   validateCanvasFormOperationTargets
 } from "../lib/formOperationTargets";
+import { CANVAS_FORM_OPERATIONS_ASSET_ID } from "../lib/formOperationPlanning";
 import { buildImplementationAssetRegistry } from "../lib/implementationAssets";
 import {
   createDefaultCanvasControlTarget,
@@ -776,10 +777,10 @@ describe("Canvas form operation targets", () => {
     expect(project.powerPlatform!.canvas!.formOperationTargets[0].requiredFieldIds).toBe(requiredFields);
   });
 
-  it("does not create implementation assets or generate Power Fx", () => {
+  it("creates only the canonical planning asset and does not generate Power Fx", () => {
     const withoutFormTargets = buildImplementationAssetRegistry(createCanvasProject([])).assets.map((asset) => asset.assetId).sort();
     const withFormTargets = buildImplementationAssetRegistry(createCanvasProject()).assets.map((asset) => asset.assetId).sort();
-    expect(withFormTargets).toEqual(withoutFormTargets);
+    expect(withFormTargets).toEqual([...withoutFormTargets, CANVAS_FORM_OPERATIONS_ASSET_ID].sort());
     const resultText = JSON.stringify(validateCanvasFormOperationTargets(createCanvasProject()));
     expect(resultText).not.toContain("SubmitForm(");
     expect(resultText).not.toContain("NewForm(");
