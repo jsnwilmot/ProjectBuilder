@@ -1,5 +1,12 @@
 import { getProjectTypeLabel } from "../data/projectTypes";
 import { activeCanvasEntityReferences, reconcileCanvasConnectorSelection } from "./canvasTargetValidation";
+import {
+  CANVAS_COLLECTION_INITIALIZATION_ASSET_ID,
+  CANVAS_COLLECTION_INITIALIZATION_OPERATION,
+  CANVAS_COLLECTION_INITIALIZATION_PATH,
+  CANVAS_COLLECTION_INITIALIZATION_TARGET_ID,
+  validateCanvasCollectionTargets
+} from "./collectionInitialization";
 import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
 import { evaluatePhaseGate, isPhaseGatePassing, type PhaseGateId, type PhaseGateResult } from "./phaseGates";
 import { isCanvasProject, isModelDrivenProject } from "./powerPlatform";
@@ -108,6 +115,20 @@ export interface ImplementationAssetGenerationInputs {
     implementationName: string;
     purpose: string;
     initialValue: CanvasStateInitialValue;
+    required: boolean;
+    confirmationStatus: string;
+    sortOrder: number;
+  }>;
+  collectionTargets?: Array<{
+    id: string;
+    implementationName: string;
+    purpose: string;
+    sourceConnectorId: string;
+    sourceEntityId: string;
+    sourceImplementationName: string;
+    loadTrigger: string;
+    loadMode: string;
+    dataScope: string;
     required: boolean;
     confirmationStatus: string;
     sortOrder: number;
@@ -450,6 +471,17 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
   const stateVariableLines = (asset.generationInputs?.stateVariables ?? []).map((variable, index) =>
     `- State variable ${index + 1}: ${variable.id} / ${variable.implementationName} / ${variable.initialValue.kind} value stored structurally / required ${variable.required} / ${variable.confirmationStatus} / sort ${variable.sortOrder}`
   );
+  const isCollectionPlan = asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID;
+  const collectionTargetLines = (asset.generationInputs?.collectionTargets ?? []).map((target, index) =>
+    isCollectionPlan
+      ? `- Collection target ${index + 1}: collection and source identifiers stored structurally / ${target.loadTrigger} / ${target.loadMode} / ${target.dataScope} / required ${target.required} / confirmation stored structurally / sort ${target.sortOrder}`
+      : `- Collection target ${index + 1}: collection name ${target.implementationName} / source identifiers stored structurally / ${target.loadTrigger} / ${target.loadMode} / ${target.dataScope} / required ${target.required} / ${target.confirmationStatus} / sort ${target.sortOrder}`
+  );
+  const blockingIssueLines = isCollectionPlan
+    ? (asset.blockingIssues.length > 0
+        ? [`- ${asset.blockingIssues.length} collection planning issues are stored structurally. Review the asset blockingIssues field.`]
+        : ["- None."])
+    : (asset.blockingIssues.length > 0 ? asset.blockingIssues.map((issue) => `- ${issue}`) : ["- None."]);
   const generationInputs = asset.generationInputs
     ? [
         "",
@@ -464,7 +496,9 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
         asset.generationInputs.navigationTransitionDefaultRule ? `- Navigation transition default rule: ${asset.generationInputs.navigationTransitionDefaultRule}` : "",
         asset.generationInputs.destinationImplementationName ? `- Destination implementation name: ${asset.generationInputs.destinationImplementationName}` : "",
         asset.generationInputs.stateVariables ? "- State initialization plan: formula generation is deferred to Phase 5B.2B." : "",
-        ...stateVariableLines
+        asset.generationInputs.collectionTargets ? "- Collection loading plan: executable collection generation is deferred to Phase 5B.2D." : "",
+        ...stateVariableLines,
+        ...collectionTargetLines
       ].filter((line) => line !== "")
     : [];
   return [
@@ -485,7 +519,7 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
     "Deployment status: Not deployed.",
     "",
     "Blocking issues:",
-    asset.blockingIssues.length > 0 ? asset.blockingIssues.map((issue) => `- ${issue}`).join("\n") : "- None."
+    blockingIssueLines.join("\n")
   ].filter((line) => line !== "").join("\n");
 }
 
@@ -801,6 +835,80 @@ function canvasStateInitializationAsset(project: ProjectRecord, now: string): Im
   })];
 }
 
+function canvasCollectionInitializationAsset(project: ProjectRecord, now: string): ImplementationAsset[] {
+  const canvas = project.powerPlatform?.canvas;
+  if (!canvas || canvas.collectionTargets.length === 0) return [];
+  const validation = validateCanvasCollectionTargets(project, canvas.collectionTargets);
+  if (validation.includedTargets.length === 0 && validation.blockingIssues.length === 0) return [];
+  const gateIds: PhaseGateId[] = ["connectorSelection", "schema", "namingStandards", "delegation"];
+  const gateEvaluationSnapshot = snapshotGates(project, gateIds);
+  const gateIssues = blockingGateIssues(gateEvaluationSnapshot);
+  const dependencies = [
+    ...validation.sourceConnectorIds.map((connectorId) => connectorDependency(project, connectorId, "Canvas collection loading")),
+    ...validation.sourceEntityIds.map((entityId) => {
+      const entity = activeCanvasEntityReferences(project).get(entityId);
+      return dependency({
+        id: `entity:${entityId || "missing"}`,
+        type: "entity",
+        label: `Confirmed collection source entity ${entityId || "[missing]"}`,
+        targetRecordId: entityId,
+        relationshipContext: {
+          connectorId: entity?.connectorId,
+          entityId,
+          targetType: entity?.entityType
+        },
+        resolved: Boolean(entity),
+        resolutionReason: entity ? "Collection source entity exists, is confirmed, and belongs to the selected connector." : "Collection source entity is missing, unconfirmed, inactive, or belongs to another connector.",
+        blockingIssue: `Collection source entity ${entityId || "[missing]"} is missing, unconfirmed, inactive, or belongs to another connector.`,
+        sourceSection: "Canvas collection loading"
+      });
+    })
+  ];
+  const dependencyIssues = dependencies.flatMap((item) => item.resolved ? [] : [item.blockingIssue ?? `${item.label} is unresolved.`]);
+  return [finalizeAsset({
+    assetId: CANVAS_COLLECTION_INITIALIZATION_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_COLLECTION_INITIALIZATION_TARGET_ID,
+    targetDisplayName: "App OnStart collection loading plan",
+    intendedPath: CANVAS_COLLECTION_INITIALIZATION_PATH,
+    applicabilityStatus: "required",
+    required: true,
+    requiredGateIds: gateIds,
+    gateEvaluationSnapshot,
+    sourceRecordIds: validation.targets.map((target) => target.id),
+    connectorIds: validation.sourceConnectorIds,
+    entityIds: validation.sourceEntityIds,
+    fieldIds: [],
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_COLLECTION_INITIALIZATION_OPERATION,
+      formulaProperty: "OnStart",
+      collectionTargets: validation.generationInputs
+    },
+    generationTimestamp: now,
+    generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
+    manualInstallationRequirements: [
+      "Manual Power Apps Studio App OnStart collection-loading update required in a later approved phase.",
+      "Do not claim installation until an implementer applies future generated source in the real app."
+    ],
+    validationRequirements: [
+      "Validate future App OnStart collection loading in Power Apps Studio.",
+      "Confirm each collection source is small, bounded, and safe to load as a complete replacement."
+    ],
+    knownLimitations: [
+      "Phase 5B.2C creates a planning asset only.",
+      "Executable collection-loading formula generation is deferred to Phase 5B.2D.",
+      ...validation.missingDecisions
+    ],
+    blockingIssues: [...gateIssues, ...validation.blockingIssues, ...dependencyIssues],
+    approvalStatus: "Review required",
+    approvedPropertyName: "OnStart"
+  })];
+}
+
 function yamlAssetPath(targetKind: "screen" | "control" | "component", targetId: string, outputType: string): string {
   const extension = outputType.toLowerCase().includes("pa.yaml") ? "pa.yaml" : "yaml";
   return `07_Development/Canvas_YAML/${targetKind}-${safeSegment(targetId, targetKind)}.${extension}`;
@@ -1059,6 +1167,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
   const canvas = project.powerPlatform?.canvas;
   if (!canvas) return [];
   const stateAssets = canvasStateInitializationAsset(project, now);
+  const collectionAssets = canvasCollectionInitializationAsset(project, now);
   const formulaAssets = canvas.controlTargets.flatMap((target) => canvasPowerFxAssets(project, target, now));
   const formulaAssetsByControlId = formulaAssets.reduce((map, asset) => {
     const existing = map.get(asset.targetId) ?? [];
@@ -1076,6 +1185,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
     .map((target) => canvasYamlAsset(project, target, "component", now));
   return [
     ...stateAssets,
+    ...collectionAssets,
     ...formulaAssets,
     ...yamlScreenAssets,
     ...yamlControlAssets,
@@ -1336,6 +1446,7 @@ function resolvedAssetDependency(item: ImplementationAssetDependency, currentAss
 
 function currentCanvasPowerFxAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
   if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID) return currentCanvasStateInitializationAsset(project, asset);
+  if (asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return currentCanvasCollectionInitializationAsset(project, asset);
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return asset;
   const target = project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === asset.targetId);
   if (!target) return asset;
@@ -1369,8 +1480,78 @@ function currentCanvasStateInitializationAsset(project: ProjectRecord, asset: Im
   };
 }
 
+function currentCanvasCollectionInitializationAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
+  const targets = project.powerPlatform?.canvas?.collectionTargets ?? [];
+  const validation = validateCanvasCollectionTargets(project, targets);
+  const gateIds: PhaseGateId[] = ["connectorSelection", "schema", "namingStandards", "delegation"];
+  const dependencies = [
+    ...validation.sourceConnectorIds.map((connectorId) => connectorDependency(project, connectorId, "Canvas collection loading")),
+    ...validation.sourceEntityIds.map((entityId) => {
+      const entity = activeCanvasEntityReferences(project).get(entityId);
+      return dependency({
+        id: `entity:${entityId || "missing"}`,
+        type: "entity",
+        label: `Confirmed collection source entity ${entityId || "[missing]"}`,
+        targetRecordId: entityId,
+        relationshipContext: {
+          connectorId: entity?.connectorId,
+          entityId,
+          targetType: entity?.entityType
+        },
+        resolved: Boolean(entity),
+        resolutionReason: entity ? "Collection source entity exists, is confirmed, and belongs to the selected connector." : "Collection source entity is missing, unconfirmed, inactive, or belongs to another connector.",
+        blockingIssue: `Collection source entity ${entityId || "[missing]"} is missing, unconfirmed, inactive, or belongs to another connector.`,
+        sourceSection: "Canvas collection loading"
+      });
+    })
+  ];
+  return {
+    ...asset,
+    assetId: CANVAS_COLLECTION_INITIALIZATION_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_COLLECTION_INITIALIZATION_TARGET_ID,
+    targetDisplayName: "App OnStart collection loading plan",
+    intendedPath: CANVAS_COLLECTION_INITIALIZATION_PATH,
+    applicabilityStatus: "required",
+    required: true,
+    requiredGateIds: gateIds,
+    sourceRecordIds: validation.targets.map((target) => target.id),
+    connectorIds: validation.sourceConnectorIds,
+    entityIds: validation.sourceEntityIds,
+    fieldIds: [],
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_COLLECTION_INITIALIZATION_OPERATION,
+      formulaProperty: "OnStart",
+      collectionTargets: validation.generationInputs
+    },
+    generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
+    approvedPropertyName: "OnStart"
+  };
+}
+
+function storedCanonicalContractMatches(asset: ImplementationAsset, canonicalAsset: ImplementationAsset): boolean {
+  return asset.assetId === canonicalAsset.assetId
+    && asset.projectId === canonicalAsset.projectId
+    && asset.platform === canonicalAsset.platform
+    && asset.assetCategory === canonicalAsset.assetCategory
+    && asset.assetType === canonicalAsset.assetType
+    && asset.targetId === canonicalAsset.targetId
+    && asset.targetDisplayName === canonicalAsset.targetDisplayName
+    && asset.intendedPath === canonicalAsset.intendedPath
+    && asset.applicabilityStatus === canonicalAsset.applicabilityStatus
+    && asset.required === canonicalAsset.required
+    && asset.approvedPropertyName === canonicalAsset.approvedPropertyName
+    && stableStringify([...asset.requiredGateIds].sort()) === stableStringify([...canonicalAsset.requiredGateIds].sort())
+    && stableStringify(asset.generationInputs ?? {}) === stableStringify(canonicalAsset.generationInputs ?? {})
+    && stableStringify(asset.dependencies) === stableStringify(canonicalAsset.dependencies);
+}
+
 function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
-  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID) return [];
+  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID || asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return [];
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
   const approvedProperty = asset.approvedPropertyName ?? "";
   const currentProperties = asset.generationInputs?.currentFormulaProperties ?? [];
@@ -1382,10 +1563,11 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
   const approvedChecksum = asset.approvalStatus === "Approved" ? asset.contentChecksum : "";
   const canonicalAsset = currentCanvasPowerFxAsset(project, asset);
   const dependencies = canonicalAsset.dependencies.map((item) => resolvedAssetDependency(resolvedRecordDependency(project, canonicalAsset, item), canonicalAsset, assetById));
-  const gateEvaluationSnapshot = snapshotGates(project, asset.requiredGateIds);
+  const gateEvaluationSnapshot = snapshotGates(project, canonicalAsset.requiredGateIds);
   const blockingIssues = unique([
     ...blockingGateIssues(gateEvaluationSnapshot),
     ...(canonicalAsset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID ? validateCanvasStateVariables(project.powerPlatform?.canvas?.stateVariableTargets ?? []).blockingIssues : []),
+    ...(canonicalAsset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID ? validateCanvasCollectionTargets(project, project.powerPlatform?.canvas?.collectionTargets ?? []).blockingIssues : []),
     ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
@@ -1407,9 +1589,10 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
     ...withStatus,
     contentChecksum: calculateImplementationAssetChecksum(withStatus)
   };
-  if (asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID) return withChecksum;
+  if (asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID && asset.assetId !== CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return withChecksum;
   const approvalStillValid = asset.approvalStatus === "Approved"
     && asset.assetId === withChecksum.assetId
+    && storedCanonicalContractMatches(asset, withChecksum)
     && approvedChecksum === withChecksum.contentChecksum
     && COMPATIBLE_GENERATION_VERSIONS.has(asset.generationVersion)
     && withChecksum.applicabilityStatus === "required"

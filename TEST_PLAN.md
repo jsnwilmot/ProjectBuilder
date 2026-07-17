@@ -1,5 +1,22 @@
 # Test Plan
 
+## 2026-07-16 Phase 5B.2C collection loading target model
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests after Phase 5B.2C.2 corrections).
+- Target-model coverage verifies new Canvas projects default to an empty `collectionTargets` list, legacy projects missing the field normalize safely, malformed records do not throw, valid records normalize, invalid names block, duplicate IDs/names/case-insensitive names/sort orders block, and ordering uses `sortOrder` then stable ID.
+- Planning-asset coverage verifies no collection targets produce no asset, one or more valid targets produce one combined App `OnStart` collection-loading plan, structured inputs include confirmed source connector/entity information, and source content contains no executable `ClearCollect(`, `Collect(`, or `Clear(` statements.
+- Source validation coverage verifies missing/unknown connector and entity IDs, connector/entity mismatch, unconfirmed connectors/entities, missing source implementation names, unknown data scope, and large or unbounded data scope block planning.
+- Applicability coverage verifies confirmed small bounded sources permit Review Required, required unconfirmed collections block, and optional unconfirmed collections are excluded until confirmed.
+- Dependency coverage verifies connector and entity dependencies are created while field, relationship, credential, environment, screen, control, scalar state, and artificial dependencies are not introduced.
+- Checksum and approval coverage verifies collection addition, removal, rename, connector/entity/source-name changes, data-scope changes, confirmation changes, sort-order changes, timestamp stability, approval invalidation, stale plan exclusion from Ready counts, stale manifest status, and stale installation readiness behavior.
+- Boundary coverage verifies collection assets are rejected by scalar state and navigation generators, no executable collection formula is generated, no connector/entity data is read, no filters/sorts/field shaping/relationships are added, no Canvas YAML or model-driven source is generated, no UI/export integration is added, and Phase 5B.2D functionality is absent.
+- Phase 5B.2C.1 correction coverage verifies canonical identity, required gates, current gate snapshots, and connector/entity dependencies are rebuilt during derivation; stale gate contracts and altered stored identity invalidate approval; current failing gates cannot be bypassed; formula-looking collection IDs, connector IDs, entity IDs, and purpose text remain structured but are not printed raw; and hidden structured values still affect checksums.
+- Phase 5B.2C.2 correction coverage verifies blocked collection planning source content prints only deterministic issue counts and structured-field review guidance; raw target IDs, connector IDs, entity IDs, implementation names, source names, confirmation text, formula-like tokens, duplicate identifiers, and optional missing-decision text remain structured without being printed raw; and hidden structured blocking details still affect checksums.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.2C commit gate by Architect instruction.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `19` files and `683` tests, plus `7` App UI files and `43` tests, for `26` files and `726` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `19` files and `683` tests, plus `7` App UI files and `43` tests, for `26` files and `726` tests total.
+
 ## 2026-07-16 Phase 5B.2B scalar App OnStart Power Fx generation
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.

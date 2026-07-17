@@ -1,5 +1,49 @@
 # Change Log
 
+## 2026-07-16 - Phase 5B.2C Collection Loading Target Model
+
+### Summary
+
+- Added a structured Canvas collection-loading target model for future App OnStart collection generation.
+- Added planning-only validation for confirmed small bounded collection loads from confirmed connector/entity sources.
+- Added one combined App OnStart collection-loading Phase 5A planning asset with structured generation inputs.
+- Corrected collection planning derivation so canonical identity, gates, dependencies, and approval evidence are rebuilt from the current project, and formula-looking structured values are not printed raw in readable source content.
+- Corrected blocked collection planning readable content so blocking issue counts are shown safely while raw issue details remain available only in structured fields.
+- Kept executable ClearCollect, Collect, Clear, connector loading, filtering, sorting, field shaping, relationships, UI integration, export integration, installation, publishing, deployment, Canvas YAML, model-driven source, and Phase 5B.2D out of scope.
+
+### Files created
+
+- `src/lib/collectionInitialization.ts` - Canvas collection target normalization, ordering, validation, and structured generation-input helpers.
+- `src/tests/collectionInitialization.test.ts` - focused Phase 5B.2C collection planning coverage.
+
+### Files updated
+
+- `src/types/project.ts` - typed Canvas collection target model and Canvas storage property.
+- `src/lib/powerPlatform.ts` - Canvas defaults and legacy normalization for collection targets.
+- `src/lib/implementationAssets.ts` - planning-only App OnStart collection-loading implementation asset and stale approval invalidation.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.2C validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `97` tests after Phase 5B.2C.2 corrections).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Phase 5B.2D must not begin until Phase 5B.2C is approved.
+
 ## 2026-07-16 - Phase 5B.2B Scalar App OnStart Power Fx Generation
 
 ### Summary

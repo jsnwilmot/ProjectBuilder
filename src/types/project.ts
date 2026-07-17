@@ -332,6 +332,29 @@ export interface CanvasStateVariableTarget {
   sortOrder: number;
 }
 
+export type CanvasCollectionLoadTrigger = "appOnStart";
+
+export type CanvasCollectionLoadMode = "replace";
+
+export type CanvasCollectionDataScope =
+  | "confirmedSmallBounded"
+  | "unknown"
+  | "largeOrUnbounded";
+
+export interface CanvasCollectionTarget {
+  id: string;
+  implementationName: string;
+  purpose: string;
+  sourceConnectorId: string;
+  sourceEntityId: string;
+  loadTrigger: CanvasCollectionLoadTrigger;
+  loadMode: CanvasCollectionLoadMode;
+  dataScope: CanvasCollectionDataScope;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  required: boolean;
+  sortOrder: number;
+}
+
 export interface CanvasComponentTarget {
   id: string;
   approvedComponentName: string;
@@ -665,6 +688,7 @@ export interface PowerPlatformCanvasData {
   controlTargets: CanvasControlTarget[];
   componentTargets: CanvasComponentTarget[];
   stateVariableTargets: CanvasStateVariableTarget[];
+  collectionTargets: CanvasCollectionTarget[];
   screenNamingConvention: string;
   controlNamingConvention: string;
   controlTypePrefixes: string;

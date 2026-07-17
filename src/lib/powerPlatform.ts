@@ -8,6 +8,7 @@ import {
   type DocumentLocation
 } from "../data/folderStructure";
 import { CANVAS_NAVIGATION_TRANSITIONS } from "../types/project";
+import { normalizeCanvasCollectionTargets } from "./collectionInitialization";
 import { normalizeCanvasStateVariableTargets } from "./stateInitialization";
 import type {
   CanvasDataSourceType,
@@ -756,6 +757,7 @@ function createDefaultCanvasData(): PowerPlatformCanvasData {
     controlTargets: [],
     componentTargets: [],
     stateVariableTargets: [],
+    collectionTargets: [],
     screenNamingConvention: "",
     controlNamingConvention: "",
     controlTypePrefixes: "",
@@ -2491,6 +2493,7 @@ export function normalizePowerPlatformData(
           } : {}))
         : [],
       stateVariableTargets: normalizeCanvasStateVariableTargets(canvas.stateVariableTargets),
+      collectionTargets: normalizeCanvasCollectionTargets((canvas as { collectionTargets?: unknown }).collectionTargets),
       componentApplicabilityDecision: createApplicabilityDecision(isObject(canvas.componentApplicabilityDecision) ? canvas.componentApplicabilityDecision : {}),
       screenNamingConvention: asString(canvas.screenNamingConvention),
       controlNamingConvention: asString(canvas.controlNamingConvention),
