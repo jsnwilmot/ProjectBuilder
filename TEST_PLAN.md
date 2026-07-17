@@ -1,5 +1,58 @@
 # Test Plan
 
+## 2026-07-17 Phase 5B.3A.2 canonical entity-connector compatibility
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts src/tests/collectionInitialization.test.ts src/tests/statePowerFxGeneration.test.ts src/tests/stateInitialization.test.ts src/tests/powerFxGeneration.test.ts src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`6` files, `555` tests).
+- Canonical compatibility coverage verifies the form-operation validator now reuses the exported Canvas entity compatibility helper instead of maintaining a duplicate local compatibility matrix.
+- Connector-resource coverage verifies active confirmed `externalApi`, `customConnector`, `otherConnector`, `microsoft365Connector`, `sqlServer`, and `excel` owners can validate when explicit ownership, confirmation, and create/update support are valid.
+- SQL Server and Excel coverage verifies inactive owners block; create targets block without create support; edit targets block without update support; and explicit owner mismatch blocks even when the target connector is active.
+- SharePoint coverage verifies list and library schemas follow the canonical SharePoint-family connector compatibility contract.
+- Dataverse coverage verifies Dataverse table schemas still require an active Dataverse connector.
+- Regression coverage verifies ambiguous implicit ownership remains blocked, connector array order cannot decide ownership, no active compatible connector still blocks, inactive-secondary and stale-primary protections remain intact, field-schema completeness and malformed-input protections remain intact, mutation safety remains intact, no implementation assets or Power Fx are generated, and Phase 5B.3B functionality remains absent.
+- Normal runner summaries have been updated for the corrected focused file: unit/integration execution is now `21` files and `816` tests, plus `7` App UI files and `43` tests, for `28` files and `859` tests total.
+- Coverage runner summaries have been updated for the corrected focused file: coverage execution is now `21` files and `816` tests, plus `7` App UI files and `43` tests, for `28` files and `859` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3A commit gate by Architect instruction.
+
+## 2026-07-17 Phase 5B.3A.1 active connector and field-schema completeness
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `62` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts src/tests/collectionInitialization.test.ts src/tests/statePowerFxGeneration.test.ts src/tests/stateInitialization.test.ts src/tests/powerFxGeneration.test.ts src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`6` files, `555` tests).
+- Connector reconciliation coverage verifies valid active primary connectors remain valid; inactive stored secondary connectors in single-backend mode block; connectors outside selected backend types block; stale or mismatched primary connector selections block; and reconciliation blockers are surfaced as controlled form-operation validation issues.
+- Entity ownership coverage verifies explicit connector-resource owners are honored only when active; zero active compatible connectors block entity validation; exactly one compatible active connector permits implicit SharePoint/Dataverse ownership; multiple active compatible connectors block as ambiguous; and connector array order cannot change ownership.
+- Field-schema completeness coverage verifies confirmed required fields must be listed, confirmed optional-only schemas permit empty required-field lists, unconfirmed fields block completeness, blank or unknown required-status values block, recognized required values are enforced, recognized optional values are accepted, mixed required/optional schemas validate correctly, and empty schemas block because no confirmed zero-field decision exists in the current model.
+- Raw-input coverage verifies malformed non-array target input, primitive target records, partial records, operation-only records, invalid `requiredFieldIds` shapes, and empty required-field entries block safely instead of returning `Not Applicable`.
+- Applicability coverage verifies genuinely empty target arrays and missing legacy `formOperationTargets` remain `Not Applicable`.
+- Regression coverage verifies existing valid create/edit targets, duplicate rules, deterministic ordering, mutation safety, no implementation assets, no Power Fx generation, collection generation, collection planning, scalar generation, state planning, navigation generation, Phase 5A registry behavior, and Phase 5B.3B absence remain intact.
+- Normal runner summaries have been updated for the corrected focused file: unit/integration execution is now `21` files and `800` tests, plus `7` App UI files and `43` tests, for `28` files and `843` tests total.
+- Coverage runner summaries have been updated for the corrected focused file: coverage execution is now `21` files and `800` tests, plus `7` App UI files and `43` tests, for `28` files and `843` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3A commit gate by Architect instruction.
+
+## 2026-07-16 Phase 5B.3A Canvas create/edit form-operation target model
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `39` tests).
+- Default and legacy coverage verifies new Canvas projects default to an empty `formOperationTargets` list, legacy projects missing the field normalize safely, malformed records do not throw, valid create/edit records normalize, and unsupported operations or submission triggers block validation.
+- Target ID coverage verifies unsafe target IDs, duplicate target IDs, duplicate sort orders, repeated submit controls, duplicate create targets on the same form, and duplicate edit targets on the same form block readiness.
+- Deterministic ordering coverage verifies targets are ordered by `sortOrder` and stable ID tie-breaker, independent of input order.
+- Screen validation verifies missing, unknown, unconfirmed, and unsafe screen references block form-operation readiness.
+- Form-control validation verifies missing, unknown, unconfirmed, wrong-screen, wrong-control-type, and unsafe form-control references block readiness.
+- Submit-control validation verifies missing, unknown, unconfirmed, wrong-screen, wrong-control-type, and unsafe submit-control references block readiness.
+- Connector validation verifies missing, unknown, unselected, unconfirmed, and operation-incompatible connectors block readiness before generation.
+- Entity validation verifies missing, unknown, mismatched, unconfirmed, and unsafe source entity implementation names block readiness.
+- Required-field validation verifies duplicate field IDs, unsafe field IDs, unknown or stale field IDs, fields belonging to another entity, unconfirmed fields, and omitted required schema fields block readiness while optional empty field lists remain valid when no required fields exist.
+- Operation coverage verifies create and edit operations can share the same form only when they use distinct submit controls.
+- Applicability coverage verifies non-Canvas projects return `Not Applicable` and no targets return `Not Applicable`.
+- Mutation coverage verifies validation and normalization do not mutate project or target inputs.
+- Phase-boundary coverage verifies no implementation assets, Power Fx formula output, connector reads, field mapping, Canvas YAML, model-driven source, UI integration, export integration, or Phase 5B.3B behavior was introduced.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `21` files and `777` tests, plus `7` App UI files and `43` tests, for `28` files and `820` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `21` files and `777` tests, plus `7` App UI files and `43` tests, for `28` files and `820` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3A commit gate by Architect instruction.
+
 ## 2026-07-16 Phase 5B.2D basic Canvas collection-loading Power Fx generation
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.

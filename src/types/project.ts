@@ -355,6 +355,25 @@ export interface CanvasCollectionTarget {
   sortOrder: number;
 }
 
+export type CanvasFormOperation = "create" | "edit";
+
+export type CanvasFormSubmissionTrigger = "controlOnSelect";
+
+export interface CanvasFormOperationTarget {
+  id: string;
+  operation: CanvasFormOperation;
+  screenId: string;
+  formControlId: string;
+  submitControlId: string;
+  sourceConnectorId: string;
+  sourceEntityId: string;
+  requiredFieldIds: string[];
+  submissionTrigger: CanvasFormSubmissionTrigger;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  required: boolean;
+  sortOrder: number;
+}
+
 export interface CanvasComponentTarget {
   id: string;
   approvedComponentName: string;
@@ -689,6 +708,7 @@ export interface PowerPlatformCanvasData {
   componentTargets: CanvasComponentTarget[];
   stateVariableTargets: CanvasStateVariableTarget[];
   collectionTargets: CanvasCollectionTarget[];
+  formOperationTargets: CanvasFormOperationTarget[];
   screenNamingConvention: string;
   controlNamingConvention: string;
   controlTypePrefixes: string;

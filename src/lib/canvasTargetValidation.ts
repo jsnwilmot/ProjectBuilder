@@ -226,7 +226,7 @@ function selectedCanvasDataSourceTypes(project: ProjectRecord): Set<SelectableCa
   return selected;
 }
 
-function connectorSupportsEntity(connectorType: string, entityKind: ActiveCanvasEntityReference["entityType"]): boolean {
+export function connectorSupportsCanvasEntity(connectorType: string, entityKind: ActiveCanvasEntityReference["entityType"]): boolean {
   if (entityKind === "sharePointList" || entityKind === "sharePointLibrary") {
     return connectorType === "sharePointList" || connectorType === "sharePointLibrary" || connectorType === "microsoftList";
   }
@@ -250,7 +250,7 @@ function activeConnectorsByType(project: ProjectRecord, sourceTypes: Set<Selecta
 }
 
 function firstActiveConnectorForEntity(project: ProjectRecord, sourceTypes: Set<SelectableCanvasDataSourceType>, entityType: ActiveCanvasEntityReference["entityType"]) {
-  return activeConnectorsByType(project, sourceTypes).find((connector) => connectorSupportsEntity(connector.dataSourceType, entityType));
+  return activeConnectorsByType(project, sourceTypes).find((connector) => connectorSupportsCanvasEntity(connector.dataSourceType, entityType));
 }
 
 export function activeCanvasEntityReferences(project: ProjectRecord): Map<string, ActiveCanvasEntityReference> {
@@ -310,7 +310,7 @@ export function activeCanvasEntityReferences(project: ProjectRecord): Map<string
         && selectedConnectorIds(project).has(candidate.id)
         && isSelectableCanvasDataSourceType(candidate.dataSourceType)
         && selectedTypes.has(candidate.dataSourceType)
-        && connectorSupportsEntity(candidate.dataSourceType, "connectorResource")
+        && connectorSupportsCanvasEntity(candidate.dataSourceType, "connectorResource")
       );
       if (!connector) return;
       entities.set(entity.id, {
@@ -368,7 +368,7 @@ function validateConnectorEntityAndFields(project: ProjectRecord, target: Canvas
     blockers.push(`Control target ${target.id} has an unknown, inactive, or unconfirmed entity ID: ${target.entityId || "[missing]"}.`);
     statuses.push("missingInformation");
   }
-  if (connector && entity && !connectorSupportsEntity(connector.dataSourceType, entity.entityType)) {
+  if (connector && entity && !connectorSupportsCanvasEntity(connector.dataSourceType, entity.entityType)) {
     blockers.push(`Control target ${target.id} connector ${connector.id} does not match entity ${entity.entityId}.`);
     statuses.push("blocked");
   }
@@ -413,7 +413,7 @@ function validateScreenDataSourceReference(
     blockers.push(`Screen target ${screen.id} reference ${reference.connectorId || "[missing]"}/${reference.entityId || "[missing]"} is inactive for current Canvas backend (${selectedBackendLabel(project)}): entity is missing, deselected, inactive, or unconfirmed.`);
     statuses.push("missingInformation");
   }
-  if (connector && entity && !connectorSupportsEntity(connector.dataSourceType, entity.entityType)) {
+  if (connector && entity && !connectorSupportsCanvasEntity(connector.dataSourceType, entity.entityType)) {
     blockers.push(`Screen target ${screen.id} reference ${reference.connectorId}/${reference.entityId} is invalid for current Canvas backend (${selectedBackendLabel(project)}): connector ${connector.id} does not support entity ${entity.entityId}.`);
     statuses.push("blocked");
   }

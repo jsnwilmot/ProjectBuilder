@@ -1,5 +1,136 @@
 # Change Log
 
+## 2026-07-17 - Phase 5B.3A.2 Canonical Entity-Connector Compatibility
+
+### Summary
+
+- Replaced the form-operation validator's duplicated entity/connector compatibility matrix with the canonical Canvas entity compatibility helper.
+- Exported the existing Canvas compatibility helper from `canvasTargetValidation.ts` without changing existing caller behavior.
+- Confirmed connector-resource form targets now validate for active, fully confirmed `externalApi`, `customConnector`, `otherConnector`, `microsoft365Connector`, `sqlServer`, and `excel` connectors when ownership and operation support are valid.
+- Preserved explicit connector-resource ownership, active connector reconciliation, ambiguous implicit ownership blocking, field-schema completeness, malformed-input blocking, duplicate rules, deterministic ordering, mutation safety, and Phase 5B.3B boundaries.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/canvasTargetValidation.ts` - exported the canonical Canvas entity compatibility helper and updated internal call sites to use the exported name.
+- `src/lib/formOperationTargets.ts` - reused the canonical compatibility helper instead of a local duplicate matrix.
+- `src/tests/formOperationTargets.test.ts` - added connector-resource compatibility coverage for SQL Server, Excel, and other supported resource backends.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3A.2 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts src/tests/collectionInitialization.test.ts src/tests/statePowerFxGeneration.test.ts src/tests/stateInitialization.test.ts src/tests/powerFxGeneration.test.ts src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`6` files, `555` tests).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Full test, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3A commit gate.
+- Phase 5B.3B must not begin until Phase 5B.3A is approved.
+
+## 2026-07-17 - Phase 5B.3A.1 Active Connector and Field-Schema Completeness
+
+### Summary
+
+- Corrected Canvas form-operation validation to use canonical active connector reconciliation instead of stored primary or secondary connector IDs.
+- Blocked inactive stored secondary connectors, backend-mismatched connectors, stale primary selections, inactive explicit connector-resource owners, and ambiguous implicit entity ownership.
+- Tightened required-field completeness so empty required-field lists require confirmed current schema evidence with recognized required or optional classifications.
+- Preserved malformed raw form-operation input during validation so partial, primitive, non-array, and malformed required-field data cannot normalize away to `Not Applicable`.
+- Kept implementation assets, Power Fx generation, connector reads, field mapping, Canvas YAML, model-driven source, UI integration, export integration, installation, publishing, deployment, and Phase 5B.3B out of scope.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/formOperationTargets.ts` - active connector reconciliation, explicit/ambiguous entity ownership, field-schema completeness, and raw malformed-input blocking.
+- `src/tests/formOperationTargets.test.ts` - focused correction coverage.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3A.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `62` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts src/tests/collectionInitialization.test.ts src/tests/statePowerFxGeneration.test.ts src/tests/stateInitialization.test.ts src/tests/powerFxGeneration.test.ts src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`6` files, `555` tests).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Full test, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3A commit gate.
+- Phase 5B.3B must not begin until Phase 5B.3A is approved.
+
+## 2026-07-16 - Phase 5B.3A Canvas Create and Edit Form-Operation Target Model
+
+### Summary
+
+- Added a typed Canvas form-operation target model for future create/edit form submissions.
+- Added storage defaults and legacy normalization so Canvas projects safely carry `formOperationTargets`.
+- Added planning-only normalization, deterministic ordering, and validation for create/edit form operation targets.
+- Validated screen, form control, submit control, selected source connector, source entity, required fields, duplicates, and operation support without generating formulas or implementation assets.
+- Kept Power Fx generation, SubmitForm/Patch generation, connector reads, field mapping, Canvas YAML, model-driven source, UI integration, export integration, installation, publishing, deployment, and Phase 5B.3B out of scope.
+
+### Files created
+
+- `src/lib/formOperationTargets.ts` - Canvas form-operation target normalization, ordering, and validation.
+- `src/tests/formOperationTargets.test.ts` - focused Phase 5B.3A form-operation target coverage.
+
+### Files updated
+
+- `src/types/project.ts` - typed Canvas form-operation target model and Canvas storage property.
+- `src/lib/powerPlatform.ts` - Canvas defaults and legacy normalization for form operation targets.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3A validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `39` tests).
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Architect review is required before commit.
+- Full test, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3A commit gate.
+- Phase 5B.3B must not begin until Phase 5B.3A is approved.
+
 ## 2026-07-16 - Phase 5B.2D Basic Canvas Collection-Loading Power Fx Generation
 
 ### Summary
