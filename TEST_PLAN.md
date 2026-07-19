@@ -1,5 +1,57 @@
 # Test Plan
 
+## 2026-07-18 Phase 5B.3D.1 trigger ownership and malformed control safety
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formModeTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `67` tests).
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `85` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- `git diff --check`: passed.
+- Submit-control ownership coverage verifies a form-mode trigger cannot reuse the referenced form-operation submit button or another current valid form-operation submit button, while distinct new-mode and edit-mode trigger buttons still pass.
+- Trigger-control name coverage verifies missing, undefined, null, non-string, blank, punctuated, and formula-looking approved implementation names block safely without implicit RegExp coercion or repair.
+- Trigger-control type coverage verifies missing, undefined, null, non-string, empty, and unsupported control types block without throwing.
+- Current-control safety coverage verifies malformed current screen IDs and confirmation statuses return controlled blocked results and preserve existing same-screen, confirmed-control, button-type, and valid-name requirements.
+- Raw-shape coverage verifies missing `required`, non-Boolean `required`, missing `sortOrder`, string `sortOrder`, null `sortOrder`, and infinite `sortOrder` block, while complete valid raw records remain valid.
+- Regression coverage verifies existing action mapping, edit-context, duplicate detection, deterministic ordering, mutation safety, no implementation asset creation, no Power Fx formula generation, no `.fx` file creation, later form-mode planning/generation absence, and Phase 5B.4 absence remain intact.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `24` files and `1031` tests, plus `7` App UI files and `43` tests, for `31` files and `1074` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `24` files and `1031` tests, plus `7` App UI files and `43` tests, for `31` files and `1074` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3D commit gate by Architect instruction.
+
+## 2026-07-18 Phase 5B.3D Canvas form-mode action target model
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formModeTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `39` tests).
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `85` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- `git diff --check`: passed.
+- Form-mode model coverage verifies new Canvas project defaults, legacy missing storage normalization, empty storage `Not Applicable`, non-array storage blocking, primitive record blocking, partial record blocking, valid new-mode normalization, and valid edit-mode normalization.
+- Raw-input coverage verifies unsupported actions, unsupported triggers, empty and unsafe target IDs, incomplete meaningful records, invalid record-context statuses, invalid confirmation statuses, invalid required values, and malformed meaningful data block safely instead of becoming `Not Applicable`.
+- Binding coverage verifies form-mode targets reuse `validateCanvasFormOperationTargets(project)`, block missing or blocked form-operation targets, preserve existing Phase 5B.3A validation boundaries, and do not recreate or weaken form-operation validation.
+- Action and context coverage verifies create operations map only to `new`, edit operations map only to `edit`, new actions require `notRequired`, edit actions require `confirmedExistingItemBinding`, and `missingDecision` blocks for edit targets.
+- Trigger-control coverage verifies missing, cross-screen, unconfirmed, non-button, icon, and invalid implementation-name trigger controls block while confirmed button `OnSelect` targets pass.
+- Duplicate coverage verifies duplicate target IDs, duplicate sort orders, reused trigger controls, reused form-operation targets, duplicate new-mode targets for one form, and duplicate edit-mode targets for one form block; one new and one edit action may share a form when they use distinct valid operation targets and buttons.
+- Ordering coverage verifies form-mode targets order by `sortOrder` and stable target ID, independent of input array order.
+- Mutation and boundary coverage verifies project input, form-mode target arrays, and existing form-operation targets are not mutated; no implementation asset, Power Fx formula, `.fx` file, UI/export integration, later form-mode planning/generation, Canvas YAML, model-driven source, or Phase 5B.4 behavior is added.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `24` files and `1003` tests, plus `7` App UI files and `43` tests, for `31` files and `1046` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `24` files and `1003` tests, plus `7` App UI files and `43` tests, for `31` files and `1046` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3D commit gate by Architect instruction.
+
 ## 2026-07-17 Phase 5B.3C.2 complete Power Platform gate-status contract
 
 - `npm.cmd run lint`: passed.

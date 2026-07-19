@@ -1,5 +1,98 @@
 # Change Log
 
+## 2026-07-18 - Phase 5B.3D.1 Trigger Ownership and Malformed Control Safety
+
+### Summary
+
+- Reserved all current valid form-operation submit controls so form-mode trigger buttons cannot reuse controls that already own form-submission `OnSelect` responsibility.
+- Strengthened trigger-control validation so missing, malformed, non-string, blank, punctuated, formula-looking, or unsupported current control names and types block safely without throwing.
+- Completed raw form-mode target shape validation so `required` must be explicitly Boolean and `sortOrder` must be explicitly finite numeric before a target can be eligible.
+- Preserved the Phase 5B.3D boundary: no implementation assets, no Power Fx generation, no formula execution, no `.fx` files, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.4 behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/formModeTargets.ts` - added submit-control ownership protection, safe current trigger-control validation, and complete raw `required`/`sortOrder` checks.
+- `src/tests/formModeTargets.test.ts` - added focused correction coverage for submit-control reuse, malformed current controls, raw-shape blockers, and preserved valid behavior.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3D.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formModeTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `67` tests).
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `git diff --check` - passed.
+
+### Issues found
+
+- None.
+
+## 2026-07-18 - Phase 5B.3D Canvas Form-Mode Action Target Model
+
+### Summary
+
+- Added typed Canvas form-mode action targets for controlled new-record and edit-record initiation modeling.
+- Added safe normalization and validation for `formModeTargets`, including legacy missing storage, malformed raw storage, target IDs, form-operation binding, operation/action mapping, edit-record context decisions, trigger buttons, duplicate detection, deterministic ordering, and mutation safety.
+- Wired Canvas project defaults and normalization so new and legacy Canvas projects use the canonical `formModeTargets` storage property.
+- Preserved the Phase 5B.3D boundary: no implementation assets, no Power Fx generation, no formula execution, no `.fx` files, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.4 behavior.
+
+### Files created
+
+- `src/lib/formModeTargets.ts` - typed normalization and validation for Canvas form-mode action targets.
+- `src/tests/formModeTargets.test.ts` - focused Phase 5B.3D acceptance and regression coverage.
+
+### Files updated
+
+- `src/types/project.ts` - added Canvas form-mode target types and canonical Canvas storage property.
+- `src/lib/powerPlatform.ts` - initialized and normalized `formModeTargets`.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3D validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formModeTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `39` tests).
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `git diff --check` - passed.
+
+### Issues found
+
+- None.
+
 ## 2026-07-17 - Phase 5B.3C.2 Complete Power Platform Gate-Status Contract
 
 ### Summary
