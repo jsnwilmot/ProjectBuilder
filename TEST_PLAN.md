@@ -1,5 +1,19 @@
 # Test Plan
 
+## 2026-07-19 Phase 5B.3F controlled Canvas form-mode Power Fx generation
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formModePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `53` tests).
+- Generation-result coverage verifies `Generated`, `Blocked`, and `Not Applicable` results keep fragments/checksums present only when generation succeeds.
+- Source-asset coverage verifies the canonical `asset-canvas-powerfx-form-mode-actions` planning asset is required, unique, current-project-bound, canonical-identity-bound, approved, Ready for Export, checksum-valid, dependency-current, gate-current, and structured-input-current.
+- Formula coverage verifies `new` targets generate exactly `NewForm(validFormIdentifier)\n`, `edit` targets generate exactly `EditForm(validFormIdentifier)\n`, multiple targets remain separate ordered fragments, formulas contain no semicolon, comments, Markdown, prose, traceability, placeholders, or unsupported Power Fx tokens.
+- Safety coverage verifies missing, stale, unsafe, malformed, wrong-screen, wrong-type, reused trigger, malformed registry, malformed graph, malformed dependency, and malformed state-derivation inputs block safely without throwing.
+- Checksum coverage verifies deterministic fragment checksums and top-level checksums bind project ID, source planning checksum, target IDs, actions, screen, trigger, form, intended paths, formulas, and generation version while timestamps remain checksum-neutral.
+- Boundary coverage verifies no formula execution, no `.fx` files, no Canvas YAML, no model-driven source, no connector/entity data reads, no UI/export integration, and no Phase 5B.4 behavior.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `26` files and `1168` tests, plus `7` App UI files and `43` tests, for `33` files and `1211` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `26` files and `1168` tests, plus `7` App UI files and `43` tests, for `33` files and `1211` tests total.
+- Full tests, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3F commit gate by Architect instruction.
+
 ## 2026-07-19 Phase 5B.3E.2 safe exported registry and graph boundaries
 
 - `npm.cmd run lint`: passed.

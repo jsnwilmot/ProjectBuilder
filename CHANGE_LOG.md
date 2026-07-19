@@ -1,5 +1,40 @@
 # Change Log
 
+## 2026-07-19 - Phase 5B.3F Controlled Canvas Form-Mode Power Fx Generation
+
+### Summary
+
+- Added controlled Canvas form-mode button `OnSelect` Power Fx generation from the approved Phase 5B.3E form-mode planning asset.
+- Limited generated formulas to one structured fragment per approved target using only `NewForm(validFormIdentifier)` or `EditForm(validFormIdentifier)` with one trailing newline.
+- Added source planning asset validation, full registry validation, current-project reconstruction, form identifier safety, trigger-control validation, intended-path validation, deterministic fragment and top-level checksums, traceability outside formulas, and mutation safety.
+- Preserved the Phase 5B.3F boundary: no formula execution, no `.fx` files, no Canvas YAML, no model-driven source, no connector/entity data reads, no UI/export integration, and no Phase 5B.4 behavior.
+
+### Files created
+
+- `src/lib/formModePowerFxGeneration.ts` - controlled form-mode Power Fx generation result model, source validation, fragment generation, checksum binding, traceability, and registry-safe exported functions.
+- `src/tests/formModePowerFxGeneration.test.ts` - focused Phase 5B.3F acceptance and regression coverage.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3F validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formModePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `53` tests).
+
+### Issues found
+
+- Initial fixture approval state blocked generation because the source planning asset was compared against a fresh registry projection instead of the current derived registry projection. Fixed by validating the source contract against the derived current registry asset.
+- Multi-target fixture initially reused the same dependency records. Fixed the fixture by modeling the edit path through distinct Dataverse-backed screen, form, connector, entity, field, and trigger records.
+
 ## 2026-07-19 - Phase 5B.3E.2 Safe Exported Registry and Graph Boundaries
 
 ### Summary
