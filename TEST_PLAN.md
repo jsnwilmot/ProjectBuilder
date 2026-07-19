@@ -1,5 +1,69 @@
 # Test Plan
 
+## 2026-07-17 Phase 5B.3C.2 complete Power Platform gate-status contract
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `85` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- `git diff --check`: passed.
+- Gate-status contract coverage verifies every valid `PowerPlatformGateStatus` value passes runtime registry-envelope validation on unrelated registry assets, including `inProgress` and `manualValidationRequired`.
+- Unknown-status coverage verifies invalid gate statuses still block safely without throwing, without generated fragments, and without generated checksums.
+- Regression coverage verifies an unchanged approved form-operation registry still generates the same controlled `SubmitForm(validFormIdentifier)` fragment and no additional Power Fx patterns are introduced.
+- Boundary coverage verifies no formula execution, no `.fx` file writing, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.3D/5B.4 behavior was added.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `23` files and `964` tests, plus `7` App UI files and `43` tests, for `30` files and `1007` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `23` files and `964` tests, plus `7` App UI files and `43` tests, for `30` files and `1007` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3C commit gate by Architect instruction.
+
+## 2026-07-17 Phase 5B.3C.1 complete registry validation and safe applicability
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `69` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- Complete registry validation coverage verifies malformed semantic values on unrelated assets block safely before applicability and current-state derivation, including unknown approval status, applicability status, platform, category, type, asset status, required gate ID, gate snapshot ID, gate snapshot status, dependency type, nested operation, nested submission trigger, nested formula property, and nested confirmation status.
+- Safe applicability coverage verifies missing legacy `formOperationTargets` storage does not throw, missing and empty target storage return `Not Applicable` only without stale canonical source assets, stale source assets block when targets are missing or empty, and null/primitive/object current storage blocks with no fragments and no generated checksum.
+- Ordering coverage verifies unknown gate IDs are rejected before downstream phase-gate evaluation, malformed unrelated assets cannot permit generation, malformed target storage cannot become `Not Applicable`, and controlled blocked results contain no fragments or generated checksum.
+- Boundary coverage verifies existing `SubmitForm(validFormIdentifier)` generation remains intact, no additional Power Fx pattern is generated, no `.fx` file is written, and Phase 5B.3D/5B.4 remain absent.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `23` files and `948` tests, plus `7` App UI files and `43` tests, for `30` files and `991` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `23` files and `948` tests, plus `7` App UI files and `43` tests, for `30` files and `991` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3C commit gate by Architect instruction.
+
+## 2026-07-17 Phase 5B.3C controlled Canvas SubmitForm Power Fx generation
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `50` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `99` tests).
+- Generation coverage verifies approved create and edit targets generate one fragment each; multiple targets generate ordered fragments; create/edit traceability remains structured; both operations use the same fixed `SubmitForm(formControlImplementationName)` formula; formulas are exactly one statement with one trailing newline and no semicolon, Markdown, comments, placeholders, IDs, or prose.
+- Source validation coverage verifies missing, duplicate, wrong-project, wrong-platform, wrong-category, wrong-type, wrong-target, wrong-operation, wrong-property, wrong-path, wrong-generation-version, removed/replaced gates, stale dependencies, stale structured inputs, missing approval, stale checksum, non-Ready stored status, malformed status, gate failure, current record changes, moved/wrong-type controls, invalid identifiers, duplicate paths, unsafe paths, malformed registries, and malformed nested generation inputs block safely.
+- Checksum and traceability coverage verifies target order, form rename, operation, required-field changes, and path changes affect checksums while timestamps do not; generated output preserves structured project, planning asset, target, screen, form, submit, connector, entity, field, intended path, and approved planning checksum traceability outside executable formulas.
+- Boundary coverage verifies no `NewForm`, `EditForm`, `Patch`, `Navigate`, `ResetForm`, `Notify`, connector/entity reads, raw formula input, `.fx` file writing, Canvas YAML, model-driven source, UI/export integration, Phase 5B.3D, or Phase 5B.4 behavior is added.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `23` files and `929` tests, plus `7` App UI files and `43` tests, for `30` files and `972` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `23` files and `929` tests, plus `7` App UI files and `43` tests, for `30` files and `972` tests total.
+- Full `npm.cmd test`, `npm.cmd run test:coverage`, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.3C commit gate by Architect instruction.
+
 ## 2026-07-17 Phase 5B.3B.1 safe blocked content and relationship-aware dependencies
 
 - `npm.cmd run lint`: passed.

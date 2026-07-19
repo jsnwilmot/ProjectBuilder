@@ -1,5 +1,118 @@
 # Change Log
 
+## 2026-07-17 - Phase 5B.3C.2 Complete Power Platform Gate-Status Contract
+
+### Summary
+
+- Completed the form-operation Power Fx generation gate-status runtime contract by accepting every current `PowerPlatformGateStatus` value during registry-envelope validation.
+- Added explicit coverage for valid unrelated-asset gate statuses, including `inProgress` and `manualValidationRequired`, while preserving blocking for unknown gate statuses without throwing.
+- Preserved the Phase 5B.3C boundary: only controlled `SubmitForm(validFormIdentifier)` generation remains supported, with no formula execution, `.fx` writes, Canvas YAML, model-driven source, UI/export integration, or Phase 5B.3D work.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/formOperationPowerFxGeneration.ts` - expanded the gate-status allowlist to match the full `PowerPlatformGateStatus` contract.
+- `src/tests/formOperationPowerFxGeneration.test.ts` - added focused contract coverage for all valid gate statuses and unknown-status blocking.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3C.2 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `85` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed.
+- `git diff --check` - passed.
+
+### Issues found
+
+- None.
+
+## 2026-07-17 - Phase 5B.3C.1 Complete Registry Validation and Safe Applicability
+
+### Summary
+
+- Strengthened form-operation Power Fx generation registry-envelope validation so every asset is checked against approved runtime enum contracts before applicability or current-state derivation.
+- Added controlled blocking for unknown platforms, asset categories, asset types, asset statuses, applicability statuses, approval statuses, dependency types, required gate IDs, gate-snapshot IDs, gate-snapshot statuses, and malformed nested form-operation semantic values.
+- Made current Canvas `formOperationTargets` applicability safe for missing legacy storage, empty arrays, stale source assets, and malformed null/primitive/object storage without throwing.
+- Preserved the Phase 5B.3C boundary: only `SubmitForm(validFormIdentifier)` remains supported, no formulas execute, no `.fx` files are written, and Phase 5B.3D/5B.4 remain out of scope.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/formOperationPowerFxGeneration.ts` - complete semantic registry validation and safe current target-storage applicability checks.
+- `src/tests/formOperationPowerFxGeneration.test.ts` - focused correction coverage for malformed unrelated assets, unknown gates, malformed nested inputs, and legacy target storage.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3C.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `69` tests).
+
+### Issues found
+
+- None.
+
+## 2026-07-17 - Phase 5B.3C Controlled Canvas SubmitForm Power Fx Generation
+
+### Summary
+
+- Added controlled Canvas submit-button `OnSelect` Power Fx generation from the approved canonical Phase 5B.3B form-operation planning asset.
+- Generated one structured fragment per approved form-operation target using only the fixed `SubmitForm(validFormIdentifier)` pattern for both create and edit operations.
+- Added registry-envelope validation, canonical source-asset validation, stored Ready status enforcement, current-project defence, path safety checks, fragment/top-level checksums, structured traceability, malformed-input blocking, and mutation safety coverage.
+- Kept form-mode initialization, navigation, reset, success/failure, notification, record selection, connector/entity reads, raw formula input, `.fx` file writes, Canvas YAML, model-driven source, UI/export integration, publishing, deployment, Phase 5B.3D, and Phase 5B.4 out of scope.
+
+### Files created
+
+- `src/lib/formOperationPowerFxGeneration.ts` - controlled `SubmitForm(formControlImplementationName)` fragment generator for approved Canvas form-operation planning assets.
+- `src/tests/formOperationPowerFxGeneration.test.ts` - focused Phase 5B.3C generation, validation, checksum, traceability, and boundary tests.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3C validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `50` tests).
+
+### Issues found
+
+- None.
+
 ## 2026-07-17 - Phase 5B.3B.1 Safe Blocked Content and Relationship-Aware Dependencies
 
 ### Summary
