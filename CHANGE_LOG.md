@@ -1,5 +1,129 @@
 # Change Log
 
+## 2026-07-19 - Phase 5B.3E.2 Safe Exported Registry and Graph Boundaries
+
+### Summary
+
+- Added safe exported-function boundaries for malformed implementation-asset registries, stored asset arrays, graph asset identities, graph dependencies, direct dependency evaluation, and registry-state derivation.
+- Preserved detailed semantic issues for malformed dependency records, gate records, nested form-mode targets, unsafe paths, duplicate paths, stale approvals, and malformed registry assets.
+- Kept valid graph behavior intact for duplicate assets, duplicate paths, duplicate dependencies, missing dependencies, unresolved records, self-dependencies, circular dependencies, deterministic generation order, and approval/checksum invalidation.
+- Preserved the Phase 5B.3E boundary: no executable Power Fx, no formula fragments, no `.fx` files, no Canvas YAML, no model-driven source, no UI/export integration, no form-mode Power Fx generation, and no Phase 5B.4 behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - added safe exported registry/graph normalization, registry-envelope validation, graph dependency filtering, malformed blocked-asset projection, and controlled issue preservation for malformed runtime inputs.
+- `src/tests/formModePlanning.test.ts` - added Phase 5B.3E.2 exported-boundary coverage for malformed registry envelopes, malformed stored assets, malformed graph dependencies, malformed asset identities, dependency evaluation, registry-state derivation, stale approval invalidation, and valid graph regressions.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3E.2 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formModePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `84` tests).
+- Required focused regression matrix - passed.
+- `git diff --check` - passed with line-ending warnings only.
+
+### Issues found
+
+- Initial exported-registry validation labeled malformed stored entries as `assets[0]` instead of `registry.assets[0]`. Fixed by preserving the caller-specific source label through dependency and registry-state derivation.
+- TypeScript required additional runtime narrowing before checking stored `generationVersion` compatibility. Fixed with an explicit string guard.
+
+## 2026-07-19 - Phase 5B.3E.1 Registry Safety and Nested Input Validation
+
+### Summary
+
+- Completed runtime implementation-asset registry shape validation before dependency, gate, graph, or current-state evaluation.
+- Added controlled semantic validation for malformed dependency records, gate records, and nested `generationInputs.formModeTargets` records on canonical and unrelated assets.
+- Added explicit deterministic `Form-mode action count: <number>` planning content tied to canonical ordered targets and checksum calculation.
+- Preserved dynamic project identity content from the current project without hardcoding production project IDs or names.
+- Preserved the Phase 5B.3E boundary: no executable Power Fx, no formula fragments, no `.fx` files, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.4 behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - added runtime shape guards, malformed blocked-asset fallback, dependency/gate/nested form-mode semantic validation, and form-mode action count content.
+- `src/tests/formModePlanning.test.ts` - added Phase 5B.3E.1 Architect probe coverage for malformed arrays, dependency records, gate records, nested target inputs, dynamic project identity, action counts, checksum binding, and timestamp neutrality.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3E.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formModePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `59` tests).
+
+### Issues found
+
+- Initial correction pass exposed that malformed blocked assets could be overwritten by a later derivation pass. Fixed by preserving malformed semantic-blocked assets across iterative derivation.
+
+## 2026-07-18 - Phase 5B.3E Canvas Form-Mode Action Planning
+
+### Summary
+
+- Added one canonical, non-executable Canvas form-mode action planning asset for validated new/edit form-mode targets.
+- Added explicit project identity to the deterministic planning content, covered with `project-unique-742` / `Unique Project 742`.
+- Bound the planning asset to the approved Phase 5B.3B form-operation planning asset, current project reconstruction, canonical gate snapshots, deterministic dependencies, structured target inputs, and checksum/approval invalidation rules.
+- Added stale stored-asset handling so removed or blocked form-mode targets require registry regeneration instead of silently preserving old planning evidence.
+- Preserved the Phase 5B.3E boundary: no Power Fx generation, no formula fragments, no `.fx` files, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.4 behavior.
+
+### Files created
+
+- `src/lib/formModePlanning.ts` - canonical planning model, structured inputs, path validation, constants, and deterministic target ordering for Canvas form-mode actions.
+- `src/tests/formModePlanning.test.ts` - focused Phase 5B.3E acceptance and regression coverage.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - registered the form-mode planning asset, source asset dependency, gate/dependency model, stale stored-asset defense, registry semantic validation, and source content rendering.
+- `src/tests/formModeTargets.test.ts` - updated the Phase 5B.3D regression expectation now that Phase 5B.3E intentionally creates a planning asset while still generating no formulas from target validation.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.3E validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/formModePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `33` tests).
+- `npx.cmd vitest run src/tests/formModeTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `67` tests).
+- `npx.cmd vitest run src/tests/formOperationPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `85` tests).
+- `npx.cmd vitest run src/tests/formOperationPlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `63` tests).
+- `npx.cmd vitest run src/tests/formOperationTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `78` tests).
+- `npx.cmd vitest run src/tests/collectionPowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `55` tests).
+- `npx.cmd vitest run src/tests/collectionInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `97` tests).
+- `npx.cmd vitest run src/tests/statePowerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `175` tests).
+- `npx.cmd vitest run src/tests/stateInitialization.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `59` tests).
+- `npx.cmd vitest run src/tests/powerFxGeneration.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `70` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `99` tests).
+- `git diff --check` - passed with line-ending warnings only.
+
+### Issues found
+
+- Existing Phase 5B.3D target-model regression expected no form-mode planning asset. Updated that assertion to reflect the approved Phase 5B.3E planning asset while preserving the no-formula boundary.
+
 ## 2026-07-18 - Phase 5B.3D.1 Trigger Ownership and Malformed Control Safety
 
 ### Summary

@@ -439,12 +439,12 @@ describe("Canvas form-mode action target model", () => {
     expect(project).toEqual(before);
   });
 
-  it("does not create implementation assets or generated formulas", () => {
+  it("does not create generated formulas from target validation", () => {
     const project = createCanvasProject([formModeTarget(), editModeTarget()], [formOperationTarget(), editOperationTarget()]);
     const result = validateCanvasFormModeTargets(project);
     const registry = buildImplementationAssetRegistry(project, "2026-07-18T00:00:00.000Z");
     const serializedResult = JSON.stringify(result);
-    expect(registry.assets.map((asset) => asset.assetId)).not.toContain("asset-canvas-powerfx-form-mode-actions");
+    expect(registry.assets.map((asset) => asset.assetId)).toContain("asset-canvas-powerfx-form-mode-actions");
     expect(serializedResult).not.toContain("SubmitForm");
     expect(serializedResult).not.toContain(".fx");
     expect(serializedResult).not.toContain("Phase 5B.4");

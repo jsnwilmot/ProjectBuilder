@@ -75,5 +75,5 @@ for (const uiTestFile of uiTestFiles) {
 }
 
 console.log(
-  "\n[coverage-runner] Summary: coverage files 24, coverage tests 1031, UI files 7, UI tests 43, combined files 31, combined tests 1074."
+  "\n[coverage-runner] Summary: coverage files 25, coverage tests 1115, UI files 7, UI tests 43, combined files 32, combined tests 1158."
 );

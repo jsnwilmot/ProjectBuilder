@@ -8,7 +8,7 @@ import {
   validateCanvasCollectionTargets
 } from "./collectionInitialization";
 import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
-import { evaluatePhaseGate, isPhaseGatePassing, type PhaseGateId, type PhaseGateResult } from "./phaseGates";
+import { PHASE_GATE_EVALUATORS, evaluatePhaseGate, isPhaseGatePassing, type PhaseGateId, type PhaseGateResult } from "./phaseGates";
 import {
   buildCanvasFormOperationPlanningModel,
   canvasFormOperationEntityType,
@@ -20,6 +20,18 @@ import {
   CANVAS_FORM_OPERATIONS_TARGET_ID,
   type CanvasFormOperationGenerationInput
 } from "./formOperationPlanning";
+import {
+  buildCanvasFormModePlanningModel,
+  CANVAS_FORM_MODE_ACTIONS_ASSET_ID,
+  CANVAS_FORM_MODE_ACTIONS_FORMULA_PROPERTY,
+  CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
+  CANVAS_FORM_MODE_ACTIONS_OPERATION,
+  CANVAS_FORM_MODE_ACTIONS_PLAN_PATH,
+  CANVAS_FORM_MODE_ACTIONS_TARGET_DISPLAY_NAME,
+  CANVAS_FORM_MODE_ACTIONS_TARGET_ID,
+  validateCanvasFormModeActionIntendedPaths,
+  type CanvasFormModeGenerationInput
+} from "./formModePlanning";
 import { isCanvasProject, isModelDrivenProject } from "./powerPlatform";
 import {
   CANVAS_STATE_INITIALIZATION_ASSET_ID,
@@ -79,6 +91,84 @@ export type ImplementationAssetType =
   | "validationChecklist"
   | "assetManifest";
 
+const IMPLEMENTATION_ASSET_PLATFORMS: readonly ImplementationAssetPlatform[] = [
+  "Power Apps Canvas",
+  "Power Apps model-driven",
+  "Power Platform",
+  "Not Applicable"
+];
+const IMPLEMENTATION_ASSET_CATEGORIES: readonly ImplementationAssetCategory[] = [
+  "Asset plan",
+  "Power Fx",
+  "Canvas YAML",
+  "Model-driven specification",
+  "Automation specification",
+  "Configuration",
+  "Installation",
+  "Validation",
+  "Codex prompt"
+];
+const IMPLEMENTATION_ASSET_TYPES: readonly ImplementationAssetType[] = [
+  "powerFxPlan",
+  "canvasYamlPlan",
+  "modelDrivenSpecification",
+  "automationSpecification",
+  "installationGuide",
+  "validationChecklist",
+  "assetManifest"
+];
+const IMPLEMENTATION_ASSET_APPLICABILITY_STATUSES: readonly ImplementationAssetApplicabilityStatus[] = [
+  "required",
+  "notApplicable",
+  "undecided"
+];
+const IMPLEMENTATION_ASSET_APPROVAL_STATUSES: readonly ImplementationAssetApprovalStatus[] = [
+  "Not reviewed",
+  "Review required",
+  "Approved"
+];
+const IMPLEMENTATION_ASSET_DEPENDENCY_TYPES: readonly ImplementationAssetDependency["type"][] = [
+  "asset",
+  "connector",
+  "entity",
+  "field",
+  "screen",
+  "control",
+  "component",
+  "gate",
+  "environmentVariable",
+  "connectionReference"
+];
+const POWER_PLATFORM_GATE_STATUSES: readonly PowerPlatformGateStatus[] = [
+  "notStarted",
+  "missingInformation",
+  "blocked",
+  "reviewNeeded",
+  "confirmed",
+  "ready",
+  "inProgress",
+  "manualValidationRequired",
+  "passed",
+  "failed",
+  "notApplicable"
+];
+const REQUIRED_ASSET_ARRAY_FIELDS = [
+  "dependencies",
+  "requiredGateIds",
+  "gateEvaluationSnapshot",
+  "sourceRecordIds",
+  "connectorIds",
+  "entityIds",
+  "fieldIds",
+  "blockingIssues",
+  "manualInstallationRequirements",
+  "validationRequirements",
+  "knownLimitations"
+] as const;
+const FORM_MODE_ACTIONS = ["new", "edit"] as const;
+const FORM_MODE_TRIGGERS = ["controlOnSelect"] as const;
+const FORM_MODE_EDIT_CONTEXTS = ["notRequired", "confirmedExistingItemBinding", "missingDecision"] as const;
+
 export interface ImplementationAssetRelationshipContext {
   connectorId?: string;
   entityId?: string;
@@ -114,6 +204,7 @@ export interface ImplementationAssetGateSnapshot {
 export interface ImplementationAssetGenerationInputs {
   operation?: string;
   formulaProperty?: string;
+  projectName?: string;
   currentFormulaProperties?: string[];
   sourceScreenId?: string;
   sourceControlId?: string;
@@ -145,6 +236,10 @@ export interface ImplementationAssetGenerationInputs {
     sortOrder: number;
   }>;
   formOperationTargets?: CanvasFormOperationGenerationInput[];
+  formModeTargets?: CanvasFormModeGenerationInput[];
+  sourcePlanningAssetId?: string;
+  sourcePlanningAssetChecksum?: string;
+  planningGenerationVersion?: string;
 }
 
 export interface ImplementationAsset {
@@ -283,7 +378,10 @@ export interface ImplementationAssetManifest {
 type AssetDraft = Omit<ImplementationAsset, "sourceContent" | "contentChecksum" | "assetStatus">;
 
 const PLACEHOLDER_PROPERTY_PATTERN = /^(not applicable|none|n\/a|no formula|no formula required|not decided|unknown|pending|tbd|to be determined|missing|no approved property|placeholder)$/i;
-const COMPATIBLE_GENERATION_VERSIONS = new Set([IMPLEMENTATION_ASSET_GENERATION_VERSION]);
+const COMPATIBLE_GENERATION_VERSIONS = new Set([
+  IMPLEMENTATION_ASSET_GENERATION_VERSION,
+  CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION
+]);
 
 function hasText(value: string | undefined | null): boolean {
   return typeof value === "string" && value.trim().length > 0;
@@ -417,6 +515,16 @@ export function calculateImplementationAssetChecksum(asset: ImplementationAsset)
 }
 
 function snapshotGate(project: ProjectRecord, gateId: PhaseGateId): ImplementationAssetGateSnapshot {
+  if (!(gateId in PHASE_GATE_EVALUATORS)) {
+    return {
+      gateId,
+      label: `Unknown gate ${String(gateId)}`,
+      status: "blocked",
+      blockingReason: `Unknown phase gate ID: ${String(gateId)}.`,
+      sourceSection: "Implementation assets",
+      passed: false
+    };
+  }
   const gate = evaluatePhaseGate(project, gateId);
   return {
     gateId: gate.id,
@@ -490,12 +598,13 @@ function safeReadableIdentifier(value: string, fallback: string): string {
   return isSafeReadableIdentifier(value) ? value : fallback;
 }
 
-function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCategory" | "assetType" | "targetDisplayName" | "approvedPropertyName" | "blockingIssues" | "generationInputs">): string {
+function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "projectId" | "assetCategory" | "assetType" | "targetDisplayName" | "approvedPropertyName" | "blockingIssues" | "generationInputs">): string {
   const stateVariableLines = (asset.generationInputs?.stateVariables ?? []).map((variable, index) =>
     `- State variable ${index + 1}: ${variable.id} / ${variable.implementationName} / ${variable.initialValue.kind} value stored structurally / required ${variable.required} / ${variable.confirmationStatus} / sort ${variable.sortOrder}`
   );
   const isCollectionPlan = asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID;
   const isFormOperationPlan = asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID;
+  const isFormModePlan = asset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID;
   const collectionTargetLines = (asset.generationInputs?.collectionTargets ?? []).map((target, index) =>
     isCollectionPlan
       ? `- Collection target ${index + 1}: collection and source identifiers stored structurally / ${target.loadTrigger} / ${target.loadMode} / ${target.dataScope} / required ${target.required} / confirmation stored structurally / sort ${target.sortOrder}`
@@ -507,9 +616,16 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
     }
     return `- Form operation target ${index + 1}: ${target.operation} / form ${safeReadableIdentifier(target.formControlImplementationName, "form identifier stored structurally")} / submit button ${safeReadableIdentifier(target.submitControlImplementationName, "submit-button identifier stored structurally")} / entity ${safeReadableIdentifier(target.sourceImplementationName, "entity identifier stored structurally")} / ${target.formulaProperty} / required ${target.required} / confirmation ${target.confirmationStatus} / sort ${target.sortOrder}`;
   });
-  const blockingIssueLines = isCollectionPlan || isFormOperationPlan
+  const formModeTargetLines = (asset.generationInputs?.formModeTargets ?? []).map((target, index) => {
+    const actionText = target.action === "new" ? "new-record mode" : "edit-record mode";
+    if (isFormModePlan && asset.blockingIssues.length > 0) {
+      return `- Form-mode target ${index + 1}: ${target.action} action / implementation identifiers stored structurally / required ${target.required} / edit-record context ${target.editRecordContextStatus} / sort ${target.sortOrder} / future path stored structurally`;
+    }
+    return `- Form-mode target ${index + 1}: ${actionText} / screen ${safeReadableIdentifier(target.screenApprovedName, "screen identifier stored structurally")} / form ${safeReadableIdentifier(target.formControlApprovedName, "form identifier stored structurally")} / trigger button ${safeReadableIdentifier(target.triggerControlApprovedName, "trigger-button identifier stored structurally")} / required ${target.required} / edit-record context ${target.editRecordContextStatus} / sort ${target.sortOrder} / future path ${target.intendedPath}`;
+  });
+  const blockingIssueLines = isCollectionPlan || isFormOperationPlan || isFormModePlan
     ? (asset.blockingIssues.length > 0
-        ? [`- ${asset.blockingIssues.length} ${isFormOperationPlan ? "form-operation planning" : "collection planning"} issues are stored structurally. Review the asset blockingIssues field.`]
+        ? [`- ${asset.blockingIssues.length} ${isFormModePlan ? "form-mode planning" : isFormOperationPlan ? "form-operation planning" : "collection planning"} issues are stored structurally. Review the asset blockingIssues field.`]
         : ["- None."])
     : (asset.blockingIssues.length > 0 ? asset.blockingIssues.map((issue) => `- ${issue}`) : ["- None."]);
   const generationInputs = asset.generationInputs
@@ -517,6 +633,7 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
         "",
         "Approved source-generation inputs:",
         asset.generationInputs.operation ? `- Operation: ${asset.generationInputs.operation}` : "",
+        asset.generationInputs.projectName ? `- Project name: ${asset.generationInputs.projectName}` : "",
         asset.generationInputs.formulaProperty ? `- Formula property: ${asset.generationInputs.formulaProperty}` : "",
         asset.generationInputs.currentFormulaProperties ? `- Current control formula properties: ${asset.generationInputs.currentFormulaProperties.join(", ") || "None"}` : "",
         asset.generationInputs.sourceScreenId ? `- Source screen ID: ${asset.generationInputs.sourceScreenId}` : "",
@@ -528,15 +645,22 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "assetCat
         asset.generationInputs.stateVariables ? "- State initialization plan: formula generation is deferred to Phase 5B.2B." : "",
         asset.generationInputs.collectionTargets ? "- Collection loading plan: executable collection generation is deferred to Phase 5B.2D." : "",
         asset.generationInputs.formOperationTargets ? "- Form operation plan: executable form-submission generation is deferred to Phase 5B.3C." : "",
+        asset.generationInputs.formModeTargets ? "- Form-mode action plan: executable form-mode formula generation is deferred to a later approved phase." : "",
+        asset.generationInputs.formModeTargets ? `- Form-mode action count: ${asset.generationInputs.formModeTargets.length}` : "",
+        asset.generationInputs.sourcePlanningAssetId ? `- Source planning asset: ${asset.generationInputs.sourcePlanningAssetId}` : "",
+        asset.generationInputs.sourcePlanningAssetChecksum ? `- Source planning checksum: ${asset.generationInputs.sourcePlanningAssetChecksum}` : "",
+        asset.generationInputs.planningGenerationVersion ? `- Planning generation version: ${asset.generationInputs.planningGenerationVersion}` : "",
         ...stateVariableLines,
         ...collectionTargetLines,
-        ...formOperationTargetLines
+        ...formOperationTargetLines,
+        ...formModeTargetLines
       ].filter((line) => line !== "")
     : [];
   return [
     `# ${asset.targetDisplayName}`,
     "",
     `Asset ID: ${asset.assetId}`,
+    `Project ID: ${asset.projectId}`,
     `Asset category: ${asset.assetCategory}`,
     `Asset type: ${asset.assetType}`,
     asset.approvedPropertyName ? `Approved formula property: ${asset.approvedPropertyName}` : "",
@@ -1090,6 +1214,200 @@ function formOperationDependencies(project: ProjectRecord, inputs: CanvasFormOpe
   });
 }
 
+function isConfirmedFormModeTriggerControlForInput(control: CanvasControlTarget | undefined, input: CanvasFormModeGenerationInput): boolean {
+  return Boolean(
+    control
+    && control.screenId === input.screenTargetId
+    && control.approvedControlName.trim() === input.triggerControlApprovedName
+    && isSafeReadableIdentifier(control.approvedControlName.trim())
+    && normalizeCanvasControlType(control.controlType) === "button"
+  );
+}
+
+function formModeGateDependencies(gates: ImplementationAssetGateSnapshot[]): ImplementationAssetDependency[] {
+  return gates.map((gate) => dependency({
+    id: `form-mode:gate:${gate.gateId}`,
+    type: "gate",
+    label: `Required Power Platform gate: ${gate.label}`,
+    targetRecordId: gate.gateId,
+    resolved: gate.passed,
+    resolutionReason: gate.passed ? `Gate ${gate.gateId} is ${gate.status}.` : `Gate ${gate.gateId} is ${gate.status}: ${gate.blockingReason}`,
+    blockingIssue: `Required gate ${gate.gateId} is ${gate.status}: ${gate.blockingReason}`,
+    sourceSection: gate.sourceSection
+  }));
+}
+
+function sourceFormOperationAssetDependency(project: ProjectRecord, sourceAsset: ImplementationAsset | undefined): ImplementationAssetDependency {
+  const ready = Boolean(
+    sourceAsset
+    && sourceAsset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID
+    && sourceAsset.projectId === project.identity.id
+    && sourceAsset.assetStatus === "Ready for Export"
+    && sourceAsset.approvalStatus === "Approved"
+    && isAssetChecksumValid(sourceAsset)
+    && evaluateImplementationAssetStatus(sourceAsset) === "Ready for Export"
+    && sourceAsset.targetId === CANVAS_FORM_OPERATIONS_TARGET_ID
+    && sourceAsset.intendedPath === CANVAS_FORM_OPERATIONS_PLAN_PATH
+    && sourceAsset.generationInputs?.operation === CANVAS_FORM_OPERATIONS_OPERATION
+    && sourceAsset.approvedPropertyName === CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY
+  );
+  return dependency({
+    id: `asset:${CANVAS_FORM_OPERATIONS_ASSET_ID}`,
+    type: "asset",
+    label: CANVAS_FORM_OPERATIONS_TARGET_DISPLAY_NAME,
+    targetAssetId: CANVAS_FORM_OPERATIONS_ASSET_ID,
+    resolved: ready,
+    resolutionReason: ready
+      ? `Required source planning asset is approved, checksum-valid, and Ready for Export (${sourceAsset!.contentChecksum}).`
+      : "Required source planning asset is missing, stale, unapproved, malformed, or not Ready for Export.",
+    blockingIssue: `Required source planning asset ${CANVAS_FORM_OPERATIONS_ASSET_ID} is missing, stale, unapproved, malformed, or not Ready for Export.`,
+    sourceSection: "Canvas form-mode actions"
+  });
+}
+
+function formModeDependencies(
+  project: ProjectRecord,
+  inputs: CanvasFormModeGenerationInput[],
+  gates: ImplementationAssetGateSnapshot[],
+  sourceAsset?: ImplementationAsset
+): ImplementationAssetDependency[] {
+  const dependencies: ImplementationAssetDependency[] = [
+    sourceFormOperationAssetDependency(project, sourceAsset),
+    ...formModeGateDependencies(gates)
+  ];
+  for (const input of inputs) {
+    const screen = confirmedCanvasScreen(project, input.screenTargetId);
+    const formControl = confirmedCanvasControl(project, input.formControlId);
+    const triggerControl = confirmedCanvasControl(project, input.triggerControlId);
+    const screenResolved = Boolean(
+      screen
+      && screen.approvedScreenName.trim() === input.screenApprovedName
+      && isSafeReadableIdentifier(screen.approvedScreenName.trim())
+    );
+    const formResolved = isConfirmedEditableFormControlForInput(formControl, {
+      id: input.formOperationTargetId,
+      operation: input.action === "new" ? "create" : "edit",
+      screenId: input.screenTargetId,
+      screenImplementationName: input.screenApprovedName,
+      formControlId: input.formControlId,
+      formControlImplementationName: input.formControlApprovedName,
+      submitControlId: "",
+      submitControlImplementationName: "",
+      sourceConnectorId: "",
+      sourceEntityId: "",
+      sourceImplementationName: "",
+      requiredFieldIds: [],
+      submissionTrigger: "controlOnSelect",
+      formulaProperty: "OnSelect",
+      intendedFragmentPath: input.intendedPath,
+      required: input.required,
+      confirmationStatus: "confirmed",
+      sortOrder: input.sortOrder
+    });
+    const triggerResolved = isConfirmedFormModeTriggerControlForInput(triggerControl, input);
+    dependencies.push(
+      dependency({
+        id: `form-mode:screen:${input.screenTargetId || "missing"}`,
+        type: "screen",
+        label: "Confirmed form-mode screen",
+        targetRecordId: input.screenTargetId,
+        relationshipContext: { targetType: "canvasScreen" },
+        resolved: screenResolved,
+        resolutionReason: screenResolved ? "Screen exists, is confirmed, has the expected current implementation name, and uses a valid simple identifier." : "Screen is missing, unconfirmed, renamed, or has an invalid implementation name.",
+        blockingIssue: `Form-mode screen ${input.screenTargetId || "[missing]"} is missing, unconfirmed, renamed, or has an invalid implementation name.`,
+        sourceSection: "Canvas form-mode actions"
+      }),
+      dependency({
+        id: `form-mode:control:form:${input.formControlId || "missing"}`,
+        type: "control",
+        label: "Confirmed form-mode form control",
+        targetRecordId: input.formControlId,
+        relationshipContext: {
+          targetType: "canvasControl",
+          parentEntityId: input.screenTargetId
+        },
+        resolved: formResolved,
+        resolutionReason: formResolved ? "Editable form control exists, is confirmed, remains on the expected screen, has the expected current implementation name, and uses an accepted editable form type." : "Editable form control is missing, unconfirmed, moved, renamed, has an invalid implementation name, or is not an editable form control.",
+        blockingIssue: `Form-mode form control ${input.formControlId || "[missing]"} is missing, unconfirmed, moved, renamed, invalid, or no longer an editable form control.`,
+        sourceSection: "Canvas form-mode actions"
+      }),
+      dependency({
+        id: `form-mode:control:trigger:${input.triggerControlId || "missing"}`,
+        type: "control",
+        label: "Confirmed form-mode trigger button",
+        targetRecordId: input.triggerControlId,
+        relationshipContext: {
+          targetType: "canvasControl",
+          parentEntityId: input.screenTargetId
+        },
+        resolved: triggerResolved,
+        resolutionReason: triggerResolved ? "Trigger button exists, is confirmed, remains on the expected screen, has the expected current implementation name, and uses the button control type." : "Trigger button is missing, unconfirmed, moved, renamed, has an invalid implementation name, or is not a button.",
+        blockingIssue: `Form-mode trigger control ${input.triggerControlId || "[missing]"} is missing, unconfirmed, moved, renamed, invalid, or no longer a button.`,
+        sourceSection: "Canvas form-mode actions"
+      })
+    );
+  }
+  const byId = new Map<string, ImplementationAssetDependency>();
+  for (const item of dependencies) byId.set(item.id, item);
+  return sortedDependencies([...byId.values()]);
+}
+
+function canvasFormModePlanningAsset(project: ProjectRecord, now: string, sourceAsset?: ImplementationAsset): ImplementationAsset[] {
+  const model = buildCanvasFormModePlanningModel(project);
+  if (model.eligibilityStatus !== "Valid") return [];
+  const gateEvaluationSnapshot = snapshotGates(project, CANVAS_FORM_OPERATION_GATE_IDS);
+  const gateIssues = blockingGateIssues(gateEvaluationSnapshot);
+  const dependencies = formModeDependencies(project, model.generationInputs, gateEvaluationSnapshot, sourceAsset);
+  const dependencyIssues = dependencies.flatMap((item) => item.resolved ? [] : [item.blockingIssue ?? `${item.label} is unresolved.`]);
+  return [finalizeAsset({
+    assetId: CANVAS_FORM_MODE_ACTIONS_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_FORM_MODE_ACTIONS_TARGET_ID,
+    targetDisplayName: CANVAS_FORM_MODE_ACTIONS_TARGET_DISPLAY_NAME,
+    intendedPath: CANVAS_FORM_MODE_ACTIONS_PLAN_PATH,
+    applicabilityStatus: "required",
+    required: model.required,
+    requiredGateIds: CANVAS_FORM_OPERATION_GATE_IDS,
+    gateEvaluationSnapshot,
+    sourceRecordIds: model.sourceRecordIds,
+    connectorIds: [],
+    entityIds: [],
+    fieldIds: [],
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_FORM_MODE_ACTIONS_OPERATION,
+      formulaProperty: CANVAS_FORM_MODE_ACTIONS_FORMULA_PROPERTY,
+      projectName: project.identity.projectName.trim() || "Untitled project",
+      sourcePlanningAssetId: CANVAS_FORM_OPERATIONS_ASSET_ID,
+      sourcePlanningAssetChecksum: sourceAsset?.contentChecksum ?? "",
+      planningGenerationVersion: CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
+      formModeTargets: model.generationInputs
+    },
+    generationTimestamp: now,
+    generationVersion: CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
+    manualInstallationRequirements: [
+      "Manual Power Apps Studio form-mode OnSelect update required in a later approved phase.",
+      "Do not claim installation until an implementer applies future generated source in the real app."
+    ],
+    validationRequirements: [
+      "Validate future form-mode behavior in Power Apps Studio.",
+      "Confirm new-record and edit-record mode actions, form Item bindings, selected record behavior, reset behavior, navigation, success handling, and error handling before executable formula generation."
+    ],
+    knownLimitations: [
+      "Phase 5B.3E creates a planning asset only.",
+      "Executable form-mode formula generation is deferred to a later approved phase.",
+      "Record-selection, reset, navigation, notification, and success or failure expressions are not generated in this phase.",
+      ...model.missingDecisions
+    ],
+    blockingIssues: [...gateIssues, ...model.blockingIssues, ...dependencyIssues],
+    approvalStatus: "Review required",
+    approvedPropertyName: CANVAS_FORM_MODE_ACTIONS_FORMULA_PROPERTY
+  })];
+}
+
 function canvasFormOperationPlanningAsset(project: ProjectRecord, now: string): ImplementationAsset[] {
   const model = buildCanvasFormOperationPlanningModel(project);
   if (!model) return [];
@@ -1402,6 +1720,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
   const stateAssets = canvasStateInitializationAsset(project, now);
   const collectionAssets = canvasCollectionInitializationAsset(project, now);
   const formOperationAssets = canvasFormOperationPlanningAsset(project, now);
+  const formModeAssets = canvasFormModePlanningAsset(project, now, formOperationAssets[0]);
   const formulaAssets = canvas.controlTargets.flatMap((target) => canvasPowerFxAssets(project, target, now));
   const formulaAssetsByControlId = formulaAssets.reduce((map, asset) => {
     const existing = map.get(asset.targetId) ?? [];
@@ -1421,6 +1740,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
     ...stateAssets,
     ...collectionAssets,
     ...formOperationAssets,
+    ...formModeAssets,
     ...formulaAssets,
     ...yamlScreenAssets,
     ...yamlControlAssets,
@@ -1599,8 +1919,241 @@ function countDuplicates(values: string[]): string[] {
   return [...counts.entries()].filter(([, count]) => count > 1).map(([value]) => value).sort();
 }
 
+function knownValue<T extends string>(values: readonly T[], value: unknown): value is T {
+  return typeof value === "string" && values.includes(value as T);
+}
+
+function assetLabel(asset: unknown): string {
+  return isObject(asset) && typeof asset.assetId === "string" && asset.assetId.trim()
+    ? asset.assetId
+    : "[malformed asset]";
+}
+
+function fieldIssue(asset: unknown, field: string, detail: string): string {
+  return `${assetLabel(asset)}: ${field} ${detail}.`;
+}
+
+function safeAssetArray(asset: unknown, field: string): unknown[] {
+  return isObject(asset) && Array.isArray(asset[field]) ? asset[field] : [];
+}
+
+function dependencyRecordIssues(asset: unknown, dependencyItem: unknown, index: number): string[] {
+  const prefix = `${assetLabel(asset)}: dependencies[${index}]`;
+  if (!isObject(dependencyItem)) return [`${prefix} must be a non-null object.`];
+  const issues: string[] = [];
+  if (typeof dependencyItem.id !== "string") issues.push(`${prefix}.id must be a string.`);
+  if (!knownValue(IMPLEMENTATION_ASSET_DEPENDENCY_TYPES, dependencyItem.type)) issues.push(`${prefix}.type has unknown dependency type ${String(dependencyItem.type)}.`);
+  if (typeof dependencyItem.label !== "string") issues.push(`${prefix}.label must be a string.`);
+  if (typeof dependencyItem.required !== "boolean") issues.push(`${prefix}.required must be Boolean.`);
+  if (typeof dependencyItem.resolved !== "boolean") issues.push(`${prefix}.resolved must be Boolean.`);
+  if (typeof dependencyItem.resolutionReason !== "string") issues.push(`${prefix}.resolutionReason must be a string.`);
+  if (typeof dependencyItem.sourceSection !== "string") issues.push(`${prefix}.sourceSection must be a string.`);
+  if ("targetAssetId" in dependencyItem && dependencyItem.targetAssetId !== undefined && typeof dependencyItem.targetAssetId !== "string") issues.push(`${prefix}.targetAssetId must be a string when present.`);
+  if ("targetRecordId" in dependencyItem && dependencyItem.targetRecordId !== undefined && typeof dependencyItem.targetRecordId !== "string") issues.push(`${prefix}.targetRecordId must be a string when present.`);
+  if ("blockingIssue" in dependencyItem && dependencyItem.blockingIssue !== undefined && typeof dependencyItem.blockingIssue !== "string") issues.push(`${prefix}.blockingIssue must be a string when present.`);
+  if ("relationshipContext" in dependencyItem && dependencyItem.relationshipContext !== undefined && !isObject(dependencyItem.relationshipContext)) issues.push(`${prefix}.relationshipContext must be a non-null object when present.`);
+  return issues;
+}
+
+function gateSnapshotRecordIssues(asset: unknown, gate: unknown, index: number): string[] {
+  const prefix = `${assetLabel(asset)}: gateEvaluationSnapshot[${index}]`;
+  if (!isObject(gate)) return [`${prefix} must be a non-null object.`];
+  const issues: string[] = [];
+  if (typeof gate.gateId !== "string") {
+    issues.push(`${prefix}.gateId must be a string.`);
+  } else if (!(gate.gateId in PHASE_GATE_EVALUATORS)) {
+    issues.push(`${prefix}.gateId has unknown gate ID ${gate.gateId}.`);
+  }
+  if (!knownValue(POWER_PLATFORM_GATE_STATUSES, gate.status)) issues.push(`${prefix}.status has unknown gate status ${String(gate.status)}.`);
+  if (typeof gate.label !== "string") issues.push(`${prefix}.label must be a string.`);
+  if (typeof gate.blockingReason !== "string") issues.push(`${prefix}.blockingReason must be a string.`);
+  if (typeof gate.sourceSection !== "string") issues.push(`${prefix}.sourceSection must be a string.`);
+  if (typeof gate.passed !== "boolean") issues.push(`${prefix}.passed must be Boolean.`);
+  return issues;
+}
+
+function formModeInputRecordIssues(asset: unknown, entry: unknown, index: number): string[] {
+  const prefix = `${assetLabel(asset)}: generationInputs.formModeTargets[${index}]`;
+  if (!isObject(entry)) return [`${prefix} must be a non-null object.`];
+  const issues: string[] = [];
+  const requiredStringFields = [
+    "formModeTargetId",
+    "formOperationTargetId",
+    "triggerControlId",
+    "triggerControlApprovedName",
+    "screenTargetId",
+    "screenApprovedName",
+    "formControlId",
+    "formControlApprovedName",
+    "editRecordContextStatus",
+    "intendedPath"
+  ];
+  for (const field of requiredStringFields) {
+    if (!(field in entry)) {
+      issues.push(`${prefix}.${field} is missing.`);
+    } else if (typeof entry[field] !== "string") {
+      issues.push(`${prefix}.${field} must be a string.`);
+    } else if (field.endsWith("Id") && entry[field].trim().length === 0) {
+      issues.push(`${prefix}.${field} must be a non-empty string.`);
+    }
+  }
+  if (!knownValue(FORM_MODE_ACTIONS, entry.action)) issues.push(`${prefix}.action has unsupported action ${String(entry.action)}.`);
+  if (!knownValue(FORM_MODE_TRIGGERS, entry.trigger)) issues.push(`${prefix}.trigger has unsupported trigger ${String(entry.trigger)}.`);
+  if (!knownValue(FORM_MODE_EDIT_CONTEXTS, entry.editRecordContextStatus)) issues.push(`${prefix}.editRecordContextStatus has unsupported edit context ${String(entry.editRecordContextStatus)}.`);
+  if (!("required" in entry)) {
+    issues.push(`${prefix}.required is missing.`);
+  } else if (typeof entry.required !== "boolean") {
+    issues.push(`${prefix}.required must be Boolean.`);
+  }
+  if (!("sortOrder" in entry)) {
+    issues.push(`${prefix}.sortOrder is missing.`);
+  } else if (typeof entry.sortOrder !== "number" || !Number.isFinite(entry.sortOrder)) {
+    issues.push(`${prefix}.sortOrder must be numeric and finite.`);
+  }
+  return issues;
+}
+
+function formModeGenerationInputIssues(asset: unknown): string[] {
+  if (!isObject(asset) || !isObject(asset.generationInputs) || !("formModeTargets" in asset.generationInputs)) return [];
+  const value = asset.generationInputs.formModeTargets;
+  if (!Array.isArray(value)) return [`${assetLabel(asset)}: generationInputs.formModeTargets must be an array.`];
+  const issues = value.flatMap((entry, index) => formModeInputRecordIssues(asset, entry, index));
+  const validEntries = value.filter((entry): entry is CanvasFormModeGenerationInput =>
+    isObject(entry)
+    && typeof entry.formModeTargetId === "string"
+    && typeof entry.formOperationTargetId === "string"
+    && knownValue(FORM_MODE_ACTIONS, entry.action)
+    && knownValue(FORM_MODE_TRIGGERS, entry.trigger)
+    && typeof entry.triggerControlId === "string"
+    && typeof entry.triggerControlApprovedName === "string"
+    && typeof entry.screenTargetId === "string"
+    && typeof entry.screenApprovedName === "string"
+    && typeof entry.formControlId === "string"
+    && typeof entry.formControlApprovedName === "string"
+    && knownValue(FORM_MODE_EDIT_CONTEXTS, entry.editRecordContextStatus)
+    && typeof entry.required === "boolean"
+    && typeof entry.sortOrder === "number"
+    && Number.isFinite(entry.sortOrder)
+    && typeof entry.intendedPath === "string"
+  );
+  if (validEntries.length > 0) {
+    issues.push(...validateCanvasFormModeActionIntendedPaths(validEntries).map((issue) => `${assetLabel(asset)}: generationInputs.formModeTargets intendedPath ${issue}`));
+  }
+  return unique(issues);
+}
+
+function assetSemanticIssues(asset: unknown): string[] {
+  const issues: string[] = [];
+  if (!isObject(asset)) return [`${assetLabel(asset)}: implementation asset must be a non-null object.`];
+  if (typeof asset.assetId !== "string") {
+    issues.push(`${assetLabel(asset)}: assetId must be a string.`);
+  } else if (asset.assetId.trim().length === 0) {
+    issues.push(`${assetLabel(asset)}: assetId must be a non-empty string.`);
+  }
+  if (typeof asset.intendedPath !== "string") issues.push(`${assetLabel(asset)}: intendedPath must be a string.`);
+  for (const field of REQUIRED_ASSET_ARRAY_FIELDS) {
+    if (!Array.isArray(asset[field])) issues.push(fieldIssue(asset, field, "must be an array"));
+  }
+  if (!knownValue(IMPLEMENTATION_ASSET_PLATFORMS, asset.platform)) issues.push(`${assetLabel(asset)}: unknown platform ${String(asset.platform)}.`);
+  if (!knownValue(IMPLEMENTATION_ASSET_CATEGORIES, asset.assetCategory)) issues.push(`${assetLabel(asset)}: unknown asset category ${String(asset.assetCategory)}.`);
+  if (!knownValue(IMPLEMENTATION_ASSET_TYPES, asset.assetType)) issues.push(`${assetLabel(asset)}: unknown asset type ${String(asset.assetType)}.`);
+  if (!knownValue(IMPLEMENTATION_ASSET_STATUSES, asset.assetStatus)) issues.push(`${assetLabel(asset)}: unknown asset status ${String(asset.assetStatus)}.`);
+  if (!knownValue(IMPLEMENTATION_ASSET_APPLICABILITY_STATUSES, asset.applicabilityStatus)) issues.push(`${assetLabel(asset)}: unknown applicability status ${String(asset.applicabilityStatus)}.`);
+  if (!knownValue(IMPLEMENTATION_ASSET_APPROVAL_STATUSES, asset.approvalStatus)) issues.push(`${assetLabel(asset)}: unknown approval status ${String(asset.approvalStatus)}.`);
+  for (const [index, dependencyItem] of safeAssetArray(asset, "dependencies").entries()) {
+    issues.push(...dependencyRecordIssues(asset, dependencyItem, index));
+  }
+  for (const [index, gateId] of safeAssetArray(asset, "requiredGateIds").entries()) {
+    if (typeof gateId !== "string") {
+      issues.push(`${assetLabel(asset)}: requiredGateIds[${index}] must be a string.`);
+    } else if (!(gateId in PHASE_GATE_EVALUATORS)) {
+      issues.push(`${assetLabel(asset)}: requiredGateIds[${index}] has unknown gate ID ${gateId}.`);
+    }
+  }
+  for (const [index, gate] of safeAssetArray(asset, "gateEvaluationSnapshot").entries()) {
+    issues.push(...gateSnapshotRecordIssues(asset, gate, index));
+  }
+  for (const field of ["sourceRecordIds", "connectorIds", "entityIds", "fieldIds", "blockingIssues", "manualInstallationRequirements", "validationRequirements", "knownLimitations"] as const) {
+    for (const [index, value] of safeAssetArray(asset, field).entries()) {
+      if (typeof value !== "string") issues.push(`${assetLabel(asset)}: ${field}[${index}] must be a string.`);
+    }
+  }
+  issues.push(...formModeGenerationInputIssues(asset));
+  return unique(issues);
+}
+
+function blockedMalformedAsset(asset: unknown, issues: string[]): ImplementationAsset {
+  const raw: Record<string, unknown> = isObject(asset) ? asset : {};
+  const safe: ImplementationAsset = {
+    assetId: typeof raw.assetId === "string" && raw.assetId.trim() ? raw.assetId : "asset-malformed-registry-entry",
+    projectId: typeof raw.projectId === "string" ? raw.projectId : "",
+    platform: knownValue(IMPLEMENTATION_ASSET_PLATFORMS, raw.platform) ? raw.platform : "Not Applicable",
+    assetCategory: knownValue(IMPLEMENTATION_ASSET_CATEGORIES, raw.assetCategory) ? raw.assetCategory : "Validation",
+    assetType: knownValue(IMPLEMENTATION_ASSET_TYPES, raw.assetType) ? raw.assetType : "validationChecklist",
+    targetId: typeof raw.targetId === "string" ? raw.targetId : "malformed-registry-entry",
+    targetDisplayName: typeof raw.targetDisplayName === "string" ? raw.targetDisplayName : "Malformed implementation asset",
+    intendedPath: typeof raw.intendedPath === "string" ? raw.intendedPath : "07_Development/MALFORMED_IMPLEMENTATION_ASSET.md",
+    sourceContent: [
+      "# Malformed implementation asset",
+      "",
+      "This stored implementation asset failed runtime semantic validation before dependency, gate, or generation evaluation.",
+      "",
+      "Issues:",
+      ...issues.map((issue) => `- ${issue}`)
+    ].join("\n"),
+    assetStatus: "Blocked",
+    applicabilityStatus: "required",
+    required: typeof raw.required === "boolean" ? raw.required : true,
+    requiredGateIds: [],
+    gateEvaluationSnapshot: [],
+    sourceRecordIds: [],
+    connectorIds: [],
+    entityIds: [],
+    fieldIds: [],
+    dependencies: [],
+    generationInputs: undefined,
+    generationTimestamp: typeof raw.generationTimestamp === "string" ? raw.generationTimestamp : "",
+    generationVersion: typeof raw.generationVersion === "string" ? raw.generationVersion : IMPLEMENTATION_ASSET_GENERATION_VERSION,
+    contentChecksum: "",
+    manualInstallationRequirements: [],
+    validationRequirements: [],
+    knownLimitations: [],
+    blockingIssues: issues,
+    approvalStatus: "Review required",
+    approvedPropertyName: typeof raw.approvedPropertyName === "string" ? raw.approvedPropertyName : undefined
+  };
+  return { ...safe, contentChecksum: calculateImplementationAssetChecksum(safe) };
+}
+
 function isAssetChecksumValid(asset: ImplementationAsset): boolean {
   return asset.contentChecksum === calculateImplementationAssetChecksum({ ...asset, contentChecksum: "" });
+}
+
+function normalizeAssetArrayForEvaluation(input: unknown, sourceLabel: string): {
+  assets: ImplementationAsset[];
+  issues: string[];
+} {
+  if (!Array.isArray(input)) {
+    const issue = `${sourceLabel} must be an array.`;
+    return {
+      assets: [blockedMalformedAsset({ assetId: "asset-malformed-assets-collection", targetDisplayName: "Malformed assets collection" }, [issue])],
+      issues: [issue]
+    };
+  }
+  const issues: string[] = [];
+  const assets = input.map((asset, index) => {
+    const semanticIssues = assetSemanticIssues(asset).map((issue) => `${sourceLabel}[${index}]: ${issue}`);
+    if (semanticIssues.length > 0) {
+      issues.push(...semanticIssues);
+      return blockedMalformedAsset(asset, semanticIssues);
+    }
+    return asset as ImplementationAsset;
+  });
+  return { assets, issues: unique(issues) };
+}
+
+function validGraphDependencies(asset: ImplementationAsset): ImplementationAssetDependency[] {
+  return safeAssetArray(asset, "dependencies").filter((item): item is ImplementationAssetDependency => dependencyRecordIssues(asset, item, 0).length === 0);
 }
 
 function resolvedRecordDependency(project: ProjectRecord, asset: ImplementationAsset, item: ImplementationAssetDependency): ImplementationAssetDependency {
@@ -1679,19 +2232,43 @@ function resolvedAssetDependency(item: ImplementationAssetDependency, currentAss
     return { ...item, resolved: false, resolutionReason: "Target asset checksum is invalid.", blockingIssue: `Dependency asset ${targetId} has an invalid checksum.` };
   }
   const targetStatus = evaluateImplementationAssetStatus(target);
-  const resolved = targetStatus === "Ready for Export";
+  const hasReadyStoredStatus = target.assetStatus === "Ready for Export";
+  const resolved = targetStatus === "Ready for Export" && hasReadyStoredStatus;
   return {
     ...item,
     resolved,
-    resolutionReason: resolved ? `Target asset is Ready for Export with checksum ${target.contentChecksum}.` : `Target asset recalculated status is ${targetStatus}.`,
-    blockingIssue: resolved ? undefined : `Dependency asset ${targetId} is ${targetStatus}.`
+    resolutionReason: resolved
+      ? `Target asset is Ready for Export with checksum ${target.contentChecksum}.`
+      : hasReadyStoredStatus
+        ? `Target asset recalculated status is ${targetStatus}.`
+        : `Target asset raw stored status is ${target.assetStatus}; Ready for Export is required.`,
+    blockingIssue: resolved
+      ? undefined
+      : hasReadyStoredStatus
+        ? `Dependency asset ${targetId} is ${targetStatus}.`
+        : `Dependency asset ${targetId} raw stored status is ${target.assetStatus}; Ready for Export is required.`
   };
 }
 
-function currentCanvasPowerFxAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
+function currentCanvasPowerFxAsset(
+  project: ProjectRecord,
+  asset: ImplementationAsset,
+  assetById: Map<string, ImplementationAsset>,
+  originalAssets: ImplementationAsset[],
+  enforceRawStoredEvidence: boolean
+): ImplementationAsset {
   if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID) return currentCanvasStateInitializationAsset(project, asset);
   if (asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID) return currentCanvasCollectionInitializationAsset(project, asset);
   if (asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID) return currentCanvasFormOperationPlanningAsset(project, asset);
+  if (asset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID) {
+    return currentCanvasFormModePlanningAsset(
+      project,
+      asset,
+      assetById.get(CANVAS_FORM_OPERATIONS_ASSET_ID),
+      originalAssets.filter((candidate) => candidate.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID),
+      enforceRawStoredEvidence
+    );
+  }
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return asset;
   const target = project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === asset.targetId);
   if (!target) return asset;
@@ -1763,6 +2340,67 @@ function currentCanvasFormOperationPlanningAsset(project: ProjectRecord, asset: 
     },
     generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
     approvedPropertyName: CANVAS_FORM_OPERATIONS_FORMULA_PROPERTY
+  };
+}
+
+function currentCanvasFormModePlanningAsset(
+  project: ProjectRecord,
+  asset: ImplementationAsset,
+  sourceAsset: ImplementationAsset | undefined,
+  originalSourceAssets: ImplementationAsset[] = [],
+  enforceRawStoredEvidence = true
+): ImplementationAsset {
+  const model = buildCanvasFormModePlanningModel(project);
+  const gateIds = CANVAS_FORM_OPERATION_GATE_IDS;
+  const originalSourceStatusIssues = !enforceRawStoredEvidence
+    ? []
+    : originalSourceAssets.length === 0
+    ? [`Required source planning asset ${CANVAS_FORM_OPERATIONS_ASSET_ID} is missing from the stored registry.`]
+    : originalSourceAssets.length > 1
+      ? [`Required source planning asset ${CANVAS_FORM_OPERATIONS_ASSET_ID} is duplicated in the stored registry.`]
+      : originalSourceAssets[0].assetStatus !== "Ready for Export"
+        ? [`Required source planning asset ${CANVAS_FORM_OPERATIONS_ASSET_ID} raw stored status is ${originalSourceAssets[0].assetStatus}; Ready for Export is required.`]
+        : [];
+  const staleBlockingIssues = model.eligibilityStatus === "Not Applicable"
+    ? ["Stored Canvas form-mode action planning asset is stale because current form-mode targets are not applicable. Regenerate the implementation asset registry."]
+    : model.eligibilityStatus === "Blocked"
+      ? ["Stored Canvas form-mode action planning asset is stale because current form-mode targets are blocked. Regenerate the implementation asset registry.", ...model.blockingIssues]
+      : [];
+  const generationInputs = model.eligibilityStatus === "Valid" ? model.generationInputs : [];
+  const gateEvaluationSnapshot = snapshotGates(project, gateIds);
+  const dependencies = model.eligibilityStatus === "Valid"
+    ? formModeDependencies(project, generationInputs, gateEvaluationSnapshot, sourceAsset)
+    : [];
+  return {
+    ...asset,
+    assetId: CANVAS_FORM_MODE_ACTIONS_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_FORM_MODE_ACTIONS_TARGET_ID,
+    targetDisplayName: CANVAS_FORM_MODE_ACTIONS_TARGET_DISPLAY_NAME,
+    intendedPath: CANVAS_FORM_MODE_ACTIONS_PLAN_PATH,
+    applicabilityStatus: "required",
+    required: model.required,
+    requiredGateIds: gateIds,
+    sourceRecordIds: model.sourceRecordIds,
+    connectorIds: [],
+    entityIds: [],
+    fieldIds: [],
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_FORM_MODE_ACTIONS_OPERATION,
+      formulaProperty: CANVAS_FORM_MODE_ACTIONS_FORMULA_PROPERTY,
+      projectName: project.identity.projectName.trim() || "Untitled project",
+      sourcePlanningAssetId: CANVAS_FORM_OPERATIONS_ASSET_ID,
+      sourcePlanningAssetChecksum: sourceAsset?.contentChecksum ?? "",
+      planningGenerationVersion: CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
+      formModeTargets: generationInputs
+    },
+    generationVersion: CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
+    approvedPropertyName: CANVAS_FORM_MODE_ACTIONS_FORMULA_PROPERTY,
+    blockingIssues: [...staleBlockingIssues, ...originalSourceStatusIssues]
   };
 }
 
@@ -1855,7 +2493,12 @@ function storedCanonicalContractMatches(asset: ImplementationAsset, canonicalAss
 }
 
 function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
-  if (asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID || asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID || asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID) return [];
+  if (
+    asset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID
+    || asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID
+    || asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID
+    || asset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID
+  ) return [];
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
   const approvedProperty = asset.approvedPropertyName ?? "";
   const currentProperties = asset.generationInputs?.currentFormulaProperties ?? [];
@@ -1863,9 +2506,23 @@ function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
   return [`Approved formula property ${approvedProperty} is no longer present on current control ${asset.targetId || "[missing]"}.`];
 }
 
-function deriveAssetFromCurrentState(project: ProjectRecord, asset: ImplementationAsset, assetById: Map<string, ImplementationAsset>): ImplementationAsset {
+function deriveAssetFromCurrentState(
+  project: ProjectRecord,
+  asset: ImplementationAsset,
+  assetById: Map<string, ImplementationAsset>,
+  originalAssets: ImplementationAsset[],
+  enforceRawStoredEvidence: boolean
+): ImplementationAsset {
+  const existingSemanticIssues = Array.isArray(asset.blockingIssues)
+    ? asset.blockingIssues.filter(isRegistrySemanticBlockingIssue)
+    : [];
+  if (existingSemanticIssues.length > 0 && typeof asset.sourceContent === "string" && asset.sourceContent.includes("failed runtime semantic validation")) {
+    return asset;
+  }
+  const semanticIssues = assetSemanticIssues(asset);
+  if (semanticIssues.length > 0) return blockedMalformedAsset(asset, semanticIssues);
   const approvedChecksum = asset.approvalStatus === "Approved" ? asset.contentChecksum : "";
-  const canonicalAsset = currentCanvasPowerFxAsset(project, asset);
+  const canonicalAsset = currentCanvasPowerFxAsset(project, asset, assetById, originalAssets, enforceRawStoredEvidence);
   const dependencies = canonicalAsset.dependencies.map((item) => resolvedAssetDependency(resolvedRecordDependency(project, canonicalAsset, item), canonicalAsset, assetById));
   const gateEvaluationSnapshot = snapshotGates(project, canonicalAsset.requiredGateIds);
   const blockingIssues = unique([
@@ -1873,6 +2530,7 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
     ...(canonicalAsset.assetId === CANVAS_STATE_INITIALIZATION_ASSET_ID ? validateCanvasStateVariables(project.powerPlatform?.canvas?.stateVariableTargets ?? []).blockingIssues : []),
     ...(canonicalAsset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID ? validateCanvasCollectionTargets(project, project.powerPlatform?.canvas?.collectionTargets ?? []).blockingIssues : []),
     ...(canonicalAsset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID ? buildCanvasFormOperationPlanningModel(project)?.blockingIssues ?? [] : []),
+    ...(canonicalAsset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID ? canonicalAsset.blockingIssues : []),
     ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
@@ -1894,7 +2552,12 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
     ...withStatus,
     contentChecksum: calculateImplementationAssetChecksum(withStatus)
   };
-  if (asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID && asset.assetId !== CANVAS_COLLECTION_INITIALIZATION_ASSET_ID && asset.assetId !== CANVAS_FORM_OPERATIONS_ASSET_ID) return withChecksum;
+  if (
+    asset.assetId !== CANVAS_STATE_INITIALIZATION_ASSET_ID
+    && asset.assetId !== CANVAS_COLLECTION_INITIALIZATION_ASSET_ID
+    && asset.assetId !== CANVAS_FORM_OPERATIONS_ASSET_ID
+    && asset.assetId !== CANVAS_FORM_MODE_ACTIONS_ASSET_ID
+  ) return withChecksum;
   const approvalStillValid = asset.approvalStatus === "Approved"
     && asset.assetId === withChecksum.assetId
     && storedCanonicalContractMatches(asset, withChecksum)
@@ -1912,21 +2575,28 @@ function deriveAssetFromCurrentState(project: ProjectRecord, asset: Implementati
       };
 }
 
-export function evaluateImplementationAssetDependencies(project: ProjectRecord, assets: ImplementationAsset[]): ImplementationAssetDependencyEvaluation {
-  let derived: ImplementationAsset[] = assets.map((asset) => ({ ...asset, assetStatus: asset.assetStatus === "Exported" ? "Review Required" as const : asset.assetStatus }));
-  for (let index = 0; index < Math.max(2, assets.length + 1); index += 1) {
+export function evaluateImplementationAssetDependencies(
+  project: ProjectRecord,
+  assets: unknown,
+  enforceRawStoredEvidence = true,
+  sourceLabel = "assets"
+): ImplementationAssetDependencyEvaluation {
+  const normalized = normalizeAssetArrayForEvaluation(assets, sourceLabel);
+  let derived: ImplementationAsset[] = normalized.assets.map((asset) => ({ ...asset, assetStatus: asset.assetStatus === "Exported" ? "Review Required" as const : asset.assetStatus }));
+  const originalAssets = normalized.assets.map((asset) => ({ ...asset }));
+  for (let index = 0; index < Math.max(2, normalized.assets.length + 1); index += 1) {
     const byId = new Map(derived.map((asset) => [asset.assetId, asset]));
-    const next = derived.map((asset) => deriveAssetFromCurrentState(project, asset, byId));
+    const next = derived.map((asset) => deriveAssetFromCurrentState(project, asset, byId, originalAssets, enforceRawStoredEvidence));
     if (stableStringify(next.map((asset) => ({
       id: asset.assetId,
       status: asset.assetStatus,
       checksum: asset.contentChecksum,
-      dependencies: asset.dependencies.map((item) => [item.id, item.resolved, item.blockingIssue ?? ""])
+      dependencies: safeAssetArray(asset, "dependencies").map((item) => isObject(item) ? [item.id, item.resolved, item.blockingIssue ?? ""] : ["[malformed dependency]", false, "Malformed dependency record."])
     }))) === stableStringify(derived.map((asset) => ({
       id: asset.assetId,
       status: asset.assetStatus,
       checksum: asset.contentChecksum,
-      dependencies: asset.dependencies.map((item) => [item.id, item.resolved, item.blockingIssue ?? ""])
+      dependencies: safeAssetArray(asset, "dependencies").map((item) => isObject(item) ? [item.id, item.resolved, item.blockingIssue ?? ""] : ["[malformed dependency]", false, "Malformed dependency record."])
     })))) {
       derived = next;
       break;
@@ -1935,12 +2605,17 @@ export function evaluateImplementationAssetDependencies(project: ProjectRecord, 
   }
   return {
     assets: derived,
-    dependencyIssues: unique(derived.flatMap((asset) => asset.dependencies.flatMap((item) => item.required && !item.resolved ? [`${asset.assetId}: ${item.blockingIssue ?? `${item.label} is unresolved.`}`] : [])))
+    dependencyIssues: unique([
+      ...normalized.issues,
+      ...derived.flatMap((asset) => validGraphDependencies(asset).flatMap((item) => item.required && !item.resolved ? [`${asset.assetId}: ${item.blockingIssue ?? `${item.label} is unresolved.`}`] : [])),
+      ...derived.flatMap((asset) => asset.blockingIssues.filter(isRegistrySemanticBlockingIssue))
+    ])
   };
 }
 
-export function evaluateImplementationAssetGraph(assets: ImplementationAsset[]): ImplementationAssetGraphEvaluation {
-  const sortedAssets = [...assets].sort((a, b) => a.assetId.localeCompare(b.assetId));
+export function evaluateImplementationAssetGraph(assets: unknown): ImplementationAssetGraphEvaluation {
+  const normalized = normalizeAssetArrayForEvaluation(assets, "assets");
+  const sortedAssets = [...normalized.assets].sort((a, b) => a.assetId.localeCompare(b.assetId));
   const assetIds = sortedAssets.map((asset) => asset.assetId);
   const duplicateAssetIds = countDuplicates(assetIds);
   const duplicatePaths = countDuplicates(sortedAssets.map((asset) => asset.intendedPath));
@@ -1949,15 +2624,18 @@ export function evaluateImplementationAssetGraph(assets: ImplementationAsset[]):
   const missingAssetDependencyIssues: string[] = [];
   const unresolvedRecordDependencyIssues: string[] = [];
   const selfDependencyIssues: string[] = [];
+  const semanticIssues: string[] = [];
 
   for (const asset of sortedAssets) {
-    const dependencyIds = asset.dependencies.map((item) => item.id);
+    const dependencies = validGraphDependencies(asset);
+    semanticIssues.push(...assetSemanticIssues(asset));
+    const dependencyIds = dependencies.map((item) => item.id);
     duplicateDependencyIssues.push(...countDuplicates(dependencyIds).map((id) => `${asset.assetId}: duplicate dependency ID ${id}.`));
-    const targetAssetIds = asset.dependencies.flatMap((item) => item.type === "asset" && item.targetAssetId ? [item.targetAssetId] : []);
+    const targetAssetIds = dependencies.flatMap((item) => item.type === "asset" && item.targetAssetId ? [item.targetAssetId] : []);
     duplicateDependencyIssues.push(...countDuplicates(targetAssetIds).map((id) => `${asset.assetId}: duplicate target asset dependency ${id}.`));
-    const targetRecords = asset.dependencies.flatMap((item) => item.type !== "asset" && item.targetRecordId ? [`${item.type}:${item.targetRecordId}`] : []);
+    const targetRecords = dependencies.flatMap((item) => item.type !== "asset" && item.targetRecordId ? [`${item.type}:${item.targetRecordId}`] : []);
     duplicateDependencyIssues.push(...countDuplicates(targetRecords).map((id) => `${asset.assetId}: duplicate target record dependency ${id}.`));
-    for (const item of asset.dependencies) {
+    for (const item of dependencies) {
       if (item.type === "asset" && item.targetAssetId === asset.assetId) {
         selfDependencyIssues.push(`${asset.assetId}: self-dependency is not allowed.`);
       }
@@ -1984,8 +2662,9 @@ export function evaluateImplementationAssetGraph(assets: ImplementationAsset[]):
     if (visited.has(assetId)) return;
     const asset = assetById.get(assetId);
     if (!asset) return;
+    if (asset.blockingIssues.some(isRegistrySemanticBlockingIssue)) return;
     visiting.add(assetId);
-    for (const item of [...asset.dependencies].sort((a, b) => (a.targetAssetId ?? "").localeCompare(b.targetAssetId ?? ""))) {
+    for (const item of validGraphDependencies(asset).filter((item) => item.type === "asset").sort((a, b) => (a.targetAssetId ?? "").localeCompare(b.targetAssetId ?? ""))) {
       if (item.type === "asset" && item.targetAssetId && assetById.has(item.targetAssetId)) {
         visitForCycle(item.targetAssetId, [...trail, assetId]);
       }
@@ -1999,8 +2678,9 @@ export function evaluateImplementationAssetGraph(assets: ImplementationAsset[]):
   const orderedVisited = new Set<string>();
   function orderVisit(asset: ImplementationAsset): void {
     if (orderedVisited.has(asset.assetId) || cycleMembers.has(asset.assetId)) return;
+    if (asset.blockingIssues.some(isRegistrySemanticBlockingIssue)) return;
     orderedVisited.add(asset.assetId);
-    const dependencies = asset.dependencies
+    const dependencies = validGraphDependencies(asset)
       .filter((item) => item.type === "asset" && item.targetAssetId && assetById.has(item.targetAssetId))
       .sort((a, b) => (a.targetAssetId ?? "").localeCompare(b.targetAssetId ?? ""));
     for (const item of dependencies) {
@@ -2013,6 +2693,8 @@ export function evaluateImplementationAssetGraph(assets: ImplementationAsset[]):
   const completeOrder = circularDependencyIssues.length === 0 ? order : [];
 
   const dependencyIssues = unique([
+    ...normalized.issues,
+    ...semanticIssues,
     ...duplicateAssetIds.map((id) => `Duplicate asset ID: ${id}.`),
     ...duplicatePaths.map((path) => `Duplicate implementation asset path: ${path}.`),
     ...duplicateDependencyIssues,
@@ -2070,9 +2752,14 @@ function summarizeRegistry(assets: ImplementationAsset[], graph: ImplementationA
   };
 }
 
-export function deriveImplementationAssetRegistryState(project: ProjectRecord, assets: ImplementationAsset[]): ImplementationAssetRegistryState {
+export function deriveImplementationAssetRegistryState(
+  project: ProjectRecord,
+  assets: unknown,
+  enforceRawStoredEvidence = true,
+  sourceLabel = "assets"
+): ImplementationAssetRegistryState {
   const packageReadiness = evaluateGeneratedPackageReadiness(project).status;
-  const dependencyEvaluation = evaluateImplementationAssetDependencies(project, assets);
+  const dependencyEvaluation = evaluateImplementationAssetDependencies(project, assets, enforceRawStoredEvidence, sourceLabel);
   const graph = evaluateImplementationAssetGraph(dependencyEvaluation.assets);
   const summary = summarizeRegistry(dependencyEvaluation.assets, graph, packageReadiness);
   return {
@@ -2142,9 +2829,9 @@ function buildFreshAssets(project: ProjectRecord, generatedAt: string, storedApp
   const firstPass = baseAssets(project, generatedAt);
   const secondPass = withInstallationAsset(project, generatedAt, firstPass);
   const candidates = applyStoredApprovalCandidates(secondPass, storedApprovals);
-  const derivedWithCandidates = deriveImplementationAssetRegistryState(project, candidates).assets;
+  const derivedWithCandidates = deriveImplementationAssetRegistryState(project, candidates, false).assets;
   const approvalChecked = applyStoredApprovals(derivedWithCandidates, storedApprovals);
-  return deriveImplementationAssetRegistryState(project, approvalChecked).assets;
+  return deriveImplementationAssetRegistryState(project, approvalChecked, false).assets;
 }
 
 export function buildImplementationAssetRegistry(project: ProjectRecord, generatedAt = new Date().toISOString()): ImplementationAssetRegistry {
@@ -2276,15 +2963,39 @@ ${rows || "| None | Not Applicable | Not Applicable | None | None | None |"}
 `;
 }
 
-function registryStateFromStoredAssets(registry: ImplementationAssetRegistry, project?: ProjectRecord): ImplementationAssetRegistryState {
-  if (project) return deriveImplementationAssetRegistryState(project, registry.assets);
-  const assets = registry.assets.map((asset) => {
+function malformedPackageReadiness(input: unknown): "Draft" | "Ready for Codex" {
+  return isObject(input) && input.packageReadiness === "Ready for Codex" ? "Ready for Codex" : "Draft";
+}
+
+function registryEnvelopeIssues(registry: unknown): string[] {
+  const issues: string[] = [];
+  if (!isObject(registry)) {
+    issues.push("Registry envelope must be a non-null object.");
+    return issues;
+  }
+  if (!("assets" in registry)) {
+    issues.push("registry.assets is missing and must be an array.");
+  } else if (!Array.isArray(registry.assets)) {
+    issues.push("registry.assets must be an array.");
+  }
+  return issues;
+}
+
+function registryAssetsInput(registry: unknown): unknown {
+  return isObject(registry) && "assets" in registry ? registry.assets : undefined;
+}
+
+function registryStateFromStoredAssets(registry: unknown, project?: ProjectRecord): ImplementationAssetRegistryState {
+  const assetsInput = registryAssetsInput(registry);
+  if (project) return deriveImplementationAssetRegistryState(project, assetsInput, true, "registry.assets");
+  const normalized = normalizeAssetArrayForEvaluation(assetsInput, "registry.assets");
+  const assets = normalized.assets.map((asset) => {
     const withoutChecksum = { ...asset, assetStatus: "Draft" as const, contentChecksum: "" };
     const withStatus = { ...withoutChecksum, assetStatus: evaluateImplementationAssetStatus(withoutChecksum) };
     return { ...withStatus, contentChecksum: calculateImplementationAssetChecksum(withStatus) };
   });
   const graph = evaluateImplementationAssetGraph(assets);
-  const packageReadiness = registry.packageReadiness;
+  const packageReadiness = malformedPackageReadiness(registry);
   const summary = summarizeRegistry(assets, graph, packageReadiness);
   return {
     assets,
@@ -2296,21 +3007,29 @@ function registryStateFromStoredAssets(registry: ImplementationAssetRegistry, pr
   };
 }
 
-export function validateImplementationAssetRegistry(registry: ImplementationAssetRegistry, project?: ProjectRecord): string[] {
+function isRegistrySemanticBlockingIssue(issue: string): boolean {
+  return /\b(must be|unsupported|unknown|malformed|generationInputs\.formModeTargets|intendedPath|Duplicate form-mode action intended path)\b/i.test(issue);
+}
+
+export function validateImplementationAssetRegistry(registry: unknown, project?: ProjectRecord): string[] {
+  const envelopeIssues = registryEnvelopeIssues(registry);
   const state = registryStateFromStoredAssets(registry, project);
-  const issues: string[] = [...state.graph.issues];
-  if (registry.registryVersion !== 1) issues.push("Registry version does not match expected version.");
-  if (registry.generationVersion !== IMPLEMENTATION_ASSET_GENERATION_VERSION) issues.push("Registry generation version does not match implementation asset generator.");
-  if (project && registry.projectId !== project.identity.id) issues.push("Registry project ID does not match project.");
-  if (project && registry.projectName !== canonicalProjectName(project)) issues.push("Registry project name does not match project.");
-  if (project && registry.projectType !== canonicalProjectType(project)) issues.push("Registry project type does not match project.");
-  if (registry.packageReadiness !== state.packageReadiness) issues.push("Registry package readiness is stale.");
-  if (registry.assetPackageStatus !== state.assetPackageStatus) issues.push("Registry asset package status is stale.");
-  if (registry.effectiveImplementationReadiness !== state.effectiveImplementationReadiness) issues.push("Registry effective implementation readiness is stale.");
-  if (stableStringify(registry.dependencyIssues) !== stableStringify(state.graph.dependencyIssues)) issues.push("Registry dependency issue list is stale.");
-  if (stableStringify(registry.circularDependencyIssues) !== stableStringify(state.graph.circularDependencyIssues)) issues.push("Registry circular dependency issue list is stale.");
-  if (stableStringify(registry.generationOrder) !== stableStringify(state.graph.generationOrder)) issues.push("Registry generation order is stale.");
-  if (stableStringify(registry.installationOrder) !== stableStringify(state.graph.installationOrder)) issues.push("Registry installation order is stale.");
+  const registryObject = isObject(registry) ? registry : {};
+  const registryAssets = Array.isArray(registryObject.assets) ? registryObject.assets : [];
+  const issues: string[] = [...envelopeIssues, ...state.graph.issues];
+  issues.push(...state.assets.flatMap((asset) => asset.blockingIssues.filter(isRegistrySemanticBlockingIssue)));
+  if (registryObject.registryVersion !== 1) issues.push("Registry version does not match expected version.");
+  if (registryObject.generationVersion !== IMPLEMENTATION_ASSET_GENERATION_VERSION) issues.push("Registry generation version does not match implementation asset generator.");
+  if (project && registryObject.projectId !== project.identity.id) issues.push("Registry project ID does not match project.");
+  if (project && registryObject.projectName !== canonicalProjectName(project)) issues.push("Registry project name does not match project.");
+  if (project && registryObject.projectType !== canonicalProjectType(project)) issues.push("Registry project type does not match project.");
+  if (registryObject.packageReadiness !== state.packageReadiness) issues.push("Registry package readiness is stale.");
+  if (registryObject.assetPackageStatus !== state.assetPackageStatus) issues.push("Registry asset package status is stale.");
+  if (registryObject.effectiveImplementationReadiness !== state.effectiveImplementationReadiness) issues.push("Registry effective implementation readiness is stale.");
+  if (stableStringify(registryObject.dependencyIssues) !== stableStringify(state.graph.dependencyIssues)) issues.push("Registry dependency issue list is stale.");
+  if (stableStringify(registryObject.circularDependencyIssues) !== stableStringify(state.graph.circularDependencyIssues)) issues.push("Registry circular dependency issue list is stale.");
+  if (stableStringify(registryObject.generationOrder) !== stableStringify(state.graph.generationOrder)) issues.push("Registry generation order is stale.");
+  if (stableStringify(registryObject.installationOrder) !== stableStringify(state.graph.installationOrder)) issues.push("Registry installation order is stale.");
   const summaryFields: Array<keyof ImplementationAssetRegistrySummary> = [
     "applicableAssetCount",
     "readyAssetCount",
@@ -2326,19 +3045,21 @@ export function validateImplementationAssetRegistry(registry: ImplementationAsse
     "nextRequiredAction"
   ];
   for (const field of summaryFields) {
-    if (registry.summary[field] !== state.summary[field]) issues.push(`Registry summary ${String(field)} is stale.`);
+    if (!isObject(registryObject.summary) || registryObject.summary[field] !== state.summary[field]) issues.push(`Registry summary ${String(field)} is stale.`);
   }
   const expectedById = new Map(state.assets.map((asset) => [asset.assetId, asset]));
-  for (const asset of registry.assets) {
-    const expected = expectedById.get(asset.assetId);
+  for (const asset of registryAssets) {
+    if (!isObject(asset) || typeof asset.assetId !== "string") continue;
+    const assetId = asset.assetId;
+    const expected = expectedById.get(assetId);
     if (!expected) continue;
-    if (asset.assetStatus !== expected.assetStatus) issues.push(`Asset status for ${asset.assetId} is stale.`);
-    if (stableStringify(asset.gateEvaluationSnapshot) !== stableStringify(expected.gateEvaluationSnapshot)) issues.push(`Gate snapshot for ${asset.assetId} is stale.`);
-    if (stableStringify(asset.dependencies) !== stableStringify(expected.dependencies)) issues.push(`Dependency resolution for ${asset.assetId} is stale.`);
-    if (asset.approvalStatus === "Approved" && (expected.assetStatus !== "Ready for Export" || asset.contentChecksum !== expected.contentChecksum)) issues.push(`Approval for ${asset.assetId} is stale.`);
-    if (asset.contentChecksum !== expected.contentChecksum) issues.push(`Checksum mismatch for ${asset.assetId}.`);
-    if (asset.generationVersion !== IMPLEMENTATION_ASSET_GENERATION_VERSION) issues.push(`Generation version for ${asset.assetId} is stale.`);
-    if (asset.assetStatus === "Exported") issues.push(`Asset ${asset.assetId} uses exported status, which Phase 5A must not preserve.`);
+    if (asset.assetStatus !== expected.assetStatus) issues.push(`Asset status for ${assetId} is stale.`);
+    if (stableStringify(asset.gateEvaluationSnapshot) !== stableStringify(expected.gateEvaluationSnapshot)) issues.push(`Gate snapshot for ${assetId} is stale.`);
+    if (stableStringify(asset.dependencies) !== stableStringify(expected.dependencies)) issues.push(`Dependency resolution for ${assetId} is stale.`);
+    if (asset.approvalStatus === "Approved" && (expected.assetStatus !== "Ready for Export" || asset.contentChecksum !== expected.contentChecksum)) issues.push(`Approval for ${assetId} is stale.`);
+    if (asset.contentChecksum !== expected.contentChecksum) issues.push(`Checksum mismatch for ${assetId}.`);
+    if (typeof asset.generationVersion !== "string" || !COMPATIBLE_GENERATION_VERSIONS.has(asset.generationVersion)) issues.push(`Generation version for ${assetId} is stale.`);
+    if (asset.assetStatus === "Exported") issues.push(`Asset ${assetId} uses exported status, which Phase 5A must not preserve.`);
   }
   return unique(issues);
 }
