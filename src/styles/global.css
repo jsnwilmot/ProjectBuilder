@@ -132,31 +132,16 @@ h3 {
   display: flex;
   min-height: 76px;
   align-items: center;
-  gap: 13px;
   padding: 0 20px;
   border-bottom: 1px solid var(--border);
 }
 
-.brand-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border-radius: 9px;
-  background: var(--blue);
-  color: white;
-  box-shadow: 0 5px 14px rgba(8, 86, 220, 0.2);
-  font-size: 0.88rem;
-  font-weight: 800;
-  letter-spacing: -0.12em;
-}
-
-.brand-name {
-  max-width: 150px;
-  font-size: 0.98rem;
-  font-weight: 760;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+.brand-logo {
+  display: block;
+  width: min(205px, 100%);
+  height: auto;
+  max-height: 52px;
+  object-fit: contain;
 }
 
 .nav-list {
@@ -432,6 +417,13 @@ h3 {
   background:
     linear-gradient(135deg, rgba(29, 91, 180, 0.06), transparent 52%),
     white;
+}
+
+.welcome-logo {
+  display: block;
+  width: min(260px, 64vw);
+  height: auto;
+  margin: 0 0 18px;
 }
 
 .eyebrow,
@@ -2961,15 +2953,9 @@ tbody tr:hover {
     border-bottom: 0;
   }
 
-  .brand-mark {
-    width: 32px;
-    height: 32px;
-    font-size: 0.72rem;
-  }
-
-  .brand-name {
-    max-width: none;
-    font-size: 0.9rem;
+  .brand-logo {
+    width: min(190px, 62vw);
+    max-height: 44px;
   }
 
   .mobile-new-project {

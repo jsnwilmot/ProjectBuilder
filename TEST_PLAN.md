@@ -1,5 +1,24 @@
 # Test Plan
 
+## 2026-07-20 Project Builder Ai brand rename and logo integration
+
+- `git diff --check`: passed with line-ending warnings only.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd test`: passed (`28` unit/integration files, `1480` unit/integration tests, `7` UI files, `51` UI tests, `35` combined files, `1531` combined tests).
+- `npm.cmd run test:coverage`: passed (`28` coverage files, `1480` coverage tests, `7` UI files, `51` UI tests, `35` combined files, `1531` combined tests); coverage was `90.43%` statements, `81.48%` branches, `95.06%` functions, and `95.45%` lines.
+- `npm.cmd run build`: passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high`: passed with `0` vulnerabilities.
+- Browser metadata coverage verifies the page title is `Project Builder Ai` and `index.html` contains the required favicon, Apple touch icon, and product-description references.
+- Navigation coverage verifies the horizontal Project Builder Ai logo renders with useful alt text, the obsolete `</>` mark is absent, and the former visible product name is no longer displayed in navigation.
+- Welcome coverage verifies the stacked Project Builder Ai logo renders, the welcome copy describes AI-assisted handoff output, the copy does not imply an embedded AI model, and the first-run Create New Project flow still opens Guided Intake.
+- Storage compatibility coverage verifies `gpt-project-builder.storage.v2`, `gpt-project-builder.storage.v1`, and `gpt-project-builder:project:v1` remain unchanged and current saved records are not rewritten while loading.
+- Generated-document coverage verifies current product references use Project Builder Ai while GPT Architect and Codex Developer workflow terms remain present.
+- Build-output inspection confirmed logo files are emitted under `dist/branding/` and favicon/touch-icon files are emitted at the dist root.
+- Desktop browser QA at `1280 x 720` confirmed the horizontal logo fits the sidebar at about `203 x 47` pixels, the stacked welcome logo renders at about `260 x 196` pixels, the title is correct, no page-level overflow exists, and no console warnings or errors were recorded.
+- Mobile browser QA at `390 x 844` confirmed the horizontal logo fits the mobile header at about `190 x 44` pixels, the stacked welcome logo renders at about `250 x 189` pixels, Create New Project remains visible, navigation remains present, no page-level overflow exists, and no console warnings or errors were recorded.
+- Saved-project compatibility was covered by automated repository tests. The local browser profile used for manual QA did not contain existing saved projects.
+
 ## 2026-07-20 Phase 5B.4B.4 Canvas envelope structural validation
 
 - `npm.cmd run lint`: passed.

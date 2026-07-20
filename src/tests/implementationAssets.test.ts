@@ -1243,7 +1243,7 @@ describe("implementation asset registry correction", () => {
     expect(manifest.assetPackageStatus).toBe(registry.assetPackageStatus);
     expect(manifest.effectiveImplementationReadiness).toBe(registry.effectiveImplementationReadiness);
     expect(validateImplementationAssetManifest(manifest, registry, project)).toEqual([]);
-    expect(markdown).toContain("GPT Project Builder has not installed, imported, tested in Studio, published, deployed, or production-verified");
+    expect(markdown).toContain("Project Builder Ai has not installed, imported, tested in Studio, published, deployed, or production-verified");
   });
 
   it("rejects tampered manifests", () => {

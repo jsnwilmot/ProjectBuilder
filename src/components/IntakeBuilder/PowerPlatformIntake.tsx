@@ -1065,7 +1065,7 @@ function CanvasImplementationTargetEditor({
     <section className="structured-schema-editor" aria-label="Canvas implementation targets">
       <div className="field-error neutral">
         <CircleAlert size={15} aria-hidden="true" />
-        Structured targets are future Codex output targets only. GPT Project Builder does not generate Power Fx or Canvas YAML source files.
+        Structured targets are future Codex output targets only. Project Builder Ai does not generate Power Fx or Canvas YAML source files.
       </div>
       <RecordGroup title="Structured screen targets" addLabel="Add screen target" onAdd={() => updateRows("screenTargets", (rows) => [...rows, createDefaultCanvasScreenTarget()])}>
         {canvas.screenTargets.map((row) => (

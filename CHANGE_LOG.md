@@ -1,5 +1,77 @@
 # Change Log
 
+## 2026-07-20 - Project Builder Ai Brand Rename and Logo Integration
+
+### Summary
+
+- Renamed current visible product branding from GPT Project Builder to Project Builder Ai.
+- Integrated approved horizontal, stacked, and icon logo PNG assets from the Project Builder Ai business logo source folder.
+- Added square favicon and touch-icon derivatives from the approved icon-only logo, centered on transparent square canvases without stretching or cropping.
+- Updated navigation, first-run Mission Control welcome copy, browser metadata, package metadata, current documentation, generated-document product references, and related regression tests.
+- Preserved GPT Architect, Codex Developer, Ready for Codex, Architect instructions, Codex instructions, and Codex prompt workflow terminology.
+- Preserved infrastructure identifiers, including the existing `projectbuilder` Cloudflare Worker and production URL.
+- Preserved the existing `gpt-project-builder.*` localStorage keys for backward compatibility and documented that saved/generated documents may retain former wording until regeneration.
+- Preserved phase boundaries: no Phase 5B.4C work, lifecycle Power Fx generation, formula fragments, `.fx` files, Canvas YAML, model-driven source, Power Automate source, storage migration, infrastructure rename, deployment, or commit was performed.
+
+### Files created
+
+- `public/branding/project-builder-ai-horizontal.png` - approved horizontal logo.
+- `public/branding/project-builder-ai-stacked.png` - approved stacked logo.
+- `public/branding/project-builder-ai-icon.png` - approved icon-only logo.
+- `public/favicon-16x16.png` - favicon derivative.
+- `public/favicon-32x32.png` - favicon derivative.
+- `public/favicon-48x48.png` - favicon derivative.
+- `public/apple-touch-icon.png` - 180-pixel touch icon derivative.
+- `public/icon-192.png` - 192-pixel icon derivative.
+- `public/icon-512.png` - 512-pixel icon derivative.
+
+### Files updated
+
+- `AGENTS.md` - current product name updated while preserving Architect/Developer workflow terms.
+- `DEPLOYMENT_NOTES.md` - smoke-test identity wording updated while preserving Worker details.
+- `README.md` - product positioning and storage-compatibility note updated.
+- `RELEASE_NOTES.md` - current release heading updated.
+- `RELEASE_READINESS_REPORT.md` - current release summary updated.
+- `index.html` - title, description, theme color, favicon links, and Apple touch icon added.
+- `package.json` - package name changed to `project-builder-ai`.
+- `package-lock.json` - package name changed to `project-builder-ai`.
+- `scripts/run-tests.mjs` - test summary counts updated after added branding regression tests.
+- `scripts/run-tests-with-coverage.mjs` - coverage runner summary counts updated after added branding regression tests.
+- `src/components/AppShell/AppNavigation.tsx` - text/mark brand replaced with the approved horizontal logo.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - product-boundary copy updated.
+- `src/components/MissionControl/MissionControl.tsx` - first-run welcome stacked logo and accurate AI-assisted handoff copy added.
+- `src/lib/implementationAssets.ts` - product-boundary wording updated.
+- `src/styles/global.css` - responsive navigation and welcome logo styling added.
+- `src/templates/documents/index.ts` - generated-document product reference updated.
+- `src/tests/App.navigation.test.tsx` - navigation logo, welcome logo, metadata, favicon, and asset coverage added.
+- `src/tests/generateProjectPackage.test.ts` - generated-document brand and preserved workflow-term coverage added.
+- `src/tests/implementationAssets.test.ts` - implementation manifest product-boundary expectation updated.
+- `src/tests/projectRepository.test.ts` - storage-key compatibility and no-rewrite coverage added.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - branding validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `git diff --check` - passed with line-ending warnings only.
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npm.cmd test` - passed (`28` unit/integration files, `1480` tests; `7` UI files, `51` tests; `35` combined files, `1531` tests).
+- `npm.cmd run test:coverage` - passed (`28` coverage files, `1480` tests; `7` UI files, `51` tests; `35` combined files, `1531` tests); coverage was `90.43%` statements, `81.48%` branches, `95.06%` functions, and `95.45%` lines.
+- `npm.cmd run build` - passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high` - passed with `0` vulnerabilities.
+- Build-output inspection confirmed `dist/index.html` uses `Project Builder Ai` and includes favicon/touch-icon links.
+- Build-output inspection confirmed the new logo and icon files are emitted under `dist/branding/` and the favicon files are emitted at the dist root.
+- Desktop browser QA at `1280 x 720` passed: title correct, horizontal logo loaded, stacked welcome logo loaded, no horizontal overflow, and no console warnings or errors.
+- Mobile browser QA at `390 x 844` passed: title correct, horizontal logo remains readable, stacked welcome logo fits the panel, no horizontal overflow, navigation remains present, and no console warnings or errors.
+
+### Issues found
+
+- Medium validation issue fixed during implementation: TypeScript test helpers initially referenced Node modules without the app tsconfig's Node ambient types. The test now documents the Node-only assertion boundary while leaving runtime configuration unchanged.
+
 ## 2026-07-20 - Phase 5B.4B.4 Canvas Envelope Structural Validation
 
 ### Summary

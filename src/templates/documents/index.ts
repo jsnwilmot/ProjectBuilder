@@ -288,7 +288,7 @@ const projectScope = (project: ProjectRecord) => join(
   `## Success criteria\n\n${listOrMissing(project.intake.successCriteria, "success criteria")}`,
   "## Scope-change rules\n\n- Any new connector, data source, app type, deployment target, authentication model, paid service, or generated implementation asset requires Architect approval before Codex work begins.",
   `## Approval status\n\n${packageReadiness(project)}`,
-  "## Approved boundaries\n\n- Keep local persistence, no backend, no authentication, no import, and no external AI calls unless explicitly approved.\n- GPT Project Builder prepares the client project package and does not build the final client app directly.",
+  "## Approved boundaries\n\n- Keep local persistence, no backend, no authentication, no import, and no external AI calls unless explicitly approved.\n- Project Builder Ai prepares the client project package and does not build the final client app directly.",
   `## Missing scope decisions\n\n${missingSummary(project)}`,
   reviewDecisionSummary(project)
 );

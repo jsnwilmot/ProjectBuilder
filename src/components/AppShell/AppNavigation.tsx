@@ -29,8 +29,13 @@ export function AppNavigation({ currentView, onNavigate, onNewProject }: AppNavi
   return (
     <aside className="app-navigation" aria-label="Primary navigation">
       <div className="brand">
-        <span className="brand-mark" aria-hidden="true">&lt;/&gt;</span>
-        <span className="brand-name">GPT Project Builder</span>
+        <img
+          className="brand-logo"
+          src="/branding/project-builder-ai-horizontal.png"
+          alt="Project Builder Ai"
+          width={205}
+          height={48}
+        />
       </div>
 
       <button className="button button-primary mobile-new-project" onClick={onNewProject}>

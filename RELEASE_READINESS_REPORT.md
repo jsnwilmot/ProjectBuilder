@@ -2,7 +2,7 @@
 
 ## Summary
 
-GPT Project Builder completed deployment-operations lockdown on top of MVP release readiness. The production mechanism, Worker details, physical-keyboard behavior, and Windows Explorer ZIP result are now documented. Firefox remains unavailable and the production release owner remains unassigned.
+Project Builder Ai completed deployment-operations lockdown on top of MVP release readiness. The production mechanism, Worker details, physical-keyboard behavior, and Windows Explorer ZIP result are now documented. Firefox remains unavailable and the production release owner remains unassigned.
 
 ## Production URL tested
 

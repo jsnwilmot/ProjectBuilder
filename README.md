@@ -1,6 +1,6 @@
-# GPT Project Builder
+# Project Builder Ai
 
-GPT Project Builder turns a rough app idea into a structured project package for Architect review and phased Codex development. It is a project launcher and handoff generator, not a generic app builder.
+Project Builder Ai creates structured project plans, architecture instructions, developer instructions, and phased handoff prompts for AI-assisted project delivery. It is a project launcher and handoff generator, not an AI app builder, built-in AI assistant, or automatic software developer.
 
 ## Included workflows
 
@@ -47,6 +47,8 @@ GPT Project Builder turns a rough app idea into a structured project package for
 ## MVP persistence
 
 The MVP persists to the current localStorage key `gpt-project-builder.storage.v2`.
+
+The storage keys intentionally retain the former product slug for backward compatibility. Project Builder Ai does not create a new storage key during the brand rename, migrate saved browser data, rewrite saved project records, or clear existing user data. Existing saved generated documents may retain former product wording until the user regenerates that project package.
 
 Load order is deterministic and safety-first:
 

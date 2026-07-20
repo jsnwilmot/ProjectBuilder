@@ -1,4 +1,4 @@
-# GPT Project Builder MVP Release Candidate
+# Project Builder Ai MVP Release Candidate
 
 Release date: 2026-06-28
 

@@ -1,10 +1,10 @@
 # AGENTS.md
 
-# GPT Project Builder, Codex Developer Instructions
+# Project Builder Ai, Codex Developer Instructions
 
 ## 1. Project Role
 
-You are Codex, the Developer for GPT Project Builder.
+You are Codex, the Developer for Project Builder Ai.
 
 GPT is the Architect.
 Codex is the Developer.
@@ -18,7 +18,7 @@ Do not overwrite existing work without explaining why.
 
 ## 2. Project Purpose
 
-GPT Project Builder is a meta-app that helps users turn a rough project idea into a structured project package.
+Project Builder Ai is a meta-app that helps users turn a rough project idea into a structured project package.
 
 The app does not build the client’s final app directly.
 
@@ -434,7 +434,7 @@ Small cleanup, wording improvement, minor formatting, optional refactor.
 
 Allowed:
 
-* Build the GPT Project Builder app foundation
+* Build the Project Builder Ai app foundation
 * Create and update app files
 * Implement intake flow
 * Implement generated documents
@@ -512,7 +512,7 @@ Before reporting completion, check:
 
 ## 26. Main Instruction
 
-Build GPT Project Builder as a clean project launcher, guided intake system, document generator, and Codex handoff package creator.
+Build Project Builder Ai as a clean project launcher, guided intake system, document generator, and Codex handoff package creator.
 
 Do not turn it into a generic app builder.
 

@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- shared App UI test import block keeps split suites mechanically aligned */
 import { fireEvent, render, screen, within } from "@testing-library/react";
+// @ts-expect-error -- Vitest runs this metadata assertion in Node; the app tsconfig intentionally excludes Node ambient types.
+import { existsSync, readFileSync } from "node:fs";
+// @ts-expect-error -- Vitest runs this metadata assertion in Node; the app tsconfig intentionally excludes Node ambient types.
+import { resolve } from "node:path";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../app/App";
@@ -26,7 +30,48 @@ import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
 
+declare const process: { cwd(): string };
+
 describe("App - navigation", () => {
+  it("renders the Project Builder Ai navigation logo without the obsolete text brand or mark", () => {
+    seedApp();
+    render(<App />);
+
+    const logo = screen.getByRole("img", { name: "Project Builder Ai" });
+    expect(logo).toHaveAttribute("src", "/branding/project-builder-ai-horizontal.png");
+    expect(screen.queryByText("GPT Project Builder")).not.toBeInTheDocument();
+    expect(screen.queryByText("</>")).not.toBeInTheDocument();
+  });
+
+  it("uses Project Builder Ai browser metadata and favicon asset references", () => {
+    const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+
+    expect(html).toContain("<title>Project Builder Ai</title>");
+    expect(html).toContain("Project Builder Ai turns rough app ideas into structured project plans");
+    expect(html).toContain('href="/favicon-16x16.png"');
+    expect(html).toContain('href="/favicon-32x32.png"');
+    expect(html).toContain('href="/favicon-48x48.png"');
+    expect(html).toContain('href="/apple-touch-icon.png"');
+  });
+
+  it("keeps required brand and favicon files available to the app", () => {
+    const requiredAssets = [
+      "public/branding/project-builder-ai-horizontal.png",
+      "public/branding/project-builder-ai-stacked.png",
+      "public/branding/project-builder-ai-icon.png",
+      "public/favicon-16x16.png",
+      "public/favicon-32x32.png",
+      "public/favicon-48x48.png",
+      "public/apple-touch-icon.png",
+      "public/icon-192.png",
+      "public/icon-512.png"
+    ];
+
+    for (const assetPath of requiredAssets) {
+      expect(existsSync(resolve(process.cwd(), assetPath))).toBe(true);
+    }
+  });
+
   it("moves focus to the main landmark from the skip link", async () => {
     seedApp();
     const user = userEvent.setup();
@@ -92,6 +137,16 @@ describe("App - navigation", () => {
     const user = userEvent.setup();
     render(<App />);
 
+    const logos = screen.getAllByRole("img", { name: "Project Builder Ai" });
+    expect(logos.some((logo) => logo.getAttribute("src") === "/branding/project-builder-ai-stacked.png")).toBe(true);
+    expect(logos.find((logo) => logo.getAttribute("src") === "/branding/project-builder-ai-stacked.png")).toHaveAttribute(
+      "src",
+      "/branding/project-builder-ai-stacked.png"
+    );
+    expect(screen.getByText("AI-guided project architecture and developer handoff")).toBeInTheDocument();
+    expect(screen.getByText(/Project Builder Ai creates structured project plans/)).toBeInTheDocument();
+    expect(screen.getByText(/does not embed an AI model/)).toBeInTheDocument();
+    expect(screen.queryByText(/built-in AI assistant/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What it creates" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "What it does not create" })).toBeInTheDocument();

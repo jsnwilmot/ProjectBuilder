@@ -1883,7 +1883,7 @@ function installationAsset(project: ProjectRecord, platform: ImplementationAsset
     generationTimestamp: now,
     generationVersion: IMPLEMENTATION_ASSET_GENERATION_VERSION,
     manualInstallationRequirements: [
-      "Installation is manual and external to GPT Project Builder.",
+      "Installation is manual and external to Project Builder Ai.",
       "Power Apps Studio, Dataverse, SharePoint, and Power Automate changes require an authorized human implementer."
     ],
     validationRequirements: [
@@ -2959,7 +2959,7 @@ ${rows || "| None | Not Applicable | Not Applicable | None | None | None |"}
 ## Manual boundary
 
 - These assets are generated developer inputs only.
-- GPT Project Builder has not installed, imported, tested in Studio, published, deployed, or production-verified any Power Platform solution.
+- Project Builder Ai has not installed, imported, tested in Studio, published, deployed, or production-verified any Power Platform solution.
 `;
 }
 

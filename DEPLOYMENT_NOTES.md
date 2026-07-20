@@ -111,7 +111,7 @@ Rollback restores application assets only. It cannot restore browser data that a
 
 ## Post-deployment smoke test
 
-1. Open the production URL and confirm the GPT Project Builder identity.
+1. Open the production URL and confirm the Project Builder Ai identity.
 2. Confirm the page renders without a blank screen, framework overlay, console errors, or horizontal overflow.
 3. Create a project and confirm project type is required.
 4. Confirm Business website, Game, Dashboard, API, and internal-tool questions change appropriately.

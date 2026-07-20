@@ -64,6 +64,16 @@ describe("generateProjectPackage", () => {
     expect(codex?.content).toContain("## Scope boundary rule");
   });
 
+  it("uses the current product name while preserving GPT Architect and Codex Developer terms", () => {
+    const result = generateProjectPackage(createSeedProject());
+    const combinedDocuments = result.documents.map((document) => document.content).join("\n");
+
+    expect(combinedDocuments).toContain("Project Builder Ai prepares the client project package");
+    expect(combinedDocuments).not.toContain("GPT Project Builder prepares");
+    expect(combinedDocuments).toContain("GPT Architect");
+    expect(combinedDocuments).toContain("Codex Developer");
+  });
+
   it("includes phased prompts with required sections", () => {
     const result = generateProjectPackage(createSeedProject());
     const prompts = result.documents.find((document) => document.fileName === "PHASED_CODEX_PROMPTS.md");

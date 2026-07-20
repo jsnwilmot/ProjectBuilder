@@ -87,11 +87,18 @@ export function MissionControl({
         </div>
         <div className="welcome-layout">
           <section className="welcome-panel" aria-labelledby="welcome-title">
-            <span className="eyebrow">Welcome to GPT Project Builder</span>
+            <img
+              className="welcome-logo"
+              src="/branding/project-builder-ai-stacked.png"
+              alt="Project Builder Ai"
+              width={260}
+              height={196}
+            />
+            <span className="eyebrow">AI-guided project architecture and developer handoff</span>
             <h2 id="welcome-title">Turn a rough project idea into a clear Codex handoff</h2>
             <p className="welcome-intro">
-              Create your first project, choose its type, complete the tailored intake, review missing information,
-              generate the package, and move to Codex when the checklist is complete.
+              Project Builder Ai creates structured project plans, architecture instructions, developer instructions,
+              and phased handoff prompts for AI-assisted project delivery.
             </p>
             <div className="welcome-boundaries">
               <div>
@@ -100,7 +107,7 @@ export function MissionControl({
               </div>
               <div>
                 <h3>What it does not create</h3>
-                <p>It does not build the final client application or replace review by the client, GPT Architect, or developer.</p>
+                <p>It does not embed an AI model, build the final client application, or replace review by the client, GPT Architect, or developer.</p>
               </div>
             </div>
             <div className="welcome-actions">
