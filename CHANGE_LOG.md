@@ -1,5 +1,143 @@
 # Change Log
 
+## 2026-07-20 - Phase 5B.4A.3 Connector-Selection Shape and Ownership Safety
+
+### Summary
+
+- Added runtime shape validation for Canvas connector-selection evidence before lifecycle validation calls canonical connector reconciliation.
+- Blocked malformed `primaryDataSourceType`, `selectedDataSourceTypes`, `primaryConnectorId`, and `secondaryConnectorIds` from producing active connector ownership.
+- Preserved canonical reconciliation blockers in lifecycle validation results after connector-selection storage passes runtime shape validation.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/recordLifecycleTargets.ts` - connector-selection storage safety and reconciliation blocker preservation.
+- `src/tests/recordLifecycleTargets.test.ts` - focused coverage for malformed connector-selection storage and reconciliation blocker visibility.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4A.3 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `156` tests).
+
+### Issues found
+
+- None blocking after correction.
+
+## 2026-07-20 - Phase 5B.4A.2 Ownership Record Safety and Canonical Entity Ownership
+
+### Summary
+
+- Corrected Canvas record lifecycle ownership validation so malformed form-operation submit-control IDs and form-mode trigger-control IDs block instead of being silently discarded from reserved ownership sets.
+- Aligned SharePoint list, SharePoint library, and Dataverse table ownership with canonical implicit connector ownership: zero active compatible connectors block, exactly one active compatible connector must match the target connector, and multiple active compatible connectors block as ambiguous.
+- Preserved explicit connector-resource ownership through the resource's stored connector ID.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/recordLifecycleTargets.ts` - ownership record ID safety and canonical entity ownership handling.
+- `src/tests/recordLifecycleTargets.test.ts` - focused coverage for malformed ownership IDs, ambiguous implicit ownership, and explicit connector-resource ownership.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4A.2 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `124` tests).
+
+### Issues found
+
+- None blocking after correction.
+
+## 2026-07-19 - Phase 5B.4A.1 Delete Strategy Consistency and Current-Project Shape Safety
+
+### Summary
+
+- Corrected Canvas record lifecycle validation so every delete target requires `archiveStrategy: notApplicable`, including soft-delete and missing-decision delete targets.
+- Added current-project collection shape validation before lifecycle lookups so malformed Canvas, connector, ownership, entity, field, screen, control, and state-variable collections block safely without throwing.
+- Preserved legacy absence handling for `recordLifecycleTargets` while preventing malformed established supporting collections from being treated as empty ownership or schema evidence.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/recordLifecycleTargets.ts` - delete strategy consistency and current-project collection/record shape safety.
+- `src/tests/recordLifecycleTargets.test.ts` - focused defect coverage for delete archive-strategy consistency and malformed current-project shapes.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4A.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `98` tests).
+
+### Issues found
+
+- None blocking after correction.
+
+## 2026-07-19 - Phase 5B.4A Canvas Record Lifecycle Action Target Model
+
+### Summary
+
+- Added a controlled Canvas record lifecycle target model for archive, restore, and delete actions.
+- Added safe normalization and validation for lifecycle target IDs, trigger buttons, screens, connectors, entities, record context references, archive/restore strategies, delete strategies, destructive-action evidence, duplicates, archive/restore pair consistency, deterministic ordering, and mutation safety.
+- Preserved the Phase 5B.4A boundary: no implementation assets, no Power Fx generation, no `.fx` files, no connector/entity data reads, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.4B planning.
+
+### Files created
+
+- `src/lib/recordLifecycleTargets.ts` - typed normalization, deterministic ordering, and validation for Canvas archive, restore, and delete lifecycle targets.
+- `src/tests/recordLifecycleTargets.test.ts` - focused Phase 5B.4A acceptance and regression coverage.
+
+### Files updated
+
+- `src/types/project.ts` - added Canvas record lifecycle target types and canonical Canvas storage property.
+- `src/lib/powerPlatform.ts` - initialized and normalized `recordLifecycleTargets` for Canvas projects.
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4A validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `67` tests).
+
+### Issues found
+
+- Initial safe-reference detection was too broad for ordinary stable IDs containing words such as `form`. Corrected within the Phase 5B.4A validator to block formula-looking expressions without blocking safe IDs.
+- Initial status-field missing archive/restore values were reported only as missing decisions. Corrected so required missing strategy values block validation.
+
 ## 2026-07-19 - Phase 5B.3F Controlled Canvas Form-Mode Power Fx Generation
 
 ### Summary

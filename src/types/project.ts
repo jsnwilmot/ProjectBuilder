@@ -395,6 +395,53 @@ export interface CanvasFormModeTarget {
   sortOrder: number;
 }
 
+export type CanvasRecordLifecycleAction =
+  | "archive"
+  | "restore"
+  | "delete";
+
+export type CanvasRecordLifecycleTrigger =
+  | "controlOnSelect";
+
+export type CanvasRecordContextType =
+  | "selectedRecord"
+  | "formItem"
+  | "explicitRecordVariable"
+  | "missingDecision";
+
+export type CanvasArchiveStrategy =
+  | "statusField"
+  | "activeFlag"
+  | "archivedFlag"
+  | "softDeleteFlag"
+  | "notApplicable";
+
+export type CanvasDeleteStrategy =
+  | "softDeleteOnly"
+  | "permanentDeleteApproved"
+  | "missingDecision";
+
+export interface CanvasRecordLifecycleTarget {
+  id: string;
+  action: CanvasRecordLifecycleAction;
+  trigger: CanvasRecordLifecycleTrigger;
+  triggerControlId: string;
+  screenTargetId: string;
+  connectorId: string;
+  entityId: string;
+  recordContextType: CanvasRecordContextType;
+  recordContextReferenceId: string;
+  archiveStrategy: CanvasArchiveStrategy;
+  lifecycleFieldId: string;
+  archiveValue: string;
+  restoreValue: string;
+  deleteStrategy: CanvasDeleteStrategy;
+  confirmationStatus: PowerPlatformDecisionStatus;
+  destructiveActionConfirmed: boolean;
+  required: boolean;
+  sortOrder: number;
+}
+
 export interface CanvasComponentTarget {
   id: string;
   approvedComponentName: string;
@@ -731,6 +778,7 @@ export interface PowerPlatformCanvasData {
   collectionTargets: CanvasCollectionTarget[];
   formOperationTargets: CanvasFormOperationTarget[];
   formModeTargets: CanvasFormModeTarget[];
+  recordLifecycleTargets: CanvasRecordLifecycleTarget[];
   screenNamingConvention: string;
   controlNamingConvention: string;
   controlTypePrefixes: string;

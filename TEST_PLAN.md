@@ -1,5 +1,51 @@
 # Test Plan
 
+## 2026-07-20 Phase 5B.4A.3 connector-selection shape and ownership safety
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `156` tests).
+- Connector-selection coverage verifies malformed `secondaryConnectorIds`, `selectedDataSourceTypes`, `primaryConnectorId`, and `primaryDataSourceType` block without throwing before connector reconciliation can derive active ownership.
+- Reconciliation coverage verifies valid connector-selection storage still calls the canonical reconciliation path and preserves reconciliation blockers in lifecycle validation results.
+- Boundary coverage verifies malformed connector-selection evidence cannot become Not Applicable, cannot be interpreted as empty valid selection evidence, and cannot create a partial active connector set.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `27` files and `1324` tests, plus `7` App UI files and `43` tests, for `34` files and `1367` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `27` files and `1324` tests, plus `7` App UI files and `43` tests, for `34` files and `1367` tests total.
+- Full tests, coverage, build, audit, and extracted-package validation remain deferred to the Phase 5B.4A commit gate by Architect instruction.
+
+## 2026-07-20 Phase 5B.4A.2 ownership record safety and canonical entity ownership
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `124` tests).
+- Ownership record coverage verifies missing, undefined, null, numeric, object, blank, path-like, and formula-looking form-operation submit-control IDs and form-mode trigger-control IDs block instead of being discarded from reserved ownership sets.
+- Entity ownership coverage verifies SharePoint list, SharePoint library, and Dataverse table schemas use canonical implicit ownership: zero compatible active connectors block, exactly one active compatible connector must match the lifecycle target connector, and multiple active compatible connectors block as ambiguous even when the target names one connector.
+- Connector-resource coverage verifies explicit stored connector ownership is preserved and different, inactive, missing, or incompatible owners block.
+- Boundary coverage verifies no implementation asset, lifecycle Power Fx, `.fx` file, Canvas YAML, model-driven source, UI/export integration, or Phase 5B.4B planning.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `27` files and `1292` tests, plus `7` App UI files and `43` tests, for `34` files and `1335` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `27` files and `1292` tests, plus `7` App UI files and `43` tests, for `34` files and `1335` tests total.
+- Full tests, coverage, build, audit, and extracted-package validation remain deferred to the Phase 5B.4A commit gate by Architect instruction.
+
+## 2026-07-19 Phase 5B.4A.1 delete strategy consistency and current-project shape safety
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `98` tests).
+- Delete consistency coverage verifies all delete actions require `archiveStrategy: notApplicable`; soft-delete targets cannot carry `statusField`, `activeFlag`, `archivedFlag`, or `softDeleteFlag`; permanent-delete and missing-decision delete targets also block contradictory archive strategies.
+- Current-project shape coverage verifies malformed `screenTargets`, `controlTargets`, `stateVariableTargets`, `formOperationTargets`, `formModeTargets`, `recordLifecycleTargets`, schema collections, field collections, and `powerPlatform.common.connectors` block safely without throwing.
+- Ownership safety coverage verifies malformed form-operation and form-mode collections cannot become valid empty ownership sets, while genuine valid empty ownership arrays remain permitted.
+- Boundary coverage verifies no implementation asset, lifecycle Power Fx, `.fx` file, Canvas YAML, model-driven source, UI/export integration, or Phase 5B.4B planning.
+- Normal runner summaries have been updated for the expanded focused file: unit/integration execution is now `27` files and `1266` tests, plus `7` App UI files and `43` tests, for `34` files and `1309` tests total.
+- Coverage runner summaries have been updated for the expanded focused file: coverage execution is now `27` files and `1266` tests, plus `7` App UI files and `43` tests, for `34` files and `1309` tests total.
+- Full tests, coverage, build, audit, and extracted-package validation remain deferred to the Phase 5B.4A commit gate by Architect instruction.
+
+## 2026-07-19 Phase 5B.4A Canvas record lifecycle action target model
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `67` tests).
+- Lifecycle target coverage verifies typed archive, restore, and delete target normalization; canonical Canvas storage defaults; legacy missing storage; malformed raw input blocking; deterministic ordering; and mutation safety.
+- Validation coverage verifies target ID safety, trigger button ownership, screen resolution, connector/entity resolution, record context references, archive/restore strategy compatibility, delete strategy safety, destructive-action evidence, archive/restore pair consistency, duplicate detection, and malformed input no-throw behavior.
+- Boundary coverage verifies no implementation asset, no Power Fx generation, no `.fx` file, no record-selection expression, no connector/entity data reads, no Canvas YAML, no model-driven source, no UI/export integration, and no Phase 5B.4B planning.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `27` files and `1235` tests, plus `7` App UI files and `43` tests, for `34` files and `1278` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `27` files and `1235` tests, plus `7` App UI files and `43` tests, for `34` files and `1278` tests total.
+- Full tests, coverage, build, audit, Linux validation, and extracted-package validation remain deferred to the Phase 5B.4A commit gate by Architect instruction.
+
 ## 2026-07-19 Phase 5B.3F controlled Canvas form-mode Power Fx generation
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.

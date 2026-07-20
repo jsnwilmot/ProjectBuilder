@@ -11,6 +11,7 @@ import { CANVAS_NAVIGATION_TRANSITIONS } from "../types/project";
 import { normalizeCanvasCollectionTargets } from "./collectionInitialization";
 import { normalizeCanvasFormModeTargets } from "./formModeTargets";
 import { normalizeCanvasFormOperationTargets } from "./formOperationTargets";
+import { normalizeCanvasRecordLifecycleTargets } from "./recordLifecycleTargets";
 import { normalizeCanvasStateVariableTargets } from "./stateInitialization";
 import type {
   CanvasDataSourceType,
@@ -762,6 +763,7 @@ function createDefaultCanvasData(): PowerPlatformCanvasData {
     collectionTargets: [],
     formOperationTargets: [],
     formModeTargets: [],
+    recordLifecycleTargets: [],
     screenNamingConvention: "",
     controlNamingConvention: "",
     controlTypePrefixes: "",
@@ -2500,6 +2502,7 @@ export function normalizePowerPlatformData(
       collectionTargets: normalizeCanvasCollectionTargets((canvas as { collectionTargets?: unknown }).collectionTargets),
       formOperationTargets: normalizeCanvasFormOperationTargets((canvas as { formOperationTargets?: unknown }).formOperationTargets),
       formModeTargets: normalizeCanvasFormModeTargets((canvas as { formModeTargets?: unknown }).formModeTargets),
+      recordLifecycleTargets: normalizeCanvasRecordLifecycleTargets((canvas as { recordLifecycleTargets?: unknown }).recordLifecycleTargets),
       componentApplicabilityDecision: createApplicabilityDecision(isObject(canvas.componentApplicabilityDecision) ? canvas.componentApplicabilityDecision : {}),
       screenNamingConvention: asString(canvas.screenNamingConvention),
       controlNamingConvention: asString(canvas.controlNamingConvention),
