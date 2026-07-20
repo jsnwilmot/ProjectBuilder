@@ -1,5 +1,227 @@
 # Change Log
 
+## 2026-07-20 - Phase 5B.4B.4 Canvas Envelope Structural Validation
+
+### Summary
+
+- Added Canvas storage-envelope structural validation before lifecycle target validation runs.
+- Partial Canvas envelopes now block instead of being classified as Not Applicable.
+- Required Canvas collections must be arrays, record collections must contain object entries, `primaryDataSourceType` and `primaryConnectorId` must be strings, and `recordLifecycleTargets` must be undefined or an array of objects.
+- Structurally valid Canvas projects with empty or undefined lifecycle targets still return Not Applicable without requiring lifecycle decisions.
+- Preserved lifecycle planning output for valid Canvas lifecycle targets and preserved recognized non-Canvas Not Applicable behavior.
+- Preserved phase boundaries: no lifecycle Power Fx, formula fragments, `.fx` files, Canvas YAML, model-driven source, implementation assets, manifest changes, or export integration were added.
+
+### Files created
+
+- None beyond the existing approved Phase 5B.4B source and test files.
+
+### Files updated
+
+- `src/lib/recordLifecyclePlanning.ts` - Canvas storage-envelope structural guard and deterministic shape blockers.
+- `src/tests/recordLifecyclePlanning.test.ts` - malformed Canvas collection, connector collection, lifecycle collection, empty lifecycle, undefined lifecycle, mutation, and determinism coverage.
+- `scripts/run-tests.mjs` - updated runner summary counts after actual Vitest output.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts after actual Vitest output.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4B.4 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `154` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1` - passed (`1` file, `9` tests).
+- `npx.cmd vitest run --config vitest.unit.config.ts` - passed (`28` files, `1478` tests).
+- `npm.cmd test` - passed (`28` unit/integration files, `1478` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1526` combined tests).
+- `npm.cmd run test:coverage` - passed (`28` coverage files, `1478` coverage tests, `7` UI files, `48` UI tests, `35` combined files, `1526` combined tests); coverage was `90.43%` statements, `81.48%` branches, `95.06%` functions, and `95.45%` lines.
+- `npm.cmd run build` - passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high` - passed with `0` vulnerabilities.
+
+### Issues found
+
+- High runtime-envelope defect fixed: malformed or partial Canvas envelopes with no lifecycle targets could be incorrectly classified as Not Applicable.
+
+## 2026-07-20 - Phase 5B.4B.3 Runtime Envelope Discrimination Correction
+
+### Summary
+
+- Replaced user-controlled result detection with an internal `SafeProjectResolution` wrapper so extra project properties such as `planningStatus`, `plans`, `targets`, `orderedTargets`, `blockingIssues`, `result`, or `kind` cannot be returned as a planning result.
+- Project app types are now validated against the canonical project type registry via `isProjectType`.
+- Blank, whitespace-only, unsupported, and formula-looking app types now block with a controlled malformed-project result instead of returning Not Applicable.
+- Every recognized non-Canvas project type remains Not Applicable, while `powerAppsCanvas` continues through lifecycle planning validation.
+- Project identity validation now blocks missing, malformed, blank, or whitespace-only project IDs and project names.
+- Preserved mutation safety, deterministic blocked results, and phase boundaries: no lifecycle Power Fx, formula fragments, `.fx` files, Canvas YAML, model-driven source, implementation assets, manifest changes, or export integration were added.
+
+### Files created
+
+- None beyond the existing approved Phase 5B.4B source and test files.
+
+### Files updated
+
+- `src/lib/recordLifecyclePlanning.ts` - internal safe-project wrapper, canonical project type validation, and non-blank identity validation.
+- `src/tests/recordLifecyclePlanning.test.ts` - discriminant-collision, extra-property, invalid app type, recognized non-Canvas type, and identity validation coverage.
+- `scripts/run-tests.mjs` - updated runner summary counts after actual Vitest output.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts after actual Vitest output.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4B.3 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `124` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1` - passed (`1` file, `9` tests).
+- `npx.cmd vitest run --config vitest.unit.config.ts` - passed (`28` files, `1448` tests).
+- `npm.cmd test` - passed (`28` unit/integration files, `1448` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1496` combined tests).
+- `npm.cmd run test:coverage` - passed (`28` coverage files, `1448` coverage tests, `7` UI files, `48` UI tests, `35` combined files, `1496` combined tests); coverage was `90.41%` statements, `81.44%` branches, `95.06%` functions, and `95.45%` lines.
+- `npm.cmd run build` - passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high` - passed with `0` vulnerabilities.
+
+### Issues found
+
+- High runtime-envelope defect fixed: user-controlled top-level planning-result-looking properties could collide with result discrimination.
+- High runtime-envelope defect fixed: unsupported or blank string app types could incorrectly return Not Applicable.
+
+## 2026-07-20 - Phase 5B.4B.2 Top-Level Runtime Safety Correction
+
+### Summary
+
+- Added top-level project-envelope validation to the Canvas record lifecycle planning entry point so untrusted persisted project values block without throwing before downstream target validation runs.
+- Malformed project input now returns a controlled Blocked result with no targets, ordered targets, plans, or partial planning output.
+- Malformed project input does not become Not Applicable; structurally valid non-Canvas projects continue to return Not Applicable without blockers.
+- Corrected the lifecycle planning entity category type name from `CanvasRecordLifecycleBackendType` to `CanvasRecordLifecycleEntityType`.
+- Replaced unrestricted `recordContextSource: string` with a controlled record-context source union while preserving existing runtime output values.
+- Preserved phase boundaries: no lifecycle Power Fx, formula fragments, `.fx` files, Canvas YAML, model-driven source, implementation assets, manifest changes, or export integration were added.
+
+### Files created
+
+- None beyond the existing approved Phase 5B.4B source and test files.
+
+### Files updated
+
+- `src/lib/recordLifecyclePlanning.ts` - top-level runtime guard, blocked/Not Applicable result helpers, entity type rename, and controlled record-context source typing.
+- `src/tests/recordLifecyclePlanning.test.ts` - malformed top-level project input, valid non-Canvas, valid Canvas, no partial output, deterministic blocked output, and mutation-safety coverage.
+- `scripts/run-tests.mjs` - updated runner summary counts after actual Vitest unit output.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts after actual Vitest unit output.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4B.2 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `78` tests).
+- `npx.cmd vitest run --config vitest.unit.config.ts` - passed (`28` files, `1402` tests).
+- `npm.cmd run lint` - passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1` - passed (`1` file, `9` tests).
+- `npm.cmd test` - passed (`28` unit/integration files, `1402` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1450` combined tests).
+- `npm.cmd run test:coverage` - passed (`28` coverage files, `1402` coverage tests, `7` UI files, `48` UI tests, `35` combined files, `1450` combined tests); coverage was `90.35%` statements, `81.36%` branches, `95.06%` functions, and `95.43%` lines.
+- `npm.cmd run build` - passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high` - passed with `0` vulnerabilities.
+- Final review ZIP and extracted-package validation are recorded in the Phase 5B.4B.2 commit-gate report.
+
+### Issues found
+
+- High runtime-safety defect confirmed and fixed: malformed top-level project inputs could throw before lifecycle target validation.
+
+## 2026-07-20 - Phase 5B.4B.1 Lifecycle Planning and Intake UI Corrections
+
+### Summary
+
+- Corrected Canvas record lifecycle planning so refresh, navigation, notification, and local-state behaviours are explicitly `notPlanned` until approved decisions exist.
+- Reused canonical Canvas entity ownership from Phase 5B.4A instead of duplicating connector-selection logic inside the planner.
+- Kept lifecycle `entityType` separate from resolved connector `backendType` and typed backend values from the Canvas data-source type model.
+- Moved Guided Intake SharePoint Add List and Add Column actions to the bottom of their collections while preserving remove controls, values, validation, and persistence.
+- Replaced the Canvas Subtype display field with an editable select bound to the existing `powerPlatform.canvas.subtype` field.
+- Preserved phase boundaries: no lifecycle Power Fx, formula fragments, `.fx` files, Canvas YAML, model-driven source, implementation assets, or export integration were added.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/recordLifecyclePlanning.ts` - canonical ownership reuse, typed backend values, and explicitly not-planned optional behaviours.
+- `src/tests/recordLifecyclePlanning.test.ts` - expanded planning correction, backend separation, canonical ownership, determinism, and boundary coverage.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - moved SharePoint add buttons to collection bottoms and made Canvas Subtype editable.
+- `src/tests/App.powerPlatformCanvas.test.tsx` - added focused UI coverage for SharePoint list/column add positions and Canvas Subtype editability/persistence.
+- `scripts/run-tests.mjs` - updated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4B.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `git diff --check` - passed with line-ending warnings only.
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `60` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1` - passed (`1` file, `9` tests).
+- `npm.cmd test` - passed (`28` unit/integration files, `1384` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1432` combined tests).
+- Manual UI verification - passed in the local app. SharePoint Lists showed Add List once below the final list card and available for empty collections; Remove List appeared at the top of every list card; multiple lists could be added without returning to the section heading; existing list values persisted after adding and removing another list.
+- Manual UI verification - passed in the local app. SharePoint Columns and Internal Names showed Add Column once below the final column card and available for empty collections; Remove Column appeared at the top of every column card; multiple columns could be added without returning to the section heading; existing display and internal-name values persisted after adding and removing another column.
+- Manual UI verification - passed in the local app. Canvas Subtype accepted mouse selection and native select keyboard interaction; the selected value remained after section navigation and after saving/reopening the project; existing saved values displayed correctly; the field remained unavailable for unrelated project types.
+
+### Issues found
+
+- The prior runner summary was stale after adding lifecycle planning and Canvas UI tests; corrected to the actual test counts.
+
+## 2026-07-20 - Phase 5B.4B Canvas Record Lifecycle Action Planning
+
+### Summary
+
+- Added deterministic Canvas record lifecycle action planning from validated Phase 5B.4A lifecycle targets.
+- Planned archive, restore, and permanent-delete actions as structured records with typed preconditions, ordered action steps, controlled statuses, connector operation capability, record context, lifecycle field metadata, and deterministic ordering.
+- Preserved Phase 5B.4A connector reconciliation and canonical entity ownership blockers; blocked malformed or incomplete data instead of producing partial plans.
+- Kept the phase non-executable: no Power Fx, `.fx` files, Canvas YAML, implementation assets, UI integration, export integration, or lifecycle formula generation.
+
+### Files created
+
+- `src/lib/recordLifecyclePlanning.ts` - typed lifecycle action planning model and deterministic planner.
+- `src/tests/recordLifecyclePlanning.test.ts` - focused planning, ownership, runtime safety, deterministic ordering, and phase-boundary coverage.
+
+### Files updated
+
+- `scripts/run-tests.mjs` - updated isolated runner summary counts.
+- `scripts/run-tests-with-coverage.mjs` - updated coverage runner summary counts.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4B validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `56` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `156` tests).
+- `npm.cmd run lint` - passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npm.cmd test` - passed (`28` unit/integration files, `1380` unit/integration tests, `7` UI files, `43` UI tests, `35` combined files, `1423` combined tests).
+- `git diff --check` - passed with line-ending warnings only.
+
+### Issues found
+
+- None blocking after focused planning implementation.
+
 ## 2026-07-20 - Phase 5B.4A.3 Connector-Selection Shape and Ownership Safety
 
 ### Summary

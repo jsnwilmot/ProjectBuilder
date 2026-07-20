@@ -160,4 +160,177 @@ describe("App - power Platform Canvas", () => {
     expect(screen.getByRole("heading", { name: "Other connector schema" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Canvas Dataverse schema" })).not.toBeInTheDocument();
   });
+
+  it("keeps SharePoint list add action at the bottom while preserving row values", async () => {
+    const project = createProject({
+      identity: { id: "sp-list-bottom-ui", projectName: "SharePoint List Bottom UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+    project.powerPlatform!.canvas!.sharePointListSchemas = [
+      createDefaultSharePointList({ id: "sp-list-one", displayName: "Requests" })
+    ];
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    const listSection = screen.getByRole("heading", { name: "SharePoint lists" }).closest("section");
+    expect(listSection).not.toBeNull();
+    const listScope = within(listSection!);
+    expect(listScope.getAllByRole("button", { name: "Add list" })).toHaveLength(1);
+    const firstCard = listScope.getByRole("article");
+    const addList = listScope.getByRole("button", { name: "Add list" });
+    expect(Boolean(firstCard.compareDocumentPosition(addList) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(within(firstCard).getAllByRole("button")[0]).toHaveAccessibleName("Remove list");
+
+    await user.clear(listScope.getByLabelText(/List display name/i));
+    await user.type(listScope.getByLabelText(/List display name/i), "Updated Requests");
+    await user.click(addList);
+    expect(listScope.getAllByRole("button", { name: "Add list" })).toHaveLength(1);
+    expect(listScope.getByDisplayValue("Updated Requests")).toBeInTheDocument();
+    expect(listScope.getAllByRole("article")).toHaveLength(2);
+    await user.click(within(listScope.getAllByRole("article")[1]).getByRole("button", { name: "Remove list" }));
+    expect(listScope.getByDisplayValue("Updated Requests")).toBeInTheDocument();
+    expect(listScope.getAllByRole("article")).toHaveLength(1);
+  }, 30000);
+
+  it("keeps SharePoint column add action at the bottom while preserving internal-name values", async () => {
+    const project = createProject({
+      identity: { id: "sp-column-bottom-ui", projectName: "SharePoint Column Bottom UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+    project.powerPlatform!.canvas!.sharePointListSchemas = [
+      createDefaultSharePointList({ id: "sp-list-one", displayName: "Requests" })
+    ];
+    project.powerPlatform!.canvas!.sharePointColumnSchemas = [
+      createDefaultSharePointColumn({
+        id: "sp-column-one",
+        parentType: "list",
+        parentId: "sp-list-one",
+        displayName: "Status",
+        internalName: "Status"
+      })
+    ];
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    const columnSection = screen.getByRole("heading", { name: "SharePoint columns and internal names" }).closest("section");
+    expect(columnSection).not.toBeNull();
+    const columnScope = within(columnSection!);
+    expect(columnScope.getAllByRole("button", { name: "Add column" })).toHaveLength(1);
+    const firstCard = columnScope.getByRole("article");
+    const addColumn = columnScope.getByRole("button", { name: "Add column" });
+    expect(Boolean(firstCard.compareDocumentPosition(addColumn) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+    expect(within(firstCard).getAllByRole("button")[0]).toHaveAccessibleName("Remove column");
+
+    await user.clear(columnScope.getByLabelText(/Internal name/i));
+    await user.type(columnScope.getByLabelText(/Internal name/i), "RequestStatus");
+    await user.click(addColumn);
+    expect(columnScope.getAllByRole("button", { name: "Add column" })).toHaveLength(1);
+    expect(columnScope.getByDisplayValue("RequestStatus")).toBeInTheDocument();
+    expect(columnScope.getAllByRole("article")).toHaveLength(2);
+    await user.click(within(columnScope.getAllByRole("article")[1]).getByRole("button", { name: "Remove column" }));
+    expect(columnScope.getByDisplayValue("RequestStatus")).toBeInTheDocument();
+    expect(columnScope.getAllByRole("article")).toHaveLength(1);
+  }, 30000);
+
+  it("keeps SharePoint list and column add actions available for empty collections", async () => {
+    const project = createProject({
+      identity: { id: "sp-empty-bottom-ui", projectName: "SharePoint Empty Bottom UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+    project.powerPlatform!.canvas!.sharePointListSchemas = [];
+    project.powerPlatform!.canvas!.sharePointColumnSchemas = [];
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
+    const listSection = screen.getByRole("heading", { name: "SharePoint lists" }).closest("section")!;
+    const columnSection = screen.getByRole("heading", { name: "SharePoint columns and internal names" }).closest("section")!;
+    expect(within(listSection).getAllByRole("button", { name: "Add list" })).toHaveLength(1);
+    expect(within(columnSection).getAllByRole("button", { name: "Add column" })).toHaveLength(1);
+  });
+
+  it("allows Canvas subtype selection, navigation persistence, and storage reload", async () => {
+    const project = createProject({
+      identity: { id: "canvas-subtype-ui", projectName: "Canvas Subtype UI" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.canvas!.subtype = "";
+    seedApp([project]);
+    const user = userEvent.setup();
+    const { unmount } = render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Features: .* complete/i }));
+    const subtype = screen.getByLabelText(/Canvas subtype/i);
+    expect(subtype).toBeEnabled();
+    expect(subtype).toHaveAccessibleName(/Canvas subtype/i);
+    await user.selectOptions(subtype, "blankResponsive");
+    expect(subtype).toHaveValue("blankResponsive");
+
+    const supportedSubtypes = [
+      "tablet",
+      "phone",
+      "sharePointCustomized",
+      "teamsEmbedded",
+      "sharePointOnline",
+      "microsoftLists",
+      "dataverse",
+      "otherConnector",
+      "multipleDataSources",
+      "customPage",
+      "other"
+    ];
+    for (const value of supportedSubtypes) {
+      await user.selectOptions(subtype, value);
+      expect(subtype).toHaveValue(value);
+    }
+
+    subtype.focus();
+    expect(subtype).toHaveFocus();
+    await user.selectOptions(subtype, "customPage");
+    expect(subtype).toHaveValue("customPage");
+    await user.click(screen.getByRole("button", { name: /4 Data/i }));
+    await user.click(screen.getByRole("button", { name: /3 Features/i }));
+    expect(screen.getByLabelText(/Canvas subtype/i)).toHaveValue("customPage");
+
+    unmount();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: /Features: .* complete/i }));
+    expect(screen.getByLabelText(/Canvas subtype/i)).toHaveValue("customPage");
+    const persisted = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}");
+    expect(persisted.projects[0].powerPlatform.canvas.subtype).toBe("customPage");
+  }, 30000);
+
+  it("renders existing saved Canvas subtype and hides it for unrelated project types", async () => {
+    const canvasProject = createProject({
+      identity: { id: "canvas-subtype-existing", projectName: "Canvas Subtype Existing" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    canvasProject.powerPlatform!.canvas!.subtype = "teamsEmbedded";
+    const webProject = createProject({
+      identity: { id: "web-project", projectName: "Web Project" },
+      intake: { appType: "webApplication" }
+    });
+    seedApp([canvasProject, webProject], canvasProject.identity.id);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /Features: .* complete/i }));
+    expect(screen.getByLabelText(/Canvas subtype/i)).toHaveValue("teamsEmbedded");
+
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+    await user.click(screen.getByRole("button", { name: /Open Web Project/i }));
+    await user.click(screen.getByRole("button", { name: /Features: .* complete/i }));
+    expect(screen.queryByLabelText(/Canvas subtype/i)).not.toBeInTheDocument();
+  }, 30000);
 });

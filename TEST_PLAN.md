@@ -1,5 +1,117 @@
 # Test Plan
 
+## 2026-07-20 Phase 5B.4B.4 Canvas envelope structural validation
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `154` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `9` tests).
+- `npx.cmd vitest run --config vitest.unit.config.ts`: passed (`28` files, `1478` tests).
+- `npm.cmd test`: passed (`28` unit/integration files, `1478` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1526` combined tests).
+- `npm.cmd run test:coverage`: passed (`28` coverage files, `1478` coverage tests, `7` UI files, `48` UI tests, `35` combined files, `1526` combined tests); coverage was `90.43%` statements, `81.48%` branches, `95.06%` functions, and `95.45%` lines.
+- `npm.cmd run build`: passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high`: passed with `0` vulnerabilities.
+- Canvas-envelope coverage verifies partial Canvas envelopes block before lifecycle target validation when required collections are missing, null, primitive, or contain non-object records.
+- Connector-envelope coverage verifies `powerPlatform.common.connectors` must be an array of objects before planning validation can run.
+- Lifecycle-collection coverage verifies `recordLifecycleTargets` may be undefined, empty, or an array of objects; primitive, object, null-entry, and primitive-entry storage blocks.
+- Valid empty-target coverage verifies structurally valid Canvas projects with empty or undefined lifecycle targets return Not Applicable with no blockers and no required lifecycle decisions.
+- Regression coverage verifies valid Canvas lifecycle targets still produce Planned output and recognized non-Canvas project types still return Not Applicable.
+- Mutation and determinism coverage verifies malformed Canvas envelopes do not mutate input and repeated malformed input returns identical blocked results.
+- UI regression coverage remains intact for SharePoint Add List, SharePoint Add Column, and Canvas Subtype behavior; the UI source/test files were not modified by this correction.
+- Normal runner summaries are now `28` unit/integration files and `1478` tests, plus `7` App UI files and `48` tests, for `35` files and `1526` tests total.
+- Coverage runner summaries are now `28` coverage files and `1478` tests, plus `7` App UI files and `48` tests, for `35` files and `1526` tests total.
+
+## 2026-07-20 Phase 5B.4B.3 runtime envelope discrimination correction
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `124` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `9` tests).
+- `npx.cmd vitest run --config vitest.unit.config.ts`: passed (`28` files, `1448` tests).
+- `npm.cmd test`: passed (`28` unit/integration files, `1448` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1496` combined tests).
+- `npm.cmd run test:coverage`: passed (`28` coverage files, `1448` coverage tests, `7` UI files, `48` UI tests, `35` combined files, `1496` combined tests); coverage was `90.41%` statements, `81.44%` branches, `95.06%` functions, and `95.45%` lines.
+- `npm.cmd run build`: passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high`: passed with `0` vulnerabilities.
+- Internal-discrimination coverage verifies top-level `planningStatus`, `plans`, `targets`, `orderedTargets`, `blockingIssues`, `result`, and `kind` properties cannot replace trusted planning results.
+- Extra-property coverage verifies valid Canvas planning output remains unchanged when unknown result-like project properties exist.
+- Project-type coverage verifies blank, whitespace-only, unsupported, and formula-looking app types block without throwing, while every canonical recognized non-Canvas project type remains Not Applicable.
+- Canvas app type coverage verifies `powerAppsCanvas` continues through lifecycle planning validation and remains Planned for valid target input.
+- Identity coverage verifies missing, null, primitive, blank, whitespace-only, and non-string IDs and project names block without partial output.
+- Mutation and determinism coverage verifies invalid app types and identity failures do not mutate input and repeated invalid input returns identical blocked results.
+- UI regression coverage remains intact for SharePoint Add List, SharePoint Add Column, and Canvas Subtype behavior; the UI source/test files were not modified by this correction.
+- Normal runner summaries are now `28` unit/integration files and `1448` tests, plus `7` App UI files and `48` tests, for `35` files and `1496` tests total.
+- Coverage runner summaries are now `28` coverage files and `1448` tests, plus `7` App UI files and `48` tests, for `35` files and `1496` tests total.
+
+## 2026-07-20 Phase 5B.4B.2 top-level runtime safety correction
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `78` tests).
+- `npx.cmd vitest run --config vitest.unit.config.ts`: passed (`28` files, `1402` tests).
+- `npm.cmd run lint`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `9` tests).
+- Top-level project-envelope coverage verifies null, undefined, string, numeric, Boolean, array, empty object, missing intake, null intake, primitive intake, missing app type, non-string app type, malformed project identity, malformed Power Platform envelope, and malformed Canvas envelope inputs block without throwing.
+- Controlled-result coverage verifies malformed project input returns Blocked, not Not Applicable; returns no partial plans, targets, or ordered targets; includes a deterministic blocking issue; and marks lifecycle planning as not required.
+- Non-Canvas coverage verifies structurally valid non-Canvas projects remain Not Applicable with no blocking issues.
+- Canvas regression coverage verifies valid Canvas projects still produce Planned lifecycle output.
+- Mutation and determinism coverage verifies malformed inputs are not mutated and repeated malformed input produces identical results.
+- Type cleanup coverage verifies lifecycle `entityType` uses the corrected Canvas record lifecycle entity category type while `backendType` continues using Canvas data-source types.
+- Record-context source typing now uses a controlled source union while preserving existing runtime values.
+- UI regression coverage remains intact for SharePoint Add List, SharePoint Add Column, and Canvas Subtype behavior.
+- Normal runner summaries are now `28` unit/integration files and `1402` tests, plus `7` App UI files and `48` tests, for `35` files and `1450` tests total.
+- Coverage runner summaries are now `28` coverage files and `1402` tests, plus `7` App UI files and `48` tests, for `35` files and `1450` tests total.
+- `npm.cmd test`: passed (`28` unit/integration files, `1402` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1450` combined tests).
+- `npm.cmd run test:coverage`: passed (`28` coverage files, `1402` coverage tests, `7` UI files, `48` UI tests, `35` combined files, `1450` combined tests); coverage was `90.35%` statements, `81.36%` branches, `95.06%` functions, and `95.43%` lines.
+- `npm.cmd run build`: passed with the existing unchanged Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high`: passed with `0` vulnerabilities.
+- Final review ZIP and extracted-package validation are recorded in the Phase 5B.4B.2 commit-gate report.
+
+## 2026-07-20 Phase 5B.4B.1 lifecycle planning and intake UI corrections
+
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `60` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `156` tests).
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `9` tests).
+- `npm.cmd test`: passed (`28` unit/integration files, `1384` unit/integration tests, `7` UI files, `48` UI tests, `35` combined files, `1432` combined tests).
+- `git diff --check`: passed with line-ending warnings only.
+- Planning correction coverage verifies archive and restore plans contain only `validateRecordContext`, `validateCurrentLifecycleState`, and `performConnectorMutation`; delete plans contain only `validateRecordContext` and `performConnectorMutation`.
+- Optional-behaviour coverage verifies refresh, navigation, notification, and local-state behaviours are explicitly `notPlanned` and do not produce refresh, navigation, notification, or local-state action steps without approved input decisions.
+- Canonical ownership coverage verifies lifecycle planning reuses active Canvas entity references, preserves connector reconciliation blockers, blocks target/canonical connector mismatches, blocks ambiguous compatible connectors, and produces no partial plans after ownership failures.
+- Backend coverage verifies SharePoint list, SharePoint library, Microsoft Lists, Dataverse, and connector-resource plans preserve separate `entityType` and resolved connector `backendType` values.
+- SharePoint List UI coverage verifies Add List appears once at the bottom, remains available for empty collections, Remove List remains at the top of each card, and list values persist after adding.
+- SharePoint Column UI coverage verifies Add Column appears once at the bottom, remains available for empty collections, Remove Column remains at the top of each card, and column/internal-name values persist after adding.
+- Canvas Subtype UI coverage verifies the field is enabled for Canvas apps, has a connected accessible label, supports every approved subtype option, updates canonical state, persists through section navigation and reload, renders existing saved values, preserves legacy blank editability, and remains hidden for unrelated project types.
+- Accessibility coverage verifies moved Add List/Add Column actions remain buttons, remove buttons retain clear names, Canvas Subtype exposes a labelled combobox value, and automated focusability remains intact.
+- Manual SharePoint Lists verification passed: Add List appeared once below the final list card, remained available when no list records existed, Remove List appeared at the top of every list card, multiple lists could be added without returning to the section heading, and existing list values persisted after adding and removing another list.
+- Manual SharePoint Columns and Internal Names verification passed: Add Column appeared once below the final column card, remained available when no column records existed, Remove Column appeared at the top of every column card, multiple columns could be added without returning to the section heading, and existing display/internal-name values persisted after adding and removing another column.
+- Manual Canvas Subtype verification passed: Canvas Subtype accepted mouse selection and native select keyboard interaction, selected values remained after section navigation and after saving/reopening the project, existing saved values displayed correctly, and the field remained unavailable for unrelated project types.
+- Normal runner summaries are now `28` unit/integration files and `1384` tests, plus `7` App UI files and `48` tests, for `35` files and `1432` tests total.
+- Coverage runner summaries are now `28` coverage files and `1384` tests, plus `7` App UI files and `48` tests, for `35` files and `1432` tests total.
+- Coverage, build, audit, extracted-package validation, commit, and push remain deferred by Architect instruction for this correction.
+
+## 2026-07-20 Phase 5B.4B Canvas record lifecycle action planning
+
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `56` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleTargets.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `156` tests).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd test`: passed (`28` unit/integration files, `1380` unit/integration tests, `7` UI files, `43` UI tests, `35` combined files, `1423` combined tests).
+- `git diff --check`: passed with line-ending warnings only.
+- Planning-model coverage verifies typed records for stable plan ID, lifecycle target ID, action type, trigger screen/control/property, record context source, entity/backend/connector, lifecycle strategy, lifecycle field metadata, target and expected lifecycle values, connector operation, confirmation requirement, preconditions, ordered steps, outcomes, refresh/navigation/notification requirements, deterministic ordering key, controlled status, blockers, and notes.
+- Archive planning coverage verifies status-field, active-flag, archived-flag, and soft-delete-flag plans; missing lifecycle fields; wrong field type; already-archived precondition modeling; missing update capability; and invalid record context blocking.
+- Restore planning coverage verifies status-field, active-flag, archived-flag, and soft-delete-flag plans; archive/restore strategy consistency; record-archived precondition modeling; missing update capability; and invalid entity ownership blocking.
+- Delete planning coverage verifies permanent-delete plans remain separate from archive/restore planning, require `archiveStrategy: notApplicable`, require explicit permanent-delete approval, require compatible delete capability, and do not silently downgrade to soft delete or reuse archive strategies.
+- Connector ownership coverage verifies zero, one, and multiple compatible active connector outcomes; explicit connector-resource ownership; malformed connector-selection storage; and preserved reconciliation blockers.
+- Runtime-safety coverage verifies malformed lifecycle collections, target records, IDs, action types, connector records, controls, fields, and current project shape block without throwing.
+- Deterministic behavior coverage verifies stable ordering, array reorder stability, duplicate target/plan identity blocking, no partial plans on failure, repeated execution equality, and input mutation protection.
+- Boundary coverage verifies no implementation asset, no Power Fx formula text, no `.fx` file, no Canvas YAML, no model-driven source, no connector/entity data-reading implementation, no UI/export integration, and no lifecycle formula generation.
+- Normal runner summaries have been updated for the new focused file: unit/integration execution is now `28` files and `1380` tests, plus `7` App UI files and `43` tests, for `35` files and `1423` tests total.
+- Coverage runner summaries have been updated for the new focused file: coverage execution is now `28` files and `1380` tests, plus `7` App UI files and `43` tests, for `35` files and `1423` tests total.
+- Coverage, build, audit, extracted-package validation, commit, and push remain deferred by Architect instruction for this phase.
+
 ## 2026-07-20 Phase 5B.4A.3 connector-selection shape and ownership safety
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.

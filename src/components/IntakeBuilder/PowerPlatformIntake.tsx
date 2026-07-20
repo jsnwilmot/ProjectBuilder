@@ -24,6 +24,7 @@ import {
 } from "../../lib/powerPlatform";
 import type {
   CanvasDataSourceType,
+  PowerAppsCanvasSubtype,
   SelectableCanvasDataSourceType,
   PowerPlatformApplicabilityDecision,
   PowerPlatformCanvasData,
@@ -72,6 +73,21 @@ const canvasDataSourceOptions: Array<{ value: CanvasDataSourceType; label: strin
 ];
 
 const connectorClassificationOptions = ["unknown", "standard", "premium", "custom", "notApplicable"] as const;
+const canvasSubtypeOptions: Array<{ value: PowerAppsCanvasSubtype | ""; label: string }> = [
+  { value: "", label: "Select Canvas subtype" },
+  { value: "blankResponsive", label: "Blank responsive" },
+  { value: "tablet", label: "Tablet" },
+  { value: "phone", label: "Phone" },
+  { value: "sharePointCustomized", label: "SharePoint customized" },
+  { value: "teamsEmbedded", label: "Teams embedded" },
+  { value: "sharePointOnline", label: "SharePoint Online" },
+  { value: "microsoftLists", label: "Microsoft Lists" },
+  { value: "dataverse", label: "Dataverse" },
+  { value: "otherConnector", label: "Other connector" },
+  { value: "multipleDataSources", label: "Multiple data sources" },
+  { value: "customPage", label: "Custom page" },
+  { value: "other", label: "Other" }
+];
 const connectorOperations: ConnectorOperation[] = ["read", "create", "update", "delete", "archive", "restore", "upload", "download"];
 const decisionStatusOptions: Array<{ value: PowerPlatformDecisionStatus; label: string }> = [
   { value: "notStarted", label: "Not started" },
@@ -543,7 +559,14 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
 
       {stageId === "features" && canvas ? (
         <div className="field-stack">
-          <TextField id={fieldId(stageId, "subtype")} label="Canvas subtype" description="Blank responsive, tablet, phone, SharePoint customized, Teams embedded, or other." value={canvas.subtype} onChange={(value) => updateCanvas("subtype", value)} />
+          <SelectField
+            id={fieldId(stageId, "subtype")}
+            label="Canvas subtype"
+            description="Blank responsive, tablet, phone, SharePoint customized, Teams embedded, or other."
+            value={canvas.subtype}
+            options={canvasSubtypeOptions}
+            onChange={(value) => updateCanvas("subtype", value)}
+          />
           <TextField id={fieldId(stageId, "responsiveMode")} label="Responsive or fixed layout" description="Responsive, fixed, or pending decision." value={canvas.responsiveMode} onChange={(value) => updateCanvas("responsiveMode", value)} />
           <TextField id={fieldId(stageId, "targetDevices")} label="Target devices" description="Desktop, tablet, phone, Teams, browser, or other." value={canvas.targetDevices} onChange={(value) => updateCanvas("targetDevices", value)} />
           <TextField id={fieldId(stageId, "targetScreenSizes")} label="Target screen sizes" description="Required screen sizes or breakpoints." value={canvas.targetScreenSizes} onChange={(value) => updateCanvas("targetScreenSizes", value)} />
@@ -870,9 +893,20 @@ function SharePointSchemaEditor({
         title="SharePoint lists"
         addLabel="Add list"
         onAdd={() => updateRows("sharePointListSchemas", (rows) => [...rows, createDefaultSharePointList()])}
+        addPosition="bottom"
       >
         {canvas.sharePointListSchemas.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => {
+                updateRows("sharePointListSchemas", (rows) => rows.filter((item) => item.id !== row.id));
+                updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.parentType === "list" && item.parentId === row.id ? { ...item, parentId: "", confirmationStatus: "reviewNeeded" } : item));
+              }}
+            >
+              Remove list
+            </button>
             <TextField id={`sp-list-${row.id}-display`} label="List display name" description="SharePoint list display name." value={row.displayName} onChange={(value) => updateRows("sharePointListSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} required />
             <TextField id={`sp-list-${row.id}-purpose`} label="Purpose" description="What this list stores." value={row.purpose} onChange={(value) => updateRows("sharePointListSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} />
             <TextField id={`sp-list-${row.id}-count`} label="Expected record count" description="Expected volume." value={row.expectedRecordCount} onChange={(value) => updateRows("sharePointListSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, expectedRecordCount: value } : item))} />
@@ -884,16 +918,6 @@ function SharePointSchemaEditor({
             <TextField id={`sp-list-${row.id}-restore`} label="Restore behavior" description="Restore behavior." value={row.restoreBehavior} onChange={(value) => updateRows("sharePointListSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, restoreBehavior: value } : item))} />
             <DecisionStatusField id={`sp-list-${row.id}-confirmation`} label="Confirmation status" description="Controlled list confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("sharePointListSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`sp-list-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this row." value={row.confirmationSource} onChange={(value) => updateRows("sharePointListSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => {
-                updateRows("sharePointListSchemas", (rows) => rows.filter((item) => item.id !== row.id));
-                updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.parentType === "list" && item.parentId === row.id ? { ...item, parentId: "", confirmationStatus: "reviewNeeded" } : item));
-              }}
-            >
-              Remove list
-            </button>
           </article>
         ))}
       </RecordGroup>
@@ -901,9 +925,11 @@ function SharePointSchemaEditor({
         title="SharePoint columns and internal names"
         addLabel="Add column"
         onAdd={() => updateRows("sharePointColumnSchemas", (rows) => [...rows, createDefaultSharePointColumn()])}
+        addPosition="bottom"
       >
         {canvas.sharePointColumnSchemas.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows("sharePointColumnSchemas", (rows) => rows.filter((item) => item.id !== row.id))}>Remove column</button>
             <SelectField
               id={`sp-column-${row.id}-parent-type`}
               label="Parent type"
@@ -942,7 +968,6 @@ function SharePointSchemaEditor({
             <TextField id={`sp-column-${row.id}-notes`} label="Notes" description="Column notes." value={row.notes} onChange={(value) => updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, notes: value } : item))} multiline />
             <DecisionStatusField id={`sp-column-${row.id}-confirmation`} label="Confirmation status" description="Controlled internal-name confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`sp-column-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this column." value={row.confirmationSource} onChange={(value) => updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button className="button button-secondary" type="button" onClick={() => updateRows("sharePointColumnSchemas", (rows) => rows.filter((item) => item.id !== row.id))}>Remove column</button>
           </article>
         ))}
       </RecordGroup>
@@ -983,14 +1008,28 @@ function SharePointSchemaEditor({
   );
 }
 
-function RecordGroup({ title, addLabel, onAdd, children }: { title: string; addLabel: string; onAdd: () => void; children: ReactNode }) {
+function RecordGroup({
+  title,
+  addLabel,
+  onAdd,
+  children,
+  addPosition = "top"
+}: {
+  title: string;
+  addLabel: string;
+  onAdd: () => void;
+  children: ReactNode;
+  addPosition?: "top" | "bottom";
+}) {
+  const addButton = <button className="button button-secondary" type="button" onClick={onAdd}>{addLabel}</button>;
   return (
     <section className="record-group" aria-label={title}>
       <div className="connector-card-heading">
         <h5>{title}</h5>
-        <button className="button button-secondary" type="button" onClick={onAdd}>{addLabel}</button>
+        {addPosition === "top" ? addButton : null}
       </div>
       {children}
+      {addPosition === "bottom" ? addButton : null}
     </section>
   );
 }
