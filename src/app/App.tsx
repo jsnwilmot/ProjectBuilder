@@ -5,7 +5,7 @@ import { DocumentViewer } from "../components/DocumentViewer/DocumentViewer";
 import { ExportPanel } from "../components/ExportPanel/ExportPanel";
 import { IntakeBuilder } from "../components/IntakeBuilder/IntakeBuilder";
 import { MissionControl } from "../components/MissionControl/MissionControl";
-import { GENERATE_STAGE_INDEX, REVIEW_STAGE_INDEX } from "../data/intakeStages";
+import { GENERATE_STAGE_INDEX, INTAKE_STAGES, REVIEW_STAGE_INDEX } from "../data/intakeStages";
 import { useProjectBuilder } from "./useProjectBuilder";
 
 export function App() {
@@ -34,6 +34,9 @@ export function App() {
   const openIntake = (step = 0) => {
     setIntakeStep(step);
     setView("intake");
+    window.setTimeout(() => {
+      document.getElementById("main-content")?.focus();
+    }, 0);
   };
 
   const startNewProject = () => {
@@ -126,7 +129,14 @@ export function App() {
           />
         ) : null}
         {view === "documents" ? (
-          <DocumentViewer project={project} projectPackage={generatedPackage} onReturnToIntake={() => openIntake(0)} />
+          <DocumentViewer
+            project={project}
+            projectPackage={generatedPackage}
+            onReturnToIntake={(stageId) => {
+              const stageIndex = stageId ? INTAKE_STAGES.findIndex((stage) => stage.id === stageId) : -1;
+              openIntake(stageIndex >= 0 ? stageIndex : 0);
+            }}
+          />
         ) : null}
         {view === "export" ? (
           <ExportPanel

@@ -199,7 +199,7 @@ describe("project selectors", () => {
     const project = createSelectorReadyProject();
     project.generatedDocuments[0] = {
       ...project.generatedDocuments[0],
-      content: `${project.generatedDocuments[0].content}\n[MISSING: generated blocker]`
+      content: `${project.generatedDocuments[0].content}\n[MISSING: app purpose]`
     };
 
     expect(getProjectDisplayStatus(project)).toBe("Project Package Generated");

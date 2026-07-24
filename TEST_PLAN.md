@@ -1,5 +1,41 @@
 # Test Plan
 
+## 2026-07-24 Phase 5B.4B.5.1 traceability, completion, and real-intake correction
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run --config vitest.unit.config.ts src/tests/phase5b4b5Regression.test.ts src/tests/exportIntegrity.test.ts src/tests/powerPlatform.test.ts --reporter=dot`: superseded by focused and full runner validation below.
+- `npx.cmd vitest run --config vitest.unit.config.ts src/tests/implementationAssets.test.ts --reporter=dot`: passed (`1` file, `99` tests).
+- `npx.cmd vitest run src/tests/phase5b4b5Regression.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `10` tests).
+- `npx.cmd vitest run src/tests/App.documentsExport.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `12` tests).
+- `npx.cmd vitest run src/tests/powerPlatform.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `57` tests).
+- `npx.cmd vitest run src/tests/exportProjectPackage.test.ts src/tests/projectSelectors.test.ts --pool=vmThreads --maxWorkers=1`: passed (`2` files, `16` tests).
+- `npm.cmd run lint`: passed.
+- `npm.cmd test`: passed (`29` unit/integration files, `1539` unit/integration tests, `7` UI files, `51` UI tests, `36` combined files, `1590` tests).
+- `npm.cmd run test:coverage`: passed (`29` coverage files, `1539` tests, `7` App UI files, `51` tests, `36` combined files, `1590` tests); coverage was `90.4%` statements, `81.34%` branches, `94.93%` functions, and `95.45%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `git diff --check`: passed with line-ending warnings only.
+- `npm.cmd audit --audit-level=high`: failed on existing high-severity transitive advisories with no npm fix available (`brace-expansion` via ESLint tooling and `sharp` via Wrangler/Miniflare).
+- Structured-data regression coverage verifies confirmed Canvas list/library/resource expected-record counts take precedence over prose summaries and contradictory prose is surfaced as a review note.
+- Canvas create/view-edit document coverage verifies save/cancel controls and selected-record state are derived from confirmed structured control/state-variable rows.
+- File applicability coverage verifies attachments/files documents render explicit Not Applicable language when file support is confirmed not applicable and require confirmed upload/download controls when files are applicable.
+- SharePoint schema coverage verifies site URL, title, owner, access status, list rows, column rows, library rows, and structured authoritative notes are required or rendered from stored intake.
+- Readiness coverage verifies SharePoint schema, detailed testing preparation, delegation planning, ALM, control inventory, blank markdown sections, and orphan missing markers participate in generated-package/export readiness.
+- UI coverage verifies document preview still displays sanitized markdown content while the missing-marker source trace panel can show duplicate marker text without breaking the document preview.
+- Real TTI import and migration validation passed for `TTI Software Licence Tracker` (`90e589f4-3ead-4b3f-adff-477c9fe75394`).
+- Mission Control duplication passed for `TTI Software Licence Tracker - Phase 5B.4B.5.1 QA` (`f4c8caf1-8aa2-4a71-97d8-f3384cc17d4b`).
+- Original and duplicate persistence after reload passed.
+- UI regeneration passed for the QA duplicate, producing `33` generated documents.
+- Before-and-after diagnostics were recorded: answer completion `94%` to `94%`, readiness `Draft` to `Draft`, missing-marker occurrences `21` to `17`, export warnings `3` to `4`, readiness blockers `13` to `15`, remaining marker occurrences `17`, and unique marker labels `15`.
+- Complete marker review documented all `17` remaining occurrences with `0` orphan markers, `0` targeted false markers, and `0` false blank-section warnings.
+- Browser smoke QA at `1280 x 720` confirmed app load, Mission Control rendering, export route guarded state, export diagnostics, no horizontal overflow, and no console warnings or errors.
+- Browser smoke QA at `390 x 844` confirmed mobile Mission Control rendering, visible navigation, no horizontal overflow, and no console warnings or errors.
+- Final desktop QA at `1280 x 720` passed with trace-panel content and marker-source controls usable, no page-level horizontal overflow, no console errors or warnings, no React key warnings, and no accessibility warnings observed.
+- Final mobile QA at `390 x 844` passed with trace-panel content and marker-source controls usable, no page-level horizontal overflow, no console errors or warnings, no React key warnings, and no accessibility warnings observed.
+- Console inspection passed with no errors or warnings.
+- Edit source routing and focus placement passed.
+- Physical keyboard QA in normal Chrome passed: Enter activated Add state variable and added exactly one state row; Space activated Add state variable and added exactly one state row; visible focus passed; console errors or warnings were `None`.
+- No keyboard workaround was required because the earlier Add state variable activation failure was limited to the browser-automation harness.
+
 ## 2026-07-20 Project Builder Ai brand rename and logo integration
 
 - `git diff --check`: passed with line-ending warnings only.

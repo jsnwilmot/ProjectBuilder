@@ -322,10 +322,20 @@ export type CanvasStateInitialValue =
   | { kind: "number"; value: number }
   | { kind: "text"; value: string };
 
+export type CanvasStateRole =
+  | "selectedRecord"
+  | "formMode"
+  | "savingState"
+  | "unsavedChanges"
+  | "filterState"
+  | "navigationState"
+  | "other";
+
 export interface CanvasStateVariableTarget {
   id: string;
   implementationName: string;
   purpose: string;
+  stateRole?: CanvasStateRole | "";
   initialValue: CanvasStateInitialValue;
   confirmationStatus: PowerPlatformDecisionStatus;
   required: boolean;

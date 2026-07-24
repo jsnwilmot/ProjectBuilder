@@ -74,6 +74,9 @@ describe("document review metadata", () => {
     Object.assign(project.powerPlatform!.canvas!, {
       primaryDataSourceType: "sharePointList",
       sharePointSiteUrl: "https://contoso.sharepoint.com/sites/ops",
+      sharePointSiteTitle: "Operations",
+      sharePointSiteOwner: "Operations owner",
+      sharePointAccessStatus: "confirmed",
       sharePointLists: "Requests",
       sharePointListDefinitions: "Requests list",
       sharePointColumnDefinitions: "Title / Title",

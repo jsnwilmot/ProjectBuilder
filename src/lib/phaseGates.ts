@@ -37,6 +37,7 @@ import {
   isModelDrivenProject
 } from "./powerPlatform";
 import { reconcileCanvasConnectorSelection, validateCanvasTargets } from "./canvasTargetValidation";
+import { confirmedCanvasControls, effectiveCanvasExpectedRecordCounts } from "./canvasTraceability";
 
 export type PhaseGateId =
   | "scope"
@@ -374,7 +375,7 @@ export const PHASE_GATE_EVALUATORS = {
     if (selectedTypes.includes("sharePointList") && canvas.sharePointListSchemas.some((item) => !hasText(item.expectedRecordCount))) return "missingInformation";
     if (selectedTypes.includes("dataverse") && canvas.dataverseTableSchemas.some((item) => !hasText(item.expectedRecordCount))) return "missingInformation";
     if (selectedTypes.includes("otherConnector") && canvas.connectorResourceSchemas.some((item) => !hasText(item.queryLimitations) || !hasText(item.pagination) || !hasText(item.throttling))) return "missingInformation";
-    return hasText(canvas.expectedRecordCounts) || canvas.sharePointListSchemas.length + canvas.dataverseTableSchemas.length + canvas.connectorResourceSchemas.length > 0 ? "confirmed" : "missingInformation";
+    return hasText(effectiveCanvasExpectedRecordCounts(project).value) || canvas.sharePointListSchemas.length + canvas.dataverseTableSchemas.length + canvas.connectorResourceSchemas.length > 0 ? "confirmed" : "missingInformation";
   }, "Confirm expected record volumes for every selected backend."),
   connectorDelegation: gate("connectorDelegation", "Connector delegation support", "Canvas delegation", (project) => everySelectedConnector(project, ["delegationSupport", "limitations"]), "Confirm delegation support and mitigation for every selected connector."),
   fileRequirements: gate("fileRequirements", "File and attachment requirements", "Canvas files", (project) => {
@@ -398,7 +399,10 @@ export const PHASE_GATE_EVALUATORS = {
   security: gate("security", "Security review", "Security", calculateSecurityReviewGate, "Confirm security planning."),
   accessibility: gate("accessibility", "Accessibility requirements", "Accessibility", (project) => statusFromText([project.intake.accessibilityNotes || project.powerPlatform?.common.accessibilityRequirements]), "Confirm accessibility requirements."),
   accessibilityTesting: gate("accessibilityTesting", "Accessibility testing", "Testing", (project) => statusFromText([project.powerPlatform?.common.accessibilityTesting || project.intake.accessibilityNotes]), "Prepare accessibility testing."),
-  controlInventory: gate("controlInventory", "Control inventory", "Canvas controls", (project) => isCanvasProject(project) ? statusFromText([project.powerPlatform?.canvas?.controls]) : "notApplicable", "Confirm screen and control inventory."),
+  controlInventory: gate("controlInventory", "Control inventory", "Canvas controls", (project) => {
+    if (!isCanvasProject(project)) return "notApplicable";
+    return confirmedCanvasControls(project).length > 0 ? "confirmed" : statusFromText([project.powerPlatform?.canvas?.controls]);
+  }, "Confirm screen and control inventory."),
   connectionOwnership: gate("connectionOwnership", "Connection ownership", "Connections", (project) => {
     const selected = selectedConnectors(project);
     if (selected.length === 0) return "notApplicable";

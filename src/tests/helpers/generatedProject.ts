@@ -68,7 +68,7 @@ export function createLargeGeneratedProject(): ProjectRecord {
       fields: repeated("Field", 250),
       permissions: repeated("Permission rule", 60),
       successCriteria: repeated("Success criterion", 40),
-      assumptions: "[MISSING: final regional policy approval]"
+      assumptions: "[MISSING: assumptions]"
     }
   });
   return createGeneratedProject(project);

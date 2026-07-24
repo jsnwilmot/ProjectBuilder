@@ -6,6 +6,9 @@ import { copyText } from "../../lib/copyText";
 import { getDocumentReviewItems } from "../../lib/documentReview";
 import { validateExportPackage } from "../../lib/exportIntegrity";
 import { evaluateGeneratedPackageReadiness } from "../../lib/generatedPackageReadiness";
+import { traceMissingMarkers } from "../../lib/canvasTraceability";
+import { DOCUMENT_STATUS_DEFINITIONS } from "../../lib/documentReview";
+import { evaluatePhaseGate } from "../../lib/phaseGates";
 import { expectedDocumentLocations } from "../../lib/powerPlatform";
 import type { DocumentReviewItem } from "../../lib/documentReview";
 import type { ProjectPackage, ProjectRecord } from "../../types/project";
@@ -14,7 +17,7 @@ import { ArrowLeft, Check, CircleAlert, Copy, FileText, Search, X } from "../ui/
 interface DocumentViewerProps {
   project: ProjectRecord | null;
   projectPackage: ProjectPackage | null;
-  onReturnToIntake: () => void;
+  onReturnToIntake: (stageId?: string) => void;
 }
 
 export function DocumentViewer({ project, projectPackage, onReturnToIntake }: DocumentViewerProps) {
@@ -51,6 +54,7 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
   const finalReady = Boolean(readiness?.isReady && generatedReadiness?.status === "Ready for Codex" && integrity.isValid);
   const finalBlockerCount = (readiness?.blockerCount ?? 0) + (generatedReadiness?.blockers.length ?? 0) + integrity.errors.length;
   const expectedCount = project ? expectedDocumentLocations(project).length : DOCUMENT_LOCATIONS.length;
+  const markerTraces = useMemo(() => project ? traceMissingMarkers(project, projectPackage?.documents ?? []) : [], [project, projectPackage]);
 
   if (!projectPackage || !project) {
     return (
@@ -58,7 +62,7 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
         <CircleEmpty />
         <h1>No active generated package</h1>
         <p>Generate a package from the active project to preview the documents.</p>
-        <button className="button button-primary" onClick={onReturnToIntake}>Return to intake</button>
+        <button className="button button-primary" onClick={() => onReturnToIntake()}>Return to intake</button>
       </main>
     );
   }
@@ -149,8 +153,10 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
       {selected ? (
         <DocumentPreview
           document={selected}
+          markerTraces={markerTraces.filter((trace) => trace.document === selected.fileName)}
           onBack={() => setSelectedFile(null)}
           onCopy={() => copyDocument(selected, selected.fileName)}
+          onEditMarkerSource={onReturnToIntake}
         />
       ) : (
         <section className="document-review-list" aria-labelledby="document-review-list-title">
@@ -181,6 +187,7 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
                   <div className="document-review-state">
                     <span className={`document-status ${statusClassName(document.status)}`}>{document.status}</span>
                     <small>{document.missingMarkerCount} missing marker{document.missingMarkerCount === 1 ? "" : "s"}</small>
+                    {project ? <small>{documentGateReason(project, document.fileName)}</small> : null}
                   </div>
                   <div className="document-review-actions">
                     <button
@@ -217,12 +224,16 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
 
 function DocumentPreview({
   document,
+  markerTraces,
   onBack,
-  onCopy
+  onCopy,
+  onEditMarkerSource
 }: {
   document: DocumentReviewItem;
+  markerTraces: ReturnType<typeof traceMissingMarkers>;
   onBack: () => void;
   onCopy: () => void;
+  onEditMarkerSource: (stageId?: string) => void;
 }) {
   return (
     <section className="document-review-preview" aria-labelledby="document-preview-title">
@@ -248,12 +259,41 @@ function DocumentPreview({
           <div><dt>Format</dt><dd>Markdown</dd></div>
         </dl>
       </div>
+      {markerTraces.length > 0 ? (
+        <section className="marker-trace-panel" aria-labelledby="marker-trace-title">
+          <h3 id="marker-trace-title">Missing marker sources</h3>
+          <div className="document-review-rows compact" role="list">
+            {markerTraces.map((trace) => (
+              <article className="document-review-row" key={`${trace.document}-${trace.marker}-${trace.storedProperty}-${trace.occurrence}`} role="listitem">
+                <div>
+                  <h4>[MISSING: {trace.marker}]</h4>
+                  <p>{trace.stageLabel} / {trace.subsection} / {trace.fieldLabel}</p>
+                  <small>{trace.storedProperty}</small>
+                </div>
+                <p className="document-purpose">{trace.reasonRejected}{trace.requiredStatus ? ` ${trace.requiredStatus}` : ""}</p>
+                <div className="document-review-actions">
+                  <span className={`document-status ${trace.orphan ? "needs-info" : "review-recommended"}`}>{trace.orphan ? "Orphan marker" : "Traceable"}</span>
+                  <button className="button button-secondary" type="button" onClick={() => onEditMarkerSource(trace.stageId)}>Edit source</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <pre>{document.content}</pre>
       <button className="document-preview-close" onClick={onBack} aria-label="Close document preview">
         <X size={18} aria-hidden="true" />
       </button>
     </section>
   );
+}
+
+function documentGateReason(project: ProjectRecord, fileName: string): string {
+  const definition = DOCUMENT_STATUS_DEFINITIONS.find((item) => item.fileName === fileName);
+  if (!definition) return "No document gate metadata.";
+  if (!definition.applicable(project)) return "Not applicable by project type.";
+  const failingGate = definition.gates.map((gateId) => evaluatePhaseGate(project, gateId)).find((gate) => !["confirmed", "ready", "passed", "notApplicable"].includes(gate.status));
+  return failingGate ? `${failingGate.label}: ${failingGate.blockingReason}` : "Document gates passed.";
 }
 
 function statusClassName(status: DocumentReviewItem["status"]) {

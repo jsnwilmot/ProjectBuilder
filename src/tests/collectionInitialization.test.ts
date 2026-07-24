@@ -106,6 +106,9 @@ function createCanvasProject(collections: CanvasCollectionTarget[] = [collection
   canvas.sourcePurpose = "Load request records.";
   canvas.sourceOwnership = "Operations owner.";
   canvas.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+  canvas.sharePointSiteTitle = "Operations";
+  canvas.sharePointSiteOwner = "Operations owner";
+  canvas.sharePointAccessStatus = "confirmed";
   canvas.sharePointListSchemas = [
     createDefaultSharePointList({
       id: "list-requests",

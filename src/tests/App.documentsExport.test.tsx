@@ -38,7 +38,7 @@ describe("App - documents Export", () => {
     expect(screen.getByRole("button", { name: "Preview README.md" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preview DATA_MODEL.md" }));
     expect(screen.getByRole("heading", { name: "DATA_MODEL.md" })).toBeInTheDocument();
-    expect(screen.getByText(/\[MISSING: data sources\]/)).toBeInTheDocument();
+    expect(screen.getAllByText(/\[MISSING: data sources\]/).length).toBeGreaterThanOrEqual(1);
     await user.click(screen.getByRole("button", { name: "Back to document list" }));
     await user.type(screen.getByRole("textbox", { name: "Search documents" }), "does-not-exist");
     expect(screen.getByRole("heading", { name: "No matching documents" })).toBeInTheDocument();
@@ -126,6 +126,48 @@ describe("App - documents Export", () => {
     expect(within(summary).getByText("Ready for Codex blockers").closest("div")).toHaveTextContent("0");
     expect(within(summary).getByText("Readiness checklist").closest("div")).toHaveTextContent("13/13");
     expect(within(summary).getByText("Final readiness").closest("div")).toHaveTextContent("Ready");
+  });
+
+  it("shows marker trace sources and routes Edit source to the expected intake stage", async () => {
+    const project = createProject({
+      identity: { id: "trace-preview", projectName: "" },
+      client: { clientName: "Trace Client" },
+      intake: { appPurpose: "Trace generated markers." }
+    });
+    project.generatedDocuments = [
+      {
+        fileName: "README.md",
+        folder: "00_Project_Overview",
+        content: [
+          "# README",
+          "",
+          "[MISSING: app name]",
+          "[MISSING: unknown package detail]",
+          "[MISSING: unknown package detail]"
+        ].join("\n")
+      }
+    ];
+    project.generatedFileCount = 1;
+    seedApp([project]);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Preview README.md" }));
+
+    expect(screen.getByRole("heading", { name: "Missing marker sources" })).toBeInTheDocument();
+    expect(screen.getByText("[MISSING: app name]")).toBeInTheDocument();
+    expect(screen.getByText("Foundation / Project identity / App name")).toBeInTheDocument();
+    expect(screen.getByText("project.identity.projectName")).toBeInTheDocument();
+    expect(screen.getAllByText("Orphan marker")).toHaveLength(2);
+
+    const appNameTrace = screen.getByText("[MISSING: app name]").closest("article")!;
+    await user.click(within(appNameTrace).getByRole("button", { name: "Edit source" }));
+    expect(await screen.findByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
+    expect(document.activeElement).toHaveAttribute("id", "main-content");
+    expect(consoleError).not.toHaveBeenCalledWith(expect.stringContaining("Encountered two children with the same key"));
+    consoleError.mockRestore();
   });
 
   it("keeps the Ready preview fixture free of generated missing markers", () => {

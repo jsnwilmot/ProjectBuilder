@@ -4,6 +4,7 @@ import { normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers"
 import { countPackageMissingMarkers } from "./documentReview";
 import { expectedDocumentLocations } from "./powerPlatform";
 import { documentTemplates } from "../templates/documents";
+import { orphanMissingMarkers } from "./canvasTraceability";
 import {
   evaluateGeneratedPackageReadiness,
   PROHIBITED_GENERATED_CONTENT_PATTERNS
@@ -38,7 +39,6 @@ export interface ExportIntegrityResult {
 
 // eslint-disable-next-line no-control-regex -- intentional check for unsafe path characters
 const controlCharacters = /[\u0000-\u001f\u007f]/;
-const requiredBlankSectionPattern = /^##\s+(.+)\s*\n\s*(?=##\s+|$)/gm;
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
@@ -68,6 +68,76 @@ function hasUnsafeFileName(fileName: string): boolean {
 
 export function countMissingMarkers(project: ProjectRecord): number {
   return countPackageMissingMarkers(project.generatedDocuments);
+}
+
+export function findBlankMarkdownSections(content: string): string[] {
+  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalized.split("\n");
+  const sections: Array<{ title: string; body: string[] }> = [];
+  let current: { title: string; body: string[] } | null = null;
+
+  for (const line of lines) {
+    const heading = line.match(/^##\s+(.+?)\s*#*\s*$/);
+    if (heading) {
+      if (current) sections.push(current);
+      current = { title: heading[1].trim(), body: [] };
+      continue;
+    }
+    if (current) current.body.push(line);
+  }
+  if (current) sections.push(current);
+
+  return sections
+    .filter((section) => !sectionHasMeaningfulMarkdown(section.body))
+    .map((section) => section.title);
+}
+
+function sectionHasMeaningfulMarkdown(lines: string[]): boolean {
+  for (let index = 0; index < lines.length; index += 1) {
+    const trimmed = lines[index].trim();
+    if (!trimmed || /^<!--.*-->$/.test(trimmed) || /^#{3,6}\s+/.test(trimmed)) continue;
+    if (/^```/.test(trimmed)) {
+      const fenceBody: string[] = [];
+      index += 1;
+      while (index < lines.length && !/^```/.test(lines[index].trim())) {
+        fenceBody.push(lines[index]);
+        index += 1;
+      }
+      if (fenceBody.some((line) => line.trim().length > 0)) return true;
+      continue;
+    }
+    if (/^([-*+]|\d+\.)\s*$/.test(trimmed)) continue;
+    if (trimmed.includes("|")) {
+      const tableLines: string[] = [];
+      while (index < lines.length && lines[index].trim().includes("|")) {
+        tableLines.push(lines[index].trim());
+        index += 1;
+      }
+      index -= 1;
+      if (tableHasData(tableLines)) return true;
+      continue;
+    }
+    if (/^[:\-\s|]+$/.test(trimmed)) continue;
+    return true;
+  }
+  return false;
+}
+
+function tableHasData(lines: string[]): boolean {
+  const separatorIndex = lines.findIndex((line) => /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(line));
+  if (separatorIndex === -1) {
+    return lines.some((line) => tableCells(line).some((cell) => cell.length > 0));
+  }
+  return lines.slice(separatorIndex + 1).some((line) => tableCells(line).some((cell) => cell.length > 0));
+}
+
+function tableCells(line: string): string[] {
+  return line
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim())
+    .filter((cell) => cell.length > 0 && !/^:?-{2,}:?$/.test(cell));
 }
 
 export function validateExportPackage(
@@ -149,7 +219,7 @@ export function validateExportPackage(
     for (const { pattern, label } of PROHIBITED_GENERATED_CONTENT_PATTERNS) {
       if (pattern.test(document.content)) prohibitedFindings.push(`${document.fileName} contains prohibited ${label}.`);
     }
-    const blankSections = [...document.content.matchAll(requiredBlankSectionPattern)].map((match) => match[1].trim());
+    const blankSections = findBlankMarkdownSections(document.content);
     if (blankSections.length > 0) {
       warnings.push(`${document.fileName} contains blank section(s): ${blankSections.join(", ")}.`);
     }
@@ -183,6 +253,10 @@ export function validateExportPackage(
   }
   if (readiness === "Draft") {
     warnings.push(`Package readiness is Draft because ${generatedReadiness.blockers.length} readiness blocker(s) remain.`);
+  }
+  const orphanMarkers = orphanMissingMarkers(project, documents);
+  if (orphanMarkers.length > 0) {
+    errors.push(`${orphanMarkers.length} orphan missing-information marker(s) have no visible intake, derivation, or applicability source.`);
   }
   const sourceName = project.identity.projectName.trim();
   if (!sourceName || rootFolder !== sourceName.toLowerCase().replace(/\s+/g, "-")) {

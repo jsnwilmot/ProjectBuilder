@@ -49,6 +49,7 @@ export function generateProjectPackage(project: ProjectRecord): ProjectPackage {
     blankDocumentCount: readiness.blankDocumentCount,
     duplicateExpectedPathCount: readiness.duplicateExpectedPathCount,
     missingTemplateCount: readiness.missingTemplateCount,
+    orphanMarkerCount: readiness.orphanMarkerCount,
     documentStatuses
   });
 

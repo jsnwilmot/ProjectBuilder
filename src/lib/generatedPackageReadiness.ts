@@ -2,6 +2,7 @@ import { getClientReviewReadiness } from "./clientReview";
 import { countDocumentMissingMarkers } from "./documentReview";
 import { expectedDocumentLocations, calculatePowerPlatformReadiness } from "./powerPlatform";
 import { validateCanvasTargets } from "./canvasTargetValidation";
+import { orphanMissingMarkers } from "./canvasTraceability";
 import type { GeneratedDocument, ProjectRecord } from "../types/project";
 
 export interface GeneratedPackageReadiness {
@@ -14,6 +15,7 @@ export interface GeneratedPackageReadiness {
   blankDocumentCount: number;
   duplicateExpectedPathCount: number;
   missingTemplateCount: number;
+  orphanMarkerCount: number;
   blockers: string[];
 }
 
@@ -54,6 +56,7 @@ export function evaluateGeneratedPackageReadiness(
   const clientReview = getClientReviewReadiness(project);
   const powerPlatform = calculatePowerPlatformReadiness(project);
   const canvasTargets = validateCanvasTargets(project);
+  const orphanMarkerCount = orphanMissingMarkers(project, documents).length;
 
   const blockers = [
     ...clientReview.blockers,
@@ -63,6 +66,7 @@ export function evaluateGeneratedPackageReadiness(
     ...(missingDocumentCount > 0 ? [`${missingDocumentCount} applicable document(s) are missing.`] : []),
     ...(blankDocumentCount > 0 ? [`${blankDocumentCount} generated document(s) are blank.`] : []),
     ...(missingMarkerCount > 0 ? [`${missingMarkerCount} unresolved missing-information marker(s) remain in generated content.`] : []),
+    ...(orphanMarkerCount > 0 ? [`${orphanMarkerCount} orphan missing-information marker(s) have no traceable visible intake field, structured derivation, or controlled applicability decision.`] : []),
     ...(prohibitedContentCount > 0 ? [`${prohibitedContentCount} prohibited generated-content marker(s) remain.`] : []),
     ...(duplicateExpectedPathCount > 0 ? [`${duplicateExpectedPathCount} duplicate expected document path(s) are registered.`] : []),
     ...(missingTemplateFiles.length > 0 ? [`${missingTemplateFiles.length} applicable document template(s) are missing.`] : [])
@@ -78,6 +82,7 @@ export function evaluateGeneratedPackageReadiness(
     blankDocumentCount,
     duplicateExpectedPathCount,
     missingTemplateCount: missingTemplateFiles.length,
+    orphanMarkerCount,
     blockers: unique(blockers)
   };
 }

@@ -95,6 +95,9 @@ function createNavigationProject() {
   pp.canvas!.sourcePurpose = "Store requests.";
   pp.canvas!.sourceOwnership = "Operations.";
   pp.canvas!.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+  pp.canvas!.sharePointSiteTitle = "Operations";
+  pp.canvas!.sharePointSiteOwner = "Operations owner";
+  pp.canvas!.sharePointAccessStatus = "confirmed";
   pp.canvas!.sharePointListSchemas = [
     createDefaultSharePointList({
       id: "list-requests",

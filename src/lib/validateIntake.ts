@@ -69,6 +69,147 @@ function lines(value: string): string[] {
     .filter(Boolean);
 }
 
+interface AnswerCompletionItem {
+  id: string;
+  answered: boolean;
+}
+
+function hasText(value: string | undefined | null): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function decisionAnswered(decision: { status: string; details?: string; notApplicableReason?: string } | undefined): boolean {
+  if (!decision || decision.status === "undecided" || decision.status === "missingInformation" || decision.status === "notStarted") return false;
+  if (decision.status === "notApplicable") return hasText(decision.notApplicableReason);
+  if (decision.status === "required") return hasText(decision.details);
+  return true;
+}
+
+function textItem(id: string, value: string | undefined | null, applicable = true): AnswerCompletionItem[] {
+  return applicable ? [{ id, answered: hasText(value) }] : [];
+}
+
+function statusItem(id: string, value: string | undefined | null, applicable = true): AnswerCompletionItem[] {
+  if (!applicable) return [];
+  return [{ id, answered: Boolean(value && value !== "missingInformation" && value !== "notStarted") }];
+}
+
+function decisionItem(id: string, decision: Parameters<typeof decisionAnswered>[0], applicable = true): AnswerCompletionItem[] {
+  return applicable ? [{ id, answered: decisionAnswered(decision) }] : [];
+}
+
+function powerPlatformAnswerItems(project: ProjectRecord, stageId: string): AnswerCompletionItem[] {
+  const common = project.powerPlatform?.common;
+  const canvas = project.powerPlatform?.canvas;
+  if (!project.powerPlatform || !common) return [];
+
+  if (stageId === "foundation") {
+    return [
+      ...textItem("tenant", common.tenant),
+      ...textItem("environment", common.environment),
+      ...textItem("environmentAccessStatus", common.environmentAccessStatus),
+      ...textItem("currentPowerAppsLicences", common.currentPowerAppsLicences),
+      ...statusItem("licensingConfirmationStatus", common.licensingConfirmationStatus)
+    ];
+  }
+
+  if (stageId === "data" && isCanvasProject(project) && canvas) {
+    const items: AnswerCompletionItem[] = [
+      { id: "primaryDataSourceType", answered: Boolean(canvas.primaryDataSourceType && canvas.primaryDataSourceType !== "undecided") },
+      ...textItem("sourcePurpose", canvas.sourcePurpose)
+    ];
+    if (usesSharePoint(project)) {
+      items.push(
+        ...textItem("sharePointSiteUrl", canvas.sharePointSiteUrl || canvas.sharePointSites),
+        ...textItem("sharePointSiteTitle", canvas.sharePointSiteTitle),
+        ...textItem("sharePointSiteOwner", canvas.sharePointSiteOwner),
+        ...textItem("sharePointAccessStatus", canvas.sharePointAccessStatus),
+        ...canvas.sharePointListSchemas.flatMap((list) => [
+          { id: `sharePointList:${list.id}:displayName`, answered: hasText(list.displayName) },
+          { id: `sharePointList:${list.id}:purpose`, answered: hasText(list.purpose) },
+          { id: `sharePointList:${list.id}:expectedRecordCount`, answered: hasText(list.expectedRecordCount) },
+          { id: `sharePointList:${list.id}:confirmationSource`, answered: hasText(list.confirmationSource) }
+        ]),
+        ...canvas.sharePointColumnSchemas.flatMap((column) => [
+          { id: `sharePointColumn:${column.id}:parentType`, answered: hasText(column.parentType) },
+          { id: `sharePointColumn:${column.id}:parentId`, answered: hasText(column.parentId) },
+          { id: `sharePointColumn:${column.id}:displayName`, answered: hasText(column.displayName) },
+          { id: `sharePointColumn:${column.id}:internalName`, answered: hasText(column.internalName) },
+          { id: `sharePointColumn:${column.id}:columnType`, answered: hasText(column.columnType) },
+          { id: `sharePointColumn:${column.id}:confirmationSource`, answered: hasText(column.confirmationSource) }
+        ])
+      );
+    }
+    items.push(...decisionItem("fileApplicabilityDecision", canvas.fileApplicabilityDecision));
+    if (canvas.fileApplicabilityDecision.status === "required") {
+      items.push(
+        ...textItem("fileRequirements", canvas.fileRequirements),
+        ...textItem("attachmentRequirements", canvas.attachmentRequirements),
+        ...textItem("fileUploadRequirements", canvas.fileUploadRequirements),
+        ...textItem("fileDownloadRequirements", canvas.fileDownloadRequirements),
+        ...textItem("fileMetadataRequirements", canvas.fileMetadataRequirements),
+        ...textItem("fileSizeRequirements", canvas.fileSizeRequirements),
+        ...textItem("filePermissionRequirements", canvas.filePermissionRequirements),
+        ...textItem("fileValidationRequirements", canvas.fileValidationRequirements)
+      );
+    }
+    return items;
+  }
+
+  if (stageId === "features" && isCanvasProject(project) && canvas) {
+    return [
+      ...canvas.screenTargets.flatMap((screen) => [
+        { id: `screen:${screen.id}:approvedScreenName`, answered: hasText(screen.approvedScreenName) },
+        { id: `screen:${screen.id}:purpose`, answered: hasText(screen.purpose) },
+        { id: `screen:${screen.id}:confirmationSource`, answered: hasText(screen.confirmationSource) }
+      ]),
+      ...canvas.controlTargets.flatMap((control) => [
+        { id: `control:${control.id}:screenId`, answered: hasText(control.screenId) },
+        { id: `control:${control.id}:approvedControlName`, answered: hasText(control.approvedControlName) },
+        { id: `control:${control.id}:controlType`, answered: hasText(control.controlType) },
+        { id: `control:${control.id}:purpose`, answered: hasText(control.purpose) },
+        { id: `control:${control.id}:operation`, answered: hasText(control.operation) },
+        { id: `control:${control.id}:formulaProperties`, answered: hasText(control.formulaProperties) },
+        { id: `control:${control.id}:confirmationSource`, answered: hasText(control.confirmationSource) }
+      ]),
+      ...canvas.stateVariableTargets.flatMap((variable) => [
+        { id: `state:${variable.id}:implementationName`, answered: hasText(variable.implementationName) },
+        { id: `state:${variable.id}:purpose`, answered: hasText(variable.purpose) },
+        { id: `state:${variable.id}:stateRole`, answered: hasText(variable.stateRole) }
+      ])
+    ];
+  }
+
+  if (stageId === "workflows") {
+    return [
+      ...textItem("sourceControlApproach", common.sourceControlApproach),
+      ...textItem("gitIntegration", common.gitIntegration),
+      ...textItem("powerPlatformCliAvailability", common.powerPlatformCliAvailability),
+      ...textItem("deploymentMethod", common.deploymentMethod),
+      ...statusItem("almConfirmationStatus", common.almConfirmationStatus)
+    ];
+  }
+
+  if (stageId === "security") {
+    return [
+      ...textItem("authenticationRequirements", common.authenticationRequirements),
+      ...textItem("authorizationRequirements", common.authorizationRequirements),
+      ...textItem("recordAccessRules", common.recordAccessRules),
+      ...textItem("privacyRequirements", common.privacyRequirements),
+      ...statusItem("securityReviewStatus", common.securityReviewStatus),
+      ...textItem("securityTesting", common.securityTesting),
+      ...textItem("volumeTesting", common.volumeTesting),
+      ...textItem("integrationTesting", common.integrationTesting),
+      ...textItem("regressionTesting", common.regressionTesting),
+      ...textItem("userAcceptanceTesting", common.userAcceptanceTesting),
+      ...textItem("productionSmokeTesting", common.productionSmokeTesting),
+      ...statusItem("testingPlanConfirmationStatus", common.testingPlanConfirmationStatus)
+    ];
+  }
+
+  return [];
+}
+
 function ruleMissingFields(project: ProjectRecord, stageId: string): ValidationIssue[] {
   const projectType = project.intake.appType;
   const preset = getProjectTypePreset(projectType);
@@ -472,10 +613,15 @@ function sectionResult(project: ProjectRecord, stageIndex: number): ValidationSe
     stage.id
   ).map((field) => field.name);
   const trackedFields = [...new Set([...stage.requiredFields, ...stage.optionalFields, ...projectTypeFields])];
-  const completed = trackedFields.filter((field) => getProjectFieldValue(project, field).trim()).length;
-  const percentComplete = trackedFields.length === 0
+  const fieldItems: AnswerCompletionItem[] = trackedFields.map((field) => ({
+    id: field,
+    answered: Boolean(getProjectFieldValue(project, field).trim())
+  }));
+  const answerItems = [...fieldItems, ...powerPlatformAnswerItems(project, stage.id)];
+  const completed = answerItems.filter((item) => item.answered).length;
+  const percentComplete = answerItems.length === 0
     ? (requiredMissing.length === 0 && ruleIssues.length === 0 ? 100 : 0)
-    : Math.round((completed / trackedFields.length) * 100);
+    : Math.round((completed / answerItems.length) * 100);
 
   return {
     stageId: stage.id,

@@ -13,6 +13,7 @@ import { normalizeCanvasFormModeTargets } from "./formModeTargets";
 import { normalizeCanvasFormOperationTargets } from "./formOperationTargets";
 import { normalizeCanvasRecordLifecycleTargets } from "./recordLifecycleTargets";
 import { normalizeCanvasStateVariableTargets } from "./stateInitialization";
+import { effectiveCanvasExpectedRecordCounts } from "./canvasTraceability";
 import type {
   CanvasDataSourceType,
   ConnectorClassification,
@@ -1310,7 +1311,7 @@ function hasText(value: string | undefined): boolean {
 
 function hasMeaningfulText(value: string | undefined): boolean {
   if (!hasText(value)) return false;
-  return !/^(not decided|unknown|pending|tbd|to be determined|n\/a pending|none yet|needs review|unconfirmed|missing|no decision yet|no confirmation|no approved approach)$/i.test((value ?? "").trim());
+  return !/^(n\/a|na|not applicable|not decided|unknown|pending|tbd|to be determined|n\/a pending|none yet|needs review|unconfirmed|missing|no decision yet|no confirmation|no approved approach)$/i.test((value ?? "").trim());
 }
 
 function hasMissingMarker(value: string | undefined): boolean {
@@ -1318,7 +1319,7 @@ function hasMissingMarker(value: string | undefined): boolean {
 }
 
 function gateFromRequiredValues(values: string[], confirmation: unknown): PowerPlatformGateStatus {
-  if (values.some((value) => !hasText(value) || hasMissingMarker(value))) return "missingInformation";
+  if (values.some((value) => !hasMeaningfulText(value) || hasMissingMarker(value))) return "missingInformation";
   return isConfirmed(confirmation) ? "confirmed" : "reviewNeeded";
 }
 
@@ -1565,7 +1566,8 @@ export function calculateSharePointSchemaGate(project: ProjectRecord): PowerPlat
   if (internalNames === "reviewNeeded") return "reviewNeeded";
   const hasStructured = canvas.sharePointListSchemas.length > 0 || canvas.sharePointLibrarySchemas.length > 0 || canvas.sharePointColumnSchemas.length > 0;
   if (hasStructured) {
-    if (!hasText(canvas.sharePointSiteUrl || canvas.sharePointSites)) return "missingInformation";
+    if (!hasMeaningfulText(canvas.sharePointSiteUrl || canvas.sharePointSites)) return "missingInformation";
+    if (!hasMeaningfulText(canvas.sharePointSiteTitle) || !hasMeaningfulText(canvas.sharePointSiteOwner) || !hasMeaningfulText(canvas.sharePointAccessStatus)) return "missingInformation";
     if (canvas.sharePointListSchemas.length === 0 && canvas.sharePointLibrarySchemas.length === 0) return "missingInformation";
     const listIds = new Set(canvas.sharePointListSchemas.map((list) => list.id));
     const libraryIds = new Set(canvas.sharePointLibrarySchemas.map((library) => library.id));
@@ -1582,9 +1584,12 @@ export function calculateSharePointSchemaGate(project: ProjectRecord): PowerPlat
   }
   return gateFromRequiredValues([
     canvas.sharePointSiteUrl || canvas.sharePointSites,
+    canvas.sharePointSiteTitle,
+    canvas.sharePointSiteOwner,
+    canvas.sharePointAccessStatus,
     canvas.sharePointListDefinitions || canvas.sharePointLists || canvas.sharePointLibraryDefinitions || canvas.sharePointLibraries,
     canvas.sharePointColumnDefinitions,
-    canvas.expectedRecordCounts
+    effectiveCanvasExpectedRecordCounts(project).value
   ], canvas.schemaStatus);
 }
 
@@ -1725,9 +1730,16 @@ export function calculateTestingPreparationGate(project: ProjectRecord): PowerPl
     common.functionalTesting,
     common.connectorTesting,
     common.permissionTesting,
+    common.securityTesting,
     common.accessibilityTesting,
-    common.deploymentTesting
-  ].some(hasText);
+    common.performanceTesting,
+    common.volumeTesting,
+    common.integrationTesting,
+    common.regressionTesting,
+    common.userAcceptanceTesting,
+    common.deploymentTesting,
+    common.productionSmokeTesting
+  ].every(hasMeaningfulText);
   if (!hasTestPlan) return "missingInformation";
   return isConfirmed(common.testingPlanConfirmationStatus)
     ? "confirmed"
@@ -1777,7 +1789,7 @@ export function calculateCanvasDelegationPlanningGate(project: ProjectRecord): P
   const connectorDelegation = (project.powerPlatform?.common.connectors ?? []).some((connector) => hasText(connector.delegationSupport));
   if (!connectorDelegation) return "missingInformation";
   return gateFromRequiredValues([
-    canvas.expectedRecordCounts,
+    effectiveCanvasExpectedRecordCounts(project).value,
     canvas.searchRequirements,
     canvas.filteringRequirements,
     canvas.sortingRequirements,
@@ -1790,6 +1802,8 @@ export function calculateAlmGate(project: ProjectRecord): PowerPlatformGateStatu
   if (!common) return "notApplicable";
   const commonGate = gateFromRequiredValues([
     common.sourceControlApproach,
+    common.gitIntegration,
+    common.powerPlatformCliAvailability,
     common.deploymentMethod,
     common.deploymentResponsibility,
     common.deploymentStrategy,

@@ -34,7 +34,10 @@ import type {
   PowerPlatformDecisionStatus,
   PowerPlatformModelDrivenData,
   PowerPlatformProjectData,
-  ProjectRecord
+  ProjectRecord,
+  CanvasStateInitialValue,
+  CanvasStateRole,
+  CanvasStateVariableTarget
 } from "../../types/project";
 import { CircleAlert } from "../ui/Icons";
 
@@ -89,6 +92,23 @@ const canvasSubtypeOptions: Array<{ value: PowerAppsCanvasSubtype | ""; label: s
   { value: "other", label: "Other" }
 ];
 const connectorOperations: ConnectorOperation[] = ["read", "create", "update", "delete", "archive", "restore", "upload", "download"];
+const controlOperationOptions: Array<{ value: string; label: string }> = [
+  { value: "", label: "Select operation" },
+  { value: "save", label: "Save" },
+  { value: "submit", label: "Submit" },
+  { value: "cancel", label: "Cancel" },
+  { value: "create", label: "Create" },
+  { value: "update", label: "Update" },
+  { value: "read", label: "Read" },
+  { value: "archive", label: "Archive" },
+  { value: "restore", label: "Restore" },
+  { value: "search", label: "Search" },
+  { value: "filter", label: "Filter" },
+  { value: "sort", label: "Sort" },
+  { value: "upload", label: "Upload" },
+  { value: "download", label: "Download" },
+  { value: "other", label: "Other" }
+];
 const decisionStatusOptions: Array<{ value: PowerPlatformDecisionStatus; label: string }> = [
   { value: "notStarted", label: "Not started" },
   { value: "missingInformation", label: "Missing information" },
@@ -98,6 +118,16 @@ const decisionStatusOptions: Array<{ value: PowerPlatformDecisionStatus; label: 
   { value: "notApplicable", label: "Not applicable" }
 ];
 const decisionValues = new Set(decisionStatusOptions.map((option) => option.value));
+const stateRoleOptions: Array<{ value: CanvasStateRole | ""; label: string }> = [
+  { value: "", label: "Select state role" },
+  { value: "selectedRecord", label: "Selected record" },
+  { value: "formMode", label: "Form mode" },
+  { value: "savingState", label: "Saving state" },
+  { value: "unsavedChanges", label: "Unsaved changes" },
+  { value: "filterState", label: "Filter state" },
+  { value: "navigationState", label: "Navigation state" },
+  { value: "other", label: "Other" }
+];
 const selectableCanvasDataSources = canvasDataSourceOptions.filter((option): option is { value: SelectableCanvasDataSourceType; label: string } =>
   option.value !== "undecided" && option.value !== "multiple"
 );
@@ -113,6 +143,35 @@ function fieldId(scope: string, name: string): string {
 
 function controlledDecisionStatus(value: string | undefined): PowerPlatformDecisionStatus {
   return decisionValues.has(value as PowerPlatformDecisionStatus) ? value as PowerPlatformDecisionStatus : "missingInformation";
+}
+
+function createDefaultStateVariableTarget(sortOrder: number): CanvasStateVariableTarget {
+  return {
+    id: `state-variable-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    implementationName: "",
+    purpose: "",
+    stateRole: "",
+    initialValue: { kind: "blank" } as CanvasStateInitialValue,
+    confirmationStatus: "missingInformation" as PowerPlatformDecisionStatus,
+    required: true,
+    sortOrder
+  };
+}
+
+function initialValueToText(value: CanvasStateInitialValue): string {
+  if (value.kind === "blank") return "";
+  if (value.kind === "boolean") return value.value ? "true" : "false";
+  return String(value.value);
+}
+
+function updateInitialValueText(value: CanvasStateInitialValue, text: string): CanvasStateInitialValue {
+  if (value.kind === "blank") return { kind: "blank" };
+  if (value.kind === "boolean") return { kind: "boolean", value: text.trim().toLowerCase() === "true" };
+  if (value.kind === "number") {
+    const parsed = Number(text);
+    return { kind: "number", value: Number.isFinite(parsed) ? parsed : 0 };
+  }
+  return { kind: "text", value: text };
 }
 
 function TextField({
@@ -484,6 +543,8 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "sourcePurpose")} label="Source purpose" description="Explain what this source stores or retrieves." value={canvas.sourcePurpose} onChange={(value) => updateCanvas("sourcePurpose", value)} required />
           <TextField id={fieldId(stageId, "sourceOwnership")} label="Source ownership" description="Who owns schema and access decisions for this source?" value={canvas.sourceOwnership} onChange={(value) => updateCanvas("sourceOwnership", value)} required />
           <TextField id={fieldId(stageId, "sourceOfTruthDecision")} label="Source of truth decision" description="Identify which system wins when data conflicts." value={canvas.sourceOfTruthDecision} onChange={(value) => updateCanvas("sourceOfTruthDecision", value)} multiline />
+          <TextField id={fieldId(stageId, "expectedRecordCounts")} label="General expected record counts" description="Use this only when record counts cannot be derived from structured list, table, or resource rows. Structured row counts take precedence." value={canvas.expectedRecordCounts} onChange={(value) => updateCanvas("expectedRecordCounts", value)} multiline />
+          <TextField id={fieldId(stageId, "synchronizationRequirements")} label="Synchronization requirements" description="Sync, refresh, conflict, offline, or not-applicable requirements used by schema and delegation documents." value={canvas.synchronizationRequirements} onChange={(value) => updateCanvas("synchronizationRequirements", value)} multiline />
           <ApplicabilityDecisionEditor
             id={fieldId(stageId, "fileApplicabilityDecision")}
             label="Files and attachments"
@@ -515,6 +576,9 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           {usesSharePoint(project) ? (
             <SchemaSection title="SharePoint or Microsoft Lists schema" notice="Internal column names are required before Codex-ready prompts can rely on SharePoint data.">
               <TextField id={fieldId(stageId, "sharePointSiteUrl")} label="SharePoint site URL" description="Site URL that owns the lists or libraries." value={canvas.sharePointSiteUrl} onChange={(value) => updateCanvas("sharePointSiteUrl", value)} />
+              <TextField id={fieldId(stageId, "sharePointSiteTitle")} label="SharePoint site title" description="Visible site title used in SharePoint schema documents and readiness gates." value={canvas.sharePointSiteTitle} onChange={(value) => updateCanvas("sharePointSiteTitle", value)} />
+              <TextField id={fieldId(stageId, "sharePointSiteOwner")} label="SharePoint site owner" description="Owner accountable for SharePoint schema and access decisions." value={canvas.sharePointSiteOwner} onChange={(value) => updateCanvas("sharePointSiteOwner", value)} />
+              <TextField id={fieldId(stageId, "sharePointAccessStatus")} label="SharePoint access status" description="Current maker/user access status for this site. This feeds schema readiness and Package Preview diagnostics." value={canvas.sharePointAccessStatus} onChange={(value) => updateCanvas("sharePointAccessStatus", value)} />
               <SharePointSchemaEditor
                 canvas={canvas}
                 updateRows={updateCanvasRows}
@@ -647,6 +711,8 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "postPasteActions")} label="Post-paste actions" description="Post-paste action planning." value={canvas.postPasteActions} onChange={(value) => updateCanvas("postPasteActions", value)} multiline />
           <TextField id={fieldId(stageId, "validationResponsibility")} label="Validation responsibility" description="Who validates the app after manual build/paste/source import." value={canvas.validationResponsibility} onChange={(value) => updateCanvas("validationResponsibility", value)} />
           <TextField id={fieldId(stageId, "sourceControlApproach")} label="Source-control decision" description="Source-control approach for the Power Platform assets." value={common.sourceControlApproach} onChange={(value) => updateCommon("sourceControlApproach", value)} multiline />
+          <TextField id={fieldId(stageId, "gitIntegration")} label="Git integration" description="Git integration decision or explicit not-applicable description. A bare N/A placeholder does not confirm readiness." value={common.gitIntegration} onChange={(value) => updateCommon("gitIntegration", value)} multiline />
+          <TextField id={fieldId(stageId, "powerPlatformCliAvailability")} label="Power Platform CLI availability" description="Power Platform CLI availability decision or explicit not-applicable description. This feeds ALM_DEPLOYMENT_PLAN.md and ALM readiness." value={common.powerPlatformCliAvailability} onChange={(value) => updateCommon("powerPlatformCliAvailability", value)} multiline />
           <TextField id={fieldId(stageId, "deploymentMethod")} label="Deployment method" description="Deployment method." value={common.deploymentMethod} onChange={(value) => updateCommon("deploymentMethod", value)} multiline />
           <TextField id={fieldId(stageId, "deploymentOwner")} label="Deployment owner" description="Named owner or team responsible for deployment." value={common.deploymentOwner} onChange={(value) => updateCommon("deploymentOwner", value)} required />
           <TextField id={fieldId(stageId, "deploymentResponsibility")} label="Deployment responsibility" description="Who handles deployment." value={common.deploymentResponsibility} onChange={(value) => updateCommon("deploymentResponsibility", value)} multiline />
@@ -696,8 +762,14 @@ export function PowerPlatformIntake({ project, stageId, onUpdatePowerPlatform }:
           <TextField id={fieldId(stageId, "accessibilityTesting")} label="Accessibility testing" description="Keyboard, screen reader, labels, focus order, and contrast expectations." value={common.accessibilityTesting} onChange={(value) => updateCommon("accessibilityTesting", value)} multiline />
           <TextField id={fieldId(stageId, "connectorTesting")} label="Connector testing" description="Connector test expectations." value={common.connectorTesting} onChange={(value) => updateCommon("connectorTesting", value)} multiline />
           <TextField id={fieldId(stageId, "permissionTesting")} label="Permission testing" description="Permission and role test expectations." value={common.permissionTesting} onChange={(value) => updateCommon("permissionTesting", value)} multiline />
+          <TextField id={fieldId(stageId, "securityTesting")} label="Security testing" description="Planned least-privilege, sensitive-data, audit, privacy, and authorization tests. This does not mark testing as completed." value={common.securityTesting} onChange={(value) => updateCommon("securityTesting", value)} multiline />
           <TextField id={fieldId(stageId, "performanceTesting")} label="Performance testing" description="Performance and volume test expectations." value={common.performanceTesting} onChange={(value) => updateCommon("performanceTesting", value)} multiline />
+          <TextField id={fieldId(stageId, "volumeTesting")} label="Volume testing" description="Planned record-volume, paging, threshold, and delegation-volume tests." value={common.volumeTesting} onChange={(value) => updateCommon("volumeTesting", value)} multiline />
+          <TextField id={fieldId(stageId, "integrationTesting")} label="Integration testing" description="Planned connector, flow, data-source, or system integration tests." value={common.integrationTesting} onChange={(value) => updateCommon("integrationTesting", value)} multiline />
+          <TextField id={fieldId(stageId, "regressionTesting")} label="Regression testing" description="Planned regression checks for existing or approved workflows." value={common.regressionTesting} onChange={(value) => updateCommon("regressionTesting", value)} multiline />
+          <TextField id={fieldId(stageId, "userAcceptanceTesting")} label="User acceptance testing" description="Planned UAT participants, criteria, and approval evidence." value={common.userAcceptanceTesting} onChange={(value) => updateCommon("userAcceptanceTesting", value)} multiline />
           <TextField id={fieldId(stageId, "deploymentTesting")} label="Deployment testing" description="Solution import, publishing, smoke test, and rollback checks." value={common.deploymentTesting} onChange={(value) => updateCommon("deploymentTesting", value)} multiline />
+          <TextField id={fieldId(stageId, "productionSmokeTesting")} label="Production smoke testing" description="Planned production smoke checks after release. This feeds TEST_PLAN.md and DEPLOYMENT_NOTES.md." value={common.productionSmokeTesting} onChange={(value) => updateCommon("productionSmokeTesting", value)} multiline />
           <DecisionStatusField id={fieldId(stageId, "testingPlanConfirmationStatus")} label="Testing-plan confirmation status" description="Controlled status for testing readiness." value={common.testingPlanConfirmationStatus} onChange={(value) => updateCommon("testingPlanConfirmationStatus", value)} required />
         </div>
       ) : null}
@@ -1116,7 +1188,7 @@ function CanvasImplementationTargetEditor({
             <TextField id={`canvas-control-${row.id}-type`} label="Control type" description="Gallery, form, button, text input, label, container, component instance, etc." value={row.controlType} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, controlType: value } : item))} required />
             <TextField id={`canvas-control-${row.id}-purpose`} label="Purpose" description="What this control does." value={row.purpose} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} multiline required />
             <ApplicabilityDecisionEditor id={`canvas-control-${row.id}-formula-decision`} label="Formula output" value={row.formulaOutputDecision} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, formulaOutputDecision: value } : item))} />
-            <TextField id={`canvas-control-${row.id}-operation`} label="Operation" description="read, create, update, archive, restore, search, upload, download, or other." value={row.operation} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, operation: value } : item))} required />
+            <SelectField id={`canvas-control-${row.id}-operation`} label="Operation" description="Controlled operation used for readiness and generated-document classification." value={row.operation} options={controlOperationOptions} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, operation: value } : item))} required />
             <TextField id={`canvas-control-${row.id}-formulas`} label="Formula properties" description="Semicolon/comma-separated properties such as Items, OnSelect, OnSuccess." value={row.formulaProperties} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, formulaProperties: value } : item))} required />
             <TextField id={`canvas-control-${row.id}-connector`} label="Connector ID" description="Connector assessment ID used by formulas." value={row.connectorId} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, connectorId: value } : item))} />
             <SelectField id={`canvas-control-${row.id}-entity`} label="Entity ID" description="Structured list, library, table, or connector resource ID used by formulas." value={row.entityId} options={[{ value: "", label: "Select entity" }, ...dataSourceOptions]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, entityId: value } : item))} />
@@ -1176,6 +1248,57 @@ function CanvasImplementationTargetEditor({
             <DecisionStatusField id={`canvas-component-${row.id}-confirmation`} label="Confirmation status" description="Controlled component target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
             <TextField id={`canvas-component-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this component target." value={row.confirmationSource} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
             <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove component target</button>
+          </article>
+        ))}
+      </RecordGroup>
+      <RecordGroup
+        title="Structured state-variable targets"
+        addLabel="Add state variable"
+        onAdd={() => updateRows("stateVariableTargets", (rows) => [...rows, createDefaultStateVariableTarget(rows.length + 1)])}
+      >
+        {canvas.stateVariableTargets.map((row) => (
+          <article className="schema-card" key={row.id}>
+            <TextField id={`canvas-state-${row.id}-id`} label="Stable state-variable ID" description="Traceable ID used by state initialization and selected-record planning assets." value={row.id} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
+            <TextField id={`canvas-state-${row.id}-name`} label="Approved implementation name" description="Approved Power Fx variable name, such as varSelectedRecord. Do not infer from prose." value={row.implementationName} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, implementationName: value } : item))} required />
+            <SelectField id={`canvas-state-${row.id}-role`} label="State role" description="Controlled role used for selected-record and other state classifications." value={row.stateRole ?? ""} options={stateRoleOptions} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, stateRole: value } : item))} required />
+            <TextField id={`canvas-state-${row.id}-purpose`} label="Purpose" description="What state this variable stores and where it is used." value={row.purpose} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} multiline required />
+            <SelectField
+              id={`canvas-state-${row.id}-initial-kind`}
+              label="Initial value type"
+              description="Initial value kind for the structured state target."
+              value={row.initialValue.kind}
+              options={[
+                { value: "blank", label: "Blank" },
+                { value: "boolean", label: "Boolean" },
+                { value: "number", label: "Number" },
+                { value: "text", label: "Text" }
+              ]}
+              onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? {
+                ...item,
+                initialValue: (value === "blank"
+                  ? { kind: "blank" }
+                  : value === "boolean"
+                    ? { kind: "boolean", value: false }
+                    : value === "number"
+                      ? { kind: "number", value: 0 }
+                      : { kind: "text", value: "" }) as CanvasStateInitialValue
+              } : item))}
+            />
+            {row.initialValue.kind !== "blank" ? (
+              <TextField id={`canvas-state-${row.id}-initial-value`} label="Initial value" description="Initial value for this state variable." value={initialValueToText(row.initialValue)} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, initialValue: updateInitialValueText(item.initialValue, value) } : item))} />
+            ) : null}
+            <label className="checkbox-row" htmlFor={`canvas-state-${row.id}-required`}>
+              <input
+                id={`canvas-state-${row.id}-required`}
+                type="checkbox"
+                checked={row.required}
+                onChange={(event) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, required: event.target.checked } : item))}
+              />
+              Required for implementation planning
+            </label>
+            <TextField id={`canvas-state-${row.id}-sort`} label="Sort order" description="Deterministic generation order." value={String(row.sortOrder)} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, sortOrder: Number.isFinite(Number(value)) ? Number(value) : 0 } : item))} />
+            <DecisionStatusField id={`canvas-state-${row.id}-confirmation`} label="Confirmation status" description="Controlled state-variable confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
+            <button className="button button-secondary" type="button" onClick={() => updateRows("stateVariableTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove state variable</button>
           </article>
         ))}
       </RecordGroup>

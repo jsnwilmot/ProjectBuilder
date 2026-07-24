@@ -168,6 +168,9 @@ function createCanvasProject(
   canvas.sourcePurpose = "Store requests.";
   canvas.sourceOwnership = "Operations.";
   canvas.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+  canvas.sharePointSiteTitle = "Operations";
+  canvas.sharePointSiteOwner = "Operations owner";
+  canvas.sharePointAccessStatus = "confirmed";
   canvas.screenNamingConvention = "scrName";
   canvas.controlNamingConvention = "prefixName";
   canvas.controlTypePrefixes = "btn for buttons and frm for forms.";

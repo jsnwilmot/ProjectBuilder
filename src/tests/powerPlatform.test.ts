@@ -229,8 +229,8 @@ function createReadyCanvasProject() {
   pp.common.deploymentTesting = "Test environment publish.";
   pp.common.productionSmokeTesting = "Production load and connector smoke.";
   pp.common.sourceControlApproach = "Repository documentation.";
-  pp.common.gitIntegration = "Not required.";
-  pp.common.powerPlatformCliAvailability = "Not required.";
+  pp.common.gitIntegration = "Not applicable because Git integration is not approved for this package.";
+  pp.common.powerPlatformCliAvailability = "Not applicable because CLI automation is not approved for this package.";
   pp.common.almApproach = "Manual export and publish.";
   pp.common.deploymentMethod = "Manual Power Apps publish.";
   pp.common.deploymentOwner = "Technical Owner";
@@ -560,6 +560,52 @@ function createReadyCanvasProject() {
       confirmationSource: "Architect"
     },
     {
+      id: "control-request-form",
+      screenId: "screen-request-form",
+      parentControlId: "",
+      approvedControlName: "frmRequest",
+      controlType: "Edit form",
+      purpose: "Capture request fields before submit.",
+      operation: "create",
+      formulaProperties: "DataSource, Item, OnSuccess",
+      dataSourceId: "sp",
+      dataSourceEntityId: "requests",
+      requiredFieldIds: ["title", "status"],
+      dependencies: "Requests list",
+      visibilityRequirement: "Visible to requesters.",
+      displayModeRequirement: "New mode while creating a request.",
+      accessibleLabelRequirement: "Request form",
+      yamlOutputType: "control",
+      yamlParentId: "screen-request-form",
+      yamlInstallationLocation: "Inside scrRequestForm",
+      yamlValidationResponsibility: "Technical Owner",
+      confirmationStatus: "confirmed",
+      confirmationSource: "Architect"
+    },
+    {
+      id: "control-cancel-request",
+      screenId: "screen-request-form",
+      parentControlId: "",
+      approvedControlName: "btnCancelRequest",
+      controlType: "Button",
+      purpose: "Cancel request edits and return to the home screen.",
+      operation: "cancel",
+      formulaProperties: "OnSelect",
+      dataSourceId: "sp",
+      dataSourceEntityId: "requests",
+      requiredFieldIds: [],
+      dependencies: "Unsaved-change confirmation; home navigation",
+      visibilityRequirement: "Visible while editing a request.",
+      displayModeRequirement: "Enabled while request form is editable.",
+      accessibleLabelRequirement: "Cancel request",
+      yamlOutputType: "control",
+      yamlParentId: "screen-request-form",
+      yamlInstallationLocation: "Inside scrRequestForm",
+      yamlValidationResponsibility: "Technical Owner",
+      confirmationStatus: "confirmed",
+      confirmationSource: "Architect"
+    },
+    {
       id: "control-edit-request",
       screenId: "screen-review-queue",
       parentControlId: "",
@@ -699,7 +745,31 @@ function createReadyCanvasProject() {
     },
     yamlParentType: "screen"
   }) as Partial<ReturnType<typeof createDefaultCanvasControlTarget>>));
+  canvas.formOperationTargets = [{
+    id: "form-operation-create-request",
+    operation: "create",
+    screenId: "screen-request-form",
+    formControlId: "control-request-form",
+    submitControlId: "control-create-request",
+    sourceConnectorId: "sp",
+    sourceEntityId: "requests",
+    requiredFieldIds: ["title", "status"],
+    submissionTrigger: "controlOnSelect",
+    confirmationStatus: "confirmed",
+    required: true,
+    sortOrder: 1
+  }];
   canvas.componentTargets = [];
+  canvas.stateVariableTargets = [{
+    id: "state-selected-request",
+    implementationName: "varSelectedRequest",
+    purpose: "Tracks the selected request record used by the review form, archive action, restore action, and supporting-document metadata.",
+    stateRole: "selectedRecord",
+    initialValue: { kind: "blank" },
+    required: true,
+    sortOrder: 1,
+    confirmationStatus: "confirmed"
+  }];
   canvas.screenNamingConvention = "Screens use scr + PascalCase approved names, such as scrHome.";
   canvas.controlNamingConvention = "Controls use type prefix plus PascalCase purpose, such as btnSubmitRequest.";
   canvas.controlTypePrefixes = "gal for galleries; frm for forms; btn for buttons; txt for text inputs; att for attachment controls.";
@@ -1125,6 +1195,9 @@ describe("power platform foundation", () => {
     project.powerPlatform!.canvas!.sourcePurpose = "Track requests";
     project.powerPlatform!.canvas!.sourceOwnership = "Operations";
     project.powerPlatform!.canvas!.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+    project.powerPlatform!.canvas!.sharePointSiteTitle = "Operations";
+    project.powerPlatform!.canvas!.sharePointSiteOwner = "Operations Owner";
+    project.powerPlatform!.canvas!.sharePointAccessStatus = "confirmed";
     project.powerPlatform!.canvas!.sharePointListDefinitions = "Requests list";
     project.powerPlatform!.canvas!.sharePointColumnDefinitions = "Title / Title / Single line text";
     project.powerPlatform!.canvas!.expectedRecordCounts = "500 active records";
@@ -1607,6 +1680,9 @@ describe("power platform foundation", () => {
     const project = createProject({ intake: { appType: "powerAppsCanvas" } });
     project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
     project.powerPlatform!.canvas!.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+    project.powerPlatform!.canvas!.sharePointSiteTitle = "Operations";
+    project.powerPlatform!.canvas!.sharePointSiteOwner = "Operations Owner";
+    project.powerPlatform!.canvas!.sharePointAccessStatus = "confirmed";
     project.powerPlatform!.canvas!.sharePointListSchemas = [
       createDefaultSharePointList({ id: "requests", displayName: "Requests", purpose: "Track requests", expectedRecordCount: "500", confirmationStatus: "confirmed", confirmationSource: "Architect" })
     ];
@@ -1742,6 +1818,8 @@ describe("power platform foundation", () => {
     expect(calculateCanvasDelegationPlanningGate(project)).toBe("confirmed");
 
     project.powerPlatform!.common.sourceControlApproach = "Repository notes";
+    project.powerPlatform!.common.gitIntegration = "Not applicable because Git integration is not approved for this package.";
+    project.powerPlatform!.common.powerPlatformCliAvailability = "Not applicable because CLI automation is not approved for this package.";
     project.powerPlatform!.common.deploymentMethod = "Managed deployment";
     project.powerPlatform!.common.deploymentResponsibility = "Technical owner";
     project.powerPlatform!.common.deploymentStrategy = "Dev/test/prod";
@@ -1817,6 +1895,8 @@ describe("power platform foundation", () => {
     expect(calculateModelDrivenExtensionsGate(project)).toBe("confirmed");
 
     project.powerPlatform!.common.sourceControlApproach = "Repository notes";
+    project.powerPlatform!.common.gitIntegration = "Not applicable because Git integration is not approved for this package.";
+    project.powerPlatform!.common.powerPlatformCliAvailability = "Not applicable because CLI automation is not approved for this package.";
     project.powerPlatform!.common.deploymentMethod = "Managed deployment";
     project.powerPlatform!.common.deploymentResponsibility = "Technical owner";
     project.powerPlatform!.common.deploymentStrategy = "Dev/test/prod";
@@ -2206,7 +2286,7 @@ describe("power platform foundation", () => {
     const readyProject = { ...ready, generatedDocuments: readyPackage.documents, generatedFileCount: readyPackage.documents.length };
     expect(validateExportPackage(readyProject).isValid).toBe(true);
     readyProject.generatedDocuments = [
-      ...readyProject.generatedDocuments.slice(0, 1).map((document) => ({ ...document, content: `${document.content}\n[MISSING: injected blocker]` })),
+      ...readyProject.generatedDocuments.slice(0, 1).map((document) => ({ ...document, content: `${document.content}\n[MISSING: app purpose]` })),
       ...readyProject.generatedDocuments.slice(1)
     ];
     const downgraded = validateExportPackage(readyProject);

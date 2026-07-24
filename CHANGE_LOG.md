@@ -1,5 +1,75 @@
 # Change Log
 
+## 2026-07-24 - Phase 5B.4B.5.1 Traceability, Completion, and Real-Intake Correction
+
+### Summary
+
+- Added missing-marker traceability so generated `[MISSING: ...]` markers can be tied back to visible intake fields, structured intake records, or explicit applicability decisions.
+- Replaced regex-only blank-section detection with a markdown section parser and blocked orphan missing markers during generated-package readiness and export integrity validation.
+- Updated Power Platform document generation to use structured Canvas controls, selected-record state variables, structured record counts, file applicability decisions, SharePoint site metadata, testing details, and ALM details instead of fallback prose when structured rows exist.
+- Added visible intake controls for record counts, synchronization, SharePoint site title/owner/access status, Git/CLI ALM decisions, expanded testing fields, and structured state-variable targets.
+- Added document-preview source diagnostics with an Edit source action that returns users to the relevant intake stage.
+
+### Files created
+
+- `src/lib/canvasTraceability.ts` - missing-marker source registry, Canvas structured-value helpers, orphan-marker detection, and trace summaries.
+- `src/tests/phase5b4b5Regression.test.ts` - regression coverage for structured Canvas document values, blank-section detection, and orphan marker blocking.
+
+### Files updated
+
+- `src/app/App.tsx` - routes document source-edit actions back to the matching intake stage.
+- `src/components/DocumentViewer/DocumentViewer.tsx` - shows marker source diagnostics and document gate reasons.
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx` - exposes the newly required intake fields and structured state-variable editor.
+- `src/lib/exportIntegrity.ts` - uses parser-based blank-section detection and blocks orphan markers.
+- `src/lib/generatedPackageReadiness.ts` - includes orphan marker blockers in package readiness.
+- `src/lib/generateProjectPackage.ts` - includes orphan marker count in convergence checks.
+- `src/lib/phaseGates.ts` - derives record volume and control-inventory readiness from structured Canvas rows.
+- `src/lib/powerPlatform.ts` - strengthens SharePoint schema, testing preparation, delegation, and ALM gates.
+- `src/templates/documents/index.ts` - derives document content from confirmed structured Canvas intake and explicit applicability decisions.
+- Power Platform and App regression tests - updated fixtures and assertions for stricter real-intake gates and the new trace panel.
+- `src/tests/helpers/generatedProject.ts` - updated the large Draft fixture to use a registered missing marker so orphan blocking remains enforceable.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4B.5 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` - passed.
+- `npx.cmd vitest run --config vitest.unit.config.ts src/tests/phase5b4b5Regression.test.ts src/tests/exportIntegrity.test.ts src/tests/powerPlatform.test.ts --reporter=dot` - superseded by focused and full runner validation below.
+- `npx.cmd vitest run --config vitest.unit.config.ts src/tests/implementationAssets.test.ts --reporter=dot` - passed (`1` file, `99` tests).
+- `npx.cmd vitest run src/tests/phase5b4b5Regression.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `10` tests).
+- `npx.cmd vitest run src/tests/App.documentsExport.test.tsx --pool=vmThreads --maxWorkers=1` - passed (`1` file, `12` tests).
+- `npx.cmd vitest run src/tests/powerPlatform.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `57` tests).
+- `npx.cmd vitest run src/tests/exportProjectPackage.test.ts src/tests/projectSelectors.test.ts --pool=vmThreads --maxWorkers=1` - passed (`2` files, `16` tests).
+- `npm.cmd run lint` - passed.
+- `npm.cmd test` - passed (`29` unit/integration files, `1539` tests; `7` UI files, `51` tests; `36` combined files, `1590` tests).
+- `npm.cmd run test:coverage` - passed (`29` coverage files, `1539` tests; `7` UI files, `51` tests; `36` combined files, `1590` tests); coverage was `90.4%` statements, `81.34%` branches, `94.93%` functions, and `95.45%` lines.
+- `npm.cmd run build` - passed with the existing Vite large-chunk warning.
+- `git diff --check` - passed with line-ending warnings only.
+- Browser smoke QA at `1280 x 720` passed for app load, Mission Control rendering, export route guarded state, export diagnostics, no horizontal overflow, and no console warnings or errors.
+- Browser smoke QA at `390 x 844` passed for mobile Mission Control rendering, visible navigation, no horizontal overflow, and no console warnings or errors.
+- Real TTI validation imported `TTI Software Licence Tracker` (`90e589f4-3ead-4b3f-adff-477c9fe75394`), created the Mission Control QA duplicate `TTI Software Licence Tracker - Phase 5B.4B.5.1 QA` (`f4c8caf1-8aa2-4a71-97d8-f3384cc17d4b`), regenerated the duplicate package through the application UI, and confirmed both the original and duplicate persisted after reload with `33` generated documents.
+- Real TTI before-and-after diagnostics were recorded: answer completion stayed `94%` to `94%`, readiness stayed `Draft` to `Draft`, missing-marker occurrences improved from `21` to `17`, export warnings changed from `3` to `4`, readiness blockers changed from `13` to `15`, remaining marker occurrences were `17`, unique marker labels were `15`, orphan markers were `0`, targeted false markers were `0`, and false blank-section warnings were `0`.
+- Real TTI false-marker validation confirmed the previously targeted false markers were removed: expected record counts, legacy SharePoint notes, legacy SharePoint internal-name notes, SharePoint library records, and attachment controls.
+- Final manual browser QA passed at desktop `1280 x 720` and mobile `390 x 844`; no page-level horizontal overflow was observed, trace-panel content and marker-source controls remained usable, no console errors or warnings were recorded, no React key warnings were recorded, no accessibility warnings were observed, Edit source routing passed, and original/duplicate persistence passed.
+- Physical keyboard QA in normal Chrome passed for the Add state variable button: Enter activated the button and added exactly one row, Space activated the button and added exactly one row, visible focus passed, and console errors or warnings were `None`. The earlier activation failure was classified as a browser-automation harness limitation, so no keyboard source workaround was required.
+
+### Issues found
+
+- High integrity gap fixed: generated documents could contain missing markers that were not explicitly traceable to visible intake, structured intake, derived values, or applicability decisions.
+- High readiness gap fixed: SharePoint schema, detailed testing, ALM, record-count, control, and selected-record-state gaps could still leave downstream documents with weak placeholders or stale readiness.
+- Medium UI test issue fixed during validation: the document preview now intentionally renders missing markers in both the content preview and the source trace panel.
+- `npm.cmd audit --audit-level=high` remained failed under an approved limited exception for `GHSA-3jxr-9vmj-r5cp` and `GHSA-f88m-g3jw-g9cj`. Both dependency paths are development/deployment tooling, both are absent from `npm --omit=dev` results, both are absent from `dist`, and no npm fix is available. This exception does not mean audit passed and does not authorize deployment.
+
+### Remaining work
+
+- Review or replace vulnerable transitive dev dependencies when upstream fixes are available.
+- The real TTI package remains Draft because `17` genuine missing-information occurrences remain; those markers represent incomplete intake decisions, not the original generator defects.
+- The later record-lifecycle Power Fx phase remains separately unreviewed and excluded from this Phase 5B.4B.5.1 review package.
+
 ## 2026-07-20 - Project Builder Ai Brand Rename and Logo Integration
 
 ### Summary

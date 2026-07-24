@@ -1,4 +1,4 @@
-import { getReadinessSections } from "../../lib/projectSelectors";
+import { getProjectCompletionPercent, getReadinessSections } from "../../lib/projectSelectors";
 import { getDocumentStatusSummary } from "../../lib/documentReview";
 import {
   calculatePowerPlatformReadiness,
@@ -25,6 +25,7 @@ const readinessIcons = {
 export function ReadinessPanel({ project }: ReadinessPanelProps) {
   const sections = getReadinessSections(project);
   const powerPlatformReadiness = calculatePowerPlatformReadiness(project);
+  const answerCompletionPercent = getProjectCompletionPercent(project);
   const selectedBackends = getSelectedCanvasDataSourceTypes(project);
   const documentSummary = getDocumentStatusSummary(project);
   return (
@@ -60,6 +61,15 @@ export function ReadinessPanel({ project }: ReadinessPanelProps) {
           Resolve missing details to build a stronger handoff.
         </p>
       </div>
+      {answerCompletionPercent === 100 && powerPlatformReadiness.projectType !== "none" && !powerPlatformReadiness.isReadyForCodex ? (
+        <div className="readiness-note">
+          <CircleMessage />
+          <p>
+            <strong>Answers complete; confirmations remain</strong>
+            Power Platform answers are fully populated, but one or more controlled readiness confirmations still need review.
+          </p>
+        </div>
+      ) : null}
       {powerPlatformReadiness.projectType !== "none" ? (
         <div className="power-platform-readiness-summary">
           <h3>Power Platform gates</h3>

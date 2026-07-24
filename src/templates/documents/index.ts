@@ -53,6 +53,15 @@ import {
   isPhaseGatePassing
 } from "../../lib/phaseGates";
 import { validateCanvasTargets } from "../../lib/canvasTargetValidation";
+import {
+  confirmedCanvasControls,
+  effectiveCanvasExpectedRecordCounts,
+  isCanvasFileNotApplicable,
+  saveCancelCanvasAssets,
+  selectedRecordStateAssets,
+  stateVariableSummary,
+  statusLabel
+} from "../../lib/canvasTraceability";
 import type { PhaseGateId } from "../../lib/phaseGates";
 import type { PowerPlatformApplicabilityDecision, PowerPlatformConnector, ProjectRecord } from "../../types/project";
 
@@ -762,7 +771,9 @@ function structuredCanvasAssets(project: ProjectRecord): string[] {
     ...canvas.dataverseColumnSchemas.map((column) => `Canvas Dataverse column ${column.id} table ${column.tableId || missingMarker("table ID")} logical ${column.logicalName || missingMarker("column logical name")}`),
     ...canvas.dataverseRelationshipSchemas.map((relationship) => `Canvas Dataverse relationship ${relationship.id} parent ${relationship.parentTableId || missingMarker("parent table ID")} child ${relationship.childTableId || missingMarker("child table ID")}`),
     ...canvas.connectorResourceSchemas.map((resource) => `Connector resource ${resource.id} connector ${resource.connectorId || missingMarker("connector ID")} resource ${resource.resourceName || missingMarker("resource name")}`),
-    ...canvas.connectorFieldSchemas.map((field) => `Connector field ${field.id} resource ${field.resourceId || missingMarker("resource ID")} identifier ${field.fieldIdentifier || missingMarker("field identifier")} operations read=${field.readBehavior || missingMarker("read behavior")} create=${field.createBehavior || missingMarker("create behavior")} update=${field.updateBehavior || missingMarker("update behavior")} delete=${field.deleteBehavior || missingMarker("delete behavior")}`)
+    ...canvas.connectorFieldSchemas.map((field) => `Connector field ${field.id} resource ${field.resourceId || missingMarker("resource ID")} identifier ${field.fieldIdentifier || missingMarker("field identifier")} operations read=${field.readBehavior || missingMarker("read behavior")} create=${field.createBehavior || missingMarker("create behavior")} update=${field.updateBehavior || missingMarker("update behavior")} delete=${field.deleteBehavior || missingMarker("delete behavior")}`),
+    ...confirmedCanvasControls(project).map((control) => `Canvas control ${control.id} - ${control.approvedControlName} (${control.controlType}) on ${control.screenId}; operation ${control.operation || missingMarker("control operation")}`),
+    ...selectedRecordStateAssets(project).map((variable) => `State variable ${stateVariableSummary(variable)}`)
   ];
 }
 
@@ -832,7 +843,7 @@ function canvasAssetsForPhase(project: ProjectRecord, phaseName: typeof _canvasP
     case "Create operations":
       return [
         ...lines(canvas?.forms || canvas?.screenNames || project.intake.screens, "create screens or forms"),
-        ...lines(canvas?.controls, "save/cancel controls"),
+        ...(saveCancelCanvasAssets(project).length ? saveCancelCanvasAssets(project) : lines("", "save/cancel controls")),
         ...sources,
         ...lines(project.intake.requiredDataFields || project.intake.fields, "required fields"),
         ...lines(canvas?.validationRequirements, "validation rules")
@@ -841,14 +852,21 @@ function canvasAssetsForPhase(project: ProjectRecord, phaseName: typeof _canvasP
       return [
         ...lines(canvas?.forms || canvas?.screenNames || project.intake.screens, "view/edit screens or forms"),
         ...sources,
-        ...lines(canvas?.contextVariables || canvas?.globalVariables, "selected-record state"),
+        ...(selectedRecordStateAssets(project).length ? selectedRecordStateAssets(project).map(stateVariableSummary) : lines("", "selected-record state")),
         ...lines(canvas?.updateBehavior || canvas?.readBehavior, "update and view behavior"),
         ...lines(canvas?.concurrentUpdateHandling, "concurrency rules")
       ];
     case "Attachments and files":
+      if (isCanvasFileNotApplicable(project)) {
+        return [`Not applicable: ${canvas?.fileApplicabilityDecision.notApplicableReason}`];
+      }
       return [
         ...lines(canvas?.sharePointLibraries || canvas?.sharePointLibraryDefinitions || canvas?.attachmentRequirements || canvas?.fileRequirements, "file-enabled lists, libraries, or attachment requirements"),
-        ...lines(canvas?.controls, "attachment controls"),
+        ...(confirmedCanvasControls(project).some((control) => /attach|file|upload|download/i.test(`${control.approvedControlName} ${control.purpose} ${control.operation}`))
+          ? confirmedCanvasControls(project)
+              .filter((control) => /attach|file|upload|download/i.test(`${control.approvedControlName} ${control.purpose} ${control.operation}`))
+              .map((control) => `${control.id}: ${control.approvedControlName} (${control.controlType})`)
+          : lines("", "attachment controls")),
         ...lines(project.intake.fields, "file metadata"),
         ...lines(canvas?.fileRequirements || canvas?.attachmentRequirements, "upload/download requirements"),
         ...lines(project.intake.permissionRules || project.intake.permissions, "file permissions")
@@ -1493,6 +1511,7 @@ const dataSourceSchema = (project: ProjectRecord) => {
   const canvas = project.powerPlatform?.canvas;
   const modelDriven = project.powerPlatform?.modelDriven;
   const selectedSources = getSelectedCanvasDataSourceTypes(project);
+  const recordCounts = effectiveCanvasExpectedRecordCounts(project);
   return join(
     "# Data Source Schema",
     header(project),
@@ -1504,8 +1523,9 @@ const dataSourceSchema = (project: ProjectRecord) => {
       ["Source purpose", powerPlatformValue(canvas?.sourcePurpose, "source purpose")],
       ["Source ownership", powerPlatformValue(canvas?.sourceOwnership, "source ownership")],
       ["Source of truth", powerPlatformValue(canvas?.sourceOfTruthDecision, "source-of-truth decision")],
-      ["Expected record counts", powerPlatformValue(canvas?.expectedRecordCounts, "expected record counts")]
+      ["Expected record counts", powerPlatformValue(recordCounts.value, "expected record counts")]
     ])}`,
+    recordCounts.contradictions.length > 0 ? `## Record-count review notes\n\n${markdownList(recordCounts.contradictions)}` : "",
     "## Backend-specific schema files",
     markdownList([
       usesSharePoint(project) ? "SHAREPOINT_SCHEMA.md and INTERNAL_COLUMN_NAMES.md are required." : "SharePoint schema not selected.",
@@ -1590,6 +1610,10 @@ const sharePointSchema = (project: ProjectRecord) => {
     decisionText(library.confirmationStatus),
     safeText(library.confirmationSource, "confirmation source")
   ]) ?? [];
+  const librarySection = isCanvasFileNotApplicable(project)
+    ? `Not applicable: ${canvas?.fileApplicabilityDecision.notApplicableReason}`
+    : tableOrMissing(["ID", "Display name", "Purpose", "Folders", "Content types", "File types", "File size", "Upload", "Download", "Versioning", "Permissions", "Retention", "Status", "Source"], libraryRows, "SharePoint library records");
+  const legacyNotes = canvas?.sharePointListDefinitions || canvas?.sharePointLists || canvas?.sharePointLibraryDefinitions || canvas?.sharePointLibraries || "";
   const columnRows = canvas?.sharePointColumnSchemas.map((column) => [
     column.parentType || missingMarker("parent type"),
     column.parentType === "library"
@@ -1621,9 +1645,9 @@ const sharePointSchema = (project: ProjectRecord) => {
       ["Access status", powerPlatformValue(canvas?.sharePointAccessStatus, "SharePoint access status")]
     ])}`,
     `## Lists\n\n${tableOrMissing(["ID", "Display name", "Purpose", "Expected records", "Attachments", "Versioning", "Permissions", "Status", "Source"], listRows, "SharePoint list records")}`,
-    `## Libraries\n\n${tableOrMissing(["ID", "Display name", "Purpose", "Folders", "Content types", "File types", "File size", "Upload", "Download", "Versioning", "Permissions", "Retention", "Status", "Source"], libraryRows, "SharePoint library records")}`,
+    `## Libraries\n\n${librarySection}`,
     `## Columns grouped by parent\n\n${tableOrMissing(["Parent type", "Parent", "Parent ID", "Display name", "Internal name", "Type", "Required", "Choices", "Lookup target", "Person", "Date", "Indexed", "Unique", "Sensitive", "Status", "Source"], columnRows, "SharePoint column records")}`,
-    `## Legacy notes\n\n${listOrMissing(canvas?.sharePointListDefinitions || canvas?.sharePointLists || canvas?.sharePointLibraryDefinitions || canvas?.sharePointLibraries || "", "legacy SharePoint notes")}`,
+    `## Legacy notes\n\n${legacyNotes.trim() ? listOrMissing(legacyNotes, "legacy SharePoint notes") : "No legacy notes recorded; structured schema is authoritative."}`,
     "## Guardrail\n\nDisplay names are not enough for implementation. Confirmed internal column names are required before Codex-ready prompts can rely on this schema."
   );
 };
@@ -1743,7 +1767,8 @@ const internalColumnNames = (project: ProjectRecord) => {
   const canvas = project.powerPlatform?.canvas;
   const listNames = new Map((canvas?.sharePointListSchemas ?? []).map((list) => [list.id, list.displayName || list.id]));
   const libraryNames = new Map((canvas?.sharePointLibrarySchemas ?? []).map((library) => [library.id, library.displayName || library.id]));
-  const rows = canvas?.sharePointColumnSchemas.map((column) => [
+  const columnSchemas = canvas?.sharePointColumnSchemas ?? [];
+  const rows = columnSchemas.map((column) => [
     column.parentType || missingMarker("parent type"),
     column.parentType === "library"
       ? libraryNames.get(column.parentId) ?? missingMarker("parent library")
@@ -1755,12 +1780,15 @@ const internalColumnNames = (project: ProjectRecord) => {
     decisionText(column.confirmationStatus),
     safeText(column.confirmationSource, "confirmation source")
   ]) ?? [];
+  const legacyNotes = columnSchemas.length > 0
+    ? "No legacy notes recorded; structured internal-name records are authoritative."
+    : listOrMissing(canvas?.sharePointColumnDefinitions ?? "", "legacy SharePoint internal-name notes");
   return join(
     "# Internal Column Names",
     header(project),
     `## Internal name gate\n\n${calculateInternalNameGate(project)}`,
     `## Confirmed internal names\n\n${tableOrMissing(["Parent type", "Parent", "Parent ID", "Display name", "Internal name", "Type", "Status", "Source"], rows, "SharePoint internal column name records")}`,
-    `## Legacy notes\n\n${listOrMissing(canvas?.sharePointColumnDefinitions ?? "", "legacy SharePoint internal-name notes")}`,
+    `## Legacy notes\n\n${legacyNotes}`,
     sectionOrMissing("Confirmation status", canvas?.internalNameStatus ?? "", "internal column name confirmation status"),
     "## Required format\n\nEach SharePoint field should include display name, internal name, type, required state, choices or lookup target, default value, and usage notes.",
     "## Guardrail\n\nIf a column was renamed in SharePoint, use the original internal name. Do not guess internal names from display labels."
@@ -1839,12 +1867,13 @@ const powerFxStandards = (project: ProjectRecord) => {
 const delegationRegister = (project: ProjectRecord) => {
   const canvas = project.powerPlatform?.canvas;
   const connectors = project.powerPlatform?.common.connectors ?? [];
+  const recordCounts = effectiveCanvasExpectedRecordCounts(project);
   return join(
     "# Delegation Register",
     header(project),
     `## Delegation planning gate\n\n${calculateCanvasDelegationPlanningGate(project)}`,
     `## Delegation-sensitive requirements\n\n${markdownTable(["Area", "Decision"], [
-      ["Expected record counts", powerPlatformValue(canvas?.expectedRecordCounts, "expected record counts")],
+      ["Expected record counts", powerPlatformValue(recordCounts.value, "expected record counts")],
       ["Search", powerPlatformValue(canvas?.searchRequirements, "search requirements")],
       ["Filtering", powerPlatformValue(canvas?.filteringRequirements, "filtering requirements")],
       ["Sorting", powerPlatformValue(canvas?.sortingRequirements, "sorting requirements")],
@@ -1852,6 +1881,7 @@ const delegationRegister = (project: ProjectRecord) => {
       ["Offline requirements", powerPlatformValue(canvas?.offlineRequirements, "offline requirements")],
       ["Synchronization", powerPlatformValue(canvas?.synchronizationRequirements, "synchronization requirements")]
     ])}`,
+    recordCounts.contradictions.length > 0 ? `## Record-count review notes\n\n${markdownList(recordCounts.contradictions)}` : "",
     `## Connector delegation support\n\n${tableOrMissing(["Connector", "Data source", "Delegation support", "Expected volume", "Limitations"], connectors.map((connector) => [
       safeText(connector.displayName, "connector name"),
       safeText(connector.dataSourceType, "data-source type"),
@@ -1865,6 +1895,22 @@ const delegationRegister = (project: ProjectRecord) => {
 
 const controlInventory = (project: ProjectRecord) => {
   const canvas = project.powerPlatform?.canvas;
+  const controls = confirmedCanvasControls(project);
+  const controlRows = controls.map((control) => [
+    control.id,
+    safeText(control.approvedControlName, "approved control name"),
+    safeText(control.controlType, "control type"),
+    safeText(control.screenId, "parent screen"),
+    control.parentControlId || "None",
+    safeText(control.purpose, "purpose"),
+    safeText(control.operation, "operation"),
+    statusLabel(control.formulaOutputDecision.status),
+    control.dataSourceId || control.entityId || control.connectorId || "None",
+    safeText(control.accessibleLabelRequirement, "accessibility requirement"),
+    safeText(control.displayModeRequirement, "display-mode requirement"),
+    decisionText(control.confirmationStatus),
+    safeText(control.confirmationSource, "confirmation source")
+  ]);
   return join(
     "# Control Inventory",
     header(project),
@@ -1876,8 +1922,10 @@ const controlInventory = (project: ProjectRecord) => {
       ["Forms", powerPlatformValue(canvas?.forms, "forms")],
       ["Tables", powerPlatformValue(canvas?.tables, "tables")],
       ["Dialogs", powerPlatformValue(canvas?.dialogs, "dialogs")],
-      ["Controls", powerPlatformValue(canvas?.controls, "controls")]
+      ["Controls", controls.length ? `${controls.length} structured control target(s) confirmed.` : powerPlatformValue(canvas?.controls, "controls")]
     ])}`,
+    `## Structured controls\n\n${tableOrMissing(["Stable ID", "Approved name", "Type", "Parent screen", "Parent control", "Purpose", "Operation", "Formula applicability", "Data source relationship", "Accessibility", "Display mode", "Status", "Source"], controlRows, "controls")}`,
+    controls.length === 0 && canvas?.controls.trim() ? `## Legacy control notes\n\n${listOrMissing(canvas.controls, "controls")}` : "",
     `## UI states and rules\n\n${markdownTable(["Area", "Requirement"], [
       ["Loading states", powerPlatformValue(canvas?.loadingStates, "loading states")],
       ["Empty states", powerPlatformValue(canvas?.emptyStates, "empty states")],

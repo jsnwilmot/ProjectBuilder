@@ -1,4 +1,4 @@
-import type { CanvasStateInitialValue, CanvasStateVariableTarget } from "../types/project";
+import type { CanvasStateInitialValue, CanvasStateRole, CanvasStateVariableTarget } from "../types/project";
 
 export const CANVAS_STATE_INITIALIZATION_ASSET_ID = "asset-canvas-powerfx-app-onstart-state-initialization";
 export const CANVAS_STATE_INITIALIZATION_TARGET_ID = "app-onstart-state-initialization";
@@ -9,6 +9,7 @@ export interface CanvasStateVariableGenerationInput {
   id: string;
   implementationName: string;
   purpose: string;
+  stateRole: CanvasStateRole | "";
   initialValue: CanvasStateInitialValue;
   required: boolean;
   confirmationStatus: CanvasStateVariableTarget["confirmationStatus"];
@@ -55,6 +56,21 @@ function normalizeConfirmationStatus(value: unknown): CanvasStateVariableTarget[
   return "missingInformation";
 }
 
+function normalizeStateRole(value: unknown): CanvasStateRole | "" {
+  if (
+    value === "selectedRecord"
+    || value === "formMode"
+    || value === "savingState"
+    || value === "unsavedChanges"
+    || value === "filterState"
+    || value === "navigationState"
+    || value === "other"
+  ) {
+    return value;
+  }
+  return "";
+}
+
 export function normalizeCanvasStateVariableTargets(input: unknown): CanvasStateVariableTarget[] {
   if (!Array.isArray(input)) return [];
   return input.flatMap((item) => {
@@ -67,6 +83,7 @@ export function normalizeCanvasStateVariableTargets(input: unknown): CanvasState
       id,
       implementationName,
       purpose: normalizeLineEndings(asString(item.purpose).trim()),
+      stateRole: normalizeStateRole(item.stateRole),
       initialValue,
       confirmationStatus: normalizeConfirmationStatus(item.confirmationStatus),
       required: item.required === true,
@@ -84,6 +101,7 @@ export function canvasStateVariableGenerationInputs(variables: CanvasStateVariab
     id: variable.id,
     implementationName: variable.implementationName,
     purpose: variable.purpose,
+    stateRole: variable.stateRole ?? "",
     initialValue: variable.initialValue,
     required: variable.required,
     confirmationStatus: variable.confirmationStatus,

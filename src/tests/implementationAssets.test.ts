@@ -72,12 +72,30 @@ function createCanvasProject(formulaProperties = "OnSelect") {
   pp.common.functionalTesting = "Functional tests.";
   pp.common.connectorTesting = "Connector tests.";
   pp.common.permissionTesting = "Permission tests.";
+  pp.common.securityTesting = "Security tests.";
   pp.common.accessibilityTesting = "Accessibility tests.";
+  pp.common.performanceTesting = "Performance tests.";
+  pp.common.volumeTesting = "Volume tests.";
+  pp.common.integrationTesting = "Integration tests.";
+  pp.common.regressionTesting = "Regression tests.";
+  pp.common.userAcceptanceTesting = "User acceptance tests.";
   pp.common.deploymentTesting = "Deployment test plan only.";
+  pp.common.productionSmokeTesting = "Production smoke tests.";
   pp.common.testingPlanConfirmationStatus = "confirmed";
+  pp.common.sourceControlApproach = "Source-control notes.";
+  pp.common.gitIntegration = "Not applicable because Git integration is not approved for this fixture.";
+  pp.common.powerPlatformCliAvailability = "Not applicable because CLI automation is not approved for this fixture.";
+  pp.common.deploymentMethod = "Manual deployment.";
   pp.common.deploymentResponsibility = "Deployment owner handles external deployment.";
   pp.common.deploymentOwner = "Deployment owner";
   pp.common.deploymentResponsibilityStatus = "confirmed";
+  pp.common.deploymentStrategy = "Dev/test/prod.";
+  pp.common.connectionReferences = "SharePoint connection reference.";
+  pp.common.environmentVariables = "SharePoint site URL.";
+  pp.common.pipelineRequirements = "Manual approval.";
+  pp.common.rollbackExpectations = "Restore previous app version.";
+  pp.common.releaseApprovalResponsibility = "Business owner.";
+  pp.common.almConfirmationStatus = "confirmed";
   pp.common.connectors = [
     createDefaultConnector({
       id: "connector-sharepoint",
@@ -107,6 +125,9 @@ function createCanvasProject(formulaProperties = "OnSelect") {
   pp.canvas!.sourcePurpose = "Store requests.";
   pp.canvas!.sourceOwnership = "Operations.";
   pp.canvas!.sharePointSiteUrl = "https://contoso.sharepoint.com/sites/ops";
+  pp.canvas!.sharePointSiteTitle = "Operations";
+  pp.canvas!.sharePointSiteOwner = "Operations owner";
+  pp.canvas!.sharePointAccessStatus = "confirmed";
   pp.canvas!.sharePointListSchemas = [
     createDefaultSharePointList({
       id: "list-requests",
