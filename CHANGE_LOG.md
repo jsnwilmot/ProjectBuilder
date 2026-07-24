@@ -1,5 +1,79 @@
 # Change Log
 
+## 2026-07-24 - Dependency Audit Remediation and Test Count Correction
+
+### Summary
+
+- Updated `package-lock.json` only for dependency remediation.
+- Left `package.json` dependency ranges unchanged.
+- Corrected stale hard-coded test and coverage summary counts.
+- Corrected the Phase 5B.4B.5.1 documented test counts.
+- No application source or test was changed.
+
+### Dependency updates
+
+- Updated `brace-expansion` from `1.1.15` to `1.1.16`.
+- Updated `wrangler` from `4.107.0` to `4.114.0`.
+- Updated `miniflare` from `4.20260701.0` to `4.20260722.0`.
+- Updated `sharp` from `0.34.5` to `0.35.2`.
+- Updated `workerd` from `1.20260701.1` to `1.20260722.1`.
+
+### Validation
+
+- Node `20.19.5`.
+- npm `10.9.4`.
+- `npm.cmd ci` passed.
+- `npm.cmd run lint` passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` passed.
+- `npm.cmd test` passed.
+- `npm.cmd run test:coverage` passed.
+- `npm.cmd run build` passed.
+- `npm.cmd audit --audit-level=high` passed with zero vulnerabilities.
+
+### Authoritative test counts
+
+- Unit/integration: `29` files, `1490` tests.
+- UI: `7` files, `51` tests.
+- Combined: `36` files, `1541` tests.
+
+### Coverage
+
+- Statements: `90.46%`.
+- Branches: `81.66%`.
+- Functions: `94.89%`.
+- Lines: `95.43%`.
+
+### Runtime boundary
+
+- Node `20.19.5` is approved for application validation, tests, build, and audit.
+- Wrangler `4.114.0` requires Node `22` or newer.
+- Wrangler was validated under Node `22.21.0`.
+- Baseline Wrangler `4.107.0` already required Node `22`.
+- The remediation did not introduce the Wrangler runtime requirement.
+
+### Security status
+
+- `GHSA-3jxr-9vmj-r5cp` is resolved.
+- `GHSA-f88m-g3jw-g9cj` is resolved.
+- The temporary limited audit exception is superseded by this remediation after the remediation commit passes GitHub Actions.
+- No deployment was performed or authorized.
+
+### Files updated
+
+- `package-lock.json`
+- `scripts/run-tests.mjs`
+- `scripts/run-tests-with-coverage.mjs`
+- `CHANGE_LOG.md`
+- `TEST_PLAN.md`
+
+### Files created
+
+- None.
+
+### Files removed
+
+- None.
+
 ## 2026-07-24 - Phase 5B.4B.5.1 Traceability, Completion, and Real-Intake Correction
 
 ### Summary
@@ -45,8 +119,9 @@
 - `npx.cmd vitest run src/tests/powerPlatform.test.ts --pool=vmThreads --maxWorkers=1` - passed (`1` file, `57` tests).
 - `npx.cmd vitest run src/tests/exportProjectPackage.test.ts src/tests/projectSelectors.test.ts --pool=vmThreads --maxWorkers=1` - passed (`2` files, `16` tests).
 - `npm.cmd run lint` - passed.
-- `npm.cmd test` - passed (`29` unit/integration files, `1539` tests; `7` UI files, `51` tests; `36` combined files, `1590` tests).
-- `npm.cmd run test:coverage` - passed (`29` coverage files, `1539` tests; `7` UI files, `51` tests; `36` combined files, `1590` tests); coverage was `90.4%` statements, `81.34%` branches, `94.93%` functions, and `95.45%` lines.
+- `npm.cmd test` - passed (`29` unit/integration files, `1490` tests; `7` UI files, `51` tests; `36` combined files, `1541` tests).
+- `npm.cmd run test:coverage` - passed (`29` coverage files, `1490` tests; `7` UI files, `51` tests; `36` combined files, `1541` tests); coverage was `90.4%` statements, `81.34%` branches, `94.93%` functions, and `95.45%` lines.
+- Count correction: the earlier higher count came from a dirty working-tree validation. The isolated baseline commit established `29` files / `1490` tests as the authoritative unit/integration result; no application test was removed by this correction.
 - `npm.cmd run build` - passed with the existing Vite large-chunk warning.
 - `git diff --check` - passed with line-ending warnings only.
 - Browser smoke QA at `1280 x 720` passed for app load, Mission Control rendering, export route guarded state, export diagnostics, no horizontal overflow, and no console warnings or errors.

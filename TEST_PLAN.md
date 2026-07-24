@@ -1,5 +1,28 @@
 # Test Plan
 
+## 2026-07-24 Dependency audit remediation and test-count correction
+
+- Clean detached worktree started at baseline commit `0ed5692ae7e8c05f94f4074cf66581f694fe8e1a`.
+- Node `20.19.5` was used for application validation, tests, coverage, build, and audit.
+- npm `10.9.4` was used.
+- `npm.cmd ci` passed.
+- `npm.cmd run lint` passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json` passed.
+- Unit/integration validation passed with `29` files and `1490` tests.
+- UI validation passed with `7` files and `51` tests.
+- Combined validation passed with `36` files and `1541` tests.
+- Coverage passed at `90.46%` statements, `81.66%` branches, `94.89%` functions, and `95.43%` lines.
+- `npm.cmd run build` passed.
+- `npm.cmd audit --audit-level=high` and `npm.cmd audit --json` passed with zero vulnerabilities.
+- Wrangler `4.114.0` passed under Node `22.21.0`.
+- Wrangler correctly refused Node `20.19.5` because it requires Node `>=22`.
+- Baseline Wrangler `4.107.0` already had the same Node requirement.
+- `package.json` was unchanged.
+- Exactly five files were modified: `package-lock.json`, `scripts/run-tests.mjs`, `scripts/run-tests-with-coverage.mjs`, `CHANGE_LOG.md`, and `TEST_PLAN.md`.
+- No application source or tests changed.
+- Phase 5B.4C remained excluded.
+- No deployment occurred.
+
 ## 2026-07-24 Phase 5B.4B.5.1 traceability, completion, and real-intake correction
 
 - `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
@@ -10,8 +33,9 @@
 - `npx.cmd vitest run src/tests/powerPlatform.test.ts --pool=vmThreads --maxWorkers=1`: passed (`1` file, `57` tests).
 - `npx.cmd vitest run src/tests/exportProjectPackage.test.ts src/tests/projectSelectors.test.ts --pool=vmThreads --maxWorkers=1`: passed (`2` files, `16` tests).
 - `npm.cmd run lint`: passed.
-- `npm.cmd test`: passed (`29` unit/integration files, `1539` unit/integration tests, `7` UI files, `51` UI tests, `36` combined files, `1590` tests).
-- `npm.cmd run test:coverage`: passed (`29` coverage files, `1539` tests, `7` App UI files, `51` tests, `36` combined files, `1590` tests); coverage was `90.4%` statements, `81.34%` branches, `94.93%` functions, and `95.45%` lines.
+- `npm.cmd test`: passed (`29` unit/integration files, `1490` unit/integration tests, `7` UI files, `51` UI tests, `36` combined files, `1541` tests).
+- `npm.cmd run test:coverage`: passed (`29` coverage files, `1490` tests, `7` App UI files, `51` tests, `36` combined files, `1541` tests); coverage was `90.4%` statements, `81.34%` branches, `94.93%` functions, and `95.45%` lines.
+- Count correction: the earlier higher count came from a dirty working-tree validation. The isolated baseline commit established `29` files / `1490` tests as the authoritative unit/integration result; no application test was removed by this correction.
 - `npm.cmd run build`: passed with the existing Vite large-chunk warning.
 - `git diff --check`: passed with line-ending warnings only.
 - `npm.cmd audit --audit-level=high`: failed on existing high-severity transitive advisories with no npm fix available (`brace-expansion` via ESLint tooling and `sharp` via Wrangler/Miniflare).
