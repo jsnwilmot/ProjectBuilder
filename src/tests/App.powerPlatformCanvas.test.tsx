@@ -9,6 +9,14 @@ import { createProject } from "../lib/createProject";
 import { countDocumentMissingMarkers, countPackageMissingMarkers } from "../lib/documentReview";
 import * as exportProjectPackageModule from "../lib/exportProjectPackage";
 import {
+  createDefaultCanvasComponentTarget,
+  createDefaultCanvasComponentUsageTarget,
+  createDefaultCanvasControlTarget,
+  createDefaultCanvasDataSourceReference,
+  createDefaultCanvasScreenTarget,
+  createDefaultConnector,
+  createDefaultConnectorField,
+  createDefaultConnectorResource,
   createDefaultDataverseColumn,
   createDefaultDataverseRelationship,
   createDefaultDataverseTable,
@@ -25,6 +33,59 @@ import { evaluatePhaseGate } from "../lib/phaseGates";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
+
+function renderPowerPlatformStage(project: ProjectRecord, stageId: string) {
+  function Harness() {
+    const [currentProject, setCurrentProject] = useState(project);
+    return (
+      <PowerPlatformIntake
+        project={currentProject}
+        stageId={stageId}
+        onUpdatePowerPlatform={(updater) => {
+          setCurrentProject((previous) => {
+            const next = { ...previous, powerPlatform: updater(previous.powerPlatform, previous) };
+            Object.assign(project, next);
+            return next;
+          });
+        }}
+      />
+    );
+  }
+  return render(<Harness />);
+}
+
+function expectButtonAfterElement(anchor: Element, button: Element) {
+  expect(Boolean(anchor.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+}
+
+function expectHeadingWithoutAdd(container: HTMLElement, headingName: string, addName: string) {
+  const heading = within(container).getByRole("heading", { name: headingName });
+  const headingContainer = heading.closest(".connector-card-heading") ?? heading.parentElement;
+  expect(headingContainer).not.toBeNull();
+  expect(within(headingContainer as HTMLElement).queryByRole("button", { name: addName })).not.toBeInTheDocument();
+}
+
+function expectRemoveBeforeFirstEditable(item: HTMLElement, removeName: string) {
+  const removeButton = within(item).getByRole("button", { name: removeName });
+  const firstEditable = item.querySelector("input, select, textarea");
+  expect(firstEditable).not.toBeNull();
+  expect(Boolean(removeButton.compareDocumentPosition(firstEditable!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+}
+
+function expectRecordGroupLayout(headingName: string, addName: string, removeName: string) {
+  const section = screen.getByRole("heading", { name: headingName }).closest("section");
+  expect(section).not.toBeNull();
+  const sectionElement = section as HTMLElement;
+  expectHeadingWithoutAdd(sectionElement, headingName, addName);
+  const addButtons = within(sectionElement).getAllByRole("button", { name: addName });
+  expect(addButtons).toHaveLength(1);
+  const items = Array.from(sectionElement.querySelectorAll(":scope > article")) as HTMLElement[];
+  if (items.length > 0) {
+    expectButtonAfterElement(items[items.length - 1], addButtons[0]);
+    items.forEach((item) => expectRemoveBeforeFirstEditable(item, removeName));
+  }
+  return { section: sectionElement, addButton: addButtons[0], items };
+}
 
 describe("App - power Platform Canvas", () => {
   it("shows conditional Power Platform intake sections for Canvas backends", async () => {
@@ -256,9 +317,149 @@ describe("App - power Platform Canvas", () => {
     await user.click(screen.getByRole("button", { name: /Data: .* complete/i }));
     const listSection = screen.getByRole("heading", { name: "SharePoint lists" }).closest("section")!;
     const columnSection = screen.getByRole("heading", { name: "SharePoint columns and internal names" }).closest("section")!;
+    expectHeadingWithoutAdd(listSection, "SharePoint lists", "Add list");
+    expectHeadingWithoutAdd(columnSection, "SharePoint columns and internal names", "Add column");
     expect(within(listSection).getAllByRole("button", { name: "Add list" })).toHaveLength(1);
     expect(within(columnSection).getAllByRole("button", { name: "Add column" })).toHaveLength(1);
   });
+
+  it("standardizes data-stage repeater button order for schema and connector records", async () => {
+    const project = createProject({
+      identity: { id: "data-repeater-layout", projectName: "Data Repeater Layout" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.common.connectors = [
+      createDefaultConnector({ id: "connector-sp", displayName: "SharePoint", dataSourceType: "sharePointList", canvasRole: "primary" }),
+      createDefaultConnector({ id: "connector-api", displayName: "External API", dataSourceType: "externalApi", canvasRole: "secondary" })
+    ];
+    project.powerPlatform!.canvas!.primaryDataSourceType = "multiple";
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList", "dataverse", "externalApi"];
+    project.powerPlatform!.canvas!.primaryConnectorId = "connector-sp";
+    project.powerPlatform!.canvas!.secondaryConnectorIds = ["connector-api"];
+    project.powerPlatform!.canvas!.sharePointListSchemas = [
+      createDefaultSharePointList({ id: "sp-list-one", displayName: "Requests" })
+    ];
+    project.powerPlatform!.canvas!.sharePointLibrarySchemas = [
+      createDefaultSharePointLibrary({ id: "sp-library-one", displayName: "Documents" })
+    ];
+    project.powerPlatform!.canvas!.sharePointColumnSchemas = [
+      createDefaultSharePointColumn({ id: "sp-column-one", parentType: "list", parentId: "sp-list-one", internalName: "Status" })
+    ];
+    project.powerPlatform!.canvas!.dataverseTableSchemas = [
+      createDefaultDataverseTable({ id: "dv-table-one", displayName: "Request" })
+    ];
+    project.powerPlatform!.canvas!.dataverseColumnSchemas = [
+      createDefaultDataverseColumn({ id: "dv-column-one", tableId: "dv-table-one", displayName: "Status" })
+    ];
+    project.powerPlatform!.canvas!.dataverseRelationshipSchemas = [
+      createDefaultDataverseRelationship({ id: "dv-relationship-one", parentTableId: "dv-table-one", childTableId: "dv-table-one" })
+    ];
+    project.powerPlatform!.canvas!.connectorResourceSchemas = [
+      createDefaultConnectorResource({ id: "connector-resource-one", connectorId: "connector-api", resourceName: "Requests API" })
+    ];
+    project.powerPlatform!.canvas!.connectorFieldSchemas = [
+      createDefaultConnectorField({ id: "connector-field-one", connectorId: "connector-api", resourceId: "connector-resource-one", fieldIdentifier: "requestId" })
+    ];
+    const user = userEvent.setup();
+    renderPowerPlatformStage(project, "data");
+
+    const connectorSection = screen.getByRole("heading", { name: "Connectors and classification" }).closest("section") as HTMLElement;
+    expectHeadingWithoutAdd(connectorSection, "Connectors and classification", "Add connector");
+    const connectorAdd = within(connectorSection).getAllByRole("button", { name: "Add connector" });
+    expect(connectorAdd).toHaveLength(1);
+    const connectorCards = Array.from(connectorSection.querySelectorAll("article.connector-card")) as HTMLElement[];
+    expectButtonAfterElement(connectorCards[connectorCards.length - 1], connectorAdd[0]);
+    connectorCards.forEach((card) => expectRemoveBeforeFirstEditable(card, "Remove connector"));
+
+    expectRecordGroupLayout("SharePoint lists", "Add list", "Remove list");
+    expectRecordGroupLayout("SharePoint columns and internal names", "Add column", "Remove column");
+    expectRecordGroupLayout("SharePoint libraries", "Add library", "Remove library");
+    expectRecordGroupLayout("Dataverse tables", "Add table", "Remove table");
+    expectRecordGroupLayout("Dataverse columns", "Add column", "Remove column");
+    expectRecordGroupLayout("Dataverse relationships", "Add relationship", "Remove relationship");
+    const resourceLayout = expectRecordGroupLayout("Connector resources", "Add resource", "Remove resource");
+    expectRecordGroupLayout("Connector fields", "Add field", "Remove field");
+
+    await user.click(resourceLayout.addButton);
+    const updatedResourceLayout = expectRecordGroupLayout("Connector resources", "Add resource", "Remove resource");
+    expect(updatedResourceLayout.items).toHaveLength(2);
+    await user.type(within(updatedResourceLayout.items[1]).getByLabelText(/Resource name/i), "New API");
+    await user.click(within(updatedResourceLayout.items[0]).getByRole("button", { name: "Remove resource" }));
+    expect(screen.getByDisplayValue("New API")).toBeInTheDocument();
+    expect(expectRecordGroupLayout("Connector resources", "Add resource", "Remove resource").items).toHaveLength(1);
+  }, 30000);
+
+  it("standardizes feature-stage structured target and nested repeater button order", async () => {
+    const project = createProject({
+      identity: { id: "feature-repeater-layout", projectName: "Feature Repeater Layout" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    project.powerPlatform!.common.connectors = [
+      createDefaultConnector({ id: "connector-sp", displayName: "SharePoint", dataSourceType: "sharePointList", canvasRole: "primary" })
+    ];
+    project.powerPlatform!.canvas!.screenTargets = [
+      createDefaultCanvasScreenTarget({
+        id: "screen-one",
+        displayName: "Home",
+        dataSourceReferences: [createDefaultCanvasDataSourceReference({ connectorId: "connector-sp", entityId: "sp-list-one" })]
+      })
+    ];
+    project.powerPlatform!.canvas!.controlTargets = [
+      createDefaultCanvasControlTarget({ id: "control-one", screenId: "screen-one", approvedControlName: "btnSave" })
+    ];
+    project.powerPlatform!.canvas!.componentTargets = [
+      createDefaultCanvasComponentTarget({
+        id: "component-one",
+        approvedComponentName: "cmpStatus",
+        usageTargets: [createDefaultCanvasComponentUsageTarget({ id: "usage-one", targetType: "screen", targetId: "screen-one" })]
+      })
+    ];
+    project.powerPlatform!.canvas!.stateVariableTargets = [];
+    const user = userEvent.setup();
+    renderPowerPlatformStage(project, "features");
+
+    expectRecordGroupLayout("Structured screen targets", "Add screen target", "Remove screen target");
+    expectRecordGroupLayout("Structured control targets", "Add control target", "Remove control target");
+    expectRecordGroupLayout("Structured component targets", "Add component target", "Remove component target");
+    const emptyStateLayout = expectRecordGroupLayout("Structured state-variable targets", "Add state variable", "Remove state variable");
+    expect(emptyStateLayout.items).toHaveLength(0);
+
+    const referenceGroup = screen.getByLabelText("Data-source references for screen-one") as HTMLElement;
+    expectHeadingWithoutAdd(referenceGroup, "Structured data-source references", "Add data-source reference");
+    let referenceRows = Array.from(referenceGroup.querySelectorAll(".inline-field-grid")) as HTMLElement[];
+    let referenceAdd = within(referenceGroup).getByRole("button", { name: "Add data-source reference" });
+    expect(referenceRows).toHaveLength(1);
+    expectButtonAfterElement(referenceRows[0], referenceAdd);
+    expectRemoveBeforeFirstEditable(referenceRows[0], "Remove reference");
+    await user.click(referenceAdd);
+    referenceRows = Array.from(referenceGroup.querySelectorAll(".inline-field-grid")) as HTMLElement[];
+    referenceAdd = within(referenceGroup).getByRole("button", { name: "Add data-source reference" });
+    expect(referenceRows).toHaveLength(2);
+    expectButtonAfterElement(referenceRows[1], referenceAdd);
+
+    const usageGroup = screen.getByLabelText("Usage targets for component-one") as HTMLElement;
+    expectHeadingWithoutAdd(usageGroup, "Structured component usage targets", "Add usage target");
+    let usageRows = Array.from(usageGroup.querySelectorAll(".schema-card.compact")) as HTMLElement[];
+    let usageAdd = within(usageGroup).getByRole("button", { name: "Add usage target" });
+    expect(usageRows).toHaveLength(1);
+    expectButtonAfterElement(usageRows[0], usageAdd);
+    expectRemoveBeforeFirstEditable(usageRows[0], "Remove usage target");
+    await user.click(usageAdd);
+    usageRows = Array.from(usageGroup.querySelectorAll(".schema-card.compact")) as HTMLElement[];
+    usageAdd = within(usageGroup).getByRole("button", { name: "Add usage target" });
+    expect(usageRows).toHaveLength(2);
+    expectButtonAfterElement(usageRows[1], usageAdd);
+
+    const controlLayout = expectRecordGroupLayout("Structured control targets", "Add control target", "Remove control target");
+    controlLayout.addButton.focus();
+    await user.keyboard("{Enter}");
+    expect(expectRecordGroupLayout("Structured control targets", "Add control target", "Remove control target").items).toHaveLength(2);
+    const removeControl = within(screen.getByRole("heading", { name: "Structured control targets" }).closest("section") as HTMLElement)
+      .getAllByRole("button", { name: "Remove control target" })[0];
+    removeControl.focus();
+    await user.keyboard(" ");
+    expect(expectRecordGroupLayout("Structured control targets", "Add control target", "Remove control target").items).toHaveLength(1);
+  }, 30000);
 
   it("allows Canvas subtype selection, navigation persistence, and storage reload", async () => {
     const project = createProject({

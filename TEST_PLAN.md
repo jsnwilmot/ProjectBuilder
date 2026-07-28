@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-07-28 Phase 5B.4B.5.2 repeating section button layout standardization
+
+- `npm.cmd ci`: passed; install reported existing high-severity audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx`: passed (`1` file, `11` tests).
+- `npm.cmd test`: passed (`29` unit/integration files, `1490` unit/integration tests, `7` UI files, `54` UI tests, `36` combined files, `1544` tests).
+- `npm.cmd run test:coverage`: passed (`29` coverage files, `1490` coverage tests, `7` UI files, `54` UI tests, `36` combined files, `1544` tests).
+- Coverage was `90.46%` statements, `81.66%` branches, `94.89%` functions, and `95.43%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --audit-level=high`: failed. The limited exception permits committing this isolated UI correction, but does not mean the audit passed and does not authorize deployment or release.
+- `git diff --check`: passed with line-ending warnings only.
+- Repository-wide repeater inventory searches found the relevant add/remove repeaters in `src/components/IntakeBuilder/PowerPlatformIntake.tsx`; outside-file matches were navigation actions, one-time commands, selector text, or non-UI library filtering rather than repeated user-entered record controls.
+- DOM-order UI coverage verifies repeating headings do not contain Add buttons, Add buttons render once after the final item, Remove buttons render before editable fields, empty repeaters retain Add buttons below headings, nested repeaters use the same layout, new items keep Add after the new final item, and row removal preserves remaining values.
+- Covered repeaters include SharePoint lists, SharePoint columns and internal names, SharePoint libraries, Dataverse tables, Dataverse columns, Dataverse relationships, connector resources, connector fields, structured screen targets, structured control targets, structured component targets, structured state-variable targets, nested data-source references, nested component usage targets, and connector register behavior.
+- Automated keyboard coverage verifies Enter and Space activation on native Add/Remove buttons without duplicate item changes.
+- Browser QA used the saved `Phase 5B.4B.1 Manual UI Check` project in the local app at desktop `1280 x 720` and mobile `390 x 844`.
+- Browser QA confirmed Add buttons after final items, Remove buttons before item fields, correct item removal by click, remaining values preserved, nested Add placement, no desktop or mobile page-level horizontal overflow, and no console errors or warnings.
+- User-performed human verification was confirmed on 2026-07-28. Chrome version was not supplied with the user-confirmed human QA result.
+- User-confirmed Structured Control Targets checks passed for Enter Add, Space Add, Enter Remove, Space Remove, exactly one action per keypress, visible focus, remaining values preserved, Add below the final repeated item, and Remove before item fields.
+- User-confirmed nested Data-source References checks passed for Enter Add, Space Add, Enter Remove, Space Remove, exactly one action per keypress, visible focus, remaining values preserved, Add below the final nested item, and Remove before nested item fields.
+- User-confirmed SharePoint Lists checks passed for Enter Add, Space Add, Enter Remove, Space Remove, exactly one action per keypress, visible focus, remaining values preserved, Add below the final repeated item, and Remove before item fields.
+- User-confirmed general browser verification passed with no console errors or warnings, no incorrect item removed, and no item values moved to another repeated item.
+- Audit advisory `GHSA-mh99-v99m-4gvg` affects `brace-expansion` installed versions `1.1.16` and `5.0.7` through development-tooling dependency paths; npm reported no fix available; the package was not found in the production `dist` output.
+- Audit advisory `GHSA-r28c-9q8g-f849` affects `postcss` installed version `8.5.16` through Vite, Vitest, and React development-tooling paths; npm reported no fix available; the package was not found in the production `dist` output.
+- npm reported `21` high findings due to cascading dependency paths. These advisories were not introduced by Phase 5B.4B.5.2, `package.json` was unchanged, `package-lock.json` was unchanged, and dependency remediation or audit-policy handling remains separate work.
+- Deployment remains unauthorized for this phase.
+
 ## 2026-07-24 Dependency audit remediation and test-count correction
 
 - Clean detached worktree started at baseline commit `0ed5692ae7e8c05f94f4074cf66581f694fe8e1a`.

@@ -965,7 +965,6 @@ function SharePointSchemaEditor({
         title="SharePoint lists"
         addLabel="Add list"
         onAdd={() => updateRows("sharePointListSchemas", (rows) => [...rows, createDefaultSharePointList()])}
-        addPosition="bottom"
       >
         {canvas.sharePointListSchemas.map((row) => (
           <article className="schema-card" key={row.id}>
@@ -997,7 +996,6 @@ function SharePointSchemaEditor({
         title="SharePoint columns and internal names"
         addLabel="Add column"
         onAdd={() => updateRows("sharePointColumnSchemas", (rows) => [...rows, createDefaultSharePointColumn()])}
-        addPosition="bottom"
       >
         {canvas.sharePointColumnSchemas.map((row) => (
           <article className="schema-card" key={row.id}>
@@ -1050,6 +1048,16 @@ function SharePointSchemaEditor({
       >
         {canvas.sharePointLibrarySchemas.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => {
+                updateRows("sharePointLibrarySchemas", (rows) => rows.filter((item) => item.id !== row.id));
+                updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.parentType === "library" && item.parentId === row.id ? { ...item, parentId: "", confirmationStatus: "reviewNeeded" } : item));
+              }}
+            >
+              Remove library
+            </button>
             <TextField id={`sp-library-${row.id}-display`} label="Library name" description="Document library display name." value={row.displayName} onChange={(value) => updateRows("sharePointLibrarySchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} />
             <TextField id={`sp-library-${row.id}-purpose`} label="Purpose" description="What this library stores." value={row.purpose} onChange={(value) => updateRows("sharePointLibrarySchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} />
             <TextField id={`sp-library-${row.id}-folders`} label="Folder structure" description="Folder structure expectations." value={row.folderStructure} onChange={(value) => updateRows("sharePointLibrarySchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, folderStructure: value } : item))} />
@@ -1063,16 +1071,6 @@ function SharePointSchemaEditor({
             <TextField id={`sp-library-${row.id}-retention`} label="Retention" description="Retention requirements." value={row.retention} onChange={(value) => updateRows("sharePointLibrarySchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, retention: value } : item))} />
             <DecisionStatusField id={`sp-library-${row.id}-confirmation`} label="Confirmation status" description="Controlled library confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("sharePointLibrarySchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`sp-library-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this library." value={row.confirmationSource} onChange={(value) => updateRows("sharePointLibrarySchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => {
-                updateRows("sharePointLibrarySchemas", (rows) => rows.filter((item) => item.id !== row.id));
-                updateRows("sharePointColumnSchemas", (rows) => rows.map((item) => item.parentType === "library" && item.parentId === row.id ? { ...item, parentId: "", confirmationStatus: "reviewNeeded" } : item));
-              }}
-            >
-              Remove library
-            </button>
           </article>
         ))}
       </RecordGroup>
@@ -1084,24 +1082,21 @@ function RecordGroup({
   title,
   addLabel,
   onAdd,
-  children,
-  addPosition = "top"
+  children
 }: {
   title: string;
   addLabel: string;
   onAdd: () => void;
   children: ReactNode;
-  addPosition?: "top" | "bottom";
 }) {
   const addButton = <button className="button button-secondary" type="button" onClick={onAdd}>{addLabel}</button>;
   return (
     <section className="record-group" aria-label={title}>
       <div className="connector-card-heading">
         <h5>{title}</h5>
-        {addPosition === "top" ? addButton : null}
       </div>
       {children}
-      {addPosition === "bottom" ? addButton : null}
+      {addButton}
     </section>
   );
 }
@@ -1142,6 +1137,7 @@ function CanvasImplementationTargetEditor({
       <RecordGroup title="Structured screen targets" addLabel="Add screen target" onAdd={() => updateRows("screenTargets", (rows) => [...rows, createDefaultCanvasScreenTarget()])}>
         {canvas.screenTargets.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove screen target</button>
             <TextField id={`canvas-screen-${row.id}-id`} label="Stable screen ID" description="Traceable ID used in intended output paths. Do not derive from display label." value={row.id} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
             <TextField id={`canvas-screen-${row.id}-display`} label="Display name" description="Human-facing screen label." value={row.displayName} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} />
             <TextField id={`canvas-screen-${row.id}-approved`} label="Approved screen name" description="Exact Power Apps screen name approved by Architect/client." value={row.approvedScreenName} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, approvedScreenName: value } : item))} required />
@@ -1153,15 +1149,15 @@ function CanvasImplementationTargetEditor({
             <div className="nested-record-group" aria-label={`Data-source references for ${row.id}`}>
               <div className="connector-card-heading">
                 <h6>Structured data-source references</h6>
-                <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: [...item.dataSourceReferences, createDefaultCanvasDataSourceReference()] } : item))}>Add data-source reference</button>
               </div>
               {row.dataSourceReferences.map((reference, referenceIndex) => (
                 <div className="inline-field-grid" key={`${row.id}-reference-${referenceIndex}`}>
+                  <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.filter((_, index) => index !== referenceIndex) } : item))}>Remove reference</button>
                   <SelectField id={`canvas-screen-${row.id}-reference-${referenceIndex}-connector`} label="Connector" description="Selected and assigned connector assessment." value={reference.connectorId} options={[{ value: "", label: "Select connector" }, ...connectorOptions]} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.map((candidate, index) => index === referenceIndex ? { ...candidate, connectorId: value } : candidate) } : item))} />
                   <SelectField id={`canvas-screen-${row.id}-reference-${referenceIndex}-entity`} label="Entity" description="Confirmed active list, library, table, or connector resource." value={reference.entityId} options={[{ value: "", label: "Select entity" }, ...dataSourceOptions]} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.map((candidate, index) => index === referenceIndex ? { ...candidate, entityId: value } : candidate) } : item))} />
-                  <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: item.dataSourceReferences.filter((_, index) => index !== referenceIndex) } : item))}>Remove reference</button>
                 </div>
               ))}
+              <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceReferences: [...item.dataSourceReferences, createDefaultCanvasDataSourceReference()] } : item))}>Add data-source reference</button>
             </div>
             <TextField id={`canvas-screen-${row.id}-entities`} label="Legacy screen entity IDs" description="Legacy review notes only; readiness uses structured connector/entity references above." value={textFromList(row.dataSourceEntityIds)} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceEntityIds: listFromText(value), referenceReviewNotes: item.referenceReviewNotes || "Legacy screen entity IDs require structured connector/entity review." } : item))} />
             <TextField id={`canvas-screen-${row.id}-sources`} label="Legacy data-source IDs" description="Legacy review notes only; readiness uses structured connector/entity references." value={textFromList(row.dataSourceIds)} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, dataSourceIds: listFromText(value), referenceReviewNotes: item.referenceReviewNotes || "Legacy screen data-source IDs require review." } : item))} />
@@ -1174,13 +1170,13 @@ function CanvasImplementationTargetEditor({
             <TextField id={`canvas-screen-${row.id}-yaml-validation`} label="YAML validation responsibility" description="Person or team responsible for validation." value={row.yamlValidationResponsibility} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlValidationResponsibility: value } : item))} />
             <DecisionStatusField id={`canvas-screen-${row.id}-confirmation`} label="Confirmation status" description="Controlled screen target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
             <TextField id={`canvas-screen-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this screen target." value={row.confirmationSource} onChange={(value) => updateRows("screenTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
-            <button className="button button-secondary" type="button" onClick={() => updateRows("screenTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove screen target</button>
           </article>
         ))}
       </RecordGroup>
       <RecordGroup title="Structured control targets" addLabel="Add control target" onAdd={() => updateRows("controlTargets", (rows) => [...rows, createDefaultCanvasControlTarget()])}>
         {canvas.controlTargets.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows("controlTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove control target</button>
             <TextField id={`canvas-control-${row.id}-id`} label="Stable control ID" description="Traceable ID used in intended output paths. Do not derive from display label." value={row.id} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
             <SelectField id={`canvas-control-${row.id}-screen`} label="Screen target" description="Confirmed parent screen target." value={row.screenId} options={[{ value: "", label: "Select screen" }, ...screenOptions]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, screenId: value } : item))} required />
             <SelectField id={`canvas-control-${row.id}-parent`} label="Parent control ID" description="Optional parent container/control target." value={row.parentControlId} options={[{ value: "", label: "No parent control" }, ...controlOptions.filter((option) => option.value !== row.id)]} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, parentControlId: value } : item))} />
@@ -1209,13 +1205,13 @@ function CanvasImplementationTargetEditor({
             <TextField id={`canvas-control-${row.id}-yaml-validation`} label="YAML validation responsibility" description="Person or team responsible for validation." value={row.yamlValidationResponsibility} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlValidationResponsibility: value } : item))} />
             <DecisionStatusField id={`canvas-control-${row.id}-confirmation`} label="Confirmation status" description="Controlled control target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
             <TextField id={`canvas-control-${row.id}-confirm-source`} label="Confirmation source" description="Who or what confirmed this control target." value={row.confirmationSource} onChange={(value) => updateRows("controlTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
-            <button className="button button-secondary" type="button" onClick={() => updateRows("controlTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove control target</button>
           </article>
         ))}
       </RecordGroup>
       <RecordGroup title="Structured component targets" addLabel="Add component target" onAdd={() => updateRows("componentTargets", (rows) => [...rows, createDefaultCanvasComponentTarget()])}>
         {canvas.componentTargets.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove component target</button>
             <TextField id={`canvas-component-${row.id}-id`} label="Stable component ID" description="Traceable component target ID." value={row.id} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
             <TextField id={`canvas-component-${row.id}-approved`} label="Approved component name" description="Exact approved component name." value={row.approvedComponentName} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, approvedComponentName: value } : item))} required />
             <TextField id={`canvas-component-${row.id}-purpose`} label="Purpose" description="Reusable component purpose." value={row.purpose} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, purpose: value } : item))} multiline required />
@@ -1225,19 +1221,19 @@ function CanvasImplementationTargetEditor({
             <div className="nested-record-group" aria-label={`Usage targets for ${row.id}`}>
               <div className="connector-card-heading">
                 <h6>Structured component usage targets</h6>
-                <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: [...item.usageTargets, createDefaultCanvasComponentUsageTarget()] } : item))}>Add usage target</button>
               </div>
               {row.usageTargets.map((usage, usageIndex) => (
                 <div className="schema-card compact" key={usage.id || `${row.id}-usage-${usageIndex}`}>
+                  <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.filter((_, index) => index !== usageIndex) } : item))}>Remove usage target</button>
                   <TextField id={`canvas-component-${row.id}-usage-${usageIndex}-id`} label="Usage target ID" description="Stable usage record ID." value={usage.id} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, id: value } : candidate) } : item))} />
                   <SelectField id={`canvas-component-${row.id}-usage-${usageIndex}-type`} label="Target type" description="Component usage target type." value={usage.targetType} options={[{ value: "screen", label: "Screen" }, { value: "control", label: "Control" }]} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, targetType: (value === "control" ? "control" : "screen") as "screen" | "control", targetId: "" } : candidate) } : item))} />
                   <SelectField id={`canvas-component-${row.id}-usage-${usageIndex}-target`} label="Target" description="Structured screen or control target." value={usage.targetId} options={[{ value: "", label: usage.targetType === "control" ? "Select control" : "Select screen" }, ...(usage.targetType === "control" ? controlOptions : screenOptions)]} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, targetId: value } : candidate) } : item))} />
                   <TextField id={`canvas-component-${row.id}-usage-${usageIndex}-purpose`} label="Purpose" description="Why the component is used at this screen/control." value={usage.purpose} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, purpose: value } : candidate) } : item))} />
                   <DecisionStatusField id={`canvas-component-${row.id}-usage-${usageIndex}-status`} label="Usage confirmation status" description="Controlled confirmation for this usage target." value={usage.confirmationStatus} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, confirmationStatus: value } : candidate) } : item))} />
                   <TextField id={`canvas-component-${row.id}-usage-${usageIndex}-source`} label="Usage confirmation source" description="Who or what confirmed this usage target." value={usage.confirmationSource} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.map((candidate, index) => index === usageIndex ? { ...candidate, confirmationSource: value } : candidate) } : item))} />
-                  <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: item.usageTargets.filter((_, index) => index !== usageIndex) } : item))}>Remove usage target</button>
                 </div>
               ))}
+              <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, usageTargets: [...item.usageTargets, createDefaultCanvasComponentUsageTarget()] } : item))}>Add usage target</button>
             </div>
             <ApplicabilityDecisionEditor id={`canvas-component-${row.id}-yaml-decision`} label="Component YAML output" value={row.yamlOutputDecision} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputDecision: value } : item))} />
             <TextField id={`canvas-component-${row.id}-yaml-type`} label="YAML output type" description="Component YAML output requirement." value={row.yamlOutputType} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlOutputType: value } : item))} />
@@ -1247,7 +1243,6 @@ function CanvasImplementationTargetEditor({
             <TextField id={`canvas-component-${row.id}-yaml-validation`} label="YAML validation responsibility" description="Person or team responsible for validation." value={row.yamlValidationResponsibility} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, yamlValidationResponsibility: value } : item))} />
             <DecisionStatusField id={`canvas-component-${row.id}-confirmation`} label="Confirmation status" description="Controlled component target confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
             <TextField id={`canvas-component-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this component target." value={row.confirmationSource} onChange={(value) => updateRows("componentTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} required />
-            <button className="button button-secondary" type="button" onClick={() => updateRows("componentTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove component target</button>
           </article>
         ))}
       </RecordGroup>
@@ -1258,6 +1253,7 @@ function CanvasImplementationTargetEditor({
       >
         {canvas.stateVariableTargets.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows("stateVariableTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove state variable</button>
             <TextField id={`canvas-state-${row.id}-id`} label="Stable state-variable ID" description="Traceable ID used by state initialization and selected-record planning assets." value={row.id} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, id: value } : item))} required />
             <TextField id={`canvas-state-${row.id}-name`} label="Approved implementation name" description="Approved Power Fx variable name, such as varSelectedRecord. Do not infer from prose." value={row.implementationName} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, implementationName: value } : item))} required />
             <SelectField id={`canvas-state-${row.id}-role`} label="State role" description="Controlled role used for selected-record and other state classifications." value={row.stateRole ?? ""} options={stateRoleOptions} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, stateRole: value } : item))} required />
@@ -1298,7 +1294,6 @@ function CanvasImplementationTargetEditor({
             </label>
             <TextField id={`canvas-state-${row.id}-sort`} label="Sort order" description="Deterministic generation order." value={String(row.sortOrder)} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, sortOrder: Number.isFinite(Number(value)) ? Number(value) : 0 } : item))} />
             <DecisionStatusField id={`canvas-state-${row.id}-confirmation`} label="Confirmation status" description="Controlled state-variable confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("stateVariableTargets", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} required />
-            <button className="button button-secondary" type="button" onClick={() => updateRows("stateVariableTargets", (rows) => rows.filter((item) => item.id !== row.id))}>Remove state variable</button>
           </article>
         ))}
       </RecordGroup>
@@ -1326,6 +1321,17 @@ function DataverseSchemaEditor({
       <RecordGroup title="Dataverse tables" addLabel="Add table" onAdd={() => updateRows(tableField, (rows) => [...rows, createDefaultDataverseTable()])}>
         {tableRows.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => {
+                updateRows(tableField, (rows) => rows.filter((item) => item.id !== row.id));
+                updateRows(columnField, (rows) => rows.map((item) => item.tableId === row.id ? { ...item, tableId: "", confirmationStatus: "reviewNeeded" } : item));
+                updateRows(relationshipField, (rows) => rows.map((item) => item.parentTableId === row.id || item.childTableId === row.id ? { ...item, parentTableId: item.parentTableId === row.id ? "" : item.parentTableId, childTableId: item.childTableId === row.id ? "" : item.childTableId, confirmationStatus: "reviewNeeded" } : item));
+              }}
+            >
+              Remove table
+            </button>
             <TextField id={`dv-table-${row.id}-display`} label="Table display name" description="Display name. Logical/schema names are separate and never derived." value={row.displayName} onChange={(value) => updateRows(tableField, (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} required />
             <TextField id={`dv-table-${row.id}-plural`} label="Plural display name" description="Plural table display name." value={row.pluralDisplayName} onChange={(value) => updateRows(tableField, (rows) => rows.map((item) => item.id === row.id ? { ...item, pluralDisplayName: value } : item))} />
             <TextField id={`dv-table-${row.id}-logical`} label="Logical name" description="Exact Dataverse logical name." value={row.logicalName} onChange={(value) => updateRows(tableField, (rows) => rows.map((item) => item.id === row.id ? { ...item, logicalName: value } : item))} required />
@@ -1339,23 +1345,13 @@ function DataverseSchemaEditor({
             <TextField id={`dv-table-${row.id}-security`} label="Security notes" description="Security notes." value={row.securityNotes} onChange={(value) => updateRows(tableField, (rows) => rows.map((item) => item.id === row.id ? { ...item, securityNotes: value } : item))} multiline />
             <DecisionStatusField id={`dv-table-${row.id}-confirmation`} label="Confirmation status" description="Controlled table confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows(tableField, (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`dv-table-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this table." value={row.confirmationSource} onChange={(value) => updateRows(tableField, (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => {
-                updateRows(tableField, (rows) => rows.filter((item) => item.id !== row.id));
-                updateRows(columnField, (rows) => rows.map((item) => item.tableId === row.id ? { ...item, tableId: "", confirmationStatus: "reviewNeeded" } : item));
-                updateRows(relationshipField, (rows) => rows.map((item) => item.parentTableId === row.id || item.childTableId === row.id ? { ...item, parentTableId: item.parentTableId === row.id ? "" : item.parentTableId, childTableId: item.childTableId === row.id ? "" : item.childTableId, confirmationStatus: "reviewNeeded" } : item));
-              }}
-            >
-              Remove table
-            </button>
           </article>
         ))}
       </RecordGroup>
       <RecordGroup title="Dataverse columns" addLabel="Add column" onAdd={() => updateRows(columnField, (rows) => [...rows, createDefaultDataverseColumn()])}>
         {columnRows.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows(columnField, (rows) => rows.filter((item) => item.id !== row.id))}>Remove column</button>
             <SelectField id={`dv-column-${row.id}-table`} label="Owning table" description="Structured Dataverse table this column belongs to. Never inferred." value={row.tableId} options={[{ value: "", label: "Select table" }, ...tableOptions]} onChange={(value) => updateRows(columnField, (rows) => rows.map((item) => item.id === row.id ? { ...item, tableId: value, confirmationStatus: value ? item.confirmationStatus : "reviewNeeded" } : item))} required />
             <TextField id={`dv-column-${row.id}-display`} label="Column display name" description="Display name. Logical/schema names are separate and never derived." value={row.displayName} onChange={(value) => updateRows(columnField, (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} required />
             <TextField id={`dv-column-${row.id}-logical`} label="Column logical name" description="Exact Dataverse column logical name." value={row.logicalName} onChange={(value) => updateRows(columnField, (rows) => rows.map((item) => item.id === row.id ? { ...item, logicalName: value } : item))} required />
@@ -1372,13 +1368,13 @@ function DataverseSchemaEditor({
             <TextField id={`dv-column-${row.id}-sensitive`} label="Sensitive-data status" description="Sensitive-data status." value={row.sensitiveDataStatus} onChange={(value) => updateRows(columnField, (rows) => rows.map((item) => item.id === row.id ? { ...item, sensitiveDataStatus: value } : item))} />
             <DecisionStatusField id={`dv-column-${row.id}-confirmation`} label="Confirmation status" description="Controlled column confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows(columnField, (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`dv-column-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this column." value={row.confirmationSource} onChange={(value) => updateRows(columnField, (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button className="button button-secondary" type="button" onClick={() => updateRows(columnField, (rows) => rows.filter((item) => item.id !== row.id))}>Remove column</button>
           </article>
         ))}
       </RecordGroup>
       <RecordGroup title="Dataverse relationships" addLabel="Add relationship" onAdd={() => updateRows(relationshipField, (rows) => [...rows, createDefaultDataverseRelationship()])}>
         {relationshipRows.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows(relationshipField, (rows) => rows.filter((item) => item.id !== row.id))}>Remove relationship</button>
             <TextField id={`dv-relationship-${row.id}-schema`} label="Relationship schema name" description="Exact relationship schema name. Never derived." value={row.relationshipSchemaName} onChange={(value) => updateRows(relationshipField, (rows) => rows.map((item) => item.id === row.id ? { ...item, relationshipSchemaName: value } : item))} required />
             <TextField id={`dv-relationship-${row.id}-type`} label="Relationship type" description="One-to-many, many-to-one, many-to-many, etc." value={row.relationshipType} onChange={(value) => updateRows(relationshipField, (rows) => rows.map((item) => item.id === row.id ? { ...item, relationshipType: value } : item))} />
             <SelectField id={`dv-relationship-${row.id}-parent`} label="Parent table" description="Parent table record." value={row.parentTableId} options={[{ value: "", label: "Select parent table" }, ...tableOptions]} onChange={(value) => updateRows(relationshipField, (rows) => rows.map((item) => item.id === row.id ? { ...item, parentTableId: value, confirmationStatus: value ? item.confirmationStatus : "reviewNeeded" } : item))} required />
@@ -1389,7 +1385,6 @@ function DataverseSchemaEditor({
             <TextField id={`dv-relationship-${row.id}-navigation`} label="Navigation behavior" description="Navigation behavior." value={row.navigationBehavior} onChange={(value) => updateRows(relationshipField, (rows) => rows.map((item) => item.id === row.id ? { ...item, navigationBehavior: value } : item))} />
             <DecisionStatusField id={`dv-relationship-${row.id}-confirmation`} label="Confirmation status" description="Controlled relationship confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows(relationshipField, (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`dv-relationship-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this relationship." value={row.confirmationSource} onChange={(value) => updateRows(relationshipField, (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button className="button button-secondary" type="button" onClick={() => updateRows(relationshipField, (rows) => rows.filter((item) => item.id !== row.id))}>Remove relationship</button>
           </article>
         ))}
       </RecordGroup>
@@ -1417,6 +1412,16 @@ function OtherConnectorSchemaEditor({
       <RecordGroup title="Connector resources" addLabel="Add resource" onAdd={() => updateRows("connectorResourceSchemas", (rows) => [...rows, createDefaultConnectorResource({ connectorId: connectors[0]?.id ?? "" })])}>
         {resourceRows.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => {
+                updateRows("connectorResourceSchemas", (rows) => rows.filter((item) => item.id !== row.id));
+                updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.resourceId === row.id ? { ...item, resourceId: "", confirmationStatus: "reviewNeeded" } : item));
+              }}
+            >
+              Remove resource
+            </button>
             <SelectField id={`connector-resource-${row.id}-connector`} label="Connector" description="Connector assessment this resource belongs to." value={row.connectorId} options={connectorOptions.length ? connectorOptions : [{ value: "", label: "Add connector assessment first" }]} onChange={(value) => updateRows("connectorResourceSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, connectorId: value } : item))} />
             <TextField id={`connector-resource-${row.id}-name`} label="Resource name" description="Resource, entity, table, API path, file, or dataset." value={row.resourceName} onChange={(value) => updateRows("connectorResourceSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, resourceName: value } : item))} required />
             <TextField id={`connector-resource-${row.id}-type`} label="Resource type" description="Resource type." value={row.resourceType} onChange={(value) => updateRows("connectorResourceSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, resourceType: value } : item))} />
@@ -1429,22 +1434,13 @@ function OtherConnectorSchemaEditor({
             <TextField id={`connector-resource-${row.id}-gateway`} label="Gateway requirement" description="Gateway requirement." value={row.gatewayRequirement} onChange={(value) => updateRows("connectorResourceSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, gatewayRequirement: value } : item))} />
             <DecisionStatusField id={`connector-resource-${row.id}-confirmation`} label="Confirmation status" description="Controlled resource confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("connectorResourceSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`connector-resource-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this resource." value={row.confirmationSource} onChange={(value) => updateRows("connectorResourceSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() => {
-                updateRows("connectorResourceSchemas", (rows) => rows.filter((item) => item.id !== row.id));
-                updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.resourceId === row.id ? { ...item, resourceId: "", confirmationStatus: "reviewNeeded" } : item));
-              }}
-            >
-              Remove resource
-            </button>
           </article>
         ))}
       </RecordGroup>
       <RecordGroup title="Connector fields" addLabel="Add field" onAdd={() => updateRows("connectorFieldSchemas", (rows) => [...rows, createDefaultConnectorField({ connectorId: connectors[0]?.id ?? "", resourceId: resourceRows[0]?.id ?? "" })])}>
         {fieldRows.map((row) => (
           <article className="schema-card" key={row.id}>
+            <button className="button button-secondary" type="button" onClick={() => updateRows("connectorFieldSchemas", (rows) => rows.filter((item) => item.id !== row.id))}>Remove field</button>
             <SelectField id={`connector-field-${row.id}-connector`} label="Connector" description="Connector assessment this field belongs to." value={row.connectorId} options={connectorOptions.length ? connectorOptions : [{ value: "", label: "Add connector assessment first" }]} onChange={(value) => updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, connectorId: value, resourceId: "", confirmationStatus: "reviewNeeded" } : item))} />
             <SelectField id={`connector-field-${row.id}-resource`} label="Resource" description="Connector resource this field belongs to." value={row.resourceId} options={[{ value: "", label: "Select resource" }, ...resourceOptionsFor(row.connectorId)]} onChange={(value) => updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, resourceId: value, confirmationStatus: value ? item.confirmationStatus : "reviewNeeded" } : item))} required />
             <TextField id={`connector-field-${row.id}-display`} label="Display name" description="Field display name." value={row.displayName} onChange={(value) => updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, displayName: value } : item))} />
@@ -1459,7 +1455,6 @@ function OtherConnectorSchemaEditor({
             <TextField id={`connector-field-${row.id}-delete`} label="Delete behavior" description="Delete behavior." value={row.deleteBehavior} onChange={(value) => updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, deleteBehavior: value } : item))} />
             <DecisionStatusField id={`connector-field-${row.id}-confirmation`} label="Confirmation status" description="Controlled field confirmation status." value={row.confirmationStatus} onChange={(value) => updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationStatus: value } : item))} />
             <TextField id={`connector-field-${row.id}-source`} label="Confirmation source" description="Who or what confirmed this field." value={row.confirmationSource} onChange={(value) => updateRows("connectorFieldSchemas", (rows) => rows.map((item) => item.id === row.id ? { ...item, confirmationSource: value } : item))} />
-            <button className="button button-secondary" type="button" onClick={() => updateRows("connectorFieldSchemas", (rows) => rows.filter((item) => item.id !== row.id))}>Remove field</button>
           </article>
         ))}
       </RecordGroup>

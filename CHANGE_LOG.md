@@ -1,5 +1,63 @@
 # Change Log
 
+## 2026-07-28 - Phase 5B.4B.5.2 Repeating Section Button Layout Standardization
+
+### Summary
+
+- Standardized repeating-section controls so section headings show only the title, Add buttons render once after the final item, and item-level Remove buttons render before editable fields.
+- Applied the shared `RecordGroup` bottom-Add default across Power Platform schema and structured Canvas target repeaters.
+- Updated nested Canvas data-source reference and component usage target repeaters to place nested Add buttons after nested records.
+- Added DOM-order UI regression tests for heading/Add separation, Add-after-final-item placement, Remove-before-fields placement, empty repeaters, nested repeaters, keyboard activation, and row value preservation.
+- Completed repository-wide repeater inventory searches; relevant add/remove repeaters are contained in `src/components/IntakeBuilder/PowerPlatformIntake.tsx`.
+- Updated authoritative runner summaries for the expanded UI test count.
+- User-performed human verification was confirmed on 2026-07-28 for Structured Control Targets, nested Data-source References, and SharePoint Lists. Chrome version was not supplied with the user-confirmed human QA result.
+- Deployment remains unauthorized for this phase.
+
+### Files updated
+
+- `src/components/IntakeBuilder/PowerPlatformIntake.tsx`
+- `src/tests/App.powerPlatformCanvas.test.tsx`
+- `scripts/run-tests.mjs`
+- `scripts/run-tests-with-coverage.mjs`
+- `CHANGE_LOG.md`
+- `TEST_PLAN.md`
+
+### Files created
+
+- None.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; npm reported existing high-severity audit advisories during install.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/App.powerPlatformCanvas.test.tsx`: passed (`1` file, `11` tests).
+- `npm.cmd test`: passed (`29` unit/integration files, `1490` unit/integration tests; `7` UI files, `54` UI tests; `36` combined files, `1544` tests).
+- `npm.cmd run test:coverage`: passed (`29` coverage files, `1490` coverage tests; `7` UI files, `54` UI tests; `36` combined files, `1544` tests); coverage was `90.46%` statements, `81.66%` branches, `94.89%` functions, and `95.43%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `git diff --check`: passed with line-ending warnings only.
+- Automated DOM-order coverage verifies Add buttons after final repeated items, Remove buttons before fields, nested Add placement, empty repeater Add placement, and row value preservation.
+- Automated keyboard coverage verifies native Enter and Space activation for Add and Remove buttons without duplicate item changes.
+- Browser QA confirmed Add buttons after final items, Remove buttons before item fields, correct item removal by click, remaining values preserved, nested Add placement, desktop `1280 x 720` layout, mobile `390 x 844` layout, no page-level horizontal overflow, and no console errors or warnings.
+- User-performed human verification confirmed Enter Add, Space Add, Enter Remove, Space Remove, exactly one action per keypress, visible focus, value preservation, Add below the final item, and Remove before item fields for Structured Control Targets, nested Data-source References, and SharePoint Lists.
+
+### Issues found
+
+- `npm.cmd audit --audit-level=high` failed. The limited exception permits committing this isolated UI correction, but does not mean the audit passed and does not authorize deployment or release.
+- `GHSA-mh99-v99m-4gvg`: `brace-expansion` installed versions `1.1.16` and `5.0.7`; development-tooling dependency paths; no npm fix available; not present in the production `dist` output.
+- `GHSA-r28c-9q8g-f849`: `postcss` installed version `8.5.16`; Vite, Vitest, and React development-tooling paths; no npm fix available; not present in the production `dist` output.
+- npm reported `21` high findings due to cascading dependency paths.
+- The advisories were not introduced by Phase 5B.4B.5.2. `package.json` and `package-lock.json` were not changed. Dependency remediation or audit-policy handling remains separate work.
+
+### Remaining work
+
+- Resolve the existing high-severity dev-tooling audit findings, or define audit-policy handling, in a separate phase.
+- Deployment remains unauthorized until a separate deployment or release decision is approved.
+
 ## 2026-07-24 - Dependency Audit Remediation and Test Count Correction
 
 ### Summary
