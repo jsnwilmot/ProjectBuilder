@@ -1,5 +1,24 @@
 # Test Plan
 
+## 2026-07-28 security remediation and CI audit policy
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- Original complete audit failed with `21` high findings from cascading development-tooling paths for `GHSA-mh99-v99m-4gvg` (`brace-expansion`) and `GHSA-r28c-9q8g-f849` (`postcss`).
+- Original production audit with `npm.cmd audit --omit=dev --audit-level=high --json` passed with `0` vulnerabilities.
+- Lockfile-only remediation updated `brace-expansion` from `5.0.7` to `5.0.8` in the compatible `minimatch` 10.x path.
+- Lockfile-only remediation updated `postcss` from `8.5.16` to `8.5.24`.
+- Lockfile-only remediation updated `nanoid` from `3.3.15` to `3.3.16` as a transitive dependency of the patched `postcss` release.
+- `brace-expansion` `1.1.16` remains through `minimatch` `3.1.5`; affected parent packages include `eslint@9.39.4`, `@eslint/config-array@0.21.2`, `@eslint/eslintrc@3.3.5`, and `eslint-plugin-jsx-a11y@6.10.2`.
+- Compatible published release investigation found ESLint 9.x still depends on `minimatch` 3.x, latest `eslint-plugin-jsx-a11y` 6.x is already installed and still depends on `minimatch` 3.x, and ESLint 10.x would be a direct dependency major update outside this phase.
+- `npm.cmd audit --audit-level=high` remains visible and is not described as resolved.
+- `.github/workflows/ci.yml` now blocks on `npm audit --omit=dev --audit-level=high` and runs the complete `npm audit --audit-level=high` with step-level `continue-on-error`.
+- `package.json` remained unchanged.
+- No application source or application test changed.
+- The existing repeating-section commit was not amended.
+- The preserved stash remains isolated.
+- Deployment remains unauthorized.
+
 ## 2026-07-28 Phase 5B.4B.5.2 repeating section button layout standardization
 
 - `npm.cmd ci`: passed; install reported existing high-severity audit advisories.

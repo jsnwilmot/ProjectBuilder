@@ -1,5 +1,63 @@
 # Change Log
 
+## 2026-07-28 - Security Remediation and CI Audit Policy
+
+### Summary
+
+- Applied lockfile-only patched transitive dependency resolutions for safely remediable high-severity development-tooling advisories.
+- Replaced the single blocking full-tree CI audit with a blocking production dependency audit and a visible non-blocking full dependency audit.
+- Documented the remaining development-only `brace-expansion` 1.x path without describing it as resolved.
+- Preserved the existing Phase 5B.4B.5.2 repeating-section commit without amendment.
+- Deployment remains unauthorized.
+
+### Dependency changes
+
+- `brace-expansion` under the compatible `minimatch` 10.x path changed from `5.0.7` to `5.0.8`.
+- `postcss` changed from `8.5.16` to `8.5.24`.
+- `nanoid` changed from `3.3.15` to `3.3.16` as a transitive dependency of the patched `postcss` release.
+- `brace-expansion` `1.1.16` remains only under `minimatch` `3.1.5`, where the parent dependency requires the 1.x-compatible range.
+
+### Remaining advisory
+
+- `GHSA-mh99-v99m-4gvg` remains visible in the complete audit through development tooling only.
+- Affected parent packages include `minimatch@3.1.5`, `eslint@9.39.4`, `@eslint/config-array@0.21.2`, `@eslint/eslintrc@3.3.5`, and `eslint-plugin-jsx-a11y@6.10.2`.
+- Compatible published checks found ESLint 9.x still depends on `minimatch` 3.x, latest `eslint-plugin-jsx-a11y` 6.x is already installed and still depends on `minimatch` 3.x, and moving ESLint to 10.x would be a direct dependency major update outside this phase.
+- No unsafe override was added, and accessibility linting was not removed or weakened.
+
+### Files updated
+
+- `package-lock.json`
+- `.github/workflows/ci.yml`
+- `CHANGE_LOG.md`
+- `TEST_PLAN.md`
+- `RELEASE_READINESS_REPORT.md`
+
+### Files created
+
+- None.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `node --version`: `v22.21.0`.
+- `npm.cmd --version`: `10.9.4`.
+- `npm.cmd ci`: passed; complete audit still reports the remaining development-only advisory path.
+- `npm.cmd audit --omit=dev --audit-level=high --json`: passed with `0` vulnerabilities before remediation.
+- `npm.cmd audit --audit-level=high --json`: originally failed with `21` high findings from `brace-expansion` and `postcss` cascading development-tooling paths.
+- After lockfile remediation, `npm.cmd audit --audit-level=high` reports only the remaining development-only `brace-expansion` 1.x path.
+- A production `dist` search found no `brace-expansion`, `postcss`, `minimatch`, `eslint`, or `vite` package output.
+
+### Scope confirmations
+
+- `package.json` remained unchanged.
+- No application source or application test changed.
+- The existing repeating-section commit `212a1b3f580c7808c790efb20236bec28259333a` was not amended.
+- The preserved stash remains isolated.
+- Deployment remains unauthorized.
+
 ## 2026-07-28 - Phase 5B.4B.5.2 Repeating Section Button Layout Standardization
 
 ### Summary

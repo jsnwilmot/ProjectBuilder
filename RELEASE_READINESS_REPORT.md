@@ -4,6 +4,12 @@
 
 Project Builder Ai completed deployment-operations lockdown on top of MVP release readiness. The production mechanism, Worker details, physical-keyboard behavior, and Windows Explorer ZIP result are now documented. Firefox remains unavailable and the production release owner remains unassigned.
 
+## Current security and CI status
+
+As of 2026-07-28, the production dependency audit passes with `npm audit --omit=dev --audit-level=high`. The complete dependency audit remains visible and still reports the development-only `GHSA-mh99-v99m-4gvg` path through `brace-expansion` `1.1.16`, `minimatch` `3.1.5`, ESLint 9.x tooling, and `eslint-plugin-jsx-a11y` 6.x. The CI workflow now blocks production dependency vulnerabilities while keeping the complete audit output visible with step-level `continue-on-error`.
+
+The previous safely remediable development-tooling findings for `brace-expansion` `5.0.7` and `postcss` `8.5.16` were addressed in `package-lock.json` only. `package.json` remained unchanged, no application source or test files changed, and this security/CI correction does not authorize deployment or release.
+
 ## Production URL tested
 
 `https://projectbuilder.jsnwilmot.workers.dev/`
