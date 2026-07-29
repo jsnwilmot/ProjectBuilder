@@ -1,5 +1,60 @@
 # Change Log
 
+## 2026-07-29 - Phase 5B.4C.1 Archive and Restore Power Fx Generator Hardening
+
+### Summary
+
+- Implemented the isolated record-lifecycle Power Fx generator core for approved archive and restore operations only.
+- Blocked permanent-delete Power Fx generation with the approved Phase 5B.4C blocker and zero partial formula output.
+- Added IfError handling, duplicate-submission protection through confirmed saving-state variables, safe identifier quoting, source planning asset preflight, and Review Required generated asset metadata.
+- Preserved UI, preview, document generation, package export, deployment, and TTI formula integration exclusions.
+
+### Files created
+
+- `src/lib/recordLifecyclePowerFxGeneration.ts` - archive/restore-only Canvas Power Fx generation core.
+- `src/tests/recordLifecyclePowerFxGeneration.test.ts` - focused hardening and safety regression coverage.
+
+### Files updated
+
+- `src/lib/recordLifecyclePlanning.ts` - structured generation eligibility, saving-state reference, error-handling, duplicate guard, and notification requirement metadata without formula source.
+- `src/lib/implementationAssets.ts` - lifecycle planning asset dependencies, validation, and documentation wording for archive/restore-only generation.
+- `scripts/run-tests.mjs` - dynamic Vitest count summary parsing.
+- `scripts/run-tests-with-coverage.mjs` - dynamic Vitest count summary parsing.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4C.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `node --version`: `v22.21.0`.
+- `npm.cmd --version`: `10.9.4`.
+- `npm.cmd ci`: passed; npm install output reported existing high-severity audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `99` tests).
+- `npm.cmd test`: passed (`30` unit/integration files, `1544` unit/integration tests; `7` UI files, `54` UI tests; `37` combined files, `1598` tests).
+- `npm.cmd run test:coverage`: passed (`30` coverage files, `1544` coverage tests; `7` UI files, `54` UI tests; `37` combined files, `1598` tests).
+- Coverage was `90.10%` statements, `80.53%` branches, `94.78%` functions, and `95.21%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` 1.x advisory path through ESLint-related tooling, reporting `14` high-severity dependency path findings.
+
+### Issues found
+
+- Complete audit remains visible because `brace-expansion` `1.1.16` is retained through development tooling; production audit passed.
+- Vite build retains the existing large-chunk warning for the application bundle.
+- Generated formula assets still require Architect review and manual Power Apps Studio validation before use.
+
+### Remaining work
+
+- UI, Package Preview, document generation, package ZIP export, deployment integration, Canvas YAML, refresh, navigation, and permanent-delete generation remain excluded.
+- TTI remains blocked while readiness gates and implementation identifiers remain unresolved.
+- No commit, push, merge, stash modification, or deployment occurred.
+
 ## 2026-07-28 - Security Remediation and CI Audit Policy
 
 ### Summary

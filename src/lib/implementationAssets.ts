@@ -32,6 +32,17 @@ import {
   validateCanvasFormModeActionIntendedPaths,
   type CanvasFormModeGenerationInput
 } from "./formModePlanning";
+import {
+  buildCanvasRecordLifecyclePlanningModel,
+  CANVAS_RECORD_LIFECYCLE_ASSET_ID,
+  CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY,
+  CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION,
+  CANVAS_RECORD_LIFECYCLE_OPERATION,
+  CANVAS_RECORD_LIFECYCLE_PLAN_PATH,
+  CANVAS_RECORD_LIFECYCLE_TARGET_DISPLAY_NAME,
+  CANVAS_RECORD_LIFECYCLE_TARGET_ID,
+  type CanvasRecordLifecycleActionPlan
+} from "./recordLifecyclePlanning";
 import { isCanvasProject, isModelDrivenProject } from "./powerPlatform";
 import {
   CANVAS_STATE_INITIALIZATION_ASSET_ID,
@@ -135,6 +146,7 @@ const IMPLEMENTATION_ASSET_DEPENDENCY_TYPES: readonly ImplementationAssetDepende
   "screen",
   "control",
   "component",
+  "stateVariable",
   "gate",
   "environmentVariable",
   "connectionReference"
@@ -175,12 +187,12 @@ export interface ImplementationAssetRelationshipContext {
   fieldId?: string;
   parentConnectorId?: string;
   parentEntityId?: string;
-  targetType?: "canvasScreen" | "canvasControl" | "canvasComponent" | "sharePointList" | "sharePointLibrary" | "dataverseTable" | "connectorResource" | "modelDrivenTable" | "modelDrivenColumn";
+  targetType?: "canvasScreen" | "canvasControl" | "canvasComponent" | "canvasStateVariable" | "sharePointList" | "sharePointLibrary" | "dataverseTable" | "connectorResource" | "modelDrivenTable" | "modelDrivenColumn";
 }
 
 export interface ImplementationAssetDependency {
   id: string;
-  type: "asset" | "connector" | "entity" | "field" | "screen" | "control" | "component" | "gate" | "environmentVariable" | "connectionReference";
+  type: "asset" | "connector" | "entity" | "field" | "screen" | "control" | "component" | "stateVariable" | "gate" | "environmentVariable" | "connectionReference";
   label: string;
   targetAssetId?: string;
   targetRecordId?: string;
@@ -237,6 +249,7 @@ export interface ImplementationAssetGenerationInputs {
   }>;
   formOperationTargets?: CanvasFormOperationGenerationInput[];
   formModeTargets?: CanvasFormModeGenerationInput[];
+  recordLifecyclePlans?: CanvasRecordLifecycleActionPlan[];
   sourcePlanningAssetId?: string;
   sourcePlanningAssetChecksum?: string;
   planningGenerationVersion?: string;
@@ -380,7 +393,8 @@ type AssetDraft = Omit<ImplementationAsset, "sourceContent" | "contentChecksum" 
 const PLACEHOLDER_PROPERTY_PATTERN = /^(not applicable|none|n\/a|no formula|no formula required|not decided|unknown|pending|tbd|to be determined|missing|no approved property|placeholder)$/i;
 const COMPATIBLE_GENERATION_VERSIONS = new Set([
   IMPLEMENTATION_ASSET_GENERATION_VERSION,
-  CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION
+  CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
+  CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION
 ]);
 
 function hasText(value: string | undefined | null): boolean {
@@ -605,6 +619,7 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "projectI
   const isCollectionPlan = asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID;
   const isFormOperationPlan = asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID;
   const isFormModePlan = asset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID;
+  const isRecordLifecyclePlan = asset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID;
   const collectionTargetLines = (asset.generationInputs?.collectionTargets ?? []).map((target, index) =>
     isCollectionPlan
       ? `- Collection target ${index + 1}: collection and source identifiers stored structurally / ${target.loadTrigger} / ${target.loadMode} / ${target.dataScope} / required ${target.required} / confirmation stored structurally / sort ${target.sortOrder}`
@@ -623,9 +638,15 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "projectI
     }
     return `- Form-mode target ${index + 1}: ${actionText} / screen ${safeReadableIdentifier(target.screenApprovedName, "screen identifier stored structurally")} / form ${safeReadableIdentifier(target.formControlApprovedName, "form identifier stored structurally")} / trigger button ${safeReadableIdentifier(target.triggerControlApprovedName, "trigger-button identifier stored structurally")} / required ${target.required} / edit-record context ${target.editRecordContextStatus} / sort ${target.sortOrder} / future path ${target.intendedPath}`;
   });
-  const blockingIssueLines = isCollectionPlan || isFormOperationPlan || isFormModePlan
+  const recordLifecyclePlanLines = (asset.generationInputs?.recordLifecyclePlans ?? []).map((plan, index) => {
+    if (isRecordLifecyclePlan && asset.blockingIssues.length > 0) {
+      return `- Record lifecycle plan ${index + 1}: ${plan.actionType} action / implementation identifiers stored structurally / target ${plan.lifecycleTargetId} / ${plan.triggerProperty} / future path stored structurally`;
+    }
+    return `- Record lifecycle plan ${index + 1}: ${plan.actionType} / target ${plan.lifecycleTargetId} / trigger ${plan.triggerControlId} / connector ${plan.connectorId} / entity ${plan.entityId} / field ${plan.lifecycleFieldId || "not applicable"} / ${plan.triggerProperty}`;
+  });
+  const blockingIssueLines = isCollectionPlan || isFormOperationPlan || isFormModePlan || isRecordLifecyclePlan
     ? (asset.blockingIssues.length > 0
-        ? [`- ${asset.blockingIssues.length} ${isFormModePlan ? "form-mode planning" : isFormOperationPlan ? "form-operation planning" : "collection planning"} issues are stored structurally. Review the asset blockingIssues field.`]
+        ? [`- ${asset.blockingIssues.length} ${isRecordLifecyclePlan ? "record-lifecycle planning" : isFormModePlan ? "form-mode planning" : isFormOperationPlan ? "form-operation planning" : "collection planning"} issues are stored structurally. Review the asset blockingIssues field.`]
         : ["- None."])
     : (asset.blockingIssues.length > 0 ? asset.blockingIssues.map((issue) => `- ${issue}`) : ["- None."]);
   const generationInputs = asset.generationInputs
@@ -647,13 +668,16 @@ function sourceContentFor(asset: Pick<ImplementationAsset, "assetId" | "projectI
         asset.generationInputs.formOperationTargets ? "- Form operation plan: executable form-submission generation is deferred to Phase 5B.3C." : "",
         asset.generationInputs.formModeTargets ? "- Form-mode action plan: executable form-mode formula generation is deferred to a later approved phase." : "",
         asset.generationInputs.formModeTargets ? `- Form-mode action count: ${asset.generationInputs.formModeTargets.length}` : "",
+        asset.generationInputs.recordLifecyclePlans ? "- Record lifecycle plan: isolated archive and restore formula generation is handled by the Phase 5B.4C.1 review-required generator; permanent-delete generation is prohibited." : "",
+        asset.generationInputs.recordLifecyclePlans ? `- Record lifecycle action count: ${asset.generationInputs.recordLifecyclePlans.length}` : "",
         asset.generationInputs.sourcePlanningAssetId ? `- Source planning asset: ${asset.generationInputs.sourcePlanningAssetId}` : "",
         asset.generationInputs.sourcePlanningAssetChecksum ? `- Source planning checksum: ${asset.generationInputs.sourcePlanningAssetChecksum}` : "",
         asset.generationInputs.planningGenerationVersion ? `- Planning generation version: ${asset.generationInputs.planningGenerationVersion}` : "",
         ...stateVariableLines,
         ...collectionTargetLines,
         ...formOperationTargetLines,
-        ...formModeTargetLines
+        ...formModeTargetLines,
+        ...recordLifecyclePlanLines
       ].filter((line) => line !== "")
     : [];
   return [
@@ -1460,6 +1484,183 @@ function canvasFormOperationPlanningAsset(project: ProjectRecord, now: string): 
   })];
 }
 
+const CANVAS_RECORD_LIFECYCLE_GATE_IDS: PhaseGateId[] = [
+  "connectorSelection",
+  "schema",
+  "namingStandards",
+  "connectorPermissions",
+  "dataSourcePermissions",
+  "security"
+];
+
+function recordLifecycleDependencies(project: ProjectRecord, plans: CanvasRecordLifecycleActionPlan[]): ImplementationAssetDependency[] {
+  const dependencies: ImplementationAssetDependency[] = [];
+  for (const plan of plans) {
+    const screen = confirmedCanvasScreen(project, plan.triggerScreenId);
+    const triggerControl = confirmedCanvasControl(project, plan.triggerControlId);
+    const savingStateVariable = project.powerPlatform?.canvas?.stateVariableTargets.find((variable) => variable.id === plan.savingStateVariableId);
+    const entityContext: ImplementationAssetRelationshipContext = {
+      connectorId: plan.connectorId,
+      entityId: plan.entityId,
+      parentConnectorId: plan.connectorId,
+      targetType: plan.entityType
+    };
+    dependencies.push(
+      dependency({
+        id: `record-lifecycle:${plan.lifecycleTargetId}:screen:${plan.triggerScreenId || "missing"}`,
+        type: "screen",
+        label: "Confirmed lifecycle trigger screen",
+        targetRecordId: plan.triggerScreenId,
+        relationshipContext: { targetType: "canvasScreen" },
+        resolved: Boolean(screen),
+        resolutionReason: screen ? "Screen exists and remains confirmed." : "Screen is missing, unconfirmed, or stale.",
+        blockingIssue: `Lifecycle screen ${plan.triggerScreenId || "[missing]"} is missing, unconfirmed, or stale.`,
+        sourceSection: "Canvas record lifecycle"
+      }),
+      dependency({
+        id: `record-lifecycle:${plan.lifecycleTargetId}:control:trigger:${plan.triggerControlId || "missing"}`,
+        type: "control",
+        label: "Confirmed lifecycle trigger button",
+        targetRecordId: plan.triggerControlId,
+        relationshipContext: {
+          targetType: "canvasControl",
+          parentEntityId: plan.triggerScreenId
+        },
+        resolved: Boolean(
+          triggerControl
+          && triggerControl.screenId === plan.triggerScreenId
+          && isSafeReadableIdentifier(triggerControl.approvedControlName.trim())
+          && normalizeCanvasControlType(triggerControl.controlType) === "button"
+        ),
+        resolutionReason: "Trigger button must exist, remain on the planned screen, stay confirmed, use a valid implementation identifier, and remain a button.",
+        blockingIssue: `Lifecycle trigger control ${plan.triggerControlId || "[missing]"} is missing, moved, renamed, invalid, or no longer a button.`,
+        sourceSection: "Canvas record lifecycle"
+      }),
+      { ...connectorDependency(project, plan.connectorId, "Canvas record lifecycle"), id: `record-lifecycle:${plan.lifecycleTargetId}:connector:${plan.connectorId || "missing"}` },
+      dependency({
+        id: `record-lifecycle:${plan.lifecycleTargetId}:entity:${plan.entityId || "missing"}`,
+        type: "entity",
+        label: "Confirmed lifecycle entity",
+        targetRecordId: plan.entityId,
+        relationshipContext: entityContext,
+        resolved: canvasEntityMatchesContext(project, plan.entityId, entityContext),
+        resolutionReason: canvasEntityMatchesContext(project, plan.entityId, entityContext)
+          ? "Entity exists, is active, confirmed, and belongs to the planned connector."
+          : "Entity is missing, inactive, unconfirmed, belongs to another connector, or changed backend type.",
+        blockingIssue: `Lifecycle entity ${plan.entityId || "[missing]"} is missing, inactive, unconfirmed, belongs to another connector, or changed backend type.`,
+        sourceSection: "Canvas record lifecycle"
+      })
+    );
+    if (plan.savingStateVariableId) {
+      dependencies.push(dependency({
+        id: `record-lifecycle:${plan.lifecycleTargetId}:state-variable:${plan.savingStateVariableId || "missing"}`,
+        type: "stateVariable",
+        label: "Confirmed lifecycle saving-state variable",
+        targetRecordId: plan.savingStateVariableId,
+        relationshipContext: {
+          targetType: "canvasStateVariable",
+          parentEntityId: plan.triggerControlId
+        },
+        resolved: Boolean(
+          savingStateVariable
+          && savingStateVariable.confirmationStatus === "confirmed"
+          && savingStateVariable.stateRole === "savingState"
+          && savingStateVariable.implementationName === plan.savingStateImplementationName
+          && savingStateVariable.initialValue.kind === "boolean"
+          && savingStateVariable.initialValue.value === false
+        ),
+        resolutionReason: savingStateVariable
+          ? "Saving-state variable exists, remains confirmed, keeps the planned implementation name, and starts as Boolean false."
+          : "Saving-state variable is missing, unconfirmed, renamed, not savingState, or does not start as Boolean false.",
+        blockingIssue: `Lifecycle saving-state variable ${plan.savingStateVariableId || "[missing]"} is missing, unconfirmed, renamed, not savingState, or does not start as Boolean false.`,
+        sourceSection: "Canvas record lifecycle"
+      }));
+    }
+    if (plan.lifecycleFieldId) {
+      dependencies.push(dependency({
+        id: `record-lifecycle:${plan.lifecycleTargetId}:field:${plan.lifecycleFieldId || "missing"}`,
+        type: "field",
+        label: "Confirmed lifecycle field",
+        targetRecordId: plan.lifecycleFieldId,
+        relationshipContext: {
+          ...entityContext,
+          fieldId: plan.lifecycleFieldId,
+          parentEntityId: plan.entityId
+        },
+        resolved: canvasFieldMatchesContext(project, plan.lifecycleFieldId, {
+          ...entityContext,
+          fieldId: plan.lifecycleFieldId,
+          parentEntityId: plan.entityId
+        }),
+        resolutionReason: canvasFieldMatchesContext(project, plan.lifecycleFieldId, {
+          ...entityContext,
+          fieldId: plan.lifecycleFieldId,
+          parentEntityId: plan.entityId
+        }) ? "Lifecycle field exists, is confirmed, and belongs to the planned entity." : "Lifecycle field is missing, unconfirmed, stale, or belongs to another entity.",
+        blockingIssue: `Lifecycle field ${plan.lifecycleFieldId || "[missing]"} is missing, unconfirmed, stale, or belongs to another entity.`,
+        sourceSection: "Canvas record lifecycle"
+      }));
+    }
+  }
+  const byId = new Map<string, ImplementationAssetDependency>();
+  for (const item of dependencies) byId.set(item.id, item);
+  return sortedDependencies([...byId.values()]);
+}
+
+function canvasRecordLifecyclePlanningAsset(project: ProjectRecord, now: string): ImplementationAsset[] {
+  const model = buildCanvasRecordLifecyclePlanningModel(project);
+  if (model.planningStatus === "Not Applicable") return [];
+  const gateEvaluationSnapshot = snapshotGates(project, CANVAS_RECORD_LIFECYCLE_GATE_IDS);
+  const gateIssues = blockingGateIssues(gateEvaluationSnapshot);
+  const dependencies = model.planningStatus === "Planned" ? recordLifecycleDependencies(project, model.plans) : [];
+  const dependencyIssues = dependencies.flatMap((item) => item.resolved ? [] : [item.blockingIssue ?? `${item.label} is unresolved.`]);
+  return [finalizeAsset({
+    assetId: CANVAS_RECORD_LIFECYCLE_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_RECORD_LIFECYCLE_TARGET_ID,
+    targetDisplayName: CANVAS_RECORD_LIFECYCLE_TARGET_DISPLAY_NAME,
+    intendedPath: CANVAS_RECORD_LIFECYCLE_PLAN_PATH,
+    applicabilityStatus: "required",
+    required: model.required,
+    requiredGateIds: CANVAS_RECORD_LIFECYCLE_GATE_IDS,
+    gateEvaluationSnapshot,
+    sourceRecordIds: model.orderedTargets.map((target) => target.id),
+    connectorIds: unique(model.plans.map((plan) => plan.connectorId)),
+    entityIds: unique(model.plans.map((plan) => plan.entityId)),
+    fieldIds: unique(model.plans.map((plan) => plan.lifecycleFieldId)),
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_RECORD_LIFECYCLE_OPERATION,
+      formulaProperty: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY,
+      projectName: project.identity.projectName.trim() || "Untitled project",
+      planningGenerationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION,
+      recordLifecyclePlans: model.plans
+    },
+    generationTimestamp: now,
+    generationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION,
+    manualInstallationRequirements: [
+      "Manual Power Apps Studio record-lifecycle OnSelect update required in a later approved phase.",
+      "Do not claim installation until an implementer applies generated source in the real app."
+    ],
+    validationRequirements: [
+      "Validate each generated archive or restore formula in Power Apps Studio.",
+      "Confirm record context, lifecycle field syntax, saving-state behaviour, connector mutation behaviour, security, and absence of permanent deletion before production use."
+    ],
+    knownLimitations: [
+      "Phase 5B.4C.1 implements the isolated archive and restore generator core only.",
+      "Generated formulas are not installed, exported, published, or verified in Power Apps Studio by Project Builder Ai.",
+      "Refresh, navigation, Canvas YAML, permanent-delete, filtering, lookup, and connector-resource custom actions are not generated in this phase.",
+      ...model.missingDecisions
+    ],
+    blockingIssues: [...gateIssues, ...model.blockingIssues, ...dependencyIssues],
+    approvalStatus: "Review required",
+    approvedPropertyName: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY
+  })];
+}
+
 function yamlAssetPath(targetKind: "screen" | "control" | "component", targetId: string, outputType: string): string {
   const extension = outputType.toLowerCase().includes("pa.yaml") ? "pa.yaml" : "yaml";
   return `07_Development/Canvas_YAML/${targetKind}-${safeSegment(targetId, targetKind)}.${extension}`;
@@ -1721,6 +1922,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
   const collectionAssets = canvasCollectionInitializationAsset(project, now);
   const formOperationAssets = canvasFormOperationPlanningAsset(project, now);
   const formModeAssets = canvasFormModePlanningAsset(project, now, formOperationAssets[0]);
+  const recordLifecycleAssets = canvasRecordLifecyclePlanningAsset(project, now);
   const formulaAssets = canvas.controlTargets.flatMap((target) => canvasPowerFxAssets(project, target, now));
   const formulaAssetsByControlId = formulaAssets.reduce((map, asset) => {
     const existing = map.get(asset.targetId) ?? [];
@@ -1741,6 +1943,7 @@ function canvasAssets(project: ProjectRecord, now: string): ImplementationAsset[
     ...collectionAssets,
     ...formOperationAssets,
     ...formModeAssets,
+    ...recordLifecycleAssets,
     ...formulaAssets,
     ...yamlScreenAssets,
     ...yamlControlAssets,
@@ -2042,6 +2245,40 @@ function formModeGenerationInputIssues(asset: unknown): string[] {
   return unique(issues);
 }
 
+function recordLifecyclePlanInputIssues(asset: unknown): string[] {
+  if (!isObject(asset) || !isObject(asset.generationInputs) || !("recordLifecyclePlans" in asset.generationInputs)) return [];
+  const value = asset.generationInputs.recordLifecyclePlans;
+  if (!Array.isArray(value)) return [`${assetLabel(asset)}: generationInputs.recordLifecyclePlans must be an array.`];
+  return unique(value.flatMap((entry, index) => {
+    const prefix = `${assetLabel(asset)}: generationInputs.recordLifecyclePlans[${index}]`;
+    if (!isObject(entry)) return [`${prefix} must be a non-null object.`];
+    const issues: string[] = [];
+    for (const field of ["planId", "lifecycleTargetId", "actionType", "triggerScreenId", "triggerControlId", "triggerProperty", "entityId", "entityType", "connectorId", "backendType", "recordContextType", "lifecycleStrategy", "connectorOperationType", "connectorOperationCapability", "standardNotificationRequirement", "errorHandlingRequirement", "duplicateSubmissionGuardRequirement", "generatedOperationEligibility", "planningStatus"]) {
+      if (!(field in entry)) issues.push(`${prefix}.${field} is missing.`);
+      else if (typeof entry[field] !== "string") issues.push(`${prefix}.${field} must be a string.`);
+      else if (entry[field].trim().length === 0) issues.push(`${prefix}.${field} must be a non-empty string.`);
+    }
+    if (entry.triggerProperty !== CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY) issues.push(`${prefix}.triggerProperty must be ${CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY}.`);
+    if (!["archive", "restore", "delete"].includes(typeof entry.actionType === "string" ? entry.actionType : "")) issues.push(`${prefix}.actionType has unsupported action ${String(entry.actionType)}.`);
+    if ((entry.actionType === "archive" || entry.actionType === "restore")) {
+      for (const field of ["savingStateVariableId", "savingStateImplementationName"]) {
+        if (!(field in entry)) issues.push(`${prefix}.${field} is missing.`);
+        else if (typeof entry[field] !== "string") issues.push(`${prefix}.${field} must be a string.`);
+        else if (entry[field].trim().length === 0) issues.push(`${prefix}.${field} must be a non-empty string.`);
+      }
+      if (entry.standardNotificationRequirement !== "archiveRestoreResultNotification") issues.push(`${prefix}.standardNotificationRequirement must be archiveRestoreResultNotification.`);
+      if (entry.errorHandlingRequirement !== "ifError") issues.push(`${prefix}.errorHandlingRequirement must be ifError.`);
+      if (entry.duplicateSubmissionGuardRequirement !== "savingState") issues.push(`${prefix}.duplicateSubmissionGuardRequirement must be savingState.`);
+      if (entry.generatedOperationEligibility !== "archiveRestoreSupported") issues.push(`${prefix}.generatedOperationEligibility must be archiveRestoreSupported.`);
+    }
+    if (entry.actionType === "delete" && entry.generatedOperationEligibility !== "permanentDeleteNotApproved") issues.push(`${prefix}.generatedOperationEligibility must be permanentDeleteNotApproved.`);
+    if (entry.planningStatus !== "Planned") issues.push(`${prefix}.planningStatus must be Planned.`);
+    if (!Array.isArray(entry.blockers)) issues.push(`${prefix}.blockers must be an array.`);
+    if (!Array.isArray(entry.orderedActionSteps)) issues.push(`${prefix}.orderedActionSteps must be an array.`);
+    return issues;
+  }));
+}
+
 function assetSemanticIssues(asset: unknown): string[] {
   const issues: string[] = [];
   if (!isObject(asset)) return [`${assetLabel(asset)}: implementation asset must be a non-null object.`];
@@ -2079,6 +2316,7 @@ function assetSemanticIssues(asset: unknown): string[] {
     }
   }
   issues.push(...formModeGenerationInputIssues(asset));
+  issues.push(...recordLifecyclePlanInputIssues(asset));
   return unique(issues);
 }
 
@@ -2269,6 +2507,7 @@ function currentCanvasPowerFxAsset(
       enforceRawStoredEvidence
     );
   }
+  if (asset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID) return currentCanvasRecordLifecyclePlanningAsset(project, asset);
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return asset;
   const target = project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === asset.targetId);
   if (!target) return asset;
@@ -2404,6 +2643,49 @@ function currentCanvasFormModePlanningAsset(
   };
 }
 
+function currentCanvasRecordLifecyclePlanningAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
+  const model = buildCanvasRecordLifecyclePlanningModel(project);
+  const gateIds = CANVAS_RECORD_LIFECYCLE_GATE_IDS;
+  const gateEvaluationSnapshot = snapshotGates(project, gateIds);
+  const plans = model.planningStatus === "Planned" ? model.plans : [];
+  const dependencies = model.planningStatus === "Planned" ? recordLifecycleDependencies(project, plans) : [];
+  const staleBlockingIssues = model.planningStatus === "Not Applicable"
+    ? ["Stored Canvas record lifecycle planning asset is stale because current lifecycle targets are not applicable. Regenerate the implementation asset registry."]
+    : model.planningStatus === "Blocked"
+      ? ["Stored Canvas record lifecycle planning asset is stale because current lifecycle targets are blocked. Regenerate the implementation asset registry.", ...model.blockingIssues]
+      : [];
+  return {
+    ...asset,
+    assetId: CANVAS_RECORD_LIFECYCLE_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_RECORD_LIFECYCLE_TARGET_ID,
+    targetDisplayName: CANVAS_RECORD_LIFECYCLE_TARGET_DISPLAY_NAME,
+    intendedPath: CANVAS_RECORD_LIFECYCLE_PLAN_PATH,
+    applicabilityStatus: "required",
+    required: model.required,
+    requiredGateIds: gateIds,
+    gateEvaluationSnapshot,
+    sourceRecordIds: model.orderedTargets.map((target) => target.id),
+    connectorIds: unique(plans.map((plan) => plan.connectorId)),
+    entityIds: unique(plans.map((plan) => plan.entityId)),
+    fieldIds: unique(plans.map((plan) => plan.lifecycleFieldId)),
+    dependencies,
+    generationInputs: {
+      operation: CANVAS_RECORD_LIFECYCLE_OPERATION,
+      formulaProperty: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY,
+      projectName: project.identity.projectName.trim() || "Untitled project",
+      planningGenerationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION,
+      recordLifecyclePlans: plans
+    },
+    generationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION,
+    approvedPropertyName: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY,
+    blockingIssues: staleBlockingIssues
+  };
+}
+
 function currentCanvasStateInitializationAsset(project: ProjectRecord, asset: ImplementationAsset): ImplementationAsset {
   const variables = project.powerPlatform?.canvas?.stateVariableTargets ?? [];
   const validation = validateCanvasStateVariables(variables);
@@ -2498,6 +2780,7 @@ function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
     || asset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID
     || asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID
     || asset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID
+    || asset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID
   ) return [];
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
   const approvedProperty = asset.approvedPropertyName ?? "";
@@ -2531,6 +2814,7 @@ function deriveAssetFromCurrentState(
     ...(canonicalAsset.assetId === CANVAS_COLLECTION_INITIALIZATION_ASSET_ID ? validateCanvasCollectionTargets(project, project.powerPlatform?.canvas?.collectionTargets ?? []).blockingIssues : []),
     ...(canonicalAsset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID ? buildCanvasFormOperationPlanningModel(project)?.blockingIssues ?? [] : []),
     ...(canonicalAsset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID ? canonicalAsset.blockingIssues : []),
+    ...(canonicalAsset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID ? canonicalAsset.blockingIssues : []),
     ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
@@ -2557,6 +2841,7 @@ function deriveAssetFromCurrentState(
     && asset.assetId !== CANVAS_COLLECTION_INITIALIZATION_ASSET_ID
     && asset.assetId !== CANVAS_FORM_OPERATIONS_ASSET_ID
     && asset.assetId !== CANVAS_FORM_MODE_ACTIONS_ASSET_ID
+    && asset.assetId !== CANVAS_RECORD_LIFECYCLE_ASSET_ID
   ) return withChecksum;
   const approvalStillValid = asset.approvalStatus === "Approved"
     && asset.assetId === withChecksum.assetId
@@ -3008,7 +3293,7 @@ function registryStateFromStoredAssets(registry: unknown, project?: ProjectRecor
 }
 
 function isRegistrySemanticBlockingIssue(issue: string): boolean {
-  return /\b(must be|unsupported|unknown|malformed|generationInputs\.formModeTargets|intendedPath|Duplicate form-mode action intended path)\b/i.test(issue);
+  return /\b(must be|unsupported|unknown|malformed|generationInputs\.formModeTargets|generationInputs\.recordLifecyclePlans|intendedPath|Duplicate form-mode action intended path)\b/i.test(issue);
 }
 
 export function validateImplementationAssetRegistry(registry: unknown, project?: ProjectRecord): string[] {

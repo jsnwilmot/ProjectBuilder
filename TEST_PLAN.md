@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-07-29 Phase 5B.4C.1 archive and restore Power Fx generator hardening
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `99` tests).
+- `npm.cmd test`: passed (`30` unit/integration files, `1544` unit/integration tests, `7` UI files, `54` UI tests, `37` combined files, `1598` tests).
+- `npm.cmd run test:coverage`: passed (`30` coverage files, `1544` coverage tests, `7` UI files, `54` UI tests, `37` combined files, `1598` tests).
+- Coverage was `90.10%` statements, `80.53%` branches, `94.78%` functions, and `95.21%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` 1.x advisory path through ESLint-related tooling, reporting `14` high-severity dependency path findings.
+- Archive formula coverage verifies confirmed record context, lifecycle field internal name, current-state guard, saving-state guard, `Set` before mutation, `Patch`, `IfError`, failure reset, success reset, approved success wording, and approved failure wording.
+- Restore formula coverage verifies reversed lifecycle state checks and approved restore success/failure wording.
+- Permanent-delete coverage verifies delete plans produce no generated formula, mixed archive/delete requests produce zero partial output, and no generated source contains `Remove(` or `RemoveIf(`.
+- Identifier coverage verifies simple identifiers remain unquoted, confirmed hyphenated names are single-quoted, embedded apostrophes are doubled, formula-looking identifiers are rejected, missing SharePoint internal names block generation, and display names are not substituted for missing internal names.
+- Atomicity coverage verifies stale checksums, unapproved source planning assets, non-Ready source planning assets, unresolved dependencies, failed gates, invalid source records, malformed runtime input, and saving-state ambiguity produce zero formula assets.
+- Traceability coverage verifies generated assets remain `Review Required`, are not automatically `Approved` or `Ready for Export`, retain source planning asset ID/checksum, record dependencies, saving-state dependencies, and complete source-record traceability.
+- TTI-like Draft coverage verifies planning may remain visible while missing/blocking issues remain visible, zero archive/restore/delete formulas are generated, no source asset is falsely marked complete, and no TTI-specific implementation name is invented.
+- Phase 5B.4C.1 implements the isolated archive and restore generator core only. UI, preview, document, package export, and deployment integration remain excluded.
+- TTI remains blocked. Permanent-delete generation is prohibited. Generated formula assets require Architect review and manual Power Apps Studio validation.
+- No commit, push, merge, stash modification, or deployment occurred.
+
 ## 2026-07-28 security remediation and CI audit policy
 
 - Node version used locally: `v22.21.0`.

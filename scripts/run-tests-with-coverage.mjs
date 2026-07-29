@@ -26,54 +26,83 @@ function cleanEnv() {
   return env;
 }
 
+function parseVitestCounts(output) {
+  const clean = output.replace(/\u001b\[[0-9;]*m/g, "");
+  const fileMatch = clean.match(/Test Files\s+(\d+) passed/);
+  const testMatch = clean.match(/Tests\s+(\d+) passed/);
+  return {
+    files: fileMatch ? Number(fileMatch[1]) : 0,
+    tests: testMatch ? Number(testMatch[1]) : 0
+  };
+}
+
 function runVitest(label, args) {
   return new Promise((resolve) => {
     console.log(`\n[coverage-runner] Starting ${label}: vitest ${args.join(" ")}`);
+    let output = "";
     const child = spawn(process.execPath, [vitestBin, ...args], {
       cwd: process.cwd(),
       env: cleanEnv(),
-      stdio: "inherit",
+      stdio: ["ignore", "pipe", "pipe"],
       shell: false,
       windowsHide: true
     });
 
+    child.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      output += text;
+      process.stdout.write(text);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString();
+      output += text;
+      process.stderr.write(text);
+    });
+
     child.on("error", (error) => {
       console.error(`[coverage-runner] ${label} failed to start:`, error);
-      resolve(1);
+      resolve({ exitCode: 1, files: 0, tests: 0 });
     });
 
     child.on("close", (code, signal) => {
       if (signal) {
         console.error(`[coverage-runner] ${label} terminated by signal ${signal}.`);
-        resolve(1);
+        resolve({ exitCode: 1, files: 0, tests: 0 });
         return;
       }
-      console.log(`[coverage-runner] ${label} exited with code ${code ?? 1}.`);
-      resolve(code ?? 1);
+      const exitCode = code ?? 1;
+      console.log(`[coverage-runner] ${label} exited with code ${exitCode}.`);
+      resolve({ exitCode, ...parseVitestCounts(output) });
     });
   });
 }
 
-const coverageExitCode = await runVitest("coverage leg", [
+const coverageResult = await runVitest("coverage leg", [
   "run",
   "--config",
   "vitest.coverage.config.ts",
   "--coverage"
 ]);
 
-if (coverageExitCode !== 0) process.exit(coverageExitCode);
+if (coverageResult.exitCode !== 0) process.exit(coverageResult.exitCode);
 
+const uiResults = [];
 for (const uiTestFile of uiTestFiles) {
-  const uiExitCode = await runVitest(`App UI regression leg ${uiTestFile}`, [
+  const uiResult = await runVitest(`App UI regression leg ${uiTestFile}`, [
     "run",
     uiTestFile,
     "--pool=vmThreads",
     "--maxWorkers=1"
   ]);
 
-  if (uiExitCode !== 0) process.exit(uiExitCode);
+  if (uiResult.exitCode !== 0) process.exit(uiResult.exitCode);
+  uiResults.push(uiResult);
 }
 
+const uiFileCount = uiResults.reduce((sum, result) => sum + result.files, 0);
+const uiTestCount = uiResults.reduce((sum, result) => sum + result.tests, 0);
+
 console.log(
-  "\n[coverage-runner] Summary: coverage files 29, coverage tests 1490, UI files 7, UI tests 54, combined files 36, combined tests 1544."
+  `\n[coverage-runner] Summary: coverage files ${coverageResult.files}, coverage tests ${coverageResult.tests}, UI files ${uiFileCount}, UI tests ${uiTestCount}, combined files ${coverageResult.files + uiFileCount}, combined tests ${coverageResult.tests + uiTestCount}.`
 );

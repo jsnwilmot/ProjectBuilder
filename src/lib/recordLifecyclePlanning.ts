@@ -7,6 +7,7 @@ import type {
   CanvasRecordContextType,
   CanvasRecordLifecycleAction,
   CanvasRecordLifecycleTarget,
+  CanvasStateVariableTarget,
   ConnectorFieldSchema,
   DataverseColumnSchema,
   PowerPlatformConnector,
@@ -15,6 +16,14 @@ import type {
 } from "../types/project";
 
 export type CanvasRecordLifecyclePlanningStatus = "Planned" | "Blocked" | "Not Applicable";
+
+export const CANVAS_RECORD_LIFECYCLE_ASSET_ID = "asset-canvas-record-lifecycle-actions";
+export const CANVAS_RECORD_LIFECYCLE_TARGET_ID = "canvas-record-lifecycle-actions";
+export const CANVAS_RECORD_LIFECYCLE_TARGET_DISPLAY_NAME = "Canvas record lifecycle action plan";
+export const CANVAS_RECORD_LIFECYCLE_PLAN_PATH = "07_Development/PowerFx/record-lifecycle/OnSelect.lifecycle-plan.md";
+export const CANVAS_RECORD_LIFECYCLE_OPERATION = "recordLifecycleActions";
+export const CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY = "OnSelect";
+export const CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION = "phase-5b.4c";
 
 export type CanvasRecordLifecycleEntityType =
   | "sharePointList"
@@ -29,6 +38,18 @@ export type CanvasRecordLifecycleConnectorOperationType = "updateRecord" | "dele
 export type CanvasRecordLifecycleConnectorCapability = "update" | "delete";
 
 export type CanvasRecordLifecycleOptionalBehaviour = "notPlanned";
+
+export type CanvasRecordLifecycleStandardNotificationRequirement =
+  | "archiveRestoreResultNotification"
+  | "notApproved";
+
+export type CanvasRecordLifecycleErrorHandlingRequirement = "ifError" | "notApproved";
+
+export type CanvasRecordLifecycleDuplicateSubmissionGuardRequirement = "savingState" | "notApproved";
+
+export type CanvasRecordLifecycleGeneratedOperationEligibility =
+  | "archiveRestoreSupported"
+  | "permanentDeleteNotApproved";
 
 export type CanvasRecordLifecycleRecordContextSource =
   | "selectedRecordControl"
@@ -85,6 +106,12 @@ export interface CanvasRecordLifecycleActionPlan {
   lifecycleFieldType: CanvasRecordLifecycleFieldType;
   targetLifecycleValue: string;
   expectedCurrentLifecycleValue: string;
+  savingStateVariableId: string;
+  savingStateImplementationName: string;
+  standardNotificationRequirement: CanvasRecordLifecycleStandardNotificationRequirement;
+  errorHandlingRequirement: CanvasRecordLifecycleErrorHandlingRequirement;
+  duplicateSubmissionGuardRequirement: CanvasRecordLifecycleDuplicateSubmissionGuardRequirement;
+  generatedOperationEligibility: CanvasRecordLifecycleGeneratedOperationEligibility;
   connectorOperationType: CanvasRecordLifecycleConnectorOperationType;
   connectorOperationCapability: CanvasRecordLifecycleConnectorCapability;
   confirmationRequired: boolean;
@@ -129,6 +156,7 @@ type SafeProjectResolution =
     };
 
 const FORMULA_TEXT_PATTERN = /\b(?:Patch|Remove|RemoveIf|UpdateIf|SubmitForm|ResetForm|Navigate|Notify|Refresh|Set|UpdateContext|LookUp|Filter)\s*\(|(?:Gallery\.Selected|Form\.Item)/i;
+const SIMPLE_POWER_FX_IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const INVALID_PROJECT_BLOCKER = "Canvas record lifecycle planning requires a valid project record.";
 const CANVAS_ARRAY_FIELDS = [
   "screenTargets",
@@ -271,6 +299,64 @@ function fieldTypeFromValue(value: string): CanvasRecordLifecycleFieldType {
   if (/(choice|option|status|text|string|enum)/.test(normalized)) return "status";
   if (/(boolean|yes\/no|two options|true\/false)/.test(normalized)) return "boolean";
   return "notApplicable";
+}
+
+type SavingStateResolution =
+  | {
+      status: "Resolved";
+      variable: CanvasStateVariableTarget;
+    }
+  | {
+      status: "Blocked";
+      blockers: string[];
+    };
+
+function savingStateVariableBlockers(variable: CanvasStateVariableTarget): string[] {
+  const blockers: string[] = [];
+  if (variable.stateRole !== "savingState") blockers.push(`State variable ${variable.id} is not marked with stateRole savingState.`);
+  if (variable.confirmationStatus !== "confirmed") blockers.push(`Saving-state variable ${variable.id} is not confirmed.`);
+  if (!hasNonBlankText(variable.implementationName) || !SIMPLE_POWER_FX_IDENTIFIER_PATTERN.test(variable.implementationName.trim())) {
+    blockers.push(`Saving-state variable ${variable.id} implementationName is not a safe Power Fx variable name.`);
+  }
+  if (variable.initialValue.kind !== "boolean" || variable.initialValue.value !== false) {
+    blockers.push(`Saving-state variable ${variable.id} initialValue must be Boolean false.`);
+  }
+  return blockers;
+}
+
+function resolveSavingStateVariable(project: ProjectRecord, targets: CanvasRecordLifecycleTarget[]): SavingStateResolution {
+  const needsGeneratedMutation = targets.some((target) => target.action === "archive" || target.action === "restore");
+  if (!needsGeneratedMutation) {
+    return {
+      status: "Blocked",
+      blockers: []
+    };
+  }
+  const variables = project.powerPlatform?.canvas?.stateVariableTargets ?? [];
+  const savingStateVariables = variables.filter((variable) => variable.stateRole === "savingState");
+  if (savingStateVariables.length === 0) {
+    return {
+      status: "Blocked",
+      blockers: ["Record lifecycle archive or restore generation requires exactly one confirmed saving-state variable with Boolean false initialValue."]
+    };
+  }
+  const validSavingStateVariables = savingStateVariables.filter((variable) => savingStateVariableBlockers(variable).length === 0);
+  if (validSavingStateVariables.length === 1 && savingStateVariables.length === 1) {
+    return {
+      status: "Resolved",
+      variable: validSavingStateVariables[0]
+    };
+  }
+  if (savingStateVariables.length > 1 && validSavingStateVariables.length > 1) {
+    return {
+      status: "Blocked",
+      blockers: ["Record lifecycle archive or restore generation found more than one applicable confirmed saving-state variable and cannot resolve one deterministically."]
+    };
+  }
+  return {
+    status: "Blocked",
+    blockers: unique(savingStateVariables.flatMap(savingStateVariableBlockers))
+  };
 }
 
 function entityReference(project: ProjectRecord, target: CanvasRecordLifecycleTarget): ActiveCanvasEntityReference | undefined {
@@ -456,20 +542,21 @@ function stepsFor(target: CanvasRecordLifecycleTarget): CanvasRecordLifecycleAct
     order: steps.length + 1,
     type: "performConnectorMutation",
     description: target.action === "delete"
-      ? "Perform the approved connector permanent-delete operation."
+      ? "Permanent-delete mutation remains a planning-only operation and is not approved for generated Power Fx."
       : "Perform the approved connector update operation for the lifecycle transition.",
     required: true
   });
   return steps;
 }
 
-function planFor(project: ProjectRecord, target: CanvasRecordLifecycleTarget): CanvasRecordLifecycleActionPlan | string[] {
+function planFor(project: ProjectRecord, target: CanvasRecordLifecycleTarget, savingState: SavingStateResolution): CanvasRecordLifecycleActionPlan | string[] {
   const entity = entityReference(project, target);
   const field = fieldReference(project, entity, target.lifecycleFieldId);
   const blockers = actionSpecificBlockers(project, target, entity, field);
   if (blockers.length > 0 || !entity) return blockers.length > 0 ? blockers : [`Lifecycle plan ${target.id} is missing entity ownership.`];
   const context = recordContextSource(target);
   const capability = operationCapability(target);
+  const savingStateVariable = savingState.status === "Resolved" ? savingState.variable : undefined;
   return {
     planId: `record-lifecycle-plan-${target.id}`,
     lifecycleTargetId: target.id,
@@ -488,6 +575,12 @@ function planFor(project: ProjectRecord, target: CanvasRecordLifecycleTarget): C
     lifecycleFieldType: target.action === "delete" ? "notApplicable" : field?.fieldType ?? "notApplicable",
     targetLifecycleValue: targetLifecycleValue(target),
     expectedCurrentLifecycleValue: expectedCurrentValue(target),
+    savingStateVariableId: target.action === "delete" ? "" : savingStateVariable?.id ?? "",
+    savingStateImplementationName: target.action === "delete" ? "" : savingStateVariable?.implementationName.trim() ?? "",
+    standardNotificationRequirement: target.action === "delete" ? "notApproved" : "archiveRestoreResultNotification",
+    errorHandlingRequirement: target.action === "delete" ? "notApproved" : "ifError",
+    duplicateSubmissionGuardRequirement: target.action === "delete" ? "notApproved" : "savingState",
+    generatedOperationEligibility: target.action === "delete" ? "permanentDeleteNotApproved" : "archiveRestoreSupported",
     connectorOperationType: operationType(target),
     connectorOperationCapability: capability,
     confirmationRequired: true,
@@ -504,7 +597,7 @@ function planFor(project: ProjectRecord, target: CanvasRecordLifecycleTarget): C
     blockers: [],
     notes: [
       "Planning record only.",
-      "Refresh, navigation, notification, and local-state behaviour are not planned until approved input decisions exist.",
+      "Refresh and navigation behaviour are not planned until approved input decisions exist.",
       "No generated implementation content is produced."
     ]
   };
@@ -553,10 +646,11 @@ export function buildCanvasRecordLifecyclePlanningModel(project: unknown): Canva
   }
 
   const orderedTargets = orderCanvasRecordLifecycleTargets(validation.orderedTargets);
+  const savingState = resolveSavingStateVariable(safeProject, orderedTargets);
   const plans: CanvasRecordLifecycleActionPlan[] = [];
   const planningBlockers: string[] = [];
   orderedTargets.forEach((target) => {
-    const planOrBlockers = planFor(safeProject, target);
+    const planOrBlockers = planFor(safeProject, target, savingState);
     if (Array.isArray(planOrBlockers)) {
       planningBlockers.push(...planOrBlockers);
     } else {
