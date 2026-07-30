@@ -43,6 +43,12 @@ import {
   CANVAS_RECORD_LIFECYCLE_TARGET_ID,
   type CanvasRecordLifecycleActionPlan
 } from "./recordLifecyclePlanning";
+import {
+  generateCanvasRecordLifecyclePowerFx,
+  RECORD_LIFECYCLE_POWER_FX_ASSET_ID,
+  RECORD_LIFECYCLE_POWER_FX_ASSET_PATH,
+  RECORD_LIFECYCLE_POWER_FX_GENERATION_VERSION
+} from "./recordLifecyclePowerFxGeneration";
 import { isCanvasProject, isModelDrivenProject } from "./powerPlatform";
 import {
   CANVAS_STATE_INITIALIZATION_ASSET_ID,
@@ -394,7 +400,8 @@ const PLACEHOLDER_PROPERTY_PATTERN = /^(not applicable|none|n\/a|no formula|no f
 const COMPATIBLE_GENERATION_VERSIONS = new Set([
   IMPLEMENTATION_ASSET_GENERATION_VERSION,
   CANVAS_FORM_MODE_ACTIONS_GENERATION_VERSION,
-  CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION
+  CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION,
+  RECORD_LIFECYCLE_POWER_FX_GENERATION_VERSION
 ]);
 
 function hasText(value: string | undefined | null): boolean {
@@ -1602,8 +1609,39 @@ function recordLifecycleDependencies(project: ProjectRecord, plans: CanvasRecord
       }));
     }
   }
+  const byReference = new Map<string, ImplementationAssetDependency>();
+  for (const item of sortedDependencies(dependencies)) {
+    const key = item.type === "asset" && item.targetAssetId
+      ? `${item.type}:asset:${item.targetAssetId}`
+      : item.targetRecordId
+        ? `${item.type}:record:${item.targetRecordId}`
+        : `dependency:${item.id}`;
+    const existing = byReference.get(key);
+    if (!existing || (!item.resolved && existing.resolved)) byReference.set(key, item);
+  }
+  return sortedDependencies([...byReference.values()]);
+}
+
+function generatedLifecycleFormulaAssetDependency(sourceAsset: ImplementationAsset): ImplementationAssetDependency {
+  return dependency({
+    id: `asset:${sourceAsset.assetId}`,
+    type: "asset",
+    label: "Approved record lifecycle planning asset",
+    targetAssetId: sourceAsset.assetId,
+    resolved: sourceAsset.assetStatus === "Ready for Export"
+      && sourceAsset.approvalStatus === "Approved"
+      && sourceAsset.blockingIssues.length === 0
+      && sourceAsset.contentChecksum === calculateImplementationAssetChecksum({ ...sourceAsset, contentChecksum: "" }),
+    resolutionReason: "Record lifecycle formula source planning asset must be Approved, Ready for Export, and checksum-current.",
+    blockingIssue: `Record lifecycle formula asset requires ${sourceAsset.assetId} to be Approved, Ready for Export, and checksum-current.`,
+    sourceSection: "Canvas record lifecycle Power Fx generation"
+  });
+}
+
+function generatedLifecycleFormulaDependencies(sourceAsset: ImplementationAsset): ImplementationAssetDependency[] {
   const byId = new Map<string, ImplementationAssetDependency>();
-  for (const item of dependencies) byId.set(item.id, item);
+  byId.set(`asset:${sourceAsset.assetId}`, generatedLifecycleFormulaAssetDependency(sourceAsset));
+  for (const item of sourceAsset.dependencies) byId.set(item.id, item);
   return sortedDependencies([...byId.values()]);
 }
 
@@ -2508,6 +2546,9 @@ function currentCanvasPowerFxAsset(
     );
   }
   if (asset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID) return currentCanvasRecordLifecyclePlanningAsset(project, asset);
+  if (asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID) {
+    return currentCanvasRecordLifecycleFormulaAsset(project, asset, assetById.get(CANVAS_RECORD_LIFECYCLE_ASSET_ID));
+  }
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return asset;
   const target = project.powerPlatform?.canvas?.controlTargets.find((control) => control.id === asset.targetId);
   if (!target) return asset;
@@ -2520,6 +2561,44 @@ function currentCanvasPowerFxAsset(
     fieldIds: dependencyInfo.fieldIds,
     dependencies: dependencyInfo.dependencies,
     generationInputs: canvasNavigationGenerationInputs(project, target, asset.approvedPropertyName ?? "")
+  };
+}
+
+function currentCanvasRecordLifecycleFormulaAsset(
+  project: ProjectRecord,
+  asset: ImplementationAsset,
+  sourceAsset: ImplementationAsset | undefined
+): ImplementationAsset {
+  return {
+    ...asset,
+    assetId: RECORD_LIFECYCLE_POWER_FX_ASSET_ID,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_RECORD_LIFECYCLE_TARGET_ID,
+    targetDisplayName: "Canvas record lifecycle archive and restore Power Fx",
+    intendedPath: RECORD_LIFECYCLE_POWER_FX_ASSET_PATH,
+    applicabilityStatus: "required",
+    required: sourceAsset?.required ?? asset.required,
+    requiredGateIds: sourceAsset?.requiredGateIds ?? asset.requiredGateIds,
+    gateEvaluationSnapshot: sourceAsset?.gateEvaluationSnapshot ?? asset.gateEvaluationSnapshot,
+    sourceRecordIds: uniqueInInputOrder([...(sourceAsset?.sourceRecordIds ?? []), ...asset.sourceRecordIds]),
+    connectorIds: uniqueInInputOrder([...(sourceAsset?.connectorIds ?? []), ...asset.connectorIds]),
+    entityIds: uniqueInInputOrder([...(sourceAsset?.entityIds ?? []), ...asset.entityIds]),
+    fieldIds: uniqueInInputOrder([...(sourceAsset?.fieldIds ?? []), ...asset.fieldIds]),
+    dependencies: sourceAsset ? generatedLifecycleFormulaDependencies(sourceAsset) : asset.dependencies,
+    generationInputs: {
+      operation: CANVAS_RECORD_LIFECYCLE_OPERATION,
+      formulaProperty: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY,
+      projectName: project.identity.projectName.trim() || "Untitled project",
+      sourcePlanningAssetId: CANVAS_RECORD_LIFECYCLE_ASSET_ID,
+      sourcePlanningAssetChecksum: sourceAsset?.contentChecksum ?? asset.generationInputs?.sourcePlanningAssetChecksum ?? "",
+      planningGenerationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION
+    },
+    generationVersion: RECORD_LIFECYCLE_POWER_FX_GENERATION_VERSION,
+    approvalStatus: "Review required",
+    approvedPropertyName: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY
   };
 }
 
@@ -2781,6 +2860,7 @@ function formulaPropertyMembershipIssues(asset: ImplementationAsset): string[] {
     || asset.assetId === CANVAS_FORM_OPERATIONS_ASSET_ID
     || asset.assetId === CANVAS_FORM_MODE_ACTIONS_ASSET_ID
     || asset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID
+    || asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID
   ) return [];
   if (asset.platform !== "Power Apps Canvas" || asset.assetType !== "powerFxPlan") return [];
   const approvedProperty = asset.approvedPropertyName ?? "";
@@ -2818,6 +2898,18 @@ function deriveAssetFromCurrentState(
     ...formulaPropertyMembershipIssues(canonicalAsset),
     ...dependencies.flatMap((item) => item.required && !item.resolved ? [item.blockingIssue ?? `${item.label} is unresolved.`] : [])
   ]);
+  if (canonicalAsset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID) {
+    return {
+      ...canonicalAsset,
+      gateEvaluationSnapshot,
+      dependencies,
+      blockingIssues,
+      sourceContent: canonicalAsset.sourceContent,
+      contentChecksum: canonicalAsset.contentChecksum,
+      approvalStatus: "Review required",
+      assetStatus: blockingIssues.length > 0 ? "Blocked" : "Review Required"
+    };
+  }
   const sourceContent = sourceContentFor({ ...canonicalAsset, blockingIssues });
   const withoutChecksum: ImplementationAsset = {
     ...canonicalAsset,
@@ -3057,8 +3149,9 @@ export function deriveImplementationAssetRegistryState(
   };
 }
 
-function finalizeRegistry(project: ProjectRecord, generatedAt: string, assets: ImplementationAsset[]): ImplementationAssetRegistry {
-  const state = deriveImplementationAssetRegistryState(project, assets);
+function finalizeRegistry(project: ProjectRecord, generatedAt: string, build: BuiltFreshAssets): ImplementationAssetRegistry {
+  const state = deriveImplementationAssetRegistryState(project, build.assets);
+  const dependencyIssues = unique([...state.graph.dependencyIssues, ...build.dependencyIssues]);
   return {
     registryVersion: 1,
     projectId: project.identity.id,
@@ -3070,7 +3163,7 @@ function finalizeRegistry(project: ProjectRecord, generatedAt: string, assets: I
     assetPackageStatus: state.assetPackageStatus,
     effectiveImplementationReadiness: state.effectiveImplementationReadiness,
     assets: state.assets,
-    dependencyIssues: state.graph.dependencyIssues,
+    dependencyIssues,
     circularDependencyIssues: state.graph.circularDependencyIssues,
     generationOrder: state.graph.generationOrder,
     installationOrder: state.graph.installationOrder,
@@ -3079,6 +3172,7 @@ function finalizeRegistry(project: ProjectRecord, generatedAt: string, assets: I
 }
 
 type StoredApproval = { approvalStatus: ImplementationAssetApprovalStatus; checksum: string; generationVersion: string };
+type BuiltFreshAssets = { assets: ImplementationAsset[]; dependencyIssues: string[] };
 
 function applyStoredApprovalCandidates(assets: ImplementationAsset[], storedApprovals: Map<string, StoredApproval>): ImplementationAsset[] {
   return assets.map((asset) => {
@@ -3110,13 +3204,107 @@ function applyStoredApprovals(
   });
 }
 
-function buildFreshAssets(project: ProjectRecord, generatedAt: string, storedApprovals = new Map<string, StoredApproval>()): ImplementationAsset[] {
+function lifecycleSourceAssetIsEligibleForFormulaGeneration(project: ProjectRecord, sourceAsset: ImplementationAsset | undefined): sourceAsset is ImplementationAsset {
+  return Boolean(
+    sourceAsset
+    && sourceAsset.projectId === project.identity.id
+    && sourceAsset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID
+    && sourceAsset.assetStatus === "Ready for Export"
+    && sourceAsset.approvalStatus === "Approved"
+    && sourceAsset.generationVersion === CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION
+    && sourceAsset.contentChecksum === calculateImplementationAssetChecksum({ ...sourceAsset, contentChecksum: "" })
+    && sourceAsset.blockingIssues.length === 0
+    && sourceAsset.gateEvaluationSnapshot.every((gate) => gate.passed)
+    && sourceAsset.dependencies.every((item) => !item.required || item.resolved)
+    && sourceAsset.sourceRecordIds.length > 0
+  );
+}
+
+function generatedRecordLifecycleFormulaImplementationAsset(
+  project: ProjectRecord,
+  sourceAsset: ImplementationAsset,
+  generatedAt: string,
+  result: ReturnType<typeof generateCanvasRecordLifecyclePowerFx>
+): ImplementationAsset | null {
+  const generated = result.generatedAsset;
+  if (result.status !== "Generated" || !generated) return null;
+  const fragments = result.orderedFormulaFragments;
+  return {
+    assetId: generated.assetId,
+    projectId: project.identity.id,
+    platform: "Power Apps Canvas",
+    assetCategory: "Power Fx",
+    assetType: "powerFxPlan",
+    targetId: CANVAS_RECORD_LIFECYCLE_TARGET_ID,
+    targetDisplayName: "Canvas record lifecycle archive and restore Power Fx",
+    intendedPath: generated.intendedPath,
+    sourceContent: generated.sourceContent,
+    assetStatus: "Review Required",
+    applicabilityStatus: "required",
+    required: sourceAsset.required,
+    requiredGateIds: sourceAsset.requiredGateIds,
+    gateEvaluationSnapshot: sourceAsset.gateEvaluationSnapshot,
+    sourceRecordIds: uniqueInInputOrder([
+      ...generated.sourceRecordIds,
+      ...fragments.flatMap((fragment) => [
+        fragment.triggerScreenId,
+        fragment.triggerControlId,
+        fragment.lifecycleFieldId,
+        fragment.savingStateVariableId
+      ])
+    ]),
+    connectorIds: uniqueInInputOrder(fragments.map((fragment) => fragment.connectorId)),
+    entityIds: uniqueInInputOrder(fragments.map((fragment) => fragment.entityId)),
+    fieldIds: uniqueInInputOrder(fragments.map((fragment) => fragment.lifecycleFieldId)),
+    dependencies: generatedLifecycleFormulaDependencies(sourceAsset),
+    generationInputs: {
+      operation: CANVAS_RECORD_LIFECYCLE_OPERATION,
+      formulaProperty: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY,
+      projectName: project.identity.projectName.trim() || "Untitled project",
+      sourcePlanningAssetId: generated.sourcePlanningAssetId,
+      sourcePlanningAssetChecksum: generated.sourcePlanningChecksum,
+      planningGenerationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION
+    },
+    generationTimestamp: generatedAt,
+    generationVersion: generated.generationVersion,
+    contentChecksum: generated.contentChecksum,
+    manualInstallationRequirements: result.manualInstallationInstructions,
+    validationRequirements: generated.validationRequirements,
+    knownLimitations: generated.knownLimitations,
+    blockingIssues: [],
+    approvalStatus: "Review required",
+    approvedPropertyName: CANVAS_RECORD_LIFECYCLE_FORMULA_PROPERTY
+  };
+}
+
+function appendEligibleRecordLifecycleFormulaAsset(project: ProjectRecord, generatedAt: string, assets: ImplementationAsset[]): BuiltFreshAssets {
+  const sourceAsset = assets.find((asset) => asset.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID);
+  if (!lifecycleSourceAssetIsEligibleForFormulaGeneration(project, sourceAsset)) return { assets, dependencyIssues: [] };
+
+  const result = generateCanvasRecordLifecyclePowerFx({ project, registry: { assets } });
+  const generatedAsset = generatedRecordLifecycleFormulaImplementationAsset(project, sourceAsset, generatedAt, result);
+  if (generatedAsset) return { assets: [...assets, generatedAsset], dependencyIssues: [] };
+  if (result.status === "Blocked") {
+    return {
+      assets,
+      dependencyIssues: unique(result.blockingIssues.map((issue) => `Record lifecycle Power Fx generation: ${issue}`))
+    };
+  }
+  return { assets, dependencyIssues: [] };
+}
+
+function buildFreshAssets(project: ProjectRecord, generatedAt: string, storedApprovals = new Map<string, StoredApproval>()): BuiltFreshAssets {
   const firstPass = baseAssets(project, generatedAt);
   const secondPass = withInstallationAsset(project, generatedAt, firstPass);
   const candidates = applyStoredApprovalCandidates(secondPass, storedApprovals);
   const derivedWithCandidates = deriveImplementationAssetRegistryState(project, candidates, false).assets;
   const approvalChecked = applyStoredApprovals(derivedWithCandidates, storedApprovals);
-  return deriveImplementationAssetRegistryState(project, approvalChecked, false).assets;
+  const resolvedAssets = deriveImplementationAssetRegistryState(project, approvalChecked, false).assets;
+  const augmented = appendEligibleRecordLifecycleFormulaAsset(project, generatedAt, resolvedAssets);
+  return {
+    assets: deriveImplementationAssetRegistryState(project, augmented.assets, false).assets,
+    dependencyIssues: augmented.dependencyIssues
+  };
 }
 
 export function buildImplementationAssetRegistry(project: ProjectRecord, generatedAt = new Date().toISOString()): ImplementationAssetRegistry {
@@ -3156,8 +3344,12 @@ function canonicalProjectType(project: ProjectRecord): string {
   return getProjectTypeLabel(project.intake.appType).trim() || "Unknown project type";
 }
 
+function implementationManifestAssets(assets: ImplementationAsset[]): ImplementationAsset[] {
+  return assets.filter((asset) => asset.assetId !== RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+}
+
 function createManifestFromDerivedRegistryProjection(registry: ImplementationAssetRegistry, project: ProjectRecord): ImplementationAssetManifest {
-  const state = deriveImplementationAssetRegistryState(project, registry.assets);
+  const state = deriveImplementationAssetRegistryState(project, implementationManifestAssets(registry.assets));
   return {
     packageVersion: 1,
     projectId: project.identity.id,
@@ -3311,7 +3503,14 @@ export function validateImplementationAssetRegistry(registry: unknown, project?:
   if (registryObject.packageReadiness !== state.packageReadiness) issues.push("Registry package readiness is stale.");
   if (registryObject.assetPackageStatus !== state.assetPackageStatus) issues.push("Registry asset package status is stale.");
   if (registryObject.effectiveImplementationReadiness !== state.effectiveImplementationReadiness) issues.push("Registry effective implementation readiness is stale.");
-  if (stableStringify(registryObject.dependencyIssues) !== stableStringify(state.graph.dependencyIssues)) issues.push("Registry dependency issue list is stale.");
+  const registryDependencyIssues = Array.isArray(registryObject.dependencyIssues)
+    ? unique(registryObject.dependencyIssues.filter((issue): issue is string => typeof issue === "string"))
+    : registryObject.dependencyIssues;
+  const registryLevelGeneratorIssues = Array.isArray(registryDependencyIssues)
+    ? registryDependencyIssues.filter((issue) => issue.startsWith("Record lifecycle Power Fx generation: "))
+    : [];
+  const expectedDependencyIssues = unique([...state.graph.dependencyIssues, ...registryLevelGeneratorIssues]);
+  if (stableStringify(registryDependencyIssues) !== stableStringify(expectedDependencyIssues)) issues.push("Registry dependency issue list is stale.");
   if (stableStringify(registryObject.circularDependencyIssues) !== stableStringify(state.graph.circularDependencyIssues)) issues.push("Registry circular dependency issue list is stale.");
   if (stableStringify(registryObject.generationOrder) !== stableStringify(state.graph.generationOrder)) issues.push("Registry generation order is stale.");
   if (stableStringify(registryObject.installationOrder) !== stableStringify(state.graph.installationOrder)) issues.push("Registry installation order is stale.");

@@ -1,5 +1,58 @@
 # Change Log
 
+## 2026-07-29 - Phase 5B.4D.1 Registry-Only Record Lifecycle Formula Asset Inclusion
+
+### Summary
+
+- Added registry-only inclusion for the generated archive/restore record-lifecycle Power Fx asset after the existing implementation-asset approval mechanism resolves the source planning asset as both `Approved` and `Ready for Export`.
+- Kept the generated formula asset internal, `Review Required`, and `Review required`, with source content preserved only in the in-memory implementation registry.
+- Excluded the generated formula asset from implementation manifests, generated documents, Package Preview data, ZIP output, export-integrity inventory, copy/export paths, deployment, and installation claims.
+- Preserved permanent-delete prohibition, generator atomicity, TTI Draft blocking, and manual Architect plus Power Apps Studio validation requirements.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - appends the eligible generated lifecycle formula asset after resolved approval state, preserves generator checksum/source content, keeps the asset Review Required, deduplicates lifecycle record dependencies for graph validity, records deterministic generator blockers through registry dependency issues, and filters the formula asset from manifest projection.
+- `src/tests/implementationAssets.test.ts` - adds focused Phase 5B.4D.1 coverage for eligibility, source traceability, graph determinism, blocker atomicity, permanent-delete safety, output isolation, TTI Draft safety, and malformed runtime input.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4D.1 validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `node --version`: `v22.21.0`.
+- `npm.cmd --version`: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npm.cmd test`: passed (`30` unit/integration files, `1551` unit/integration tests; `7` UI files, `54` UI tests; `37` combined files, `1605` tests).
+- `npm.cmd run test:coverage`: passed (`30` coverage files, `1551` coverage tests; `7` UI files, `54` UI tests; `37` combined files, `1605` tests).
+- Coverage was `90.15%` statements, `80.53%` branches, `94.82%` functions, and `95.23%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking `eslint@10.8.0` force-fix suggestion.
+- `git diff --check`: passed.
+- Static safety search found Power Fx/delete terms only in negative tests and documentation, TTI only in isolated safety/documentation text, no `SoftwareTitles`, `SoftwareLicences`, `SoftwareUsers`, `ORG-4878`, `ND-DN`, `Date.now`, `Math.random`, `generated-packages`, `MAGIC_WAND`, or `NucBox` matches in changed files, and no new localStorage persistence.
+
+### Issues found
+
+- Generated lifecycle formula assets remain review-only and are not ready to install, export, deploy, or treat as Power Apps Studio validated.
+- Manifest integration for generated formula metadata remains future Architect-approved scope.
+- TTI-like Draft projects remain blocked and formula-free.
+
+### Remaining work
+
+- Do not begin Phase 5B.4D.2 in this worktree.
+- No commit, push, merge, stash modification, or deployment occurred.
+
 ## 2026-07-29 - Phase 5B.4C.1 Archive and Restore Power Fx Generator Hardening
 
 ### Summary

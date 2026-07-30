@@ -1,4 +1,5 @@
 import { createProject } from "../lib/createProject";
+import JSZip from "jszip";
 import {
   buildImplementationAssetRegistry,
   calculateImplementationAssetChecksum,
@@ -20,6 +21,19 @@ import {
   type ImplementationAsset,
   type ImplementationAssetDependency
 } from "../lib/implementationAssets";
+import { generateProjectPackage } from "../lib/generateProjectPackage";
+import { validateExportPackage } from "../lib/exportIntegrity";
+import { createProjectArchive, getExpectedArchivePaths } from "../lib/exportProjectPackage";
+import {
+  CANVAS_RECORD_LIFECYCLE_ASSET_ID,
+  CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION
+} from "../lib/recordLifecyclePlanning";
+import {
+  generateCanvasRecordLifecyclePowerFx,
+  PERMANENT_DELETE_BLOCKER,
+  RECORD_LIFECYCLE_POWER_FX_ASSET_ID,
+  RECORD_LIFECYCLE_POWER_FX_ASSET_PATH
+} from "../lib/recordLifecyclePowerFxGeneration";
 import {
   createApplicabilityDecision,
   createDefaultCanvasComponentTarget,
@@ -34,6 +48,7 @@ import {
   createDefaultSharePointColumn,
   createDefaultSharePointList
 } from "../lib/powerPlatform";
+import type { CanvasRecordLifecycleTarget, CanvasStateVariableTarget, ProjectRecord } from "../types/project";
 
 function createCanvasProject(formulaProperties = "OnSelect") {
   const project = createProject({
@@ -117,6 +132,7 @@ function createCanvasProject(formulaProperties = "OnSelect") {
       permissionConfirmationStatus: "confirmed",
       delegationSupport: "Delegation supported for indexed columns.",
       limitations: "Avoid non-delegable expressions.",
+      supportedOperations: { read: true, create: true, update: true, delete: true, archive: true, restore: true },
       approvalConfirmationStatus: "confirmed"
     })
   ];
@@ -239,6 +255,110 @@ function createCanvasProject(formulaProperties = "OnSelect") {
   return project;
 }
 
+function lifecycleTarget(overrides: Partial<CanvasRecordLifecycleTarget> = {}): CanvasRecordLifecycleTarget {
+  return {
+    id: overrides.id ?? "archive-request",
+    action: overrides.action ?? "archive",
+    trigger: overrides.trigger ?? "controlOnSelect",
+    triggerControlId: overrides.triggerControlId ?? "control-archive-request",
+    screenTargetId: overrides.screenTargetId ?? "screen-request-form",
+    connectorId: overrides.connectorId ?? "connector-sharepoint",
+    entityId: overrides.entityId ?? "list-requests",
+    recordContextType: overrides.recordContextType ?? "selectedRecord",
+    recordContextReferenceId: overrides.recordContextReferenceId ?? "control-request-gallery",
+    archiveStrategy: overrides.archiveStrategy ?? "statusField",
+    lifecycleFieldId: overrides.lifecycleFieldId ?? "field-status",
+    archiveValue: overrides.archiveValue ?? "Archived",
+    restoreValue: overrides.restoreValue ?? "Active",
+    deleteStrategy: overrides.deleteStrategy ?? "missingDecision",
+    confirmationStatus: overrides.confirmationStatus ?? "confirmed",
+    destructiveActionConfirmed: overrides.destructiveActionConfirmed ?? false,
+    required: overrides.required ?? true,
+    sortOrder: overrides.sortOrder ?? 10
+  };
+}
+
+function restoreLifecycleTarget(overrides: Partial<CanvasRecordLifecycleTarget> = {}): CanvasRecordLifecycleTarget {
+  return lifecycleTarget({
+    id: "restore-request",
+    action: "restore",
+    triggerControlId: "control-restore-request",
+    sortOrder: 20,
+    ...overrides
+  });
+}
+
+function deleteLifecycleTarget(overrides: Partial<CanvasRecordLifecycleTarget> = {}): CanvasRecordLifecycleTarget {
+  return lifecycleTarget({
+    id: "delete-request",
+    action: "delete",
+    triggerControlId: "control-delete-request",
+    archiveStrategy: "notApplicable",
+    lifecycleFieldId: "",
+    archiveValue: "",
+    restoreValue: "",
+    deleteStrategy: "permanentDeleteApproved",
+    destructiveActionConfirmed: true,
+    sortOrder: 30,
+    ...overrides
+  });
+}
+
+function savingStateVariable(overrides: Partial<CanvasStateVariableTarget> = {}): CanvasStateVariableTarget {
+  return {
+    id: overrides.id ?? "state-lifecycle-saving",
+    implementationName: overrides.implementationName ?? "varLifecycleSaving",
+    purpose: overrides.purpose ?? "Tracks lifecycle save state.",
+    stateRole: overrides.stateRole ?? "savingState",
+    initialValue: overrides.initialValue ?? { kind: "boolean", value: false },
+    confirmationStatus: overrides.confirmationStatus ?? "confirmed",
+    required: overrides.required ?? true,
+    sortOrder: overrides.sortOrder ?? 10
+  };
+}
+
+function createRecordLifecycleProject(targets: CanvasRecordLifecycleTarget[] = [lifecycleTarget(), restoreLifecycleTarget()]): ProjectRecord {
+  const project = createCanvasProject();
+  const canvas = project.powerPlatform!.canvas!;
+  canvas.schemaStatus = "confirmed";
+  canvas.internalNameStatus = "confirmed";
+  canvas.controlTargets = [
+    ...canvas.controlTargets,
+    createDefaultCanvasControlTarget({ id: "control-archive-request", screenId: "screen-request-form", approvedControlName: "btnArchiveRequest", controlType: "button", confirmationStatus: "confirmed", confirmationSource: "Architect" }),
+    createDefaultCanvasControlTarget({ id: "control-restore-request", screenId: "screen-request-form", approvedControlName: "btnRestoreRequest", controlType: "button", confirmationStatus: "confirmed", confirmationSource: "Architect" }),
+    createDefaultCanvasControlTarget({ id: "control-delete-request", screenId: "screen-request-form", approvedControlName: "btnDeleteRequest", controlType: "button", confirmationStatus: "confirmed", confirmationSource: "Architect" }),
+    createDefaultCanvasControlTarget({ id: "control-request-gallery", screenId: "screen-request-form", approvedControlName: "galRequests", controlType: "gallery", confirmationStatus: "confirmed", confirmationSource: "Architect" })
+  ];
+  canvas.stateVariableTargets = [
+    savingStateVariable(),
+    {
+      id: "state-selected-record",
+      implementationName: "varSelectedRecord",
+      purpose: "Selected request record.",
+      stateRole: "selectedRecord",
+      initialValue: { kind: "blank" },
+      confirmationStatus: "confirmed",
+      required: true,
+      sortOrder: 20
+    }
+  ];
+  canvas.sharePointColumnSchemas = [
+    ...canvas.sharePointColumnSchemas,
+    createDefaultSharePointColumn({
+      id: "field-status",
+      parentType: "list",
+      parentId: "list-requests",
+      displayName: "Status",
+      internalName: "Status",
+      columnType: "Single line of text",
+      confirmationStatus: "confirmed",
+      confirmationSource: "Architect"
+    })
+  ];
+  canvas.recordLifecycleTargets = targets;
+  return project;
+}
+
 function createModelProject() {
   const project = createProject({
     identity: { id: "model-assets", projectName: "Model Assets" },
@@ -301,6 +421,36 @@ function approveRegistry(registry: ReturnType<typeof buildImplementationAssetReg
       generationVersion: asset.generationVersion
     }))
   };
+}
+
+function approvedRegistryFor(project: ProjectRecord) {
+  return normalizeImplementationAssetRegistry(approveRegistry(buildImplementationAssetRegistry(project, "2026-07-15T12:00:00.000Z")), project, "2026-07-15T12:00:00.000Z");
+}
+
+function recordLifecyclePlanningAsset(registry: ReturnType<typeof buildImplementationAssetRegistry>): ImplementationAsset {
+  const asset = registry.assets.find((candidate) => candidate.assetId === CANVAS_RECORD_LIFECYCLE_ASSET_ID);
+  if (!asset) throw new Error("Record lifecycle planning asset missing");
+  return asset;
+}
+
+function recordLifecycleFormulaAsset(registry: ReturnType<typeof buildImplementationAssetRegistry>): ImplementationAsset {
+  const asset = registry.assets.find((candidate) => candidate.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+  if (!asset) throw new Error("Record lifecycle formula asset missing");
+  return asset;
+}
+
+function withoutRecordLifecycleFormula(registry: ReturnType<typeof buildImplementationAssetRegistry>): ImplementationAsset[] {
+  return registry.assets.filter((asset) => asset.assetId !== RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+}
+
+async function zipFromBlob(blob: Blob) {
+  const bytes = await new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(blob);
+  });
+  return JSZip.loadAsync(bytes);
 }
 
 function cloneAsset(asset: ImplementationAsset): ImplementationAsset {
@@ -1688,6 +1838,220 @@ describe("implementation asset registry correction", () => {
       ]
     }, project);
     expect(normalized.assets.find((asset) => asset.assetId === "asset-canvas-powerfx-control-save-request-onselect")?.approvalStatus).toBe("Review required");
+  });
+
+  it("5B.4D.1 appends one approved record-lifecycle formula asset to the internal registry only", () => {
+    const project = createRecordLifecycleProject();
+    const initialProjectStatus = project.status;
+    const draftRegistry = buildImplementationAssetRegistry(project, "2026-07-15T12:00:00.000Z");
+
+    expect(draftRegistry.assets.some((asset) => asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID)).toBe(false);
+
+    const registry = approvedRegistryFor(project);
+    const formulaAsset = recordLifecycleFormulaAsset(registry);
+    const planningAsset = recordLifecyclePlanningAsset(registry);
+    const sourceOnlyState = deriveImplementationAssetRegistryState(project, withoutRecordLifecycleFormula(registry), false);
+    const generated = generateCanvasRecordLifecyclePowerFx({ project, registry: { assets: withoutRecordLifecycleFormula(registry) } });
+
+    expect(registry.assets.filter((asset) => asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID)).toHaveLength(1);
+    expect(formulaAsset.assetId).toBe(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+    expect(formulaAsset.intendedPath).toBe(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(formulaAsset.platform).toBe("Power Apps Canvas");
+    expect(formulaAsset.assetCategory).toBe("Power Fx");
+    expect(formulaAsset.assetType).toBe("powerFxPlan");
+    expect(formulaAsset.sourceContent).toBe(generated.generatedAsset?.sourceContent);
+    expect(formulaAsset.contentChecksum).toBe(generated.generatedAsset?.contentChecksum);
+    expect(formulaAsset.generationInputs?.sourcePlanningAssetId).toBe(CANVAS_RECORD_LIFECYCLE_ASSET_ID);
+    expect(formulaAsset.generationInputs?.sourcePlanningAssetChecksum).toBe(planningAsset.contentChecksum);
+    expect(formulaAsset.generationInputs?.planningGenerationVersion).toBe(CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION);
+    expect(formulaAsset.sourceRecordIds).toEqual(expect.arrayContaining(["archive-request", "restore-request", "control-archive-request", "control-restore-request", "field-status", "state-lifecycle-saving"]));
+    expect(formulaAsset.connectorIds).toEqual(["connector-sharepoint"]);
+    expect(formulaAsset.entityIds).toEqual(["list-requests"]);
+    expect(formulaAsset.fieldIds).toEqual(["field-status"]);
+    expect(formulaAsset.dependencies.map((dependency) => dependency.targetAssetId)).toContain(CANVAS_RECORD_LIFECYCLE_ASSET_ID);
+    expect(planningAsset.dependencies.map((dependency) => dependency.targetAssetId)).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+    expect(formulaAsset.dependencies).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "screen", targetRecordId: "screen-request-form", resolved: true }),
+      expect.objectContaining({ type: "control", targetRecordId: "control-archive-request", resolved: true }),
+      expect.objectContaining({ type: "stateVariable", targetRecordId: "state-lifecycle-saving", resolved: true })
+    ]));
+    expect(formulaAsset.assetStatus).toBe("Review Required");
+    expect(formulaAsset.approvalStatus).toBe("Review required");
+    expect(formulaAsset.assetStatus).not.toBe("Ready for Export");
+    expect(formulaAsset.approvalStatus).not.toBe("Approved");
+    expect(formulaAsset.assetStatus).not.toBe("Exported");
+    expect(registry.summary.readyAssetCount).toBe(sourceOnlyState.summary.readyAssetCount);
+    expect(registry.summary.reviewRequiredAssetCount).toBe(sourceOnlyState.summary.reviewRequiredAssetCount + 1);
+    expect(registry.summary.applicableAssetCount).toBe(sourceOnlyState.summary.applicableAssetCount + 1);
+    expect(registry.assetPackageStatus).not.toBe("Ready for Export");
+    expect(registry.effectiveImplementationReadiness).not.toBe("Ready for Codex");
+    expect(registry.summary.nextRequiredAction).toBeTruthy();
+    expect(project.status).toBe(initialProjectStatus);
+  });
+
+  it("5B.4D.1 keeps generated lifecycle formula graph data valid and deterministic", () => {
+    const project = createRecordLifecycleProject([restoreLifecycleTarget({ sortOrder: 20 }), lifecycleTarget({ sortOrder: 10 })]);
+    const reordered = createRecordLifecycleProject([lifecycleTarget({ sortOrder: 10 }), restoreLifecycleTarget({ sortOrder: 20 })]);
+    const first = approvedRegistryFor(project);
+    const second = approvedRegistryFor(project);
+    const reorderedRegistry = approvedRegistryFor(reordered);
+    const graph = evaluateImplementationAssetGraph(first.assets);
+
+    expect(graph.duplicateAssetIds).toEqual([]);
+    expect(graph.duplicatePaths).toEqual([]);
+    expect(graph.selfDependencyIssues).toEqual([]);
+    expect(graph.duplicateDependencyIssues).toEqual([]);
+    expect(graph.missingAssetDependencyIssues).toEqual([]);
+    expect(graph.unresolvedRecordDependencyIssues).toEqual([]);
+    expect(graph.circularDependencyIssues).toEqual([]);
+    expect(graph.generationOrder).toContain(CANVAS_RECORD_LIFECYCLE_ASSET_ID);
+    expect(graph.generationOrder).toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+    expect(graph.generationOrder.indexOf(CANVAS_RECORD_LIFECYCLE_ASSET_ID)).toBeLessThan(graph.generationOrder.indexOf(RECORD_LIFECYCLE_POWER_FX_ASSET_ID));
+    expect(first.generationOrder).toEqual(second.generationOrder);
+    expect(recordLifecycleFormulaAsset(first).contentChecksum).toBe(recordLifecycleFormulaAsset(second).contentChecksum);
+    expect(recordLifecycleFormulaAsset(first).contentChecksum).toBe(recordLifecycleFormulaAsset(reorderedRegistry).contentChecksum);
+  });
+
+  it("5B.4D.1 requires approved Ready source planning evidence before adding formula assets", () => {
+    const project = createRecordLifecycleProject();
+    const draft = buildImplementationAssetRegistry(project, "2026-07-15T12:00:00.000Z");
+    const staleChecksum = normalizeImplementationAssetRegistry({
+      assets: [{ assetId: CANVAS_RECORD_LIFECYCLE_ASSET_ID, approvalStatus: "Approved", contentChecksum: "stale", generationVersion: CANVAS_RECORD_LIFECYCLE_GENERATION_VERSION }]
+    }, project, "2026-07-15T12:00:00.000Z");
+    const wrongVersion = normalizeImplementationAssetRegistry({
+      assets: [{ assetId: CANVAS_RECORD_LIFECYCLE_ASSET_ID, approvalStatus: "Approved", contentChecksum: recordLifecyclePlanningAsset(draft).contentChecksum, generationVersion: "legacy" }]
+    }, project, "2026-07-15T12:00:00.000Z");
+    const failedGateProject = createRecordLifecycleProject();
+    failedGateProject.powerPlatform!.common.securityReviewStatus = "reviewNeeded";
+    const unresolvedProject = createRecordLifecycleProject();
+    unresolvedProject.powerPlatform!.canvas!.controlTargets.find((control) => control.id === "control-archive-request")!.screenId = "missing-screen";
+    const missingSourceRecordProject = createRecordLifecycleProject([lifecycleTarget({ lifecycleFieldId: "missing-field" })]);
+    const missingSavingStateProject = createRecordLifecycleProject();
+    missingSavingStateProject.powerPlatform!.canvas!.stateVariableTargets = [];
+    const ambiguousSavingStateProject = createRecordLifecycleProject();
+    ambiguousSavingStateProject.powerPlatform!.canvas!.stateVariableTargets.push(savingStateVariable({ id: "state-saving-other", implementationName: "varOtherSaving", sortOrder: 30 }));
+
+    for (const registry of [
+      draft,
+      staleChecksum,
+      wrongVersion,
+      buildImplementationAssetRegistry(failedGateProject, "2026-07-15T12:00:00.000Z"),
+      approvedRegistryFor(unresolvedProject),
+      approvedRegistryFor(missingSourceRecordProject),
+      approvedRegistryFor(missingSavingStateProject),
+      approvedRegistryFor(ambiguousSavingStateProject),
+      buildImplementationAssetRegistry(createModelProject(), "2026-07-15T12:00:00.000Z")
+    ]) {
+      expect(registry.assets.some((asset) => asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID)).toBe(false);
+    }
+  });
+
+  it("5B.4D.1 surfaces generator blockers atomically without permanent-delete output", () => {
+    const invalidDataSourceProject = createRecordLifecycleProject();
+    invalidDataSourceProject.powerPlatform!.common.connectors[0].dataSourceName = "Requests && Remove";
+    const invalidIdentifierRegistry = approvedRegistryFor(invalidDataSourceProject);
+
+    expect(invalidIdentifierRegistry.assets.some((asset) => asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID)).toBe(false);
+    expect(invalidIdentifierRegistry.dependencyIssues.join("\n")).toContain("Record lifecycle Power Fx generation:");
+    expect(invalidIdentifierRegistry.assets.map((asset) => asset.sourceContent).join("\n")).not.toMatch(/\b(?:Patch|IfError|Notify|Set)\s*\(/);
+
+    for (const targets of [
+      [deleteLifecycleTarget()],
+      [lifecycleTarget(), deleteLifecycleTarget()],
+      [restoreLifecycleTarget(), deleteLifecycleTarget()]
+    ]) {
+      const registry = approvedRegistryFor(createRecordLifecycleProject(targets));
+      const planningAsset = recordLifecyclePlanningAsset(registry);
+      const source = registry.assets.map((asset) => asset.sourceContent).join("\n");
+      const blockerEvidence = [...planningAsset.blockingIssues, ...registry.dependencyIssues].join("\n");
+
+      expect(registry.assets.some((asset) => asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID)).toBe(false);
+      expect(blockerEvidence).toContain(PERMANENT_DELETE_BLOCKER);
+      expect(source).not.toContain("Remove(");
+      expect(source).not.toContain("RemoveIf(");
+    }
+  });
+
+  it("5B.4D.1 excludes lifecycle formula assets from manifests, generated documents, preview data, ZIP, and export integrity", async () => {
+    const project = createRecordLifecycleProject();
+    const registry = approvedRegistryFor(project);
+    const formulaAsset = recordLifecycleFormulaAsset(registry);
+    const manifest = createImplementationAssetManifest(registry, project);
+    const sourceOnlyManifest = createImplementationAssetManifest({ ...registry, assets: withoutRecordLifecycleFormula(registry) }, project);
+    const manifestJson = JSON.stringify(manifest);
+    const manifestMarkdown = renderImplementationAssetManifestMarkdown(manifest);
+
+    expect(manifest.assets).toEqual(sourceOnlyManifest.assets);
+    expect(manifestJson).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+    expect(manifestJson).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(manifestJson).not.toContain(formulaAsset.contentChecksum);
+    expect(manifestJson).not.toContain(formulaAsset.sourceContent);
+    expect(manifestMarkdown).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+    expect(manifestMarkdown).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(manifestMarkdown).not.toContain(formulaAsset.contentChecksum);
+    expect(validateImplementationAssetManifest(manifest, registry, project)).toEqual([]);
+
+    const generatedPackage = generateProjectPackage(project);
+    project.generatedDocuments = generatedPackage.documents;
+    const previewData = generatedPackage.documents.map((document) => document.content).join("\n");
+    const exportProject = {
+      ...project,
+      generatedDocuments: generatedPackage.documents.map((document) => ({
+        ...document,
+        content: document.content.replace(/\[MISSING:[^\]]+\]/g, "Not applicable for formula isolation export verification.")
+      })),
+      generatedFileCount: generatedPackage.documents.length
+    };
+    const integrity = validateExportPackage(exportProject, "2026-07-15T12:00:00.000Z");
+    const archivePaths = getExpectedArchivePaths(project).join("\n");
+    const zip = await zipFromBlob(await createProjectArchive(exportProject, { exportedAt: "2026-07-15T12:00:00.000Z" }));
+    const zipPaths = Object.keys(zip.files).join("\n");
+    const zipContents = (await Promise.all(Object.values(zip.files).filter((file) => !file.dir).map((file) => file.async("string")))).join("\n");
+
+    expect(previewData).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(previewData).not.toContain(formulaAsset.sourceContent);
+    expect(archivePaths).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(JSON.stringify(integrity)).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(zipPaths).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(zipContents).not.toContain(formulaAsset.sourceContent);
+  });
+
+  it("5B.4D.1 keeps TTI-like Draft projects formula-free and blocked", () => {
+    const project = createRecordLifecycleProject();
+    project.identity.projectName = "TTI Software Licence Tracker";
+    project.powerPlatform!.common.connectors[0].dataSourceName = "TTI-SoftwareUsers";
+    project.powerPlatform!.canvas!.internalNameStatus = "missingInformation";
+    project.powerPlatform!.canvas!.sharePointColumnSchemas.find((column) => column.id === "field-status")!.internalName = "";
+    const registry = buildImplementationAssetRegistry(project, "2026-07-15T12:00:00.000Z");
+    const planningAsset = recordLifecyclePlanningAsset(registry);
+    const registrySource = registry.assets.map((asset) => asset.sourceContent).join("\n");
+    const manifest = createImplementationAssetManifest(registry, project);
+    const generatedDocuments = generateProjectPackage(project).documents.map((document) => document.content).join("\n");
+
+    expect(planningAsset).toBeDefined();
+    expect(planningAsset.assetStatus).not.toBe("Ready for Export");
+    expect(planningAsset.blockingIssues.length).toBeGreaterThan(0);
+    expect(registry.assets.some((asset) => asset.assetId === RECORD_LIFECYCLE_POWER_FX_ASSET_ID)).toBe(false);
+    expect(registrySource).not.toMatch(/\b(?:Patch|IfError|Notify|Set)\s*\(/);
+    expect(JSON.stringify(manifest)).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
+    expect(JSON.stringify(manifest)).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(generatedDocuments).not.toContain(RECORD_LIFECYCLE_POWER_FX_ASSET_PATH);
+    expect(generatedDocuments).not.toMatch(/\b(?:Patch|IfError|Notify|Set)\s*\(/);
+    expect(registry.assetPackageStatus).not.toBe("Ready for Export");
+  });
+
+  it("5B.4D.1 rejects malformed runtime formula asset input safely", () => {
+    const project = createRecordLifecycleProject();
+    const registry = approvedRegistryFor(project);
+    const malformed = {
+      ...registry,
+      assets: [
+        ...registry.assets.filter((asset) => asset.assetId !== RECORD_LIFECYCLE_POWER_FX_ASSET_ID),
+        { assetId: RECORD_LIFECYCLE_POWER_FX_ASSET_ID, sourceContent: 42 }
+      ]
+    };
+
+    expect(validateImplementationAssetRegistry(malformed, project).join("\n")).toContain("sourceRecordIds must be an array");
   });
 
   it("keeps Phase 5A source content as planning records only", () => {

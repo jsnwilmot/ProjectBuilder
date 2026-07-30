@@ -1,5 +1,34 @@
 # Test Plan
 
+## 2026-07-29 Phase 5B.4D.1 registry-only record lifecycle formula asset inclusion
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npm.cmd test`: passed (`30` unit/integration files, `1551` unit/integration tests, `7` UI files, `54` UI tests, `37` combined files, `1605` tests).
+- `npm.cmd run test:coverage`: passed (`30` coverage files, `1551` coverage tests, `7` UI files, `54` UI tests, `37` combined files, `1605` tests).
+- Coverage was `90.15%` statements, `80.53%` branches, `94.82%` functions, and `95.23%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking `eslint@10.8.0` force-fix suggestion.
+- `git diff --check`: passed.
+- Static safety search found Power Fx/delete terms only in negative tests and documentation, TTI only in isolated safety/documentation text, no `SoftwareTitles`, `SoftwareLicences`, `SoftwareUsers`, `ORG-4878`, `ND-DN`, `Date.now`, `Math.random`, `generated-packages`, `MAGIC_WAND`, or `NucBox` matches in changed files, and no new localStorage persistence.
+- Eligibility coverage verifies the generated lifecycle formula asset is appended exactly once only after the source lifecycle planning asset is current-project, expected ID, `Approved`, `Ready for Export`, current generation version, checksum-current, gate-passing, blocker-free, dependency-resolved, and source-record-backed.
+- Traceability coverage verifies the formula asset preserves the generator source content and checksum, stable asset ID, stable path, source planning asset ID/checksum/version, connector IDs, entity IDs, field IDs, source records, screen/control/state-variable dependencies, manual validation requirements, and known limitations.
+- Readiness coverage verifies the generated formula asset remains `Review Required` and `Review required`, is not `Approved`, is not `Ready for Export`, is not `Exported`, does not count as ready, does not improve registry readiness, and does not mutate project status.
+- Graph coverage verifies no duplicate asset IDs, duplicate intended paths, self-dependencies, duplicate dependencies, missing asset dependencies, unresolved required record dependencies, or circular dependencies after registry inclusion; generation ordering keeps the source planning asset before the generated formula asset.
+- Atomicity coverage verifies draft, stale checksum, wrong generation version, failed gate, unresolved dependency, missing source record, missing saving-state target, ambiguous saving-state target, non-Canvas project, malformed runtime input, and generator preflight blocker cases append zero formula assets.
+- Permanent-delete coverage verifies delete-only, archive/delete, and restore/delete cases append zero formula assets, surface explicit blocker evidence, and expose no `Remove(` or `RemoveIf(` source.
+- Output-isolation coverage verifies the formula asset ID, intended path, checksum, and source remain absent from implementation manifest JSON, manifest Markdown, generated documents, Package Preview data, export-integrity inventory, ZIP paths, and ZIP contents.
+- TTI-like Draft coverage verifies the planning asset may remain visible with blockers, no generated formula asset is appended, no formula source appears in the registry, manifests, or generated documents, no implementation identifier is invented, and readiness is not falsely promoted.
+- Internal source-content boundary remains registry-only; no localStorage persistence, storage migration, automatic installation, automatic deployment, or public copy path was added.
+- Manual Architect review and Power Apps Studio validation remain required. Manifest metadata integration remains future phase scope.
+- No commit, push, merge, stash modification, or deployment occurred.
+
 ## 2026-07-29 Phase 5B.4C.1 archive and restore Power Fx generator hardening
 
 - Node version used locally: `v22.21.0`.
