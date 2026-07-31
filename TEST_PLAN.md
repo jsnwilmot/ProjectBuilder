@@ -1,5 +1,34 @@
 # Test Plan
 
+## 2026-07-30 Phase 5B.4D.2.1 formula asset review-state architecture
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewState.test.ts`: passed (`1` file, `75` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npm.cmd test`: passed (`31` unit/integration files, `1626` tests, `7` UI files, `54` tests, `38` combined files, `1680` tests).
+- `npm.cmd run test:coverage`: passed (`31` coverage files, `1626` tests, `7` UI files, `54` tests, `38` combined files, `1680` tests).
+- Coverage was `90.25%` statements, `80.73%` branches, `94.93%` functions, and `95.30%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking force-fix suggestion.
+- `git diff --check`: passed.
+- Review-state coverage verifies the only formula review states are `Not Applicable`, `Blocked`, and `Review Required`.
+- Contract coverage verifies review contract version `phase-5b.4d.2.1`, approved canonical fields `contentChecksum` and `generationVersion`, formula asset ID from reviewed asset metadata, source planning asset ID/checksum/version reporting, and public result mapping through `formulaContentChecksum` and `formulaGenerationVersion`.
+- Primary review-state coverage verifies lifecycle classification still enforces the expected stable formula asset ID and does not accept a wrong-ID candidate as approved, current, or valid lifecycle output.
+- Checksum mutation coverage verifies all 39 approved implementation-relevant dimensions invalidate the review contract and make the original reference stale: content checksum, generation version, planning lineage, connector/entity/field/source-record IDs, screen/control/saving-state dependencies, required gates, gate status/passed/blocking reason, dependency identity/target/required/resolved/blocker fields, generation inputs, intended path, approved property, requirements, limitations, required flag, platform/category/type, target ID, project ID, and asset ID.
+- Cosmetic exclusion coverage verifies generation timestamp, approval status, asset status, project display name, target display name, dependency label wording, input array ordering, and source content do not alter the canonical contract or checksum when the content checksum is unchanged.
+- Reference coverage verifies `Current`, `Stale`, `Invalid`, and `Not Provided`; invalid cases include wrong or blank fields, control characters, formula-looking input, delimiter-like input, malformed runtime input, array values, and unexpected fields. `Current` means contract identity only and does not approve, validate, install, publish, deploy, or mark formula output ready.
+- Blocked-generation coverage verifies permanent-delete delete-only, archive/delete, and restore/delete requests produce `Blocked`, append no formula asset, return no review contract/checksum/source fields, and preserve the exact blocker `Permanent-delete Power Fx generation is not approved for Phase 5B.4C.`.
+- TTI-like Draft coverage verifies blocked planning assets remain formula-free, return no current review contract, and stale references cannot become `Current`.
+- Output-boundary coverage verifies this phase adds no UI/output/manifest/ZIP/export/copy path, no persistence, no storage migration, no external service transmission, no generated package output, and no deployment.
+- Registry-only source boundary remains intact: formula source is not copied into review-state results, review references, manifests, package files, or documentation outputs. Manual Architect review and Power Apps Studio validation remain required.
+- No commit, push, merge, stash modification, or deployment occurred.
+
 ## 2026-07-29 Phase 5B.4D.1 registry-only record lifecycle formula asset inclusion
 
 - Node version used locally: `v22.21.0`.

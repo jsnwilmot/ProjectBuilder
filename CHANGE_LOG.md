@@ -1,5 +1,63 @@
 # Change Log
 
+## 2026-07-30 - Phase 5B.4D.2.1 Formula Asset Review-State Architecture
+
+### Summary
+
+- Added a pure, deterministic, in-memory review-state contract for generated record-lifecycle formula assets.
+- Restricted review states to `Not Applicable`, `Blocked`, and `Review Required`; no approved, validated, ready, installed, published, or deployed formula states were introduced.
+- Added review contract version `phase-5b.4d.2.1` with implementation-relevant metadata only, excluding formula source content, display text, timestamps, asset/review statuses, and array positions from the contract checksum.
+- Corrected the review contract to use the reviewed asset metadata for `assetId`, `contentChecksum`, and `generationVersion` while the primary review-state builder still enforces the expected stable lifecycle formula asset ID.
+- Added minimal review reference evaluation with statuses `Current`, `Stale`, `Invalid`, and `Not Provided`; `Current` means only that the supplied `{ assetId, reviewContractVersion, reviewContractChecksum }` matches the current in-memory contract, not that the formula is approved or Power Apps Studio validated.
+- Preserved stale invalidation by changing the contract checksum when any approved implementation-relevant metadata changes, including formula asset ID, formula generation version, formula content checksum, planning lineage, dependency identity/resolution, gates, traceability, requirements, and target metadata.
+- Preserved cosmetic exclusions by keeping source content, display text, timestamps, asset/review statuses, dependency prose, project display name, and array order outside the canonical checksum.
+- Preserved blocked generation behavior for permanent-delete and TTI-like Draft cases: no generated formula asset, no contract/checksum/source fields, and the exact blocker `Permanent-delete Power Fx generation is not approved for Phase 5B.4C.` remains visible.
+- Kept generated formula source registry-only and made no UI, output, manifest, ZIP, export, copy, persistence, storage migration, deployment, or package-document changes. Manifest/package surfaces remain formula-free, and manual Architect review plus Power Apps Studio validation remain required.
+
+### Files created
+
+- `src/lib/recordLifecycleFormulaReviewState.ts` - pure formula review-state and reference-evaluation contract.
+- `src/tests/recordLifecycleFormulaReviewState.test.ts` - focused review-state, stale-reference, blocked-generation, TTI-like Draft, checksum mutation, cosmetic-exclusion, and reference-validation coverage.
+
+### Files updated
+
+- `src/lib/implementationAssets.ts` - exported a narrow stable checksum helper reusing existing implementation asset serialization and hash infrastructure.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4D.2.1 validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `node --version`: `v22.21.0`.
+- `npm.cmd --version`: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewState.test.ts`: passed (`1` file, `75` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npm.cmd test`: passed (`31` unit/integration files, `1626` tests; `7` UI files, `54` tests; `38` combined files, `1680` tests).
+- `npm.cmd run test:coverage`: passed (`31` coverage files, `1626` tests; `7` UI files, `54` tests; `38` combined files, `1680` tests).
+- Coverage was `90.25%` statements, `80.73%` branches, `94.93%` functions, and `95.30%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking force-fix suggestion.
+- `git diff --check`: passed.
+
+### Issues found
+
+- Generated lifecycle formula assets remain review-only and are not ready to install, export, deploy, publish, or treat as Power Apps Studio validated.
+- Complete dependency audit still fails on the existing development-only `brace-expansion` advisory path; production dependency audit passes.
+- Review-state references remain in memory only and do not record reviewer identity, dates, approvals, or Studio-validation evidence.
+
+### Remaining work
+
+- No commit, push, merge, stash modification, deployment, persistence migration, or package-output integration occurred.
+- Future Architect-approved work can decide whether review references should be surfaced in UI or manifests.
+
 ## 2026-07-29 - Phase 5B.4D.1 Registry-Only Record Lifecycle Formula Asset Inclusion
 
 ### Summary

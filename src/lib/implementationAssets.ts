@@ -535,6 +535,10 @@ export function calculateImplementationAssetChecksum(asset: ImplementationAsset)
   return fnv1a(createCanonicalAssetPayload(asset));
 }
 
+export function calculateStableImplementationChecksum(value: unknown): string {
+  return fnv1a(stableStringify(value));
+}
+
 function snapshotGate(project: ProjectRecord, gateId: PhaseGateId): ImplementationAssetGateSnapshot {
   if (!(gateId in PHASE_GATE_EVALUATORS)) {
     return {
