@@ -84,6 +84,10 @@ interface NormalizedEvidenceBase {
   regenerationReason?: string;
 }
 
+interface EvidenceNormalizationOptions {
+  requireCanonicalAssetId: boolean;
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -165,7 +169,7 @@ function optionalTextFields(input: Record<string, unknown>): Pick<NormalizedEvid
   };
 }
 
-function baseFields(input: Record<string, unknown>): NormalizedEvidenceBase | null {
+function baseFields(input: Record<string, unknown>, options: EvidenceNormalizationOptions): NormalizedEvidenceBase | null {
   const evidenceId = evidenceIdText(input.evidenceId);
   const projectId = singleLineText(input.projectId, SINGLE_LINE_LIMITS.projectId);
   const assetId = singleLineText(input.assetId, SINGLE_LINE_LIMITS.assetId);
@@ -178,7 +182,8 @@ function baseFields(input: Record<string, unknown>): NormalizedEvidenceBase | nu
   if (
     !evidenceId
     || !projectId
-    || assetId !== RECORD_LIFECYCLE_FORMULA_EVIDENCE_ASSET_ID
+    || !assetId
+    || (options.requireCanonicalAssetId && assetId !== RECORD_LIFECYCLE_FORMULA_EVIDENCE_ASSET_ID)
     || !reviewContractVersion
     || !reviewContractChecksum
     || !reviewerDisplayName
@@ -221,10 +226,13 @@ function isStudioOutcomeConsistent(
     : values.some((passed) => !passed);
 }
 
-function normalizeEvidenceRecord(input: unknown): RecordLifecycleFormulaReviewEvidenceRecord | null {
+function normalizeEvidenceRecord(
+  input: unknown,
+  options: EvidenceNormalizationOptions = { requireCanonicalAssetId: true }
+): RecordLifecycleFormulaReviewEvidenceRecord | null {
   if (!isObject(input)) return null;
   if (input.evidenceSchemaVersion !== RECORD_LIFECYCLE_FORMULA_EVIDENCE_SCHEMA_VERSION) return null;
-  const base = baseFields(input);
+  const base = baseFields(input, options);
   if (!base) return null;
   if (input.evidenceType === "Technical Review") {
     const outcome = input.outcome;
@@ -269,4 +277,8 @@ export function normalizeRecordLifecycleFormulaReviewEvidence(input: unknown): R
     records.push(normalized);
   }
   return records;
+}
+
+export function normalizeRecordLifecycleFormulaReviewEvidenceForEvaluation(input: unknown): RecordLifecycleFormulaReviewEvidenceRecord | null {
+  return normalizeEvidenceRecord(input, { requireCanonicalAssetId: false });
 }

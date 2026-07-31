@@ -1,5 +1,55 @@
 # Test Plan
 
+## 2026-07-31 Phase 5B.4D.2.2.2D formula evidence runtime safety and binding classification correction
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts`: passed (`1` file, `79` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidence.test.ts`: passed (`1` file, `23` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts src/tests/implementationAssets.test.ts src/tests/recordLifecyclePowerFxGeneration.test.ts src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/phase5b4b5Regression.test.ts`: passed (`15` files, `529` tests).
+- `npm.cmd test`: passed (`33` unit/integration files, `1733` tests; `7` UI files, `54` tests; `40` combined files, `1787` tests).
+- `npm.cmd run test:coverage`: passed (`33` coverage files, `1733` tests; `7` UI files, `54` tests; `40` combined files, `1787` tests).
+- Coverage was `90.39%` statements, `81.01%` branches, `95.04%` functions, and `95.40%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `14` high-severity dependency path findings and no available fix.
+- `npm.cmd audit`: failed on the same documented development-only `brace-expansion` advisory path.
+- Sparse-array coverage verifies `new Array(3)` does not throw, emits one collection issue per hole, fabricates no evidence, and leaves the caller's holes unchanged.
+- Sparse mixed-record coverage verifies valid Technical Review and Studio Validation records before and after a hole remain evaluated in input order while the hole is reported separately.
+- Asset mismatch coverage verifies structurally valid non-current Technical Review and Studio Validation asset IDs classify as `Stale`, remain represented in `records`, retain outcomes, and do not enter `invalidRecords`.
+- Malformed asset identity coverage verifies missing, `null`, numeric, blank, over-length, multiline, control-character, and formula-source-bearing asset IDs classify as `Invalid`.
+- Storage-normalizer regression coverage verifies canonical persisted evidence still normalizes, non-canonical asset IDs are still rejected by storage normalization, and the evaluator-only structural helper does not broaden persisted evidence acceptance.
+- Retained direct-test coverage verifies Technical/Studio cross-state combinations, ordering equivalence, no newest-record-wins behavior, input non-mutation, duplicate IDs within and across evidence types, malformed duplicate records, all required malformed top-level and array-entry inputs, mixed Current/Stale/Invalid evidence, failed/rejected outcome separation, formula-source exclusion, approval/readiness non-mutation, expanded TTI Draft preservation, generated-document boundaries, and output boundaries.
+- No approval, readiness, UI, export, formula-source, deployment, migration, repository lifecycle, storage key, storage version, package, lockfile, CI, or Cloudflare configuration behavior changed.
+
+## 2026-07-31 Phase 5B.4D.2.2.2 formula evidence current, stale, and invalid evaluation
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts`: passed (`1` file, `22` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/phase5b4b5Regression.test.ts`: passed (`13` files, `312` tests).
+- `npm.cmd test`: passed (`33` unit/integration files, `1676` tests; `7` UI files, `54` tests; `40` combined files, `1730` tests).
+- `npm.cmd run test:coverage`: passed (`33` coverage files, `1676` tests; `7` UI files, `54` tests; `40` combined files, `1730` tests).
+- Coverage was `90.37%` statements, `80.98%` branches, `95.03%` functions, and `95.38%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `14` high-severity dependency path findings and no available fix.
+- `npm.cmd audit`: failed on the same documented development-only `brace-expansion` advisory path.
+- `git diff --check`: passed after documentation updates.
+- Evaluator coverage verifies `Not Provided`, valid current Technical Review evidence, valid current Studio Validation evidence, both evidence types current, technical current while Studio evidence is absent, and Studio current while technical evidence is absent.
+- Outcome coverage verifies accepted, rejected, passed, and failed outcomes remain distinct; current evidence does not mean approved, ready, installed, exported, deployed, or validated by the other evidence type.
+- Stale coverage verifies project ID mismatch, asset ID mismatch, review contract version mismatch, review contract checksum mismatch, historical stale evidence retention, and newer current evidence with older stale history preserved in the evaluation result.
+- Invalid coverage verifies unsupported schema versions, malformed evidence IDs, malformed timestamps, missing required technical fields, missing Studio validation fields, duplicate evidence IDs, malformed collections, malformed runtime values, and invalid records coexisting with valid records without hiding them.
+- Formula-source boundary coverage verifies evaluator results omit formula source and do not echo formula-like rejected input.
+- Approval/readiness boundary coverage verifies evaluator calls do not mutate project status, review status, formula asset approval status, formula asset status, or the existing review-state result.
+- Output-boundary coverage verifies evidence IDs and evaluator states remain absent from implementation manifests, generated documents, package/export preview content, export manifests, export-integrity inventories, and ZIP output.
+- TTI-like Draft coverage verifies the evaluator does not create evidence, does not fabricate a current formula asset, and keeps the Draft project status and review status unchanged.
+- No storage version, storage key, project schema, repository lifecycle behavior, formula generator, registry construction, components, templates, generated documents, export logic, deployment configuration, package files, lock files, CI workflow, commit, push, merge, stash modification, or deployment was changed.
+
 ## 2026-07-31 Phase 5B.4D.2.2.1-C1 formula evidence integrity corrections
 
 - Node version used locally: `v22.21.0`.
