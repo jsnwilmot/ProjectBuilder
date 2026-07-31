@@ -20,7 +20,7 @@ import {
 } from "../types/project";
 import { normalizeProjectTypeValue } from "../data/projectTypes";
 
-export const CURRENT_STORAGE_VERSION: StorageVersion = 2;
+export const CURRENT_STORAGE_VERSION: StorageVersion = 3;
 
 export const EMPTY_STORAGE_STATE: StorageState = {
   version: CURRENT_STORAGE_VERSION,
@@ -166,8 +166,8 @@ function finalizeState(version: StorageVersion, activeProjectId: unknown, projec
   };
 }
 
-function migrateFromVersion1(input: Record<string, unknown>): StorageState {
-  // v1 -> v2 migration: preserve all project data, normalize legacy app-type labels,
+function migrateLegacyStorage(input: Record<string, unknown>): StorageState {
+  // v1/v2 -> v3 migration: preserve all project data, normalize legacy app-type labels,
   // and initialize safe optional Power Platform structures where applicable.
   return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
 }
@@ -181,8 +181,8 @@ export function migrateStorageState(input: unknown): StorageState {
     return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
   }
 
-  if (input.version === 1) {
-    return migrateFromVersion1(input);
+  if (input.version === 1 || input.version === 2) {
+    return migrateLegacyStorage(input);
   }
 
   return { ...EMPTY_STORAGE_STATE, projects: [] };

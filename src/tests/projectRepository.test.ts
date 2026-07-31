@@ -3,6 +3,13 @@ import { createSeedProject } from "../data/seedProject";
 import { expectedDocumentLocations } from "../lib/powerPlatform";
 import type { ProjectRecord } from "../types/project";
 import {
+  RECORD_LIFECYCLE_FORMULA_EVIDENCE_SCHEMA_VERSION,
+  RECORD_LIFECYCLE_FORMULA_STUDIO_VALIDATION_CHECKS,
+  type RecordLifecycleFormulaReviewEvidenceRecord,
+  type RecordLifecycleFormulaStudioValidationChecks
+} from "../lib/recordLifecycleFormulaEvidence";
+import { RECORD_LIFECYCLE_POWER_FX_ASSET_ID } from "../lib/recordLifecyclePowerFxGeneration";
+import {
   clearPersistenceWarning,
   getPersistenceWarning,
   LEGACY_STORAGE_KEY,
@@ -44,13 +51,53 @@ class WriteFailStorage extends MemoryStorage {
   }
 }
 
+function evidenceChecks(): RecordLifecycleFormulaStudioValidationChecks {
+  return Object.fromEntries(RECORD_LIFECYCLE_FORMULA_STUDIO_VALIDATION_CHECKS.map((check) => [check, true])) as RecordLifecycleFormulaStudioValidationChecks;
+}
+
+function technicalEvidence(overrides: Partial<RecordLifecycleFormulaReviewEvidenceRecord> = {}): RecordLifecycleFormulaReviewEvidenceRecord {
+  return {
+    evidenceId: "evidence-tech-001",
+    evidenceSchemaVersion: RECORD_LIFECYCLE_FORMULA_EVIDENCE_SCHEMA_VERSION,
+    evidenceType: "Technical Review",
+    projectId: "original-project",
+    assetId: RECORD_LIFECYCLE_POWER_FX_ASSET_ID,
+    reviewContractVersion: "phase-5b.4d.2.1",
+    reviewContractChecksum: "fnv1a-evidence001",
+    reviewerDisplayName: "Review Owner",
+    reviewerRole: "Technical reviewer",
+    recordedAt: "2026-07-31T18:30:00.000Z",
+    outcome: "Accepted",
+    ...overrides
+  } as RecordLifecycleFormulaReviewEvidenceRecord;
+}
+
+function studioEvidence(overrides: Partial<RecordLifecycleFormulaReviewEvidenceRecord> = {}): RecordLifecycleFormulaReviewEvidenceRecord {
+  return {
+    evidenceId: "evidence-studio-001",
+    evidenceSchemaVersion: RECORD_LIFECYCLE_FORMULA_EVIDENCE_SCHEMA_VERSION,
+    evidenceType: "Power Apps Studio Validation",
+    projectId: "original-project",
+    assetId: RECORD_LIFECYCLE_POWER_FX_ASSET_ID,
+    reviewContractVersion: "phase-5b.4d.2.1",
+    reviewContractChecksum: "fnv1a-evidence001",
+    reviewerDisplayName: "Studio Owner",
+    reviewerRole: "Studio validator",
+    recordedAt: "2026-07-31T19:30:00.000Z",
+    outcome: "Passed",
+    validationEnvironment: "Power Apps test environment",
+    checks: evidenceChecks(),
+    ...overrides
+  } as RecordLifecycleFormulaReviewEvidenceRecord;
+}
+
 describe("projectRepository", () => {
   it("saves and loads versioned state", () => {
     const storage = new MemoryStorage();
     const project = createSeedProject();
-    saveStorageState({ version: 2, activeProjectId: project.identity.id, projects: [project] }, storage);
+    saveStorageState({ version: 3, activeProjectId: project.identity.id, projects: [project] }, storage);
     const loaded = loadStorageState(storage);
-    expect(loaded.version).toBe(2);
+    expect(loaded.version).toBe(3);
     expect(loaded.activeProjectId).toBe(project.identity.id);
     expect(loaded.projects[0].identity.projectName).toBe("Community Services Portal");
     expect(loaded.projects[0].status).toBe("Intake Complete");
@@ -81,7 +128,7 @@ describe("projectRepository", () => {
   it("recovers safely from invalid localStorage data", () => {
     const storage = new MemoryStorage();
     storage.setItem(STORAGE_KEY, "{not-json");
-    expect(loadStorageState(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
+    expect(loadStorageState(storage)).toEqual({ version: 3, activeProjectId: null, projects: [] });
   });
 
   it("does not fallback to older keys when the current storage key is corrupt", () => {
@@ -95,7 +142,7 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded).toEqual({ version: 2, activeProjectId: null, projects: [] });
+    expect(loaded).toEqual({ version: 3, activeProjectId: null, projects: [] });
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
   });
 
@@ -124,7 +171,7 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded.version).toBe(2);
+    expect(loaded.version).toBe(3);
     expect(loaded.projects[0].identity.id).toBe("previous");
     expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBeNull();
@@ -173,7 +220,7 @@ describe("projectRepository", () => {
     const loadedA = loaded.projects.find((project) => project.identity.id === "project-a-stable")!;
     const loadedB = loaded.projects.find((project) => project.identity.id === "project-b-stable")!;
 
-    expect(loaded.version).toBe(2);
+    expect(loaded.version).toBe(3);
     expect(loaded.projects).toHaveLength(2);
     expect(loaded.projects.map((project) => project.identity.id)).toEqual(
       expect.arrayContaining(["project-a-stable", "project-b-stable"])
@@ -205,7 +252,7 @@ describe("projectRepository", () => {
         loaded = loadStorageState(storage);
       }).not.toThrow();
 
-      expect(loaded?.version).toBe(2);
+      expect(loaded?.version).toBe(3);
       expect(loaded?.projects[0].identity.id).toBe("previous");
       expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
       expect(storage.getItem(STORAGE_KEY)).toBeNull();
@@ -307,6 +354,44 @@ describe("projectRepository", () => {
     expect(loaded.intake.appType).toBe("powerAppsCanvas");
     expect(loaded.powerPlatform?.canvas?.primaryDataSourceType).toBe("undecided");
     expect(loaded.powerPlatform?.common.connectors).toEqual([]);
+  });
+
+  it("migrates version-2 Canvas projects to storage version 3 with empty formula evidence by default", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({
+      identity: { id: "canvas-v2", projectName: "Canvas V2" },
+      intake: { appType: "powerAppsCanvas" }
+    }, new MemoryStorage());
+    delete (project.powerPlatform!.canvas as unknown as Record<string, unknown>).recordLifecycleFormulaReviewEvidence;
+    storage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 2,
+      activeProjectId: project.identity.id,
+      projects: [project]
+    }));
+
+    const loaded = loadStorageState(storage);
+
+    expect(loaded.version).toBe(3);
+    expect(loaded.projects[0].powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([]);
+  });
+
+  it("migrates version-1 Canvas projects through storage version 3 with empty formula evidence by default", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({
+      identity: { id: "canvas-v1", projectName: "Canvas V1" },
+      intake: { appType: "powerAppsCanvas" }
+    }, new MemoryStorage());
+    delete (project.powerPlatform!.canvas as unknown as Record<string, unknown>).recordLifecycleFormulaReviewEvidence;
+    storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      activeProjectId: project.identity.id,
+      projects: [project]
+    }));
+
+    const loaded = loadStorageState(storage);
+
+    expect(loaded.version).toBe(3);
+    expect(loaded.projects[0].powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([]);
   });
 
   it("normalizes invalid connector classifications and keeps unknown instead of premium", () => {
@@ -476,6 +561,42 @@ describe("projectRepository", () => {
 
     duplicated.powerPlatform!.common.connectors[0].displayName = "Mutated";
     expect(getProjectById(source.identity.id, storage)?.powerPlatform?.common.connectors[0].displayName).toBe("SharePoint");
+  });
+
+  it("preserves formula review evidence as historical records when duplicating a Canvas project", () => {
+    const storage = new MemoryStorage();
+    const source = createProject({
+      identity: { id: "original-project", projectName: "Original Canvas" },
+      intake: { appType: "powerAppsCanvas" },
+      status: "Ready for Codex",
+      reviewStatus: "Approved"
+    }, storage);
+    updateProject(source.identity.id, (current) => ({
+      ...current,
+      powerPlatform: {
+        ...current.powerPlatform!,
+        canvas: {
+          ...current.powerPlatform!.canvas!,
+          recordLifecycleFormulaReviewEvidence: [
+            technicalEvidence(),
+            studioEvidence()
+          ]
+        }
+      }
+    }), storage);
+
+    const duplicated = duplicateProject(source.identity.id, storage, "2026-07-31T20:00:00.000Z")!;
+
+    expect(duplicated.identity.id).not.toBe("original-project");
+    expect(duplicated.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([
+      technicalEvidence(),
+      studioEvidence()
+    ]);
+    expect(duplicated.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence[0].projectId).toBe("original-project");
+    expect(duplicated.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence[0].reviewContractChecksum).toBe("fnv1a-evidence001");
+    expect(JSON.stringify(duplicated.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence)).not.toContain("isCurrent");
+    expect(duplicated.status).toBe("Intake Started");
+    expect(duplicated.reviewStatus).toBe("Review needed");
   });
 
   it("duplicates a dataverse-backed canvas project with requirements preserved and implementation progress reset", () => {
@@ -764,6 +885,31 @@ describe("projectRepository", () => {
     expect(state.activeProjectId).toBe(second.identity.id);
   });
 
+  it("preserves formula review evidence through archive and restore", () => {
+    const storage = new MemoryStorage();
+    const project = createProject({
+      identity: { id: "original-project", projectName: "Evidence Archive" },
+      intake: { appType: "powerAppsCanvas" }
+    }, storage);
+    updateProject(project.identity.id, (current) => ({
+      ...current,
+      powerPlatform: {
+        ...current.powerPlatform!,
+        canvas: {
+          ...current.powerPlatform!.canvas!,
+          recordLifecycleFormulaReviewEvidence: [technicalEvidence()]
+        }
+      }
+    }), storage);
+
+    archiveProject(project.identity.id, storage, "2026-07-31T21:00:00.000Z");
+    const archived = getProjectById(project.identity.id, storage)!;
+    const restored = restoreProject(project.identity.id, storage, "2026-07-31T22:00:00.000Z")!;
+
+    expect(archived.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([technicalEvidence()]);
+    expect(restored.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([technicalEvidence()]);
+  });
+
   it("keeps the active id when archiving another project and clears it when the last active project is archived", () => {
     const storage = new MemoryStorage();
     const first = createProject({ identity: { id: "first", projectName: "First" } }, storage);
@@ -927,7 +1073,7 @@ describe("projectRepository", () => {
     createProject({ identity: { projectName: "Disposable" } }, storage);
     storage.setItem(PREVIOUS_STORAGE_KEY, "{\"version\":1,\"projects\":[]}");
     storage.setItem(LEGACY_STORAGE_KEY, "{\"intake\":{\"appName\":\"Legacy\"}}");
-    expect(resetStorage(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
+    expect(resetStorage(storage)).toEqual({ version: 3, activeProjectId: null, projects: [] });
     expect(storage.getItem(STORAGE_KEY)).toBeNull();
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
@@ -1186,7 +1332,7 @@ describe("projectRepository", () => {
 
       const loaded = loadStorageState(storage);
 
-      expect(loaded.version).toBe(2);
+      expect(loaded.version).toBe(3);
       expect(loaded.projects).toHaveLength(1);
       expect(loaded.activeProjectId).toBe(loaded.projects[0].identity.id);
       expect(loaded.projects[0].identity.projectName).toBe("Legacy App");
@@ -1215,14 +1361,14 @@ describe("projectRepository", () => {
       const storage = new MemoryStorage();
       storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ metadata: { id: "orphaned" } }));
 
-      expect(loadStorageState(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
+      expect(loadStorageState(storage)).toEqual({ version: 3, activeProjectId: null, projects: [] });
     });
 
     it("discards an unparsable legacy record instead of crashing", () => {
       const storage = new MemoryStorage();
       storage.setItem(LEGACY_STORAGE_KEY, "{not-valid-json");
 
-      expect(loadStorageState(storage)).toEqual({ version: 2, activeProjectId: null, projects: [] });
+      expect(loadStorageState(storage)).toEqual({ version: 3, activeProjectId: null, projects: [] });
       expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     });
 
@@ -1250,9 +1396,9 @@ describe("projectRepository", () => {
       });
 
       try {
-        expect(loadStorageState()).toEqual({ version: 2, activeProjectId: null, projects: [] });
-        expect(() => saveStorageState({ version: 2, activeProjectId: null, projects: [] })).not.toThrow();
-        expect(resetStorage()).toEqual({ version: 2, activeProjectId: null, projects: [] });
+        expect(loadStorageState()).toEqual({ version: 3, activeProjectId: null, projects: [] });
+        expect(() => saveStorageState({ version: 3, activeProjectId: null, projects: [] })).not.toThrow();
+        expect(resetStorage()).toEqual({ version: 3, activeProjectId: null, projects: [] });
       } finally {
         if (originalDescriptor) {
           Object.defineProperty(window, "localStorage", originalDescriptor);
@@ -1390,6 +1536,29 @@ describe("projectRepository", () => {
 
       expect(result.projects).toHaveLength(0);
       expect(result.activeProjectId).toBeNull();
+    });
+
+    it("removes formula review evidence with the containing project record", () => {
+      const storage = new MemoryStorage();
+      const project = createProject({
+        identity: { id: "original-project", projectName: "Evidence Delete" },
+        intake: { appType: "powerAppsCanvas" }
+      }, storage);
+      updateProject(project.identity.id, (current) => ({
+        ...current,
+        powerPlatform: {
+          ...current.powerPlatform!,
+          canvas: {
+            ...current.powerPlatform!.canvas!,
+            recordLifecycleFormulaReviewEvidence: [technicalEvidence()]
+          }
+        }
+      }), storage);
+
+      const result = deleteProject(project.identity.id, storage);
+
+      expect(result.projects).toEqual([]);
+      expect(storage.getItem("recordLifecycleFormulaReviewEvidence")).toBeNull();
     });
 
     it("leaves the active project id unchanged when deleting a non-active project", () => {

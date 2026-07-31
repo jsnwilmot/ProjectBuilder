@@ -20,7 +20,67 @@ export const REVIEW_STATUSES = [
 ] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
-export type StorageVersion = 1 | 2;
+export type StorageVersion = 1 | 2 | 3;
+
+export type RecordLifecycleFormulaTechnicalReviewOutcome =
+  | "Accepted"
+  | "Rejected"
+  | "Regeneration Required";
+
+export type RecordLifecycleFormulaStudioValidationOutcome = "Passed" | "Failed";
+
+export type RecordLifecycleFormulaStudioValidationCheck =
+  | "targetScreenConfirmed"
+  | "targetControlConfirmed"
+  | "targetPropertyConfirmed"
+  | "connectorConfirmed"
+  | "entityOrListConfirmed"
+  | "internalFieldNamesConfirmed"
+  | "archiveValueConfirmed"
+  | "restoreValueConfirmed"
+  | "archiveBehaviorPassed"
+  | "restoreBehaviorPassed"
+  | "duplicateSubmissionProtectionPassed"
+  | "savingStateResetPassed"
+  | "failurePathPassed"
+  | "successNotificationPassed"
+  | "failureNotificationPassed"
+  | "retryAfterFailurePassed"
+  | "permanentDeleteAbsenceConfirmed";
+
+export type RecordLifecycleFormulaStudioValidationChecks =
+  Record<RecordLifecycleFormulaStudioValidationCheck, boolean>;
+
+interface RecordLifecycleFormulaEvidenceBase {
+  evidenceId: string;
+  evidenceSchemaVersion: "phase-5b.4d.2.2.1";
+  projectId: string;
+  assetId: string;
+  reviewContractVersion: string;
+  reviewContractChecksum: string;
+  reviewerDisplayName: string;
+  reviewerRole: string;
+  recordedAt: string;
+  notes?: string;
+  rejectionReason?: string;
+  regenerationReason?: string;
+}
+
+export interface RecordLifecycleFormulaTechnicalReviewEvidenceRecord extends RecordLifecycleFormulaEvidenceBase {
+  evidenceType: "Technical Review";
+  outcome: RecordLifecycleFormulaTechnicalReviewOutcome;
+}
+
+export interface RecordLifecycleFormulaStudioValidationEvidenceRecord extends RecordLifecycleFormulaEvidenceBase {
+  evidenceType: "Power Apps Studio Validation";
+  outcome: RecordLifecycleFormulaStudioValidationOutcome;
+  validationEnvironment: string;
+  checks: RecordLifecycleFormulaStudioValidationChecks;
+}
+
+export type RecordLifecycleFormulaReviewEvidenceRecord =
+  | RecordLifecycleFormulaTechnicalReviewEvidenceRecord
+  | RecordLifecycleFormulaStudioValidationEvidenceRecord;
 
 export const REVIEW_ITEM_STATUSES = [
   "Needs answer",
@@ -789,6 +849,7 @@ export interface PowerPlatformCanvasData {
   formOperationTargets: CanvasFormOperationTarget[];
   formModeTargets: CanvasFormModeTarget[];
   recordLifecycleTargets: CanvasRecordLifecycleTarget[];
+  recordLifecycleFormulaReviewEvidence: RecordLifecycleFormulaReviewEvidenceRecord[];
   screenNamingConvention: string;
   controlNamingConvention: string;
   controlTypePrefixes: string;

@@ -1,5 +1,63 @@
 # Test Plan
 
+## 2026-07-31 Phase 5B.4D.2.2.1-C1 formula evidence integrity corrections
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidence.test.ts`: passed (`1` file, `23` tests).
+- `npx.cmd vitest run src/tests/projectRepository.test.ts`: passed (`1` file, `69` tests).
+- `npx.cmd vitest run src/tests/powerPlatform.test.ts`: passed (`1` file, `57` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewState.test.ts`: passed (`1` file, `75` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npx.cmd vitest run src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/phase5b4b5Regression.test.ts`: passed (`8` files, `66` tests).
+- `npm.cmd test`: passed (`32` unit/integration files, `1654` tests; `7` UI files, `54` tests; `39` combined files, `1708` tests).
+- `npm.cmd run test:coverage`: passed (`32` coverage files, `1654` tests; `7` UI files, `54` tests; `39` combined files, `1708` tests).
+- Coverage was `90.3%` statements, `80.89%` branches, `94.98%` functions, and `95.36%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking force-fix suggestion.
+- `git diff --check`: passed.
+- Timestamp positive coverage verifies valid `Z`, positive-offset, negative-offset, leap-day, fractional-second, and canonical UTC-normalized timestamps.
+- Timestamp negative coverage verifies rejection of impossible calendar dates, invalid leap dates, invalid month/day values, a space instead of `T`, missing timezone, invalid hour/minute/second, invalid timezone hour/minute, blank values, and non-string values.
+- Evidence ID positive coverage verifies alphanumeric, hyphenated, underscore, period-separated, and 128-character maximum valid identifiers.
+- Evidence ID negative coverage verifies rejection of leading hyphen, leading period, spaces, forward slash, backslash, colon, semicolon, quotes, angle brackets, square brackets, parentheses, newline, control character, overlength, and formula-looking IDs without replacement.
+- Studio outcome coverage verifies `Passed` is retained only when all 17 checks are `true`, `Passed` is rejected for each individual false check, `Failed` is retained with one or multiple false checks, and `Failed` is rejected when all 17 checks are `true`.
+- Isolation coverage verifies Studio outcome consistency does not change project status, review status, formula approval, formula asset status, approval/readiness boundaries, UI/output boundaries, storage version, storage key, or TTI blocking.
+- Static safety search found expected matches only: formula terms in rejection logic, negative tests, or documentation; approval/readiness terms in existing model fields, negative assertions, or documentation; storage/export/deployment terms in existing app/test/doc terminology and output-boundary assertions. No incomplete task marker, debug logging call, new storage mechanism, UI, export feature, deployment feature, or formula source persistence was added.
+- CI Node 20 versus Cloudflare Node >=22 compatibility remains separate infrastructure remediation scope.
+- No evidence creation API, current/stale evaluator, approval workflow, readiness promotion, UI, package-output integration, commit, push, merge, stash modification, or deployment occurred.
+
+## 2026-07-31 Phase 5B.4D.2.2.1 formula-specific review evidence schema and storage migration
+
+- Node version used locally: `v22.21.0`.
+- npm version used locally: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidence.test.ts`: passed during focused validation.
+- `npx.cmd vitest run src/tests/projectRepository.test.ts`: passed during focused validation.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts src/tests/phase5b4b5Regression.test.ts src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/implementationAssets.test.ts src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`14` files, `443` tests).
+- `npm.cmd test`: passed (`32` unit/integration files, `1647` tests; `7` UI files, `54` tests; `39` combined files, `1701` tests).
+- `npm.cmd run test:coverage`: passed (`32` coverage files, `1647` tests; `7` UI files, `54` tests; `39` combined files, `1701` tests).
+- Coverage was `90.25%` statements, `80.84%` branches, `94.96%` functions, and `95.34%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking force-fix suggestion.
+- Storage coverage verifies `CURRENT_STORAGE_VERSION` is `3` while the browser storage key remains `gpt-project-builder.storage.v2`.
+- Migration coverage verifies v1 and v2 Canvas project payloads normalize into v3 storage with `recordLifecycleFormulaReviewEvidence: []`, while non-Canvas projects do not gain Canvas data.
+- Evidence schema coverage verifies technical-review outcomes `Accepted`, `Rejected`, and `Regeneration Required`; Studio-validation outcomes `Passed` and `Failed`; the exact 17 required Studio validation checks; required review contract version/checksum linkage; free-text reviewer display name and role; timezone-bearing timestamp normalization; optional notes, rejection reason, and regeneration reason; duplicate evidence ID first-record retention; and idempotent normalization.
+- Malformed-input coverage verifies missing/non-array evidence becomes `[]`, invalid individual records are removed without throwing, unknown fields are stripped, control characters are rejected, oversized text is rejected, formula-looking executable text is rejected, source-content-like fields are not retained, authenticated reviewer fields are not retained, and evidence records do not gain approval, readiness, current, or stale state fields.
+- Lifecycle coverage verifies duplicate projects preserve evidence as historical records without rewriting the original `projectId` or review checksum, archive/restore preserves evidence unchanged, and permanent delete removes evidence with the containing project without creating sidecar storage keys.
+- Output-boundary coverage verifies evidence remains absent from implementation manifest JSON and Markdown, generated documents, package preview data, export manifest metadata, export integrity inventory, expected ZIP paths, ZIP contents, UI surfaces, copy paths, deployment paths, and external services.
+- Review-state coverage verifies evidence storage does not change the existing formula review-state evaluator; a current review reference still means contract identity only and does not approve, validate, install, publish, deploy, export, or mark formula output ready.
+- TTI-like Draft coverage verifies blocked projects migrate without evidence fabrication, stay formula-free, keep their existing status and review status, and do not invent SoftwareTitles, SoftwareLicences, SoftwareUsers, ORG-4878, ND-DN, or a hidden implementation identity.
+- A transient focused-test failure exposed a runtime import cycle when the evidence normalizer imported the Power Fx generator while Power Platform normalization imported the evidence normalizer. The fix keeps the evidence asset boundary as a local stable asset ID and verifies it against the generator asset ID in tests.
+- No formula source, formula approval, automatic readiness, current/stale evidence evaluator, evidence creation API, UI, export integration, commit, push, merge, stash modification, or deployment occurred.
+
 ## 2026-07-30 Phase 5B.4D.2.1 formula asset review-state architecture
 
 - Node version used locally: `v22.21.0`.

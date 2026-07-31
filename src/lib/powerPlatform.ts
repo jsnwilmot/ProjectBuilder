@@ -12,6 +12,7 @@ import { normalizeCanvasCollectionTargets } from "./collectionInitialization";
 import { normalizeCanvasFormModeTargets } from "./formModeTargets";
 import { normalizeCanvasFormOperationTargets } from "./formOperationTargets";
 import { normalizeCanvasRecordLifecycleTargets } from "./recordLifecycleTargets";
+import { normalizeRecordLifecycleFormulaReviewEvidence } from "./recordLifecycleFormulaEvidence";
 import { normalizeCanvasStateVariableTargets } from "./stateInitialization";
 import { effectiveCanvasExpectedRecordCounts } from "./canvasTraceability";
 import type {
@@ -765,6 +766,7 @@ function createDefaultCanvasData(): PowerPlatformCanvasData {
     formOperationTargets: [],
     formModeTargets: [],
     recordLifecycleTargets: [],
+    recordLifecycleFormulaReviewEvidence: [],
     screenNamingConvention: "",
     controlNamingConvention: "",
     controlTypePrefixes: "",
@@ -2517,6 +2519,7 @@ export function normalizePowerPlatformData(
       formOperationTargets: normalizeCanvasFormOperationTargets((canvas as { formOperationTargets?: unknown }).formOperationTargets),
       formModeTargets: normalizeCanvasFormModeTargets((canvas as { formModeTargets?: unknown }).formModeTargets),
       recordLifecycleTargets: normalizeCanvasRecordLifecycleTargets((canvas as { recordLifecycleTargets?: unknown }).recordLifecycleTargets),
+      recordLifecycleFormulaReviewEvidence: normalizeRecordLifecycleFormulaReviewEvidence((canvas as { recordLifecycleFormulaReviewEvidence?: unknown }).recordLifecycleFormulaReviewEvidence),
       componentApplicabilityDecision: createApplicabilityDecision(isObject(canvas.componentApplicabilityDecision) ? canvas.componentApplicabilityDecision : {}),
       screenNamingConvention: asString(canvas.screenNamingConvention),
       controlNamingConvention: asString(canvas.controlNamingConvention),

@@ -1,5 +1,116 @@
 # Change Log
 
+## 2026-07-31 - Phase 5B.4D.2.2.1-C1 Formula Evidence Integrity Corrections
+
+### Summary
+
+- Corrected formula evidence timestamp validation to accept only strict ISO 8601 date-time values with `T`, seconds, and explicit timezone, while rejecting impossible dates, invalid leap dates, invalid time values, invalid timezone offsets, timezone-free values, and JavaScript date-normalization cases.
+- Restricted `evidenceId` to the approved safe ASCII identifier format `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$` without rewriting or generating replacement IDs.
+- Enforced Power Apps Studio outcome consistency: `Passed` requires all 17 checks to be `true`, and `Failed` requires at least one check to be `false`.
+- Preserved storage version `3`, the existing storage key, Canvas evidence location, historical evidence semantics, formula-source exclusion, approval/readiness exclusion, UI/output exclusion, and TTI blocking.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/recordLifecycleFormulaEvidence.ts` - strict timestamp parser, evidence ID validator, and Studio outcome/check consistency enforcement.
+- `src/tests/recordLifecycleFormulaEvidence.test.ts` - timestamp positive/negative matrix, evidence ID positive/negative matrix, and Studio outcome consistency coverage.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4D.2.2.1-C1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `node --version`: `v22.21.0`.
+- `npm.cmd --version`: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidence.test.ts`: passed (`1` file, `23` tests).
+- `npx.cmd vitest run src/tests/projectRepository.test.ts`: passed (`1` file, `69` tests).
+- `npx.cmd vitest run src/tests/powerPlatform.test.ts`: passed (`1` file, `57` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewState.test.ts`: passed (`1` file, `75` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`1` file, `54` tests).
+- `npx.cmd vitest run src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/phase5b4b5Regression.test.ts`: passed (`8` files, `66` tests).
+- `npm.cmd test`: passed (`32` unit/integration files, `1654` tests; `7` UI files, `54` tests; `39` combined files, `1708` tests).
+- `npm.cmd run test:coverage`: passed (`32` coverage files, `1654` tests; `7` UI files, `54` tests; `39` combined files, `1708` tests).
+- Coverage was `90.3%` statements, `80.89%` branches, `94.98%` functions, and `95.36%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking force-fix suggestion.
+- `git diff --check`: passed.
+
+### Issues found
+
+- Complete dependency audit still fails on the existing development-only `brace-expansion` advisory path; production dependency audit passes.
+- CI Node 20 versus Cloudflare Node >=22 compatibility remains separate infrastructure remediation scope.
+
+### Remaining work
+
+- No evidence creation API, current/stale evaluator, UI, package-output integration, approval workflow, readiness promotion, commit, push, merge, stash modification, or deployment occurred.
+
+## 2026-07-31 - Phase 5B.4D.2.2.1 Formula-Specific Review Evidence Schema and Storage Migration
+
+### Summary
+
+- Added formula-specific persisted evidence storage for the generated record-lifecycle Power Fx asset under Canvas project data.
+- Added strict technical-review and Power Apps Studio-validation evidence normalization with schema version `phase-5b.4d.2.2.1`, required review contract linkage, free-text reviewer identity, timestamp normalization, duplicate-ID handling, unknown-field stripping, and formula-source rejection.
+- Advanced internal storage state to version `3` while preserving the existing storage key `gpt-project-builder.storage.v2`.
+- Migrated legacy v1/v2 storage reads through the existing project normalization path so Canvas projects receive an empty evidence array by default.
+- Preserved evidence through project duplication, archive, and restore, and removed evidence only with the containing project on permanent delete.
+- Kept evidence internal to project storage only; no generated documents, implementation manifests, package preview, export integrity inventory, ZIP output, UI, copy path, approval state, readiness state, current/stale evaluator, external service, deployment, or formula-source exposure was added.
+- Avoided a runtime import cycle by keeping the evidence asset boundary as a local stable formula asset ID and testing it against the generator's stable asset ID.
+
+### Files created
+
+- `src/lib/recordLifecycleFormulaEvidence.ts` - formula-specific evidence schema constants, exported evidence types, Studio-validation checklist, and strict normalizer.
+- `src/tests/recordLifecycleFormulaEvidence.test.ts` - focused evidence schema, migration default, output-boundary, malformed-input, and approval/readiness isolation coverage.
+
+### Files updated
+
+- `src/types/project.ts` - added storage version `3` and Canvas formula review-evidence types/field.
+- `src/lib/powerPlatform.ts` - added Canvas evidence defaults and normalization.
+- `src/lib/storageVersion.ts` - advanced current storage version to `3` and migrated v1/v2 payloads into the current normalized shape.
+- `src/tests/projectRepository.test.ts` - added v1/v2 migration, duplicate, archive/restore, permanent-delete, and storage-key compatibility coverage for evidence.
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4D.2.2.1 validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `node --version`: `v22.21.0`.
+- `npm.cmd --version`: `10.9.4`.
+- `npm.cmd ci`: passed; install output reported existing high-severity development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts src/tests/phase5b4b5Regression.test.ts src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/implementationAssets.test.ts src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`14` files, `443` tests).
+- `npm.cmd test`: passed (`32` unit/integration files, `1647` tests; `7` UI files, `54` tests; `39` combined files, `1701` tests).
+- `npm.cmd run test:coverage`: passed (`32` coverage files, `1647` tests; `7` UI files, `54` tests; `39` combined files, `1701` tests).
+- Coverage was `90.25%` statements, `80.84%` branches, `94.96%` functions, and `95.34%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `6` high-severity dependency path findings and a breaking force-fix suggestion.
+
+### Issues found
+
+- Generated lifecycle formula evidence is historical review evidence only and does not make formula output approved, current, ready, installed, exported, deployed, or Power Apps Studio validated.
+- Complete dependency audit still fails on the existing development-only `brace-expansion` advisory path; production dependency audit passes.
+- Evidence creation remains future scope; this phase adds schema, normalization, storage migration, and lifecycle preservation only.
+
+### Remaining work
+
+- No commit, push, merge, stash modification, deployment, UI integration, package-output integration, or external transmission occurred.
+- Future Architect-approved work can decide whether and how evidence records should be created by the app.
+
 ## 2026-07-30 - Phase 5B.4D.2.1 Formula Asset Review-State Architecture
 
 ### Summary
