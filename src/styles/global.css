@@ -1351,6 +1351,28 @@ tbody tr:hover {
   overflow: hidden;
 }
 
+.review-intake-page .intake-layout {
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
+}
+
+.review-intake-page .intake-step-list {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(95px, 1fr));
+  overflow-x: auto;
+}
+
+.review-intake-page .intake-step-list button {
+  grid-template-columns: 25px minmax(0, 1fr) auto;
+}
+
+.review-intake-page .intake-form-panel,
+.review-intake-page .generate-stage,
+.review-intake-page .client-review-workflow,
+.review-intake-page .client-review-section {
+  min-width: 0;
+}
+
 .intake-form-heading {
   display: flex;
   gap: 15px;
@@ -1860,6 +1882,213 @@ tbody tr:hover {
   background: var(--blue-soft);
   color: var(--blue);
   font-size: 0.7rem;
+}
+
+.formula-review-panel {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.formula-review-heading {
+  margin-bottom: 0;
+}
+
+.formula-review-heading p,
+.formula-review-helper,
+.formula-review-empty {
+  max-width: 76ch;
+}
+
+.formula-review-summary-grid,
+.formula-review-evidence-grid {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.formula-review-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.formula-review-evidence-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+}
+
+.formula-review-status-card,
+.formula-review-evidence-section,
+.formula-review-reference,
+.formula-review-safety,
+.formula-review-disclosure {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.formula-review-status-card {
+  display: grid;
+  gap: 7px;
+}
+
+.formula-review-status-card > span {
+  color: var(--blue);
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.formula-review-status-card > strong,
+.formula-review-status {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.formula-review-status-card > p,
+.formula-review-subheading p,
+.formula-review-helper,
+.formula-review-empty,
+.formula-review-warning p,
+.formula-review-safety li {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.formula-review-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  text-align: center;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.formula-review-status.status-blocked,
+.formula-review-status.status-invalid {
+  border-color: rgba(199, 53, 60, 0.35);
+  background: var(--red-soft);
+}
+
+.formula-review-status.status-stale,
+.formula-review-status.status-review-required {
+  border-color: rgba(221, 122, 0, 0.35);
+  background: var(--amber-soft);
+}
+
+.formula-review-status.status-current,
+.formula-review-status.status-not-provided {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.formula-review-warning {
+  padding: 14px;
+  border: 1px solid rgba(221, 122, 0, 0.35);
+  border-radius: 8px;
+  background: var(--amber-soft);
+}
+
+.formula-review-warning h4,
+.formula-review-safety h4,
+.formula-review-reference h4,
+.formula-review-evidence-section h4,
+.formula-review-issues h5 {
+  margin: 0;
+}
+
+.formula-review-warning ul,
+.formula-review-safety ul,
+.formula-review-issues ul,
+.formula-review-history-list {
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+
+.formula-review-warning li,
+.formula-review-safety li,
+.formula-review-issues li,
+.formula-review-history-item {
+  overflow-wrap: anywhere;
+}
+
+.formula-review-subheading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.formula-review-counts,
+.formula-review-technical-details,
+.formula-review-history-item dl {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.formula-review-counts {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+}
+
+.formula-review-technical-details,
+.formula-review-history-item dl {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.formula-review-counts div,
+.formula-review-technical-details div,
+.formula-review-history-item dl div {
+  min-width: 0;
+}
+
+.formula-review-counts dt,
+.formula-review-technical-details dt,
+.formula-review-history-item dt {
+  color: var(--subtle);
+  font-size: 0.64rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.formula-review-counts dd,
+.formula-review-technical-details dd,
+.formula-review-history-item dd {
+  margin: 3px 0 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.formula-review-disclosure {
+  display: grid;
+  gap: 12px;
+}
+
+.formula-review-disclosure > .button {
+  justify-self: start;
+}
+
+.formula-review-history-list {
+  display: grid;
+  gap: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.formula-review-history-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .review-item-list {
@@ -3222,8 +3451,23 @@ tbody tr:hover {
 
   .review-item-details,
   .question-groups,
-  .readiness-checklist {
+  .readiness-checklist,
+  .formula-review-summary-grid,
+  .formula-review-evidence-grid,
+  .formula-review-counts,
+  .formula-review-technical-details,
+  .formula-review-history-item dl {
     grid-template-columns: 1fr;
+  }
+
+  .formula-review-subheading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .formula-review-disclosure > .button {
+    width: 100%;
+    justify-self: stretch;
   }
 
   .compact-field {

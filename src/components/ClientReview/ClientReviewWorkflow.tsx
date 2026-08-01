@@ -5,6 +5,8 @@ import {
   groupClientQuestions
 } from "../../lib/clientReview";
 import { copyText } from "../../lib/copyText";
+import { buildImplementationAssetRegistry } from "../../lib/implementationAssets";
+import { buildRecordLifecycleFormulaReviewPanelViewModel } from "../../lib/recordLifecycleFormulaReviewPanelViewModel";
 import {
   REVIEW_ITEM_STATUSES,
   type ReadinessChecklistId,
@@ -12,6 +14,7 @@ import {
   type ProjectRecord
 } from "../../types/project";
 import { Check, CircleAlert } from "../ui/Icons";
+import { RecordLifecycleFormulaReviewPanel } from "./RecordLifecycleFormulaReviewPanel";
 
 interface ClientReviewWorkflowProps {
   project: ProjectRecord;
@@ -30,6 +33,19 @@ export function ClientReviewWorkflow({
   const [copyStatus, setCopyStatus] = useState("");
   const readiness = useMemo(() => getClientReviewReadiness(project), [project]);
   const questionGroups = useMemo(() => groupClientQuestions(project.reviewItems), [project.reviewItems]);
+  const registryGeneratedAt = project.packageGeneratedAt ?? project.updatedAt ?? project.createdAt;
+  const implementationRegistry = useMemo(
+    () => buildImplementationAssetRegistry(project, registryGeneratedAt),
+    [project, registryGeneratedAt]
+  );
+  const formulaReviewSummary = useMemo(
+    () => buildRecordLifecycleFormulaReviewPanelViewModel({
+      project,
+      implementationRegistry,
+      reviewReference: undefined
+    }),
+    [implementationRegistry, project]
+  );
 
   const copyQuestions = async () => {
     const text = formatClientQuestions(project.reviewItems);
@@ -60,6 +76,8 @@ export function ClientReviewWorkflow({
           </p>
         </div>
       </div>
+
+      <RecordLifecycleFormulaReviewPanel summary={formulaReviewSummary} />
 
       <section className="client-review-section" aria-labelledby="missing-review-heading">
         <div className="client-review-heading">

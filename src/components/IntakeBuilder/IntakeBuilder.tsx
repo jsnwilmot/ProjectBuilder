@@ -60,6 +60,7 @@ export function IntakeBuilder({
 }: IntakeBuilderProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const step = INTAKE_STAGES[currentStep];
+  const isReviewStep = step.id === "review";
   const sectionResult = validationResult.sectionResults[currentStep];
   const missingForCurrentStep = sectionResult?.missingFields ?? [];
   const warningsForCurrentStep = sectionResult?.warnings ?? [];
@@ -104,7 +105,7 @@ export function IntakeBuilder({
   ];
 
   return (
-    <main className="page intake-page" id="main-content" tabIndex={-1}>
+    <main className={`page intake-page${isReviewStep ? " review-intake-page" : ""}`} id="main-content" tabIndex={-1}>
       <div className="page-heading compact">
         <div>
           <h1>Guided Intake</h1>
@@ -169,7 +170,7 @@ export function IntakeBuilder({
             </div>
           ) : null}
 
-          {step.id === "review" ? (
+          {isReviewStep ? (
             <div className="generate-stage">
               <div className={validationIssues.length ? "generate-status has-errors" : "generate-status is-ready"} role="status" aria-live="polite">
                 {validationIssues.length ? <CircleAlert size={28} aria-hidden="true" /> : <Check size={28} aria-hidden="true" />}

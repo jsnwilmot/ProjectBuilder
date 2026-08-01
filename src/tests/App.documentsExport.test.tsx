@@ -83,6 +83,8 @@ describe("App - documents Export", () => {
     await user.click(screen.getByRole("button", { name: "Documents" }));
 
     expect(screen.getByRole("heading", { name: "Project Package Preview" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Lifecycle formula review" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/formula review state/i)).not.toBeInTheDocument();
     const reviewRegion = screen.getByRole("region", { name: "Generated document review" });
     expect(within(reviewRegion).getAllByRole("listitem")).toHaveLength(19);
     expect(screen.getByText("Defines approved scope, boundaries, assumptions, and success criteria.")).toBeInTheDocument();

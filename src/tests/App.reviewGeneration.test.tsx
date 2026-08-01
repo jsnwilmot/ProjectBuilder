@@ -22,9 +22,94 @@ import {
   calculateModelDrivenSecurityArchitectureGate
 } from "../lib/powerPlatform";
 import { evaluatePhaseGate } from "../lib/phaseGates";
+import * as formulaReviewPanelViewModel from "../lib/recordLifecycleFormulaReviewPanelViewModel";
+import type { RecordLifecycleFormulaReviewSummary } from "../lib/recordLifecycleFormulaReviewSummary";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
+import "../styles/global.css";
+
+function createFormulaReviewPanelSummary(
+  overrides: Partial<RecordLifecycleFormulaReviewSummary> = {}
+): RecordLifecycleFormulaReviewSummary {
+  return {
+    reviewState: "Review Required",
+    applicable: true,
+    formulaIdentity: {
+      assetId: "record-lifecycle-power-fx",
+      reviewContractVersion: "phase-5b.4d.2.1",
+      reviewContractChecksum: "fnv1a-contract",
+      formulaContentChecksum: "fnv1a-formula"
+    },
+    reviewReference: { status: "Not Provided", issues: [] },
+    formulaBlockers: [],
+    technicalReview: {
+      evidenceType: "Technical Review",
+      status: "Not Provided",
+      recordCount: 0,
+      currentCount: 0,
+      staleCount: 0,
+      invalidCount: 0,
+      currentOutcomes: [],
+      staleOutcomes: [],
+      issues: []
+    },
+    studioValidation: {
+      evidenceType: "Power Apps Studio Validation",
+      status: "Not Provided",
+      recordCount: 0,
+      currentCount: 0,
+      staleCount: 0,
+      invalidCount: 0,
+      currentOutcomes: [],
+      staleOutcomes: [],
+      issues: []
+    },
+    history: [],
+    collectionIssues: [],
+    safetyNotices: [
+      "Current formula evidence confirms current binding only. It does not mean Approved.",
+      "Technical Review and Power Apps Studio Validation are independent.",
+      "Formula evidence does not change project readiness or clear project blockers.",
+      "Formula source, copying, export, installation, and deployment are unavailable."
+    ],
+    ...overrides
+  };
+}
+
+function getMediaRuleText(conditionText: string): string {
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    }
+
+    for (const rule of Array.from(rules)) {
+      const mediaRule = rule as CSSMediaRule;
+      if (mediaRule.conditionText === conditionText && mediaRule.cssRules) {
+        return Array.from(mediaRule.cssRules).map((childRule) => childRule.cssText).join("\n");
+      }
+    }
+  }
+
+  return "";
+}
+
+function getAllStyleRuleText(): string {
+  const rules: string[] = [];
+
+  for (const sheet of Array.from(document.styleSheets)) {
+    try {
+      rules.push(...Array.from(sheet.cssRules).map((rule) => rule.cssText));
+    } catch {
+      continue;
+    }
+  }
+
+  return rules.join("\n");
+}
 
 describe("App - review Generation", () => {
   it("shows missing information in the review stage", async () => {
@@ -43,6 +128,153 @@ describe("App - review Generation", () => {
     expect(screen.getByRole("heading", { name: "Missing Information Review" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Client Questions Review" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ready for Codex checklist" })).toBeInTheDocument();
+  });
+
+  it("does not show the formula review panel when the summary is not applicable", async () => {
+    const project = createProject({
+      identity: { id: "non-applicable-formula-review", projectName: "Non Applicable Formula Review" },
+      intake: { appType: "webApplication" },
+      now: "2026-07-31T12:00:00.000Z"
+    });
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+
+    expect(screen.queryByRole("heading", { name: "Lifecycle formula review" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Missing Information Review" })).toBeInTheDocument();
+  });
+
+  it("places the formula review panel after readiness and before missing information review", async () => {
+    const project = createProject({
+      identity: { id: "hosted-formula-review", projectName: "Hosted Formula Review" },
+      intake: { appType: "powerAppsCanvas" },
+      packageGeneratedAt: "2026-07-30T19:00:00.000Z",
+      now: "2026-07-31T12:00:00.000Z"
+    });
+    seedApp([project]);
+    const spy = vi.spyOn(formulaReviewPanelViewModel, "buildRecordLifecycleFormulaReviewPanelViewModel")
+      .mockReturnValue(createFormulaReviewPanelSummary());
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+
+    const readinessHeading = screen.getByRole("heading", { name: "Draft package" });
+    const panelHeading = screen.getByRole("heading", { name: "Lifecycle formula review" });
+    const missingHeading = screen.getByRole("heading", { name: "Missing Information Review" });
+    expect(readinessHeading.compareDocumentPosition(panelHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(panelHeading.compareDocumentPosition(missingHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(spy.mock.calls.at(-1)?.[0].reviewReference).toBeUndefined();
+    expect(spy.mock.calls.at(-1)?.[0].implementationRegistry).toMatchObject({
+      generatedAt: "2026-07-30T19:00:00.000Z"
+    });
+    spy.mockRestore();
+  });
+
+  it("scopes full-width sidebar-mode review layout to the confirmed review-stage wrapper", async () => {
+    const user = userEvent.setup();
+    const styleRules = getAllStyleRuleText();
+    const compactRules = getMediaRuleText("(max-width: 860px)");
+    const project = createProject({
+      identity: { id: "review-layout-root", projectName: "Review Layout Root" },
+      intake: { appType: "powerAppsCanvas" },
+      now: "2026-07-31T12:00:00.000Z"
+    });
+    seedApp([project]);
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+
+    expect(document.querySelector("main.intake-page")).toHaveClass("review-intake-page");
+    expect(styleRules).toMatch(/\.intake-layout\s*\{[^}]*grid-template-columns:\s*224px minmax\(0,\s*840px\);[^}]*justify-content:\s*center;/i);
+    expect(styleRules).toMatch(/\.review-intake-page \.intake-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*justify-content:\s*stretch;/i);
+    expect(styleRules).toMatch(/\.review-intake-page \.intake-step-list\s*\{[^}]*grid-template-columns:\s*repeat\(8,\s*minmax\(95px,\s*1fr\)\);[^}]*overflow-x:\s*auto;/i);
+    expect(styleRules).toMatch(/\.review-intake-page \.intake-form-panel,\s*\.review-intake-page \.generate-stage,\s*\.review-intake-page \.client-review-workflow,\s*\.review-intake-page \.client-review-section\s*\{[^}]*min-width:\s*0;/i);
+    expect(compactRules).toMatch(/\.app-shell\s*\{[^}]*display:\s*block;/i);
+    expect(compactRules).toMatch(/\.app-navigation\s*\{[^}]*width:\s*100%;/i);
+  });
+
+  it("keeps non-review intake stages on the existing intake layout", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const newProjectButton = screen
+      .getAllByRole("button", { name: "New project" })
+      .find((button) => !button.classList.contains("mobile-new-project"))!;
+    await user.click(newProjectButton);
+
+    expect(document.querySelector("main.intake-page")).not.toHaveClass("review-intake-page");
+    expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
+  });
+
+  it("uses updatedAt as the stable formula registry timestamp when packageGeneratedAt is absent", async () => {
+    const project = createProject({
+      identity: { id: "updated-at-formula-review", projectName: "Updated At Formula Review" },
+      intake: { appType: "powerAppsCanvas" },
+      now: "2026-07-31T12:00:00.000Z"
+    });
+    seedApp([project]);
+    const spy = vi.spyOn(formulaReviewPanelViewModel, "buildRecordLifecycleFormulaReviewPanelViewModel")
+      .mockReturnValue(createFormulaReviewPanelSummary());
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+
+    expect(spy.mock.calls.at(-1)?.[0].implementationRegistry).toMatchObject({
+      generatedAt: "2026-07-31T12:00:00.000Z"
+    });
+    spy.mockRestore();
+  });
+
+  it("keeps hosted formula review controls read-only", async () => {
+    const project = createProject({
+      identity: { id: "readonly-formula-review", projectName: "Readonly Formula Review" },
+      intake: { appType: "powerAppsCanvas" },
+      now: "2026-07-31T12:00:00.000Z"
+    });
+    seedApp([project]);
+    const spy = vi.spyOn(formulaReviewPanelViewModel, "buildRecordLifecycleFormulaReviewPanelViewModel")
+      .mockReturnValue(createFormulaReviewPanelSummary({
+        history: [{ evidenceId: "evidence-1", status: "Current", outcome: "Accepted", issues: [] }]
+      }));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+
+    expect(screen.getByRole("button", { name: "Show evidence history" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show technical details" })).toBeInTheDocument();
+    const panel = screen.getByRole("heading", { name: "Lifecycle formula review" }).closest("section")!;
+    expect(within(panel).queryByRole("button", {
+      name: /save|edit|delete|approve|reject|regenerate|validate|record|clear|copy|download|export|install|deploy|mark ready/i
+    })).not.toBeInTheDocument();
+    spy.mockRestore();
+  });
+
+  it("does not leak formula source or reviewer notes through the hosted panel", async () => {
+    const project = createProject({
+      identity: { id: "privacy-formula-review", projectName: "Privacy Formula Review" },
+      intake: { appType: "powerAppsCanvas" },
+      now: "2026-07-31T12:00:00.000Z"
+    });
+    seedApp([project]);
+    const spy = vi.spyOn(formulaReviewPanelViewModel, "buildRecordLifecycleFormulaReviewPanelViewModel")
+      .mockReturnValue(createFormulaReviewPanelSummary({
+        history: [{ evidenceId: "evidence-1", status: "Current", outcome: "Accepted", issues: [] }]
+      }));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Scope Review" }));
+    await user.click(screen.getByRole("button", { name: "Show evidence history" }));
+    await user.click(screen.getByRole("button", { name: "Show technical details" }));
+
+    const panel = screen.getByRole("heading", { name: "Lifecycle formula review" }).closest("section")!;
+    expect(panel).not.toHaveTextContent(/Patch\(|RemoveIf\(|reviewerDisplayName|reviewerRole|notes/i);
+    spy.mockRestore();
   });
 
   it("records not-applicable reasons and copies grouped client questions", async () => {

@@ -1,5 +1,106 @@
 # Test Plan
 
+## 2026-08-01 Phase 5B.4D.2.4.1B final manual browser verification
+
+- Final manual browser verification was completed successfully by the user after the Phase 5B.4D.2.4.1D sidebar-mode layout root-cause correction.
+- Wide desktop layout passed.
+- Sidebar medium-width layout passed.
+- Compact-navigation layout passed.
+- Narrow layouts passed.
+- The unused Client Review column was removed.
+- The lifecycle formula review panel uses the available review width.
+- Evidence cards remained readable and stacked when needed.
+- Status badges remained contained.
+- Counts and outcome labels remained separated.
+- No horizontal overflow was observed.
+- History and technical-details disclosures worked.
+- Keyboard operation and visible focus passed.
+- No console errors were observed.
+- Privacy fields and formula source were not exposed.
+- No prohibited controls appeared.
+- TTI/Draft state remained blocked as expected.
+- Screen-reader software verification was not performed or claimed.
+
+## 2026-08-01 Phase 5B.4D.2.4.1D sidebar-mode Client Review layout root-cause correction
+
+- Manual re-verification showed the first medium-width correction did not resolve the actual sidebar-mode parent layout; Client Review remained confined to the narrow right column while the persistent left application sidebar was visible.
+- The actual controlling wrapper was identified as `.intake-layout` in `IntakeBuilder`; its base `grid-template-columns: 224px minmax(0, 840px)` and centered layout reserved the review-stage side column and limited the content panel.
+- The corrected review stage now uses a scoped `review-intake-page` class so `.review-intake-page .intake-layout` becomes one full-width content column beside the sidebar.
+- Other Guided Intake stages retain the existing `.intake-layout` base layout.
+- Compact-navigation behavior remains unchanged; the existing app-shell breakpoint still controls the sidebar-to-top-navigation transition.
+- Evidence, summary, count, technical-detail, and history grids now respond to actual container width with intrinsic `auto-fit`/`minmax` sizing.
+- Status badges, grid children, blockers, labels, outcomes, and technical values retain overflow protection.
+- Final manual browser re-verification passed after this correction; Codex did not start Vite for this correction.
+- No data, privacy, formula source, approval, readiness, output, export, deployment, dependency, lockfile, or CI boundary changed.
+- CSS/source contract coverage verifies the review-stage wrapper is present only on Scope Review, the root-cause selector is `.review-intake-page .intake-layout`, the base intake layout remains unchanged for other stages, and the app navigation breakpoint remains unchanged.
+- CSS/source contract coverage verifies evidence cards can remain side by side with sufficient container width, stack when their container is insufficient, and keep count/outcome groups structurally separated.
+- Existing behavior coverage verifies Not Applicable still renders no panel, Client Review order remains readiness banner, lifecycle formula review panel, Missing Information Review, disclosures remain accessible, privacy and formula-source boundaries remain intact, prohibited controls remain absent, output boundaries remain unchanged, and first-render TTI-like Draft behavior remains read-only and source-free.
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/RecordLifecycleFormulaReviewPanel.test.tsx src/tests/recordLifecycleFormulaReviewPanelViewModel.test.ts`: passed (`2` files, `46` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.reviewGeneration.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `15` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.documentsExport.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `12` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.navigation.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `12` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.powerPlatformCanvas.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `11` tests).
+- `npm.cmd test`: passed (`36` unit/integration files, `1818` tests; `7` UI files, `61` tests; `43` combined files, `1879` tests).
+- `npm.cmd run test:coverage`: passed (`36` coverage files, `1818` tests; `7` UI files, `61` tests; `43` combined files, `1879` tests).
+- Coverage was `90.46%` statements, `81.09%` branches, `95.11%` functions, and `95.46%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+
+## 2026-08-01 Phase 5B.4D.2.4.1C medium-width Client Review layout correction
+
+- Manual browser review identified an outer medium-width Client Review grid defect around a `923px` viewport: the persistent left application navigation remained visible while the Scope Review/Client Review parent layout also remained split into a left step column and right content column.
+- The unused left content column constrained the lifecycle formula review panel, causing badges, text, and evidence cards to render unnaturally narrow.
+- The correction collapses the outer review layout to one content column at the approved existing `1120px` medium breakpoint while preserving the existing application navigation breakpoint.
+- Evidence cards remain two columns where the panel has adequate width and stack at the existing narrow breakpoint when the available panel width is insufficient.
+- Grid children, long blockers, technical details, and status badges have explicit overflow protection.
+- Manual browser re-verification at this step was superseded by the Phase 5B.4D.2.4.1D root-cause correction and final successful browser verification.
+- No data, privacy, formula source, approval, readiness, output, export, deployment, dependency, lockfile, or CI boundary changed.
+- CSS/source contract coverage verifies the medium review layout becomes one column, no reserved left review content column remains, the review panel and Missing Information Review can occupy the full content width, and the app navigation breakpoint remains unchanged.
+- CSS/source contract coverage verifies the formula evidence grid remains two columns by default, is not forced to one column at the medium breakpoint, and stacks at the existing narrow breakpoint.
+- CSS/source contract coverage verifies grid children use `min-width: 0`, status badges are constrained to their cards, and long blocker/checksum/status text can wrap safely.
+- Existing behavior coverage verifies Not Applicable still renders no panel, Missing Information Review remains after the panel, disclosures remain accessible, privacy and formula-source boundaries remain intact, and first-render TTI-like Draft behavior remains read-only and source-free.
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/RecordLifecycleFormulaReviewPanel.test.tsx src/tests/recordLifecycleFormulaReviewPanelViewModel.test.ts`: passed (`2` files, `46` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.reviewGeneration.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `14` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.documentsExport.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `12` tests).
+- `npm.cmd test`: passed (`36` unit/integration files, `1818` tests; `7` UI files, `60` tests; `43` combined files, `1878` tests).
+- `npm.cmd run test:coverage`: passed (`36` coverage files, `1818` tests; `7` UI files, `60` tests; `43` combined files, `1878` tests).
+- Coverage was `90.46%` statements, `81.09%` branches, `95.11%` functions, and `95.46%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+
+## 2026-08-01 Phase 5B.4D.2.4.1 read-only lifecycle formula review panel
+
+- `npm.cmd run test:unit -- src/tests/RecordLifecycleFormulaReviewPanel.test.tsx src/tests/recordLifecycleFormulaReviewPanelViewModel.test.ts`: passed (`2` files, `44` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.reviewGeneration.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `13` tests).
+- `.\\node_modules\\.bin\\vitest.cmd run src/tests/App.documentsExport.test.tsx --pool=vmThreads --maxWorkers=1`: passed (`1` file, `12` tests).
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/RecordLifecycleFormulaReviewPanel.test.tsx src/tests/recordLifecycleFormulaReviewPanelViewModel.test.ts src/tests/recordLifecycleFormulaReviewSummary.test.ts src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts src/tests/implementationAssets.test.ts src/tests/recordLifecyclePlanning.test.ts src/tests/recordLifecyclePowerFxGeneration.test.ts src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/phase5b4b5Regression.test.ts`: passed (`16` files, `735` tests).
+- `npm.cmd test`: passed (`36` unit/integration files, `1816` tests; `7` UI files, `59` tests; `43` combined files, `1875` tests).
+- `npm.cmd run test:coverage`: passed (`36` coverage files, `1816` tests; `7` UI files, `59` tests; `43` combined files, `1875` tests).
+- Coverage was `90.46%` statements, `81.09%` branches, `95.11%` functions, and `95.46%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory path through ESLint-related tooling, reporting `14` high-severity dependency path findings and no available fix.
+- `git diff --check`: passed.
+- Manual browser verification: Not completed because the local Vite development-server process did not detach and blocked the original task.
+- Direct panel coverage verifies Not Applicable renders nothing; Blocked and Review Required states; Technical Review and Power Apps Studio Validation Not Provided, Current, Stale, and Invalid statuses; all Technical outcomes; all Studio outcomes; stale/invalid review references; formula blockers; collection issues; permanent-delete blockers; conflicting outcomes; disclosure order; no latest/primary selection; responsive structure; and first-render read-only TTI safety.
+- Disclosure coverage verifies evidence history and technical details are collapsed by default, use `aria-expanded` and `aria-controls`, can be toggled by keyboard/click, preserve focus, and preserve summary history order.
+- Privacy and source-boundary coverage verifies the panel does not display reviewer identity, reviewer role, notes, formula source, formula-like source text, raw evidence records, or mutation controls.
+- Host integration coverage verifies Client Review renders the panel after the readiness banner and before Missing Information Review, builds the implementation registry with a stable project timestamp, passes `reviewReference: undefined`, hides the panel when the summary is not applicable, and exposes no save/edit/delete/approve/reject/regenerate/validate/record/clear/copy/download/export/install/deploy/mark-ready controls inside the panel.
+- Output-boundary coverage verifies Package Preview/Documents stay free of lifecycle formula review panel content.
+- View-model coverage verifies the panel view model delegates to `buildRecordLifecycleFormulaReviewSummary`, preserves malformed-registry behavior, passes review references through without local parsing, keeps summary safety notices from the shared contract, and does not mutate project or registry input.
+- Full validation matrix passed.
+
 ## 2026-08-01 Phase 5B.4D.2.3.1 pure internal formula review summary projection
 
 - `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewSummary.test.ts`: passed (`1` file, `39` tests).
