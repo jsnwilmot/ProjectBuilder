@@ -1,5 +1,36 @@
 # Test Plan
 
+## 2026-08-01 Phase 5B.4D.2.3.1 pure internal formula review summary projection
+
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewSummary.test.ts`: passed (`1` file, `39` tests).
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewSummary.test.ts src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts`: passed (`4` files, `216` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`2` files, `208` tests).
+- `npx.cmd vitest run src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts`: passed (`2` files, `126` tests).
+- `npx.cmd vitest run src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/phase5b4b5Regression.test.ts`: passed (`8` files, `66` tests).
+- `npm.cmd test`: passed (`34` unit/integration files, `1772` tests; `7` UI files, `54` tests; `41` combined files, `1826` tests).
+- `npm.cmd run test:coverage`: passed (`34` coverage files, `1772` tests; `7` UI files, `54` tests; `41` combined files, `1826` tests).
+- Coverage was `90.42%` statements, `81.08%` branches, `95.06%` functions, and `95.44%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+- `git diff --check`: passed.
+- Truth-table coverage verifies Formula Not Applicable, Blocked before generation, missing formula asset, Review Required with no evidence, Current Technical only, Current Studio only, both evidence types Current, each Technical outcome, each Studio outcome, Technical/Stale/Invalid, Studio/Stale/Invalid, cross-current/stale states, current with stale history, current with invalid history, duplicate IDs, sparse collections, malformed collections, stale review references, invalid review references with current evidence, no current contract with historical evidence, permanent-delete blockers, conflicting current outcomes, evaluator-order history, no latest record, and TTI-like Draft blocking.
+- History-preservation coverage verifies the projection keeps all evaluator records in evaluator order and does not sort by timestamp.
+- Outcome-conflict coverage verifies multiple Current Technical outcomes (`Accepted`, `Rejected`, `Regeneration Required`) and multiple Current Studio outcomes (`Passed`, `Failed`) remain represented without selecting a primary, winner, latest, strongest, or safest outcome.
+- Malformed-runtime coverage verifies malformed registries, malformed review references, absent Power Platform data, absent Canvas data, malformed evidence collections, sparse evidence arrays, invalid evidence records, and duplicate IDs do not throw.
+- Privacy-field exclusion coverage verifies serialized summaries omit `reviewerDisplayName`, `reviewerRole`, `validationEnvironment`, `notes`, `rejectionReason`, and `regenerationReason`.
+- Formula-source exclusion coverage verifies serialized summaries omit formula source, formula-like text, intended paths, manual installation requirements, full implementation assets, and original evidence/project objects.
+- Approval and readiness boundary coverage verifies the summary does not mutate project status, project review status, readiness confirmations, Power Platform gates, formula evidence, formula approval status, formula asset status, implementation registry, review reference, generated documents, or generated file count, and does not create approval candidates.
+- Output-boundary coverage verifies evidence IDs and summary state remain absent from implementation manifests, generated documents, Architect instructions, Codex instructions, phased prompts, export manifests, export integrity, ZIP text, copy/output paths, and deployment output.
+- TTI preservation coverage verifies a TTI-like Draft project remains Draft/blocked, keeps schema/internal-name/screen/control/YAML/delegation/security/testing/ALM/release blockers, exposes no formula source, fabricates no formula asset or evidence, creates no approval, promotes no readiness, preserves permanent-delete protection, and leaves the full project object unchanged.
+- No UI exists for this projection.
+- Evidence recording remains unavailable.
+- Approval, copy, export, installation, deployment, Package Preview inclusion, generated-document inclusion, manifest inclusion, and ZIP inclusion remain unavailable.
+
 ## 2026-07-31 Phase 5B.4D.2.2.2D formula evidence runtime safety and binding classification correction
 
 - `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.

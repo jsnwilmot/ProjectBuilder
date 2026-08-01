@@ -1,5 +1,55 @@
 # Change Log
 
+## 2026-08-01 - Phase 5B.4D.2.3.1 Pure Internal Formula Review Summary Projection
+
+### Summary
+
+- Added a pure, deterministic, internal lifecycle formula review summary projection for later read-only UI use.
+- The projection combines existing formula review state, review reference status, Technical Review evidence evaluation, Studio Validation evidence evaluation, formula blockers, collection issues, and source-free evidence history.
+- Preserved existing producer behavior, project schema, storage version/key, repository behavior, formula generation, implementation manifests, generated documents, Package Preview, ZIP output, export integrity, copy actions, deployment files, lockfiles, and CI workflows.
+- Kept approval, readiness, formula copying, export, installation, deployment, evidence recording, and UI integration unavailable.
+
+### Files created
+
+- `src/lib/recordLifecycleFormulaReviewSummary.ts` - internal source-free summary projection.
+- `src/tests/recordLifecycleFormulaReviewSummary.test.ts` - focused truth-table, history, privacy, boundary, malformed-runtime, and TTI safety coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - this entry.
+- `TEST_PLAN.md` - Phase 5B.4D.2.3.1 validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewSummary.test.ts`: passed (`1` file, `39` tests).
+- `npx.cmd vitest run src/tests/recordLifecycleFormulaReviewSummary.test.ts src/tests/recordLifecycleFormulaReviewState.test.ts src/tests/recordLifecycleFormulaEvidence.test.ts src/tests/recordLifecycleFormulaEvidenceEvaluation.test.ts`: passed (`4` files, `216` tests).
+- `npx.cmd vitest run src/tests/implementationAssets.test.ts`: passed (`1` file, `106` tests).
+- `npx.cmd vitest run src/tests/recordLifecyclePlanning.test.ts src/tests/recordLifecyclePowerFxGeneration.test.ts`: passed (`2` files, `208` tests).
+- `npx.cmd vitest run src/tests/projectRepository.test.ts src/tests/powerPlatform.test.ts`: passed (`2` files, `126` tests).
+- `npx.cmd vitest run src/tests/exportManifest.test.ts src/tests/exportIntegrity.test.ts src/tests/exportProjectPackage.test.ts src/tests/generateProjectPackage.test.ts src/tests/App.documentsExport.test.tsx src/tests/App.reviewGeneration.test.tsx src/tests/App.powerPlatformCanvas.test.tsx src/tests/phase5b4b5Regression.test.ts`: passed (`8` files, `66` tests).
+- `npm.cmd test`: passed (`34` unit/integration files, `1772` tests; `7` UI files, `54` tests; `41` combined files, `1826` tests).
+- `npm.cmd run test:coverage`: passed (`34` coverage files, `1772` tests; `7` UI files, `54` tests; `41` combined files, `1826` tests).
+- Coverage was `90.42%` statements, `81.08%` branches, `95.06%` functions, and `95.44%` lines.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+- `git diff --check`: passed.
+
+### Issues found
+
+- None in the new projection.
+
+### Remaining work
+
+- Phase 5B.4D.2.3.1B Formula Review Summary Projection Final Review and Integration.
+
 ## 2026-07-31 - Phase 5B.4D.2.2.2D Formula Evidence Runtime Safety and Binding Classification Correction
 
 ### Summary
