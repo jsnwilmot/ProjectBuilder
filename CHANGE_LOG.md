@@ -1,5 +1,155 @@
 # Change Log
 
+## 2026-08-02 - Phase 5C.1.1A.1 Retry Planning Contracts Final Review and Integration
+
+### Summary
+
+- Completed the final independent review of the corrected Phase 5C.1.1A planning contracts and pure normalization layer.
+- Confirmed the Phase 5C.1.1A.2 source-authority correction resolves the High source-precedence defect: unconfirmed informational user answers no longer receive highest precedence.
+- Confirmed planning remains optional on `ProjectRecord` and unused by application runtime flows.
+- Confirmed no createProject integration, storage migration, repository persistence, readiness integration, generated-output integration, UI, external AI, identity, authentication, deployment, CI, dependency, package, or Wrangler behavior changed.
+- Confirmed manual browser verification is not applicable because no UI changed.
+
+### Files created
+
+- `src/lib/planningProposals.ts` - pure planning proposal contracts, helpers, and normalization.
+- `src/tests/planningProposals.test.ts` - focused coverage for planning normalization, source authority, precedence, safety, and isolation.
+
+### Files updated
+
+- `src/types/project.ts` - adds optional `planning?: ProjectPlanningState`.
+- `CHANGE_LOG.md` - records final review and validation results.
+- `TEST_PLAN.md` - records final review validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts`: passed (`1` file, `31` tests).
+- Focused existing regression batch plus planning tests passed (`19` files, `547` tests).
+- Existing UI regression batch passed (`7` files, `61` tests).
+- `npm.cmd test`: passed (`37` unit/integration files, `1849` tests; `7` UI files, `61` tests; `44` combined files, `1910` tests).
+- `npm.cmd run test:coverage`: passed (`44` combined files, `1910` tests) with `90.45%` statements, `81.4%` branches, `95.24%` functions, and `95.16%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+- `git diff --check`: passed.
+
+### Issues found
+
+- None in the final retry review.
+
+### Remaining work
+
+- Phase 5C.1.1B Storage Migration and Repository Lifecycle Integration.
+
+## 2026-08-01 - Phase 5C.1.1A.2 Planning Source Authority and Precedence Correction
+
+### Summary
+
+- Corrected the High source-precedence defect found during Phase 5C.1.1A.1 final review.
+- The defect occurred because precedence was derived from `sourceType` alone, which could not distinguish confirmed and unconfirmed user answers.
+- Added explicit planning source authority values: `confirmed`, `approved`, and `informational`.
+- Every planning source reference now requires `authority`, and invalid source-type/authority combinations are rejected during normalization.
+- Source authority remains separate from source availability; non-current sources no longer participate in active precedence.
+- Unconfirmed informational user answers no longer receive highest precedence and remain below approved documents and confirmed intake.
+- Precedence remains explanatory only and cannot resolve conflicts, confirm proposals, change readiness, or change generated output.
+- No identity, authentication, persistence, migration, readiness, output, UI, external AI, deployment, dependency, lockfile, CI, or Wrangler behavior changed.
+- Final integration review remains pending.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningProposals.ts` - adds source authority, validates source authority combinations, and revises precedence to use full source references.
+- `src/tests/planningProposals.test.ts` - adds source authority, precedence, non-current availability, invalid authority, diagnostic, isolation, and TTI-adjacent safety coverage.
+- `CHANGE_LOG.md` - records this correction.
+- `TEST_PLAN.md` - records this correction and validation scope.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed during implementation.
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts`: passed (`1` file, `31` tests).
+- Focused existing regression batch plus planning tests passed (`19` files, `547` tests).
+- Existing UI regression batch passed (`7` files, `61` tests).
+- `npm.cmd test`: passed (`37` unit/integration files, `1849` tests; `7` UI files, `61` tests; `44` combined files, `1910` tests).
+- `npm.cmd run test:coverage`: passed (`44` combined files, `1910` tests) with `90.45%` statements, `81.4%` branches, `95.24%` functions, and `95.16%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+- `git diff --check`: passed.
+
+### Issues found
+
+- Fixed High: source precedence treated `userAnswer` as highest authority without explicit confirmation context.
+
+### Remaining work
+
+- Phase 5C.1.1A.1 Final Review and Integration retry.
+- Phase 5C.1.1B storage migration and repository lifecycle integration remains not started.
+
+## 2026-08-01 - Phase 5C.1.1A Planning Types and Pure Normalization
+
+### Summary
+
+- Added the foundational deterministic planning proposal overlay contracts and pure normalization/validation layer.
+- Added optional `planning?: ProjectPlanningState` typing to `ProjectRecord` only; no project defaults, migration, persistence, repository integration, readiness integration, generated-document integration, UI, export behavior, external AI, or deployment behavior was added.
+- Defined the Phase 5C.1.1 schema constants, planning state, proposal categories/statuses, uncertainty states, high-risk restrictions, typed targets, proposal values, source references, proposal records, decision history, dependencies, stale reasons, conflicts, and alternatives.
+- Implemented pure normalization for malformed data, duplicate IDs, cross references, dependency cycles, timestamps, text safety, collection caps, stale metadata, conflict blocking consistency, alternative recommendations, and foreign project binding.
+- Preserved TTI safety boundaries: planning metadata cannot clear blockers, generate Power Fx/YAML, invent Power Platform details, remove missing markers, or mark a Draft project Ready for Codex or Ready for Export.
+
+### Files created
+
+- `src/lib/planningProposals.ts` - pure planning proposal contracts, helpers, and normalization.
+- `src/tests/planningProposals.test.ts` - focused coverage for the Phase 5C.1.1A planning normalization boundary.
+
+### Files updated
+
+- `src/types/project.ts` - adds optional `planning?: ProjectPlanningState` to `ProjectRecord`.
+- `CHANGE_LOG.md` - Phase 5C.1.1A implementation record.
+- `TEST_PLAN.md` - Phase 5C.1.1A validation scope and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts`: passed (`1` file, `25` tests).
+- Focused existing regression batch plus planning tests passed (`19` files, `541` tests).
+- Existing UI regression batch passed (`7` files, `61` tests).
+- `npm.cmd test`: passed (`37` unit/integration files, `1843` tests; `7` UI files, `61` tests; `44` combined files, `1904` tests).
+- `npm.cmd run test:coverage`: passed (`44` combined files, `1904` tests) with `90.41%` statements, `81.29%` branches, `95.23%` functions, and `95.13%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+- `git diff --check`: passed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Phase 5C.1.1A-B Final Review and Integration.
+- Phase 5C.1.1B storage migration and repository integration remain not started.
+
 ## 2026-08-01 - Phase 5B.4D.2.4.1B Final Manual Browser Verification
 
 ### Summary

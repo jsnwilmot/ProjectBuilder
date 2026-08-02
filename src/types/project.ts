@@ -1,3 +1,5 @@
+import type { ProjectPlanningState } from "../lib/planningProposals";
+
 export const PROJECT_STATUSES = [
   "Intake Started",
   "Intake Complete",
@@ -1385,6 +1387,7 @@ export interface ProjectRecord {
   sourceProjectId: string | null;
   duplicatedAt: string | null;
   powerPlatform?: PowerPlatformProjectData;
+  planning?: ProjectPlanningState;
   createdAt: string;
   updatedAt: string;
 }
