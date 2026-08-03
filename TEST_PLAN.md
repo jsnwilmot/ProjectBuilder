@@ -1,5 +1,20 @@
 # Test Plan
 
+## 2026-08-03 Phase 5C.1.1B.1 legacy migration planning return correction
+
+- Legacy single-project migration now verifies the first `loadStorageState()` result is version `4` and contains canonical empty planning without requiring a second load or browser reload.
+- Successful legacy migration coverage verifies the returned state and persisted current-key state both contain the same empty planning contract: empty `sources`, `proposals`, `decisions`, `dependencies`, and `conflicts`.
+- Failed current-key persistence coverage verifies the returned in-memory state remains version `4`, includes canonical empty planning, preserves the legacy key, exposes the existing persistence warning, and does not throw.
+- Legacy field preservation coverage verifies identity, project name, client, business, intake purpose, status, review status, and timestamps remain unchanged.
+- No-fabrication and immutability coverage verifies no proposal history, source references, fingerprints, decisions, conflicts, or dependencies are created and the supplied legacy data object is not mutated.
+- Regression coverage preserves version `1`, version `2`, version `3`, version `4`, previous-key, current-key precedence, corrupt storage, duplication, archive, restore, delete, readiness, output, export, and TTI-like Draft safety behavior.
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/projectRepository.test.ts`: passed (`1` file, `76` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/projectRepository.test.ts`: passed (`2` files, `107` tests).
+- Focused readiness/output/TTI regression batch passed (`15` files, `487` tests).
+
 ## 2026-08-03 Phase 5C.1.1B storage migration and repository lifecycle integration
 
 - Storage migration matrix covers version `1`, version `2`, version `3`, version `4`, and legacy single-project storage loading into current storage state version `4`.

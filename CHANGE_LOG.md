@@ -1,5 +1,47 @@
 # Change Log
 
+## 2026-08-03 - Phase 5C.1.1B.1 Legacy Migration Planning Return Correction
+
+### Summary
+
+- Corrected the legacy single-project migration return path so the first `loadStorageState()` call returns the same normalized version `4` planning contract that is written to current storage.
+- Routed valid legacy single-project migration through the existing `migrateStorageState()` contract before returning.
+- Preserved legacy identity, client, intake, status, review status, timestamp behavior, key precedence, corrupt-legacy handling, and successful legacy-key removal behavior.
+- Preserved failed-write behavior: the returned in-memory state is safe version `4` with canonical empty planning, the legacy key remains present, and the existing persistence warning is exposed.
+- Confirmed no planning records, source references, fingerprints, decisions, dependencies, or conflicts are fabricated.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - returns the normalized migrated legacy state instead of the pre-normalized synchronized state.
+- `src/tests/projectRepository.test.ts` - adds first-load legacy planning assertions and failed current-key persistence coverage.
+- `CHANGE_LOG.md` - records this correction.
+- `TEST_PLAN.md` - records this correction validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/projectRepository.test.ts`: passed (`1` file, `76` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/projectRepository.test.ts`: passed (`2` files, `107` tests).
+- Focused readiness/output/TTI regression batch passed (`15` files, `487` tests).
+
+### Issues found
+
+- Fixed High: valid legacy single-project migration persisted canonical empty planning but returned an in-memory project without `planning` on the first load.
+
+### Remaining work
+
+- Phase 5C.1.1C Final Validation Review.
+
 ## 2026-08-03 - Phase 5C.1.1B Storage Migration and Repository Lifecycle Integration
 
 ### Summary

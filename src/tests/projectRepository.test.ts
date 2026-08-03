@@ -1733,18 +1733,27 @@ describe("projectRepository", () => {
   describe("legacy project migration", () => {
     it("migrates a legacy single-project record into the versioned store", () => {
       const storage = new MemoryStorage();
-      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({
+      const legacyData = {
         intake: {
           appName: "Legacy App",
           clientName: "Legacy Client",
           businessName: "Legacy Business",
           appPurpose: "Track legacy widgets"
         },
-        metadata: { id: "legacy-id", status: "Intake Started", reviewStatus: "Review needed" }
-      }));
+        metadata: {
+          id: "legacy-id",
+          status: "Intake Started",
+          reviewStatus: "Review needed",
+          lastUpdated: "2026-08-01T12:00:00.000Z"
+        }
+      };
+      const legacyBefore = JSON.stringify(legacyData);
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(legacyData));
 
       const loaded = loadStorageState(storage);
+      const persisted = JSON.parse(storage.getItem(STORAGE_KEY)!) as ReturnType<typeof loadStorageState>;
 
+      expect(JSON.stringify(legacyData)).toBe(legacyBefore);
       expect(loaded.version).toBe(4);
       expect(loaded.projects).toHaveLength(1);
       expect(loaded.activeProjectId).toBe(loaded.projects[0].identity.id);
@@ -1752,7 +1761,70 @@ describe("projectRepository", () => {
       expect(loaded.projects[0].client.clientName).toBe("Legacy Client");
       expect(loaded.projects[0].client.businessName).toBe("Legacy Business");
       expect(loaded.projects[0].intake.appPurpose).toBe("Track legacy widgets");
+      expect(loaded.projects[0].status).toBe("Intake Started");
+      expect(loaded.projects[0].reviewStatus).toBe("Review needed");
+      expect(loaded.projects[0].createdAt).toBe("2026-08-01T12:00:00.000Z");
+      expect(loaded.projects[0].updatedAt).toBe("2026-08-01T12:00:00.000Z");
+      expect(loaded.projects[0].planning).toEqual(createEmptyProjectPlanningState());
+      expect(loaded.projects[0].planning?.sources).toEqual([]);
+      expect(loaded.projects[0].planning?.proposals).toEqual([]);
+      expect(loaded.projects[0].planning?.decisions).toEqual([]);
+      expect(loaded.projects[0].planning?.dependencies).toEqual([]);
+      expect(loaded.projects[0].planning?.conflicts).toEqual([]);
+      expect(JSON.stringify(loaded.projects[0].planning)).not.toContain("proposalId");
+      expect(JSON.stringify(loaded.projects[0].planning)).not.toContain("fingerprint");
+      expect(persisted.version).toBe(4);
+      expect(persisted.projects[0].planning).toEqual(loaded.projects[0].planning);
       expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
+    });
+
+    it("returns normalized empty planning on the first legacy load when current-key persistence fails", () => {
+      clearPersistenceWarning();
+      try {
+        const storage = new WriteFailStorage();
+        const legacyData = {
+          intake: {
+            appName: "Legacy Write Failure",
+            clientName: "Legacy Client",
+            businessName: "Legacy Business",
+            appPurpose: "Track legacy failure path"
+          },
+          metadata: {
+            id: "legacy-fail-id",
+            status: "Intake Started" as const,
+            reviewStatus: "Review needed" as const,
+            lastUpdated: "2026-08-01T13:00:00.000Z"
+          }
+        };
+        const legacyBefore = JSON.stringify(legacyData);
+        storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(legacyData));
+
+        let loaded: ReturnType<typeof loadStorageState> | undefined;
+        expect(() => {
+          loaded = loadStorageState(storage);
+        }).not.toThrow();
+
+        expect(JSON.stringify(legacyData)).toBe(legacyBefore);
+        expect(loaded?.version).toBe(4);
+        expect(loaded?.projects[0].identity.id).toBe("legacy-fail-id");
+        expect(loaded?.projects[0].identity.projectName).toBe("Legacy Write Failure");
+        expect(loaded?.projects[0].client.clientName).toBe("Legacy Client");
+        expect(loaded?.projects[0].client.businessName).toBe("Legacy Business");
+        expect(loaded?.projects[0].intake.appPurpose).toBe("Track legacy failure path");
+        expect(loaded?.projects[0].createdAt).toBe("2026-08-01T13:00:00.000Z");
+        expect(loaded?.projects[0].updatedAt).toBe("2026-08-01T13:00:00.000Z");
+        expect(loaded?.projects[0].planning).toEqual(createEmptyProjectPlanningState());
+        expect(loaded?.projects[0].planning?.sources).toEqual([]);
+        expect(loaded?.projects[0].planning?.proposals).toEqual([]);
+        expect(loaded?.projects[0].planning?.decisions).toEqual([]);
+        expect(loaded?.projects[0].planning?.dependencies).toEqual([]);
+        expect(loaded?.projects[0].planning?.conflicts).toEqual([]);
+        expect(storage.getItem(STORAGE_KEY)).toBeNull();
+        expect(storage.getItem(LEGACY_STORAGE_KEY)).not.toBeNull();
+        expect((getPersistenceWarning() ?? "").length).toBeGreaterThan(0);
+      } finally {
+        clearPersistenceWarning();
+      }
     });
 
     it("migrates a legacy record with no name fields by falling back to empty defaults", () => {

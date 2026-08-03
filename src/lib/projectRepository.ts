@@ -153,12 +153,12 @@ function migrateLegacyProject(storage: StorageAdapter): StorageState | null {
       activeProjectId: project.identity.id,
       projects: [project]
     };
-    const synchronized = synchronizeStorageState(state);
-    const wroteCurrentKey = writeCurrentStorageState(synchronized, storage);
+    const migrated = synchronizeStorageState(migrateStorageState(state));
+    const wroteCurrentKey = writeCurrentStorageState(migrated, storage);
     if (wroteCurrentKey) {
       storage.removeItem(LEGACY_STORAGE_KEY);
     }
-    return synchronized;
+    return migrated;
   } catch {
     storage.removeItem(LEGACY_STORAGE_KEY);
     return null;
