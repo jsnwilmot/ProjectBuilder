@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-08-03 Phase 5C.1.1B storage migration and repository lifecycle integration
+
+- Storage migration matrix covers version `1`, version `2`, version `3`, version `4`, and legacy single-project storage loading into current storage state version `4`.
+- Previous and legacy key handling remains unchanged: current key remains `gpt-project-builder.storage.v2`, previous key remains `gpt-project-builder.storage.v1`, legacy key remains `gpt-project-builder:project:v1`, load precedence remains current before previous before legacy, and reset removes all known keys.
+- Version `3` migration coverage verifies multiple projects, active project preservation, project order, confirmed intake, generated documents, review decisions, readiness confirmations, Power Platform state, implementation evidence, archive state, missing markers, raw input immutability, and separate canonical empty planning containers.
+- No-fabrication coverage verifies migrated planning contains no proposals, decisions, conflicts, dependencies, source references, fingerprints, decision history, or lineage and does not convert intake or review data into planning records.
+- Version `4` planning normalization coverage verifies valid current-schema planning round-trips, timestamps and IDs normalize, missing planning becomes empty, malformed planning becomes empty, unsupported schemas become empty, foreign project records are not rebound, invalid source-authority combinations are rejected, duplicate IDs are removed, over-cap collections are rejected, unsafe executable/source-like text is rejected, and raw planning input remains immutable.
+- Duplication coverage verifies copied projects retain existing confirmed intake behavior and Power Platform safeguards while receiving canonical empty planning immediately, without copying planning records or sharing nested planning references with the source project.
+- Archive and restore coverage verifies normalized planning, proposal status, decisions, dependencies, conflicts, and planning timestamps are preserved without archive/restore source references or decision history.
+- Deletion coverage verifies planning is removed with the containing project, no separate planning data remains, other projects retain planning, and active project fallback remains correct.
+- Persistence failure and atomicity coverage verifies failed migration writes keep the source key, expose the existing warning, return safe version `4` in-memory state, and failed saves do not mutate caller-owned planning or replace previously persisted valid state.
+- Readiness isolation coverage verifies planning persistence does not satisfy readiness gates, clear blockers, change readiness confirmations, alter review status, or mark a package Ready for Codex.
+- Output isolation coverage verifies planning persistence does not alter generated documents, package preview, export manifest, ZIP export, document applicability, implementation assets, formula visibility, or release status.
+- TTI safety regression coverage verifies TTI-like Draft blockers and missing markers remain intact, and planning does not invent Power Platform names, permissions, connectors, final Power Fx, paste-ready YAML, implementation content, owners, licensing, environments, or deployment responsibilities.
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/projectRepository.test.ts`: passed (`1` file, `75` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/projectRepository.test.ts`: passed (`2` files, `106` tests).
+- Focused readiness/output/TTI regression batch passed (`15` files, `487` tests).
+- `npm.cmd test`: passed (`37` unit/integration files, `1855` tests; `7` UI files, `61` tests; `44` combined files, `1916` tests).
+- `npm.cmd run test:coverage`: passed (`44` combined files, `1916` tests) with `90.46%` statements, `81.41%` branches, `95.24%` functions, and `95.18%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+
 ## 2026-08-02 Phase 5C.1.1A.1 retry final review and integration
 
 - Final independent review confirmed the original five-file implementation scope: `src/lib/planningProposals.ts`, `src/tests/planningProposals.test.ts`, `src/types/project.ts`, `CHANGE_LOG.md`, and `TEST_PLAN.md`.

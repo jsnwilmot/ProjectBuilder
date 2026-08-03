@@ -1,5 +1,61 @@
 # Change Log
 
+## 2026-08-03 - Phase 5C.1.1B Storage Migration and Repository Lifecycle Integration
+
+### Summary
+
+- Increased the repository storage state version from `3` to `4` without changing the existing localStorage key architecture.
+- Migrated supported version `1`, `2`, `3`, and legacy project states to version `4`.
+- Added canonical planning-state persistence through whole-project repository save/load using the existing Phase 5C.1.1A.1 planning normalizer.
+- Migrated existing supported projects to separate canonical empty planning containers without fabricating proposals, decisions, conflicts, dependencies, source references, fingerprints, decision history, or lineage.
+- Preserved valid current-schema version `4` planning and replaced missing, malformed, unsupported, foreign, duplicate, over-cap, invalid-authority, or unsafe planning with normalized safe output.
+- Duplicated projects now receive canonical empty planning immediately and do not copy source planning metadata.
+- Archive and restore preserve normalized planning without changing proposal status, decisions, or planning timestamps.
+- Delete removes planning with the containing project and does not create separate planning storage or tombstones.
+- Readiness, generated-document, export, Power Platform, implementation evidence, and TTI-like Draft safety behavior remained isolated from planning persistence.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/types/project.ts` - added storage version `4` to the storage version contract.
+- `src/lib/storageVersion.ts` - set current storage version to `4`, added source-version-aware planning migration, and normalized valid version `4` planning.
+- `src/lib/projectRepository.ts` - gives duplicated projects canonical empty planning state before save/reload.
+- `src/tests/projectRepository.test.ts` - added storage migration, planning normalization, no-fabrication, duplication, archive/restore, delete, immutability, and failed-write coverage.
+- `src/tests/recordLifecycleFormulaEvidence.test.ts` - aligned the existing storage-version assertion with the approved version `4` contract.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation matrix and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the existing high-severity development audit advisory.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/projectRepository.test.ts`: passed (`1` file, `75` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/projectRepository.test.ts`: passed (`2` files, `106` tests).
+- Focused readiness/output/TTI regression batch passed (`15` files, `487` tests).
+- `npm.cmd test`: passed (`37` unit/integration files, `1855` tests; `7` UI files, `61` tests; `44` combined files, `1916` tests).
+- `npm.cmd run test:coverage`: passed (`44` combined files, `1916` tests) with `90.46%` statements, `81.41%` branches, `95.24%` functions, and `95.18%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` advisory.
+
+### Issues found
+
+- Fixed High: initial storage migration treated version `3` project planning as trusted because output version and source version were not separated during normalization.
+- Known unchanged warning: Vite reports a large production bundle chunk.
+- Known unchanged warning: full dependency audit reports the development-only `brace-expansion` advisory.
+
+### Remaining work
+
+- Phase 5C.1.1C Final Validation Review.
+
 ## 2026-08-02 - Phase 5C.1.1A.1 Retry Planning Contracts Final Review and Integration
 
 ### Summary

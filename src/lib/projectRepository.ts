@@ -14,6 +14,7 @@ import {
   updateReviewItemDecision
 } from "./clientReview";
 import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
+import { createEmptyProjectPlanningState } from "./planningProposals";
 import type {
   GeneratedDocument,
   ProjectInputField,
@@ -231,12 +232,16 @@ export function duplicateProject(
     powerPlatform: duplicatePowerPlatformForProject(source.powerPlatform, source.intake.appType),
     now
   }));
+  const duplicateWithPlanning = {
+    ...duplicate,
+    planning: createEmptyProjectPlanningState()
+  };
   saveStorageState({
     ...state,
-    activeProjectId: duplicate.identity.id,
-    projects: [...state.projects, duplicate]
+    activeProjectId: duplicateWithPlanning.identity.id,
+    projects: [...state.projects, duplicateWithPlanning]
   }, storage);
-  return duplicate;
+  return duplicateWithPlanning;
 }
 
 export type ProjectUpdate =
