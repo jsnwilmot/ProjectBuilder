@@ -1,5 +1,34 @@
 # Test Plan
 
+## 2026-08-04 Phase 5C.2.1B pure deterministic clarification draft generation
+
+- Input validation coverage verifies valid Canvas input, non-object input, empty project IDs, over-length project IDs, multiline project IDs, invalid runtime project types, non-array gate results, invalid gate-result records, and input immutability.
+- Project applicability coverage verifies only canonical `powerAppsCanvas` input selects the Phase 5C.2.1A rules; unrelated valid project types return zero drafts without inference or unsupported-project errors.
+- Gate matching coverage verifies exact `PhaseGateId` matching, missing relevant gate results, duplicate relevant gate results, unrelated valid gate results, duplicate unrelated gate results, malformed relevant gate records, and input-order independence.
+- Status interpretation coverage verifies unresolved statuses generate drafts, `confirmed`, `ready`, and `passed` suppress drafts, allowed `notApplicable` suppresses drafts, disallowed `notApplicable` returns an issue and retains the draft, and invalid runtime statuses produce issues without affected drafts.
+- TTI fixture coverage verifies the exact 11 target statuses generate exactly 11 ordered clarification drafts for `powerAppsCanvas`.
+- Draft mapping coverage verifies draft keys, rule IDs, rule versions, targets, categories, restrictions, uncertainty, titles, questions, rationales, consequences, priorities, acceptable sources, Not Applicable allowances, deferral flags, Architect approval flags, gate statuses, blocking reasons, source sections, and clarification values.
+- Draft contract coverage verifies drafts do not include proposal IDs, source IDs, fingerprints, timestamps, proposal status, actor identity, readiness flags, output flags, schema identity, persistence metadata, or UI state.
+- Issue reporting coverage verifies structured issue codes for invalid input, invalid project ID, invalid project type, invalid gate results, invalid gate result records, invalid gate status, missing relevant gate result, duplicate relevant gate result, and disallowed Not Applicable status.
+- Immutability coverage verifies input objects, input gate-result arrays, input gate-result records, returned draft arrays, returned targets, returned source requirements, returned clarification values, returned issue arrays, and the rule registry remain protected from external mutation.
+- Readiness isolation coverage verifies the generator consumes precomputed gate results only and does not import `phaseGates.ts` at runtime, call readiness evaluators, recalculate gate status, clear blockers, alter review status, change project status, or mark a package Ready for Codex.
+- Output isolation coverage verifies no generated document, template, document review, package preview, export manifest, ZIP export, export integrity, copy action, Power Fx output, YAML output, deployment output, release output, or Codex prompt consumer is added.
+- Privacy and external-service coverage verifies local pure-function operation with no network access, external AI, provider, model, token, API key, telemetry, protected-data logging, document persistence, hidden reasoning, executable code, UUID generation, cryptographic hashing, fingerprint generation, or clock access.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts`: passed (`1` file, `19` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts`: passed (`2` files, `35` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts`: passed (`3` files, `66` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`39` unit/integration files, `1891` tests; `7` UI files, `61` tests; `46` combined files, `1952` tests).
+- `npm.cmd run test:coverage`: passed (`46` combined files, `1952` tests) with `90.59%` statements, `81.70%` branches, `95.36%` functions, and `95.13%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` and `undici` advisory chains.
+- `git diff --check`: passed.
+
 ## 2026-08-04 Phase 5C.2.1A deterministic clarification rule registry foundation
 
 - Registry identity coverage verifies the exact registry ID `project-builder-clarification-rules`, exact registry version `phase-5c.2.1a`, the exact rule-status contract, and exactly 11 active initial clarification rules.

@@ -1,5 +1,58 @@
 # Change Log
 
+## 2026-08-04 - Phase 5C.2.1B Pure Deterministic Clarification Draft Generation
+
+### Summary
+
+- Added pure deterministic clarification-draft generation from project identity, canonical project type, and precomputed readiness gate results.
+- Selected active Phase 5C.2.1A clarification rules only for `powerAppsCanvas`.
+- Generated non-persisted clarification drafts only for unresolved applicable gates.
+- Preserved exact resolved, unresolved, allowed Not Applicable, and disallowed Not Applicable status behavior.
+- Added missing and duplicate relevant-gate issue handling without guessing or selecting duplicate results.
+- Preserved deterministic ordering by rule priority and rule ID, independent of gate-result input order.
+- Preserved immutable input, returned-data, and registry boundaries with defensive copies.
+- Confirmed the TTI-style fixture produces exactly 11 clarification drafts without substantive answers.
+- Preserved phase boundaries: no proposal records, source references, UUIDs, fingerprints, timestamps, planning-state reads, persistence, UI, readiness mutation, output integration, network access, external AI, deployment, tag, release, or PR behavior.
+
+### Files created
+
+- `src/lib/planningClarificationDrafts.ts` - pure deterministic clarification-draft generator, input validation, issue reporting, rule-to-gate matching, and defensive copy handling.
+- `src/tests/planningClarificationDrafts.test.ts` - focused coverage for input validation, project applicability, status behavior, gate matching, TTI fixture mapping, draft contract, immutability, and isolation.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts`: passed (`1` file, `19` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts`: passed (`2` files, `35` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts`: passed (`3` files, `66` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests).
+- Focused output isolation batch passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`39` unit/integration files, `1891` tests; `7` UI files, `61` tests; `46` combined files, `1952` tests).
+- `npm.cmd run test:coverage`: passed (`46` combined files, `1952` tests) with `90.59%` statements, `81.70%` branches, `95.36%` functions, and `95.13%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` and `undici` advisory chains.
+- `git diff --check`: passed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of Phase 5C.2.1B. Do not begin source-reference creation, proposal-record materialization, UUID or fingerprint generation, reconciliation, persistence integration, UI, readiness integration, output integration, or external AI without a new approved phase prompt.
+
 ## 2026-08-04 - Phase 5C.2.1A Deterministic Clarification Rule Registry Foundation
 
 ### Summary
