@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-08-04 Phase 5C.2.1A deterministic clarification rule registry foundation
+
+- Registry identity coverage verifies the exact registry ID `project-builder-clarification-rules`, exact registry version `phase-5c.2.1a`, the exact rule-status contract, and exactly 11 active initial clarification rules.
+- Exact rule-content coverage verifies every approved rule ID, priority, readiness target gate, target domain, restriction, title, question, rationale, consequence, and not-applicable setting.
+- Contract coverage verifies all initial rules use category `clarification`, target kind `readinessRequirement`, target operation `clarificationOnly`, uncertainty `Unknown`, rule version `1.0.0`, status `active`, canonical project type `powerAppsCanvas`, deferral allowed, and Architect approval required.
+- Source-authority coverage verifies every rule uses exactly the three approved current source-authority pairs: confirmed `userAnswer`, confirmed `confirmedIntake`, and approved `approvedDocument`.
+- Validation coverage verifies valid registries pass and invalid registry envelopes, missing fields, invalid IDs, duplicate IDs, invalid versions, invalid statuses, invalid priorities, duplicate priorities, invalid project types, invalid targets, invalid categories, invalid restrictions, invalid uncertainty, invalid source requirements, informational sources, empty text, over-length text, executable text, final formula-like text, paste-ready YAML-like text, invalid deprecation metadata, and deprecation cycles return structured issues without unexpected throws.
+- Deterministic-order coverage verifies selector output is sorted by priority and rule ID, and validation does not depend on input array order.
+- Lookup coverage verifies exact ID lookup, unknown ID handling, active rule selection for `powerAppsCanvas`, unrelated project-type exclusion, exact readiness-gate lookup, and unmapped gate handling.
+- Immutability coverage verifies returned registry arrays, returned rules, nested targets, and acceptable-source entries cannot mutate the internal registry; validation does not mutate input.
+- TTI safety coverage verifies rules ask only clarification questions for unresolved TTI blockers and do not provide schema values, SharePoint internal names, Dataverse logical names, screens, controls, formula properties, Power Fx, YAML, permissions, security groups, connector classifications, licensing status, environment access, owners, deployment procedures, rollback procedures, release approval, tenant information, URLs, secrets, or external services.
+- Readiness isolation coverage verifies the registry only references existing readiness gate IDs as clarification targets and does not import readiness evaluators at runtime, calculate gate status, clear blockers, change review status, change project status, or mark a project Ready for Codex.
+- Output isolation coverage verifies no generated document, template, document review, package preview, manifest, ZIP export, export integrity, copy action, Power Fx output, YAML output, deployment output, release output, or Codex prompt consumer is added.
+- Privacy and local-only coverage verifies no network, external AI, provider, model, token, API key, telemetry, repository write, storage access, browser API, UUID generation, fingerprint generation, proposal creation, or source-reference creation is added.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts`: passed (`1` file, `16` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts`: passed (`2` files, `47` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`38` unit/integration files, `1872` tests; `7` UI files, `61` tests; `45` combined files, `1933` tests).
+- `npm.cmd run test:coverage`: passed (`45` combined files, `1933` tests) with `90.55%` statements, `81.64%` branches, `95.31%` functions, and `95.15%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` and `undici` advisory chains.
+- `git diff --check`: passed.
+
 ## 2026-08-03 Phase 5C.1.1B.1 legacy migration planning return correction
 
 - Legacy single-project migration now verifies the first `loadStorageState()` result is version `4` and contains canonical empty planning without requiring a second load or browser reload.

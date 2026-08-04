@@ -1,5 +1,54 @@
 # Change Log
 
+## 2026-08-04 - Phase 5C.2.1A Deterministic Clarification Rule Registry Foundation
+
+### Summary
+
+- Added the deterministic clarification-rule registry foundation for unresolved Power Apps Canvas planning and readiness requirements.
+- Defined the exact registry identity `project-builder-clarification-rules` and version `phase-5c.2.1a`.
+- Added exactly 11 active clarification-only rules for backend schema, SharePoint internal names, Canvas screen targets, Canvas control targets, component applicability, YAML planning, delegation, security permissions, testing outcomes, ALM responsibilities, and release approval.
+- Added typed source-requirement, rule-status, and clarification-rule contracts with explicit current source-authority requirements.
+- Added pure registry validation, deterministic lookup and selection helpers, and defensive copy/immutability protection.
+- Preserved phase boundaries: no proposal generation, source collection, fingerprint generation, persistence, repository integration, UI, readiness integration, output integration, network access, external AI, deployment, tag, release, or PR behavior.
+
+### Files created
+
+- `src/lib/planningRules.ts` - typed static clarification-rule registry, validation, deterministic selectors, and immutability protection.
+- `src/tests/planningRules.test.ts` - focused coverage for exact rule content, validation, ordering, lookup, immutability, and isolation.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts`: passed (`1` file, `16` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts`: passed (`2` files, `47` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests).
+- Focused output isolation batch passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`38` unit/integration files, `1872` tests; `7` UI files, `61` tests; `45` combined files, `1933` tests).
+- `npm.cmd run test:coverage`: passed (`45` combined files, `1933` tests) with `90.55%` statements, `81.64%` branches, `95.31%` functions, and `95.15%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on the documented development-only `brace-expansion` and `undici` advisory chains.
+- `git diff --check`: passed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of Phase 5C.2.1A before any source collection, proposal generation, fingerprint generation, reconciliation, persistence integration, UI, readiness integration, output integration, or external AI phase.
+
 ## 2026-08-03 - Phase 5C.1.1B.1 Legacy Migration Planning Return Correction
 
 ### Summary
