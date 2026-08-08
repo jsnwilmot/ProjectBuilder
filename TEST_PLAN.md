@@ -1,5 +1,36 @@
 # Test Plan
 
+## 2026-08-04 Phase 5C.2.1C pure clarification materialization blueprints
+
+- Input validation coverage verifies valid input, non-object input, invalid project IDs, non-array drafts, invalid draft records, project-ID mismatch handling, and input immutability.
+- Draft validation coverage verifies every runtime draft is independently checked against the active clarification rule registry before source or proposal blueprints are produced.
+- Rule-integrity coverage verifies unknown rules, rule-version mismatch, target mismatch, category mismatch, restriction mismatch, uncertainty mismatch, question mismatch, title mismatch, rationale mismatch, consequence mismatch, priority mismatch, source-requirement mismatch, flag mismatch, invalid draft keys, and duplicate draft keys.
+- Eligibility coverage verifies all unresolved statuses and disallowed Not Applicable drafts produce blueprints, while resolved statuses and allowed Not Applicable drafts are rejected.
+- Source-blueprint coverage verifies exact project-rule source mapping, readiness-prerequisite source mapping, source keys, source types, locators, labels, excerpts, authority, availability, equivalent deduplication, conflicting duplicate-source rejection, deterministic ordering, and source text validation.
+- Proposal-blueprint coverage verifies exact proposal keys, fixed `Needs Clarification` status, exact recommendation text, source-key order, readiness requirement IDs, applicable project type, applicable domain, duplicate proposal-key rejection, and deterministic proposal ordering.
+- Canonical serialization coverage verifies the fixed canonical object shape, exact property order, null optional target fields, null optional source fields, compact JSON serialization, input-order independence, repeatability, semantic-change sensitivity, unresolved-status independence when source evidence does not change, no hash output, and no final fingerprint field.
+- TTI fixture coverage verifies exactly 22 source blueprints, 11 proposal blueprints, 11 canonical inputs, zero issues, and no invented answers or implementation content.
+- Contract-exclusion coverage verifies no source ID, proposal ID, UUID, fingerprint, timestamp, decision, conflict, stale state, supersession, readiness/output flag, persistence metadata, UI state, actual source record, or actual proposal record is produced.
+- Immutability coverage verifies returned source protection, returned proposal protection, returned target protection, returned source-evidence protection through canonical serialization, returned value protection, issue protection, rule registry protection, and clarification draft protection.
+- Readiness isolation coverage verifies the blueprint generator consumes drafts only and does not import or call readiness evaluators, recalculate gate status, clear blockers, change review status, change project status, or treat blueprints as confirmation.
+- Output isolation coverage verifies no generated document, template, document review, package preview, export manifest, ZIP export, export integrity, copy action, Power Fx output, YAML output, deployment output, release output, or Codex prompt consumer is added.
+- Privacy and external-service coverage verifies local pure-function operation with no repository access, storage access, browser APIs, network access, external AI, provider, model, token, API key, telemetry, protected-data logging, hidden reasoning, executable code, UUID generation, cryptographic hashing, fingerprint generation, or clock access.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts`: passed (`1` file, `15` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts`: passed (`2` files, `34` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts`: passed (`3` files, `50` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts`: passed (`4` files, `81` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`40` unit/integration files, `1906` tests; `7` UI files, `61` tests; `47` combined files, `1967` tests).
+- `npm.cmd run test:coverage`: passed (`47` combined files, `1967` tests) with `90.51%` statements, `81.78%` branches, `95.46%` functions, and `95.00%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`.
+- `git diff --check`: passed.
+
 ## 2026-08-04 Phase 5C.2.1B pure deterministic clarification draft generation
 
 - Input validation coverage verifies valid Canvas input, non-object input, empty project IDs, over-length project IDs, multiline project IDs, invalid runtime project types, non-array gate results, invalid gate-result records, and input immutability.
