@@ -11,6 +11,7 @@
 - Added source-set completeness validation for duplicate, missing, and unexpected generated source blueprints.
 - Added generated source identity binding checks for approved project-rule and readiness-prerequisite source forms.
 - Added existing source-lineage protection for unsupported clarification sources and unrecognized deterministic source identity shapes.
+- Architect correction 5C.2.1F.1 hardened persisted source identity derivation so existing project-rule locator payloads, project-rule versions, and readiness-prerequisite locator payloads containing the canonical `|` source-key delimiter now return `unrecognizedExistingSourceIdentity` instead of deriving malformed semantic keys.
 - Added ambiguous current-source key protection without UUID ordering, array-order winner selection, or lifecycle repair.
 - Preserved lifecycle boundaries: no UUID generation, timestamps, materialization, source availability mutation, proposal lifecycle mutation, persistence, repository/storage writes, UI, readiness integration, output integration, network calls, external AI, deployment, tag, release, PR, or main integration.
 - Applied review-before-main governance: implementation is committed and pushed only to the review branch for Architect inspection.
@@ -19,6 +20,7 @@
 
 - `src/lib/planningClarificationSourceReconciliation.ts` - read-only source reconciliation input/output contracts, runtime validation, existing planning normalization, independent generated-set validation, source-set completeness checks, existing semantic-key derivation, current/existing-only/non-current classification, ambiguity protection, deterministic ordering, structured issues, and defensive copy handling.
 - `src/tests/planningClarificationSourceReconciliation.test.ts` - focused coverage for validation failures, TTI source scenarios, exact/changed/new behavior, existing-only behavior, non-current reporting, ambiguous keys, unsupported lineage, unrecognized identities, unrelated-source isolation, ordering, immutability, lifecycle isolation, readiness/output isolation, and privacy boundaries.
+- Architect correction 5C.2.1F.1 updated the source parser and focused tests only within the approved file scope to cover malformed project-rule locator delimiters, malformed project-rule version delimiters, malformed readiness locator delimiters, malformed-source `existingOnly` exclusion, and valid historical identity preservation.
 
 ### Files updated
 

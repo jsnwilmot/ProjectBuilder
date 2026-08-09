@@ -371,13 +371,19 @@ function deriveExistingSourceKey(source: NormalizedSource):
   if (source.sourceType === "projectRule") {
     const ruleId = parseLocator(source.locator, "planning-rule:");
     if (!ruleId) return { kind: "unrecognized", field: "locator" };
-    if (!source.version) return { kind: "unrecognized", field: "version" };
-    return { kind: "derived", sourceKey: `projectRule|${ruleId}|${source.version}` };
+    if (!isCanonicalSourceKeySegment(source.version)) return { kind: "unrecognized", field: "version" };
+    const sourceKey = `projectRule|${ruleId}|${source.version}`;
+    return sourceKey.split("|").length === 3
+      ? { kind: "derived", sourceKey }
+      : { kind: "unrecognized", field: "locator" };
   }
   if (source.sourceType === "readinessPrerequisite") {
     const targetKey = parseLocator(source.locator, "phase-gate:");
     if (!targetKey) return { kind: "unrecognized", field: "locator" };
-    return { kind: "derived", sourceKey: `readinessPrerequisite|${targetKey}` };
+    const sourceKey = `readinessPrerequisite|${targetKey}`;
+    return sourceKey.split("|").length === 2
+      ? { kind: "derived", sourceKey }
+      : { kind: "unrecognized", field: "locator" };
   }
   return { kind: "unsupported" };
 }
@@ -387,7 +393,11 @@ function parseLocator(locator: string, prefix: string): string | null {
     return null;
   }
   const value = locator.slice(prefix.length);
-  return value.length > 0 ? value : null;
+  return isCanonicalSourceKeySegment(value) ? value : null;
+}
+
+function isCanonicalSourceKeySegment(input: string | undefined): input is string {
+  return typeof input === "string" && input.length > 0 && !input.includes("|");
 }
 
 function groupCurrentSources(

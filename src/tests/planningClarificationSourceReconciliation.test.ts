@@ -541,6 +541,60 @@ describe("planning clarification source reconciliation classification", () => {
     ]);
   });
 
+  it("rejects delimiter-bearing persisted identity payloads without deriving malformed source keys", async () => {
+    const fixture = await ttiFixture();
+    const projectRuleSource = fixture.sources.find((source) => source.sourceType === "projectRule")!;
+    const readinessSource = fixture.sources.find((source) => source.sourceType === "readinessPrerequisite")!;
+    const cases = [
+      {
+        source: sourceRecord(projectRuleSource, 95, "current", {
+          locator: "planning-rule:pp.canvas.schema.confirmation|legacy"
+        }),
+        proposal: fixture.proposals.find((proposal) => proposal.sourceKeys.includes(projectRuleSource.sourceKey))!,
+        field: "locator",
+        malformedKey: "projectRule|pp.canvas.schema.confirmation|legacy|1.0.0"
+      },
+      {
+        source: sourceRecord(projectRuleSource, 96, "current", {
+          version: "1.0.0|legacy"
+        }),
+        proposal: fixture.proposals.find((proposal) => proposal.sourceKeys.includes(projectRuleSource.sourceKey))!,
+        field: "version",
+        malformedKey: "projectRule|pp.canvas.schema.confirmation|1.0.0|legacy"
+      },
+      {
+        source: sourceRecord(readinessSource, 97, "current", {
+          locator: "phase-gate:schema|legacy"
+        }),
+        proposal: fixture.proposals.find((proposal) => proposal.sourceKeys.includes(readinessSource.sourceKey))!,
+        field: "locator",
+        malformedKey: "readinessPrerequisite|schema|legacy"
+      }
+    ] as const;
+
+    for (const entry of cases) {
+      const existingPlanning = {
+        ...emptyPlanning(),
+        sources: [entry.source],
+        proposals: [proposalRecord(entry.proposal, 95, [entry.source.sourceId])]
+      };
+      const before = JSON.stringify(existingPlanning);
+      const reconciled = await reconcile({ existingPlanning });
+
+      expect(reconciled.issues).toEqual([
+        expect.objectContaining({
+          code: "unrecognizedExistingSourceIdentity",
+          existingSourceId: entry.source.sourceId,
+          field: entry.field
+        })
+      ]);
+      expect(reconciled.existingOnly.map((source) => source.existingSourceId)).not.toContain(entry.source.sourceId);
+      expect(reconciled.current.some((source) => source.existingSourceId === entry.source.sourceId)).toBe(false);
+      expect(JSON.stringify(reconciled)).not.toContain(entry.malformedKey);
+      expect(JSON.stringify(existingPlanning)).toBe(before);
+    }
+  });
+
   it("is deterministic across reversed existing and generated input order", async () => {
     const fixture = await ttiFixture();
     const existingPlanning = await planningWithSources();
