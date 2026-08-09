@@ -1,5 +1,55 @@
 # Change Log
 
+## 2026-08-09 - Phase 5C.2.2B.3 Strict Lifecycle Validation Correction
+
+### Summary
+
+- Removed the lifecycle-only legacy rule-set compatibility path introduced in B.2.
+- Restored direct authoritative `normalizeProjectPlanningState` use so invalid persisted proposal `ruleSetVersion` values fail closed before source or proposal lifecycle classification.
+- Documented that future rule-set upgrades require a separately approved storage migration, planning migration, compatibility strategy, or rule-set transition architecture.
+- Hardened rule-version stale classification so `ruleChanged` requires deterministic old-to-new project-rule source rollover evidence whenever `ruleVersion` differs.
+- Preserved B.2 source rollover hardening for existing-only and non-current old project-rule sources, exact ordered source-set enforcement, source-set rejection, and multiple-reason ambiguity.
+- Preserved the approved read-only boundary: no migration logic, schema translation, new stale reasons, planning mutation, status mutation, stale timestamps, supersession, decisions, conflicts, dependencies, repository writes, UI, hooks, readiness integration, output integration, Power Fx, YAML, generated documents, manifest/ZIP/export changes, remote persistence, network, telemetry, external AI, Wrangler, deployment, PR, tag, release, or main integration.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationLifecycleAnalysis.ts` - restores direct authoritative normalization, removes legacy rule-set compatibility helpers, and requires proven project-rule source rollover for rule-version stale classification.
+- `src/tests/planningClarificationLifecycleAnalysis.test.ts` - rewrites legacy rule-set tests to fail closed, changes proposal-only rule-version mismatch to ambiguity, adds Confirmed realistic rollover coverage, and preserves realistic multi-reason rollover regressions.
+- `CHANGE_LOG.md` - records this correction.
+- `TEST_PLAN.md` - records this correction validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `23` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `148` tests).
+- Focused readiness regression passed (`4` files, `82` tests).
+- Focused output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`45` unit/integration files, `1974` tests; `7` UI files, `61` tests; `52` combined files, `2035` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2035` tests) with `90.32%` statements, `81.87%` branches, `95.59%` functions, and `94.73%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this correction.
+- Low: build reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Return to GPT Architect for independent re-review of the strict corrected review-branch commit. Do not integrate to `main` or begin later planning lifecycle, UI, readiness, output, migration compatibility, remote persistence, or external AI phases without explicit Architect approval.
+
 ## 2026-08-09 - Phase 5C.2.2B.2 Lifecycle Rule-Change Boundary Correction
 
 ### Summary
