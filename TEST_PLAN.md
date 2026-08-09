@@ -1,5 +1,40 @@
 # Test Plan
 
+## 2026-08-08 Phase 5C.2.1D deterministic clarification fingerprint generation
+
+- SHA-256 primitive coverage verifies the standard `abc` vector, lowercase 64-character hexadecimal output, repeatability, different-input sensitivity, UTF-8 content stability, and exact input handling without trimming or rewriting.
+- Input validation coverage verifies valid input, non-object input, invalid project IDs, non-array sources, non-array proposals, and input immutability.
+- Source validation coverage verifies both valid source types, invalid source type, invalid authority, invalid availability, unsafe text rejection, equivalent duplicate-source handling, conflicting duplicate-source rejection, and dependent fingerprint suppression.
+- Proposal validation coverage verifies project-ID mismatch, unknown rule, rule-version mismatch, invalid fixed status, invalid recommendation, invalid source-key order, invalid readiness requirement, invalid project type, invalid domain, persisted identity metadata rejection, and duplicate proposal-key rejection.
+- Canonical JSON coverage verifies valid compact JSON, invalid JSON, pretty-printed JSON rejection, top-level property-order enforcement, missing property rejection, extra property rejection, schema/rule-set/project/rule/target/value/title/recommendation/rationale/consequence/source/uncertainty/restriction/readiness/project-type/domain semantic checks, target property-order enforcement, source-evidence ordering, source property-order enforcement, and oversized input rejection.
+- Determinism coverage verifies fingerprint records are ordered by rule priority and rule ID, repeated generation is stable, reversed source arrays do not change fingerprints, and reversed proposal arrays do not change fingerprints.
+- Duplicate and collision coverage verifies duplicate canonical inputs across different proposal keys suppress all affected fingerprints and simulated SHA-256 collisions suppress all affected fingerprints without selecting a winner.
+- Web Crypto failure coverage verifies missing `crypto`, missing `subtle`, rejected digest promises, and malformed digest output are converted into structured top-level issues without unexpected generator throws.
+- TTI fixture coverage verifies exactly 22 valid source blueprints, 11 valid proposal blueprints, 11 canonical inputs, 11 fingerprint records, 11 unique proposal keys, 11 unique 64-character lowercase fingerprints, zero issues, repeatability, reversed input-order equivalence, and no invented content.
+- Semantic-change coverage verifies exact canonical string hashing changes when rule version, clarification question, target, restriction, source locator, source label, source excerpt, source version, readiness requirement ID, or applicable domain changes, while input-array order changes do not change fingerprints.
+- Immutability coverage verifies input objects, input source arrays, input proposal arrays, source blueprints, proposal blueprints, canonical input strings, returned fingerprint arrays, returned issue arrays, the rule registry, clarification drafts, and blueprint results remain unchanged.
+- Contract-exclusion coverage verifies no `PlanningSourceReference`, `PlanningProposalRecord`, `ProjectPlanningState`, `PlanningDecisionRecord`, `PlanningDependencyRecord`, `PlanningConflictRecord`, source IDs, proposal IDs, UUIDs, timestamps, persistence metadata, readiness eligibility, output eligibility, or UI state is created.
+- Readiness isolation coverage verifies fingerprint records are identity metadata only and do not alter readiness requirements, missing markers, review status, project status, or Ready for Codex state.
+- Output isolation coverage verifies no generated document, template, package preview, manifest, ZIP export, export integrity, copy action, Power Fx, YAML, deployment file, release file, or Codex prompt consumer is added.
+- Privacy and external-service coverage verifies SHA-256 is local, no canonical input leaves the runtime, no network request occurs, no external AI is used, no provider/model/API key/token field is added, no telemetry is added, no source content is logged, and no hidden reasoning is stored.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationFingerprints.test.ts`: passed (`1` file, `11` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`2` files, `26` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`3` files, `45` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`4` files, `61` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`5` files, `92` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- First `npm.cmd test` run passed the unit/integration leg (`41` files, `1917` tests) but one unrelated UI test timed out at the default `5000ms`; the rerun passed.
+- `npm.cmd test`: passed on rerun (`41` unit/integration files, `1917` tests; `7` UI files, `61` tests; `48` combined files, `1978` tests).
+- `npm.cmd run test:coverage`: passed (`48` combined files, `1978` tests) with `90.42%` statements, `81.88%` branches, `95.55%` functions, and `94.88%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`.
+- `git diff --check`: passed.
+
 ## 2026-08-04 Phase 5C.2.1C pure clarification materialization blueprints
 
 - Input validation coverage verifies valid input, non-object input, invalid project IDs, non-array drafts, invalid draft records, project-ID mismatch handling, and input immutability.

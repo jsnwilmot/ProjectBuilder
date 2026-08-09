@@ -1,5 +1,60 @@
 # Change Log
 
+## 2026-08-08 - Phase 5C.2.1D Deterministic Clarification Fingerprint Generation
+
+### Summary
+
+- Added deterministic SHA-256 fingerprint generation for validated clarification proposal blueprints.
+- Added exact canonical fingerprint-input validation before hashing, including compact JSON serialization, semantic equality, top-level property order, target property order, source-evidence ordering, and source-evidence property order.
+- Added local Web Crypto hashing with `SHA-256`, UTF-8 `TextEncoder` input, and lowercase 64-character hexadecimal output.
+- Added duplicate proposal-key, duplicate canonical-input, conflicting-source, Web Crypto failure, malformed digest, and simulated collision safeguards without selecting winners.
+- Confirmed the TTI fixture produces 11 deterministic unique fingerprint records from 22 source blueprints, 11 proposal blueprints, and 11 canonical inputs.
+- Preserved phase boundaries: no UUID generation, timestamps, actual source/proposal records, planning-state reads, reconciliation, persistence, UI, readiness integration, output integration, network requests, external AI, deployment, tag, release, or PR behavior.
+
+### Files created
+
+- `src/lib/planningClarificationFingerprints.ts` - local deterministic clarification fingerprint generation, runtime validation, canonical input validation, SHA-256 calculation, deterministic ordering, issue reporting, and defensive copy handling.
+- `src/tests/planningClarificationFingerprints.test.ts` - focused coverage for SHA-256 behavior, source/proposal/canonical validation, duplicate and collision handling, Web Crypto failures, TTI fixture determinism, immutability, and isolation.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationFingerprints.test.ts`: passed (`1` file, `11` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`2` files, `26` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`3` files, `45` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`4` files, `61` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts`: passed (`5` files, `92` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests).
+- Focused output isolation batch passed (`7` files, `188` tests).
+- First `npm.cmd test` run passed the unit/integration leg (`41` files, `1917` tests) but one unrelated UI test timed out at the default `5000ms`; the rerun passed.
+- `npm.cmd test`: passed on rerun (`41` unit/integration files, `1917` tests; `7` UI files, `61` tests; `48` combined files, `1978` tests).
+- `npm.cmd run test:coverage`: passed (`48` combined files, `1978` tests) with `90.42%` statements, `81.88%` branches, `95.55%` functions, and `94.88%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`.
+- `git diff --check`: passed.
+
+### Issues found
+
+- Low: the isolated review worktree required elevated filesystem access for Vitest to create `node_modules/.vite-temp`; this is a Windows/OneDrive permission condition, not a product code defect.
+- Low: first full-suite run had one unrelated UI timeout in `App.reviewGeneration.test.tsx`; rerun passed without code changes.
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+
+### Remaining work
+
+- Commit only the four approved files, fast-forward `main`, push, verify CI, clean up the temporary worktree and branch, and return to GPT Architect for independent review.
+
 ## 2026-08-04 - Phase 5C.2.1C Pure Clarification Materialization Blueprints
 
 ### Summary
