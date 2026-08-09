@@ -1,5 +1,55 @@
 # Change Log
 
+## 2026-08-09 - Phase 5C.2.2B Deterministic Clarification Lifecycle Change Analysis
+
+### Summary
+
+- Added a pure deterministic lifecycle-change analysis layer for persisted clarification planning.
+- Added source and proposal lifecycle analysis records that distinguish `unchanged`, `staleRequired`, `noLongerGenerated`, `historical`, and `ambiguous` outcomes without adding persisted lifecycle states.
+- Added approved stale-reason analysis for source evidence changes, explicit rule-version changes, applicability-only proposal changes, and same-version proposal regeneration.
+- Added fail-closed ambiguity handling for malformed reconciliation, unresolved causes, unversioned rule-content changes, and multiple independent lifecycle-reason categories.
+- Preserved lifecycle boundaries: no source/proposal stale mutation, supersession, decisions, conflicts, dependencies, repository persistence, storage access, UUID generation, timestamps, UI, readiness integration, output integration, network calls, external AI, deployment, PR, tag, release, Wrangler, or main integration.
+- Applied review-before-main governance: implementation is committed and pushed only to the review branch for Architect inspection.
+
+### Files created
+
+- `src/lib/planningClarificationLifecycleAnalysis.ts` - pure lifecycle analysis input/result contracts, existing planning normalization, source/proposal reconciliation use, structural changed-field comparison, approved stale-reason classification, ambiguity issues, historical reporting, deterministic ordering, and defensive result copies.
+- `src/tests/planningClarificationLifecycleAnalysis.test.ts` - focused coverage for exact TTI planning, source evidence changes, rule-version changes, applicability-only changes, same-version content regeneration, multiple reason ambiguity, existing-only records, terminal history, reconciliation ambiguity, input-order invariance, immutability, and isolation boundaries.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `9` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `134` tests).
+- Focused readiness regression passed (`4` files, `82` tests).
+- Focused output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`45` unit/integration files, `1960` tests; `7` UI files, `61` tests; `52` combined files, `2021` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2021` tests) with `90.23%` statements, `81.77%` branches, `95.53%` functions, and `94.62%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: build reports the existing Vite large-chunk warning.
+- Low: aggregate coverage percentages decreased from the integrated baseline after adding the new analyzer file, while the coverage command and gate passed.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of the review-branch commit. Do not integrate to `main` or begin lifecycle materialization, decisions, UI, readiness, output, remote persistence, or external AI phases without explicit Architect approval.
+
 ## 2026-08-09 - Phase 5C.2.2A Controlled Clarification Record Materialization and Repository Persistence
 
 ### Summary

@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-08-09 Phase 5C.2.2B deterministic clarification lifecycle change analysis
+
+- Exact TTI lifecycle-analysis coverage verifies persisted `22` clarification sources and `11` clarification proposals are reported as `unchanged`, with zero stale reasons, zero mutation, and zero issues.
+- Source evidence-change coverage verifies a changed readiness-prerequisite source with the same deterministic semantic key is reported as `staleRequired`, receives stale reason `sourceChanged`, reports factual changed fields, and does not mutate planning.
+- Rule-change coverage verifies an explicit persisted proposal rule-version difference under the same semantic clarification identity is reported as `staleRequired` with stale reason `ruleChanged`.
+- Applicability coverage verifies proposal changes limited to `applicableProjectTypes` or `applicableDomains` are reported as `staleRequired` with stale reason `applicabilityChanged`.
+- Proposal-regeneration coverage verifies same-version generated content changes are reported as `proposalRegenerated` and emit `unversionedRuleContentChange` so later persistence cannot treat the case as silently safe.
+- Multiple-reason ambiguity coverage verifies proposal changes crossing independent categories, such as applicability plus recommendation, are reported as `ambiguous` with `multipleLifecycleReasons` and no stale-reason winner.
+- Existing-only coverage verifies disappeared persisted source/proposal identities are reported as `noLongerGenerated` without fabricated replacement lineage or inferred stale reason.
+- Historical coverage verifies terminal `Rejected` and `Superseded` clarification proposals, and non-current sources, are reported as `historical` and are never reopened or selected for mutation.
+- Reconciliation ambiguity coverage verifies malformed, ambiguous, or unsupported source/proposal reconciliation issues are surfaced and block unsafe lifecycle conclusions.
+- Input-order invariance coverage verifies reversing source blueprint order, proposal blueprint order, and fingerprint order produces byte-for-semantic-byte equivalent analysis.
+- Immutability coverage verifies input objects, existing planning, generated blueprints, fingerprints, returned records, returned changed-field arrays, and issue arrays are not mutated by analysis.
+- Isolation coverage verifies the analyzer does not generate UUIDs, call time APIs, call repository/storage APIs, access `localStorage`, create decisions, create conflicts, mark stale, supersede records, add UI, alter readiness, enter generated output, call network APIs, or add external AI/provider/token/telemetry paths.
+- Review-before-main governance coverage verifies implementation remains on `review/phase-5c2-2b-clarification-lifecycle-analysis`, committed and pushed for Architect review only, with `main` unchanged and integration blocked pending explicit approval.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `9` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `134` tests).
+- Focused readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`45` unit/integration files, `1960` tests; `7` UI files, `61` tests; `52` combined files, `2021` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2021` tests) with `90.23%` statements, `81.77%` branches, `95.53%` functions, and `94.62%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
 ## 2026-08-09 Phase 5C.2.2A controlled clarification record materialization and repository persistence
 
 - Initial TTI persistence coverage verifies the unresolved TTI fixture materializes from empty planning with `22` created sources, `11` created proposals, `33` unique canonical UUIDs, `11` preserved fingerprints, zero decisions/dependencies/conflicts, all proposals in `Needs Clarification`, valid source UUID bindings, fixed transaction `updatedAt`, and Draft/review-needed blockers unchanged.
