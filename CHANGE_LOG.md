@@ -1,5 +1,54 @@
 # Change Log
 
+## 2026-08-09 - Phase 5C.2.2B.2 Lifecycle Rule-Change Boundary Correction
+
+### Summary
+
+- Hardened rule-change lifecycle classification so rule-version rollover accepts an exact old project-rule source from either existing-only or non-current source reconciliation.
+- Enforced an exact ordered source-identity set for the special rule-version rollover exception, rejecting unrelated, missing, substituted, or additional proposal source bindings.
+- Added lifecycle-only handling for valid legacy proposal rule-set versions so rule-set-only comparisons can be analyzed read-only without weakening reconciliation input contracts.
+- Corrected classification order so `rule`, `applicability`, and `content` causes all participate in multiple-reason ambiguity before any stale reason is selected.
+- Preserved the approved read-only boundary: no planning mutation, status mutation, stale timestamps, supersession, decisions, conflicts, dependencies, repository writes, UI, hooks, readiness integration, output integration, Power Fx, YAML, generated documents, manifest/ZIP/export changes, remote persistence, network, telemetry, external AI, Wrangler, deployment, PR, tag, release, or main integration.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationLifecycleAnalysis.ts` - adds lifecycle-only legacy rule-set normalization for comparison, exact rule-version rollover source-set validation, non-current old project-rule source support, and multi-cause rule classification.
+- `src/tests/planningClarificationLifecycleAnalysis.test.ts` - adds regressions for non-current old-rule rollover, extra and missing source rejection, rule-set-only boundaries, rule plus applicability/content ambiguity, and realistic rollover plus second cause ambiguity.
+- `CHANGE_LOG.md` - records this correction.
+- `TEST_PLAN.md` - records this correction validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `22` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `147` tests).
+- Focused readiness regression passed (`4` files, `82` tests).
+- Focused output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`45` unit/integration files, `1973` tests; `7` UI files, `61` tests; `52` combined files, `2034` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2034` tests) with `90.30%` statements, `81.85%` branches, `95.57%` functions, and `94.68%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this correction.
+- Low: build reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Return to GPT Architect for independent re-review of the fully corrected review-branch commit. Do not integrate to `main` or begin later planning lifecycle, UI, readiness, output, remote persistence, or external AI phases without explicit Architect approval.
+
 ## 2026-08-09 - Phase 5C.2.2B.1 Lifecycle Change Analysis Classification Correction
 
 ### Summary

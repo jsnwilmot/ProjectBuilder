@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-08-09 Phase 5C.2.2B.2 lifecycle rule-change boundary correction
+
+- Non-current rollover coverage verifies an old project-rule source with a valid non-current availability is reported as historical/non-current while the same proposal semantic key is classified as `staleRequired` with stale reason `ruleChanged`.
+- Existing-only rollover coverage remains in place to verify a current old project-rule source absent from generated sources is reported as `noLongerGenerated` and the proposal receives `ruleChanged` only for the exact old-to-new project-rule version source identity change.
+- Exact source-set coverage verifies the rule-version rollover exception requires the existing proposal source identity order to match the generated proposal source order with only the project-rule version identity changed.
+- Extra source rejection coverage verifies an unrelated additional project-rule source referenced by the persisted proposal keeps the proposal `ambiguous`, leaves stale reason undefined, and does not fabricate lineage or return `ruleChanged`.
+- Missing source rejection coverage verifies a rollover proposal missing the readiness-prerequisite source identity remains `ambiguous` with unresolved proposal ambiguity instead of silently accepting a subset.
+- Rule-set-only coverage verifies a valid legacy proposal rule-set version with unchanged exact sources is analyzed as `ruleChanged` through the lifecycle-only comparison path.
+- Rule-set plus source-change coverage verifies a valid legacy proposal rule-set version combined with a source-set difference remains `ambiguous` and does not receive `ruleChanged`.
+- Multiple-reason coverage verifies rule plus applicability and rule plus content changes return `ambiguous` with `multipleLifecycleReasons` and no stale-reason winner.
+- Realistic rollover plus second-cause coverage verifies a project-rule source rollover combined with an applicability change returns `ambiguous` with `multipleLifecycleReasons`.
+- Existing applicability plus content coverage remains in place to verify non-rule multi-category behaviour still returns `multipleLifecycleReasons`.
+- Regression coverage preserves non-terminal `Confirmed` status exclusion, fingerprint-only unresolved ambiguity without `multipleLifecycleReasons`, exact `unchanged`, source `sourceChanged`, existing-only records, terminal history, reconciliation fail-closed behaviour, input-order invariance, defensive copies, and immutability.
+- Isolation coverage verifies no UUID generation, randomness, timestamps, `Date`, repository writes, storage/localStorage, stale mutation, `staleAt`, supersession, planning decisions, conflicts, dependencies, UI, hooks, readiness integration, output integration, Power Fx, YAML, generated documents, manifest, ZIP/export, remote persistence, network, telemetry, or external AI is introduced.
+- Review-before-main governance coverage verifies the correction remains on `review/phase-5c2-2b-clarification-lifecycle-analysis`, committed and pushed for Architect re-review only, with `main` unchanged and integration blocked pending explicit approval.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `22` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `147` tests).
+- Focused readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`45` unit/integration files, `1973` tests; `7` UI files, `61` tests; `52` combined files, `2034` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2034` tests) with `90.30%` statements, `81.85%` branches, `95.57%` functions, and `94.68%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
 ## 2026-08-09 Phase 5C.2.2B.1 lifecycle change analysis classification correction
 
 - Realistic project-rule rollover coverage verifies persisted planning from an older rule version uses an old `projectRule|{ruleId}|{oldRuleVersion}` source plus the existing readiness-prerequisite source, reports the old project-rule source as `noLongerGenerated`, reports the generated current project-rule source as current `newSource`, does not fabricate UUID lineage, and classifies the same proposal semantic key as `staleRequired` with stale reason `ruleChanged`.

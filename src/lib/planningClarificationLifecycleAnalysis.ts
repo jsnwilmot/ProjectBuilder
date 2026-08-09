@@ -17,6 +17,7 @@ import {
 import {
   normalizeProjectPlanningState,
   PLANNING_SCHEMA_VERSION,
+  PLANNING_RULE_SET_VERSION,
   type PlanningProposalRecord,
   type PlanningStaleReason,
   type PlanningSourceReference,
@@ -90,6 +91,12 @@ export interface PlanningClarificationLifecycleAnalysisResult {
 
 type NormalizedPlanning = ProjectPlanningState;
 
+interface LifecycleNormalizedPlanning {
+  planning: NormalizedPlanning;
+  reconciliationPlanning: NormalizedPlanning;
+  issues: ReturnType<typeof normalizeProjectPlanningState>["issues"];
+}
+
 const SOURCE_CHANGE_FIELDS = [
   "sourceType",
   "locator",
@@ -131,7 +138,7 @@ export async function analyzePlanningClarificationLifecycleChanges(
     return result(projectId ?? "", [], [], issues);
   }
 
-  const normalized = normalizeProjectPlanningState(existingPlanning, projectId);
+  const normalized = normalizeExistingPlanningForLifecycle(existingPlanning, projectId);
   if (normalized.issues.length > 0) {
     return result(projectId, [], [], normalized.issues.map((entry) =>
       issue(
@@ -148,13 +155,13 @@ export async function analyzePlanningClarificationLifecycleChanges(
 
   const sourceReconciliation = await reconcilePlanningClarificationSources({
     projectId,
-    existingPlanning: normalized.planning,
+    existingPlanning: normalized.reconciliationPlanning,
     sources,
     proposals
   });
   const proposalReconciliation = await reconcilePlanningClarifications({
     projectId,
-    existingPlanning: normalized.planning,
+    existingPlanning: normalized.reconciliationPlanning,
     sources,
     proposals,
     fingerprints
@@ -183,6 +190,94 @@ export async function analyzePlanningClarificationLifecycleChanges(
     ...sourceAnalysis.issues,
     ...proposalAnalysis.issues
   ]);
+}
+
+function normalizeExistingPlanningForLifecycle(input: Record<string, unknown>, projectId: string): LifecycleNormalizedPlanning {
+  const normalized = normalizeProjectPlanningState(input, projectId);
+  if (normalized.issues.length === 0) {
+    return {
+      planning: normalized.planning,
+      reconciliationPlanning: normalized.planning,
+      issues: []
+    };
+  }
+
+  const legacyRuleSetVersions = collectLegacyProposalRuleSetVersions(input);
+  if (legacyRuleSetVersions.size === 0) {
+    return {
+      planning: normalized.planning,
+      reconciliationPlanning: normalized.planning,
+      issues: normalized.issues
+    };
+  }
+
+  const sanitized = normalizeProjectPlanningState(sanitizeLegacyProposalRuleSetVersions(input, legacyRuleSetVersions), projectId);
+  if (sanitized.issues.length > 0) {
+    return {
+      planning: normalized.planning,
+      reconciliationPlanning: normalized.planning,
+      issues: normalized.issues
+    };
+  }
+
+  return {
+    planning: restoreLegacyProposalRuleSetVersions(sanitized.planning, legacyRuleSetVersions),
+    reconciliationPlanning: sanitized.planning,
+    issues: []
+  };
+}
+
+function collectLegacyProposalRuleSetVersions(input: Record<string, unknown>): Map<string, string> {
+  const proposals = Array.isArray(input.proposals) ? input.proposals : [];
+  const versions = new Map<string, string>();
+  for (const proposal of proposals) {
+    if (!isPlainObject(proposal) || typeof proposal.proposalId !== "string") {
+      continue;
+    }
+    if (isValidLegacyRuleSetVersion(proposal.ruleSetVersion)) {
+      versions.set(proposal.proposalId, proposal.ruleSetVersion);
+    }
+  }
+  return versions;
+}
+
+function sanitizeLegacyProposalRuleSetVersions(
+  input: Record<string, unknown>,
+  legacyRuleSetVersions: ReadonlyMap<string, string>
+): Record<string, unknown> {
+  return {
+    ...input,
+    proposals: Array.isArray(input.proposals)
+      ? input.proposals.map((proposal) =>
+          isPlainObject(proposal) && typeof proposal.proposalId === "string" && legacyRuleSetVersions.has(proposal.proposalId)
+            ? { ...proposal, ruleSetVersion: PLANNING_RULE_SET_VERSION }
+            : proposal
+        )
+      : input.proposals
+  };
+}
+
+function restoreLegacyProposalRuleSetVersions(
+  planning: NormalizedPlanning,
+  legacyRuleSetVersions: ReadonlyMap<string, string>
+): NormalizedPlanning {
+  return {
+    ...planning,
+    proposals: planning.proposals.map((proposal) => {
+      const legacyRuleSetVersion = legacyRuleSetVersions.get(proposal.proposalId);
+      return legacyRuleSetVersion
+        ? { ...proposal, ruleSetVersion: legacyRuleSetVersion } as PlanningProposalRecord
+        : proposal;
+    })
+  };
+}
+
+function isValidLegacyRuleSetVersion(input: unknown): input is string {
+  return typeof input === "string" &&
+    input !== PLANNING_RULE_SET_VERSION &&
+    input.length > 0 &&
+    input.length <= 200 &&
+    !/[\r\n]/.test(input);
 }
 
 function analyzeSources(
@@ -372,13 +467,18 @@ function classifyChangedProposal(
     issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
     return { record: { ...base, disposition: "ambiguous" }, issues };
   }
-  if (effectiveCategories.has("rule")) {
+  const reasonCategoryCount = approvedReasonCategoryCount(effectiveCategories);
+  if (reasonCategoryCount >= 2) {
+    issues.push(issue("multipleLifecycleReasons", "Changed proposal crosses multiple independent lifecycle reason categories.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
+    return { record: { ...base, disposition: "ambiguous" }, issues };
+  }
+  if (reasonCategoryCount === 1 && effectiveCategories.has("rule")) {
     return { record: { ...base, disposition: "staleRequired", staleReason: "ruleChanged" }, issues };
   }
-  if (effectiveCategories.size === 1 && effectiveCategories.has("applicability")) {
+  if (reasonCategoryCount === 1 && effectiveCategories.has("applicability")) {
     return { record: { ...base, disposition: "staleRequired", staleReason: "applicabilityChanged" }, issues };
   }
-  if (effectiveCategories.size === 1 && effectiveCategories.has("content")) {
+  if (reasonCategoryCount === 1 && effectiveCategories.has("content")) {
     issues.push(issue("unversionedRuleContentChange", "Generated clarification content changed without a rule-version change.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
     return { record: { ...base, disposition: "staleRequired", staleReason: "proposalRegenerated" }, issues };
   }
@@ -387,12 +487,8 @@ function classifyChangedProposal(
     issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
     return { record: { ...base, disposition: "ambiguous" }, issues };
   }
-  if (approvedReasonCategoryCount(effectiveCategories) >= 2) {
-    issues.push(issue("multipleLifecycleReasons", "Changed proposal crosses multiple independent lifecycle reason categories.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
-  } else {
-    issues.push(issue("proposalChangeAmbiguous", "Changed proposal has no approved deterministic lifecycle category.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
-    issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
-  }
+  issues.push(issue("proposalChangeAmbiguous", "Changed proposal has no approved deterministic lifecycle category.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
+  issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
   return { record: { ...base, disposition: "ambiguous" }, issues };
 }
 
@@ -483,8 +579,7 @@ function ruleVersionSourceRolloverApplies(
   sourcesById: ReadonlyMap<string, PlanningSourceReference>
 ): boolean {
   const ruleVersionChanged = existing.ruleVersion !== generated.ruleVersion;
-  const ruleSetVersionChanged = existing.ruleSetVersion !== generated.ruleSetVersion;
-  if (!changedFields.includes("sourceIds") || (!ruleVersionChanged && !ruleSetVersionChanged)) return false;
+  if (!changedFields.includes("sourceIds") || !ruleVersionChanged) return false;
   if (existing.ruleId !== generated.ruleId || !sameTarget(existing.target, generated.target)) return false;
   if (
     existing.projectId !== generated.projectId ||
@@ -500,22 +595,29 @@ function ruleVersionSourceRolloverApplies(
   });
   if (!existingSourceKeys.every((entry): entry is string => Boolean(entry))) return false;
 
-  const existingReadinessKeys = existingSourceKeys.filter((sourceKey) => sourceKey.startsWith("readinessPrerequisite|"));
-  const generatedReadinessKeys = generated.sourceKeys.filter((sourceKey) => sourceKey.startsWith("readinessPrerequisite|"));
-  if (!sameStringArray(existingReadinessKeys, generatedReadinessKeys)) return false;
-
-  if (!ruleVersionChanged) {
-    return !generated.sourceKeys.some((sourceKey) => !existingSourceKeys.includes(sourceKey));
-  }
-
   const oldProjectRuleKey = `projectRule|${existing.ruleId}|${existing.ruleVersion}`;
   const newProjectRuleKey = `projectRule|${generated.ruleId}|${generated.ruleVersion}`;
+  const expectedExistingSourceKeys = generated.sourceKeys.map((sourceKey) => {
+    if (sourceKey === newProjectRuleKey) return oldProjectRuleKey;
+    if (sourceKey.startsWith("readinessPrerequisite|")) return sourceKey;
+    return null;
+  });
+  if (!expectedExistingSourceKeys.every((entry): entry is string => Boolean(entry))) return false;
+
   return (
-    existingSourceKeys.includes(oldProjectRuleKey) &&
+    sameStringArray(existingSourceKeys, expectedExistingSourceKeys) &&
     generated.sourceKeys.includes(newProjectRuleKey) &&
-    sourceReconciliation.existingOnly.some((entry) => entry.sourceKey === oldProjectRuleKey) &&
+    oldProjectRuleSourceIsNonCurrentOrExistingOnly(sourceReconciliation, oldProjectRuleKey) &&
     sourceReconciliation.current.some((entry) => entry.sourceKey === newProjectRuleKey && entry.disposition === "newSource")
   );
+}
+
+function oldProjectRuleSourceIsNonCurrentOrExistingOnly(
+  sourceReconciliation: PlanningClarificationSourceReconciliationResult,
+  oldProjectRuleKey: string
+): boolean {
+  return sourceReconciliation.existingOnly.some((entry) => entry.sourceKey === oldProjectRuleKey) ||
+    sourceReconciliation.nonCurrent.some((entry) => entry.sourceKey === oldProjectRuleKey);
 }
 
 function deriveExistingSourceKey(source: PlanningSourceReference): string | null {

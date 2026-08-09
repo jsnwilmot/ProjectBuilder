@@ -369,6 +369,267 @@ describe("planning clarification lifecycle analysis", () => {
     }));
   });
 
+  it("maps non-current old project-rule source identity rollover to proposal ruleChanged", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const generatedProposal = fixture.proposals[0];
+    const oldRuleVersion = "phase-5c.non-current-old-rule-version";
+    const currentProjectRuleSourceKey = generatedProposal.sourceKeys.find((sourceKey) => sourceKey.startsWith("projectRule|"))!;
+    const currentProjectRuleSource = planning.sources.find((source) => existingSourceKey(source) === currentProjectRuleSourceKey)!;
+    const oldProjectRuleSourceKey = `projectRule|${generatedProposal.ruleId}|${oldRuleVersion}`;
+    planning.sources = planning.sources.map((source) =>
+      source.sourceId === currentProjectRuleSource.sourceId ? {
+        ...source,
+        availability: "stale",
+        version: oldRuleVersion
+      } : source
+    );
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleVersion: oldRuleVersion,
+      fingerprint: fingerprint(15)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result.sources).toContainEqual(expect.objectContaining({
+      semanticKey: oldProjectRuleSourceKey,
+      persistedId: currentProjectRuleSource.sourceId,
+      disposition: "historical",
+      sourceReconciliationDisposition: "nonCurrent"
+    }));
+    expect(result.sources).toContainEqual(expect.objectContaining({
+      semanticKey: currentProjectRuleSourceKey,
+      disposition: "unchanged",
+      sourceReconciliationDisposition: "newSource"
+    }));
+    const proposal = result.proposals.find((entry) => entry.semanticKey === generatedProposal.proposalKey)!;
+    expect(proposal.disposition).toBe("staleRequired");
+    expect(proposal.staleReason).toBe("ruleChanged");
+    expect(proposal.changedFields).toEqual(expect.arrayContaining(["ruleVersion", "sourceIds"]));
+    expect(result.issues).not.toContainEqual(expect.objectContaining({
+      code: "proposalChangeAmbiguous",
+      proposalKey: generatedProposal.proposalKey
+    }));
+  });
+
+  it("rejects unrelated additional project-rule sources during rule-version rollover", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const generatedProposal = fixture.proposals[0];
+    const oldRuleVersion = "phase-5c.extra-source-old-rule-version";
+    const currentProjectRuleSourceKey = generatedProposal.sourceKeys.find((sourceKey) => sourceKey.startsWith("projectRule|"))!;
+    const currentProjectRuleSource = planning.sources.find((source) => existingSourceKey(source) === currentProjectRuleSourceKey)!;
+    const extraProjectRuleSource = {
+      ...currentProjectRuleSource,
+      sourceId: uuid(77),
+      locator: "planning-rule:pp.extra.unrelated.confirmation",
+      version: "phase-5c.extra-unrelated-rule-version"
+    };
+    planning.sources = [
+      ...planning.sources.map((source) =>
+        source.sourceId === currentProjectRuleSource.sourceId ? { ...source, version: oldRuleVersion } : source
+      ),
+      extraProjectRuleSource
+    ];
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleVersion: oldRuleVersion,
+      sourceIds: [...proposal.sourceIds, extraProjectRuleSource.sourceId],
+      fingerprint: fingerprint(16)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === generatedProposal.proposalKey)!;
+    expect(proposal.disposition).toBe("ambiguous");
+    expect(proposal.staleReason).toBeUndefined();
+    expect(proposal.changedFields).toEqual(expect.arrayContaining(["ruleVersion", "sourceIds"]));
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "proposalChangeAmbiguous",
+      proposalKey: generatedProposal.proposalKey
+    }));
+    expect(result.issues).not.toContainEqual(expect.objectContaining({
+      code: "multipleLifecycleReasons",
+      proposalKey: generatedProposal.proposalKey
+    }));
+  });
+
+  it("rejects missing readiness source identity during rule-version rollover", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const generatedProposal = fixture.proposals[0];
+    const oldRuleVersion = "phase-5c.missing-readiness-old-rule-version";
+    const currentProjectRuleSourceKey = generatedProposal.sourceKeys.find((sourceKey) => sourceKey.startsWith("projectRule|"))!;
+    const currentProjectRuleSource = planning.sources.find((source) => existingSourceKey(source) === currentProjectRuleSourceKey)!;
+    planning.sources = planning.sources.map((source) =>
+      source.sourceId === currentProjectRuleSource.sourceId ? { ...source, version: oldRuleVersion } : source
+    );
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleVersion: oldRuleVersion,
+      sourceIds: [currentProjectRuleSource.sourceId],
+      fingerprint: fingerprint(17)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === generatedProposal.proposalKey)!;
+    expect(proposal.disposition).toBe("ambiguous");
+    expect(proposal.staleReason).toBeUndefined();
+    expect(proposal.changedFields).toEqual(expect.arrayContaining(["ruleVersion", "sourceIds"]));
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "proposalChangeAmbiguous",
+      proposalKey: generatedProposal.proposalKey
+    }));
+  });
+
+  it("maps rule-set-only changes with exact sources to ruleChanged", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleSetVersion: "phase-5c.old-rule-set-version" as PlanningProposalRecord["ruleSetVersion"],
+      fingerprint: fingerprint(18)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)!;
+    expect(proposal.disposition).toBe("staleRequired");
+    expect(proposal.staleReason).toBe("ruleChanged");
+    expect(proposal.changedFields).toEqual(["ruleSetVersion"]);
+    expect(result.issues).toEqual([]);
+  });
+
+  it("keeps rule-set changes with source-set differences ambiguous", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleSetVersion: "phase-5c.old-rule-set-version" as PlanningProposalRecord["ruleSetVersion"],
+      sourceIds: proposal.sourceIds.slice(0, 1),
+      fingerprint: fingerprint(19)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)!;
+    expect(proposal.disposition).toBe("ambiguous");
+    expect(proposal.staleReason).toBeUndefined();
+    expect(proposal.changedFields).toEqual(expect.arrayContaining(["ruleSetVersion", "sourceIds"]));
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "proposalChangeAmbiguous",
+      proposalKey: fixture.proposals[0].proposalKey
+    }));
+  });
+
+  it.each([
+    {
+      label: "rule plus applicability",
+      mutate: (proposal: PlanningProposalRecord) => ({
+        ...proposal,
+        ruleVersion: "phase-5c.multi-rule-applicability-version",
+        applicableDomains: ["security" as const],
+        fingerprint: fingerprint(20)
+      })
+    },
+    {
+      label: "rule plus content",
+      mutate: (proposal: PlanningProposalRecord) => ({
+        ...proposal,
+        ruleVersion: "phase-5c.multi-rule-content-version",
+        recommendation: "Changed recommendation while the rule version also changed.",
+        fingerprint: fingerprint(21)
+      })
+    }
+  ] as const)("keeps $label changes ambiguous without a stale-reason winner", async ({ mutate }) => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? mutate(proposal) : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)!;
+    expect(proposal.disposition).toBe("ambiguous");
+    expect(proposal.staleReason).toBeUndefined();
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "multipleLifecycleReasons",
+      proposalKey: fixture.proposals[0].proposalKey
+    }));
+  });
+
+  it("keeps realistic rule-version rollover plus applicability change ambiguous", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const generatedProposal = fixture.proposals[0];
+    const oldRuleVersion = "phase-5c.rollover-plus-applicability-version";
+    const currentProjectRuleSourceKey = generatedProposal.sourceKeys.find((sourceKey) => sourceKey.startsWith("projectRule|"))!;
+    const currentProjectRuleSource = planning.sources.find((source) => existingSourceKey(source) === currentProjectRuleSourceKey)!;
+    planning.sources = planning.sources.map((source) =>
+      source.sourceId === currentProjectRuleSource.sourceId ? { ...source, version: oldRuleVersion } : source
+    );
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleVersion: oldRuleVersion,
+      applicableDomains: ["security"],
+      fingerprint: fingerprint(22)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === generatedProposal.proposalKey)!;
+    expect(proposal.disposition).toBe("ambiguous");
+    expect(proposal.staleReason).toBeUndefined();
+    expect(proposal.changedFields).toEqual(expect.arrayContaining(["applicableDomains", "ruleVersion", "sourceIds"]));
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "multipleLifecycleReasons",
+      proposalKey: generatedProposal.proposalKey
+    }));
+  });
+
   it.each([
     {
       label: "rule change",
