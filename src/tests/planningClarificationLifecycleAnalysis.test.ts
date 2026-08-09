@@ -160,6 +160,61 @@ function existingSourceKey(source: PlanningSourceReference): string {
     : `readinessPrerequisite|${source.locator.slice("phase-gate:".length)}`;
 }
 
+function sourceKeyForBlueprint(source: PlanningClarificationSourceBlueprint): string {
+  return source.sourceKey;
+}
+
+async function withRecomputedFingerprints(
+  sources: PlanningClarificationSourceBlueprint[],
+  proposals: PlanningClarificationProposalBlueprint[]
+): Promise<Awaited<ReturnType<typeof ttiFixture>>> {
+  const fingerprintResult = await generatePlanningClarificationFingerprints({
+    projectId,
+    sources,
+    proposals
+  });
+  expect(fingerprintResult.issues).toEqual([]);
+  return {
+    sources: clone(sources),
+    proposals: clone(proposals),
+    fingerprints: clone(fingerprintResult.fingerprints) as PlanningClarificationFingerprintRecord[]
+  };
+}
+
+function withUpdatedSourceEvidenceInputs(
+  proposals: readonly PlanningClarificationProposalBlueprint[],
+  sources: readonly PlanningClarificationSourceBlueprint[]
+): PlanningClarificationProposalBlueprint[] {
+  const sourcesByKey = new Map(sources.map((source) => [source.sourceKey, source]));
+  return proposals.map((proposal) => {
+    const parsed = JSON.parse(proposal.fingerprintInput) as {
+      sourceEvidence: Array<Record<string, unknown> & { sourceKey: string }>;
+    };
+    const sourceEvidence = parsed.sourceEvidence.map((entry) => {
+      const source = sourcesByKey.get(entry.sourceKey);
+      return source
+        ? {
+            ...entry,
+            sourceType: source.sourceType,
+            locator: source.locator,
+            label: source.label,
+            authority: source.authority,
+            availability: source.availability,
+            version: source.version ?? null,
+            excerpt: source.excerpt ?? null
+          }
+        : entry;
+    });
+    return {
+      ...proposal,
+      fingerprintInput: JSON.stringify({
+        ...parsed,
+        sourceEvidence
+      })
+    };
+  });
+}
+
 function uuid(index: number): string {
   return `72000000-0000-4000-8000-${index.toString().padStart(12, "0")}`;
 }
@@ -260,6 +315,119 @@ describe("planning clarification lifecycle analysis", () => {
     expect(result.issues).toEqual([]);
   });
 
+  it("maps realistic project-rule source identity rollover to proposal ruleChanged without fabricated lineage", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const generatedProposal = fixture.proposals[0];
+    const oldRuleVersion = "phase-5c.old-rule-version";
+    const currentProjectRuleSourceKey = generatedProposal.sourceKeys.find((sourceKey) => sourceKey.startsWith("projectRule|"))!;
+    const currentProjectRuleSource = planning.sources.find((source) => existingSourceKey(source) === currentProjectRuleSourceKey)!;
+    const oldProjectRuleSourceKey = `projectRule|${generatedProposal.ruleId}|${oldRuleVersion}`;
+    const oldProjectRuleSource = {
+      ...currentProjectRuleSource,
+      version: oldRuleVersion
+    };
+    planning.sources = planning.sources.map((source) =>
+      source.sourceId === currentProjectRuleSource.sourceId ? oldProjectRuleSource : source
+    );
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      ruleVersion: oldRuleVersion,
+      fingerprint: fingerprint(11)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result.sources).toContainEqual(expect.objectContaining({
+      semanticKey: oldProjectRuleSourceKey,
+      persistedId: oldProjectRuleSource.sourceId,
+      disposition: "noLongerGenerated"
+    }));
+    expect(result.sources).toContainEqual(expect.objectContaining({
+      semanticKey: currentProjectRuleSourceKey,
+      disposition: "unchanged",
+      sourceReconciliationDisposition: "newSource"
+    }));
+    const proposal = result.proposals.find((entry) => entry.semanticKey === generatedProposal.proposalKey)!;
+    expect(proposal.disposition).toBe("staleRequired");
+    expect(proposal.staleReason).toBe("ruleChanged");
+    expect(proposal.changedFields).toEqual(expect.arrayContaining(["ruleVersion", "sourceIds"]));
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "lifecycleCauseUnresolved",
+      sourceKey: oldProjectRuleSourceKey
+    }));
+    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: "multipleLifecycleReasons" }));
+    expect(result.issues).not.toContainEqual(expect.objectContaining({
+      code: "proposalChangeAmbiguous",
+      proposalKey: generatedProposal.proposalKey
+    }));
+  });
+
+  it.each([
+    {
+      label: "rule change",
+      mutate: (proposal: PlanningProposalRecord) => ({
+        ...proposal,
+        ruleVersion: "phase-5c.confirmed-old-rule-version",
+        fingerprint: fingerprint(12)
+      }),
+      expectedReason: "ruleChanged",
+      expectedIssue: undefined
+    },
+    {
+      label: "applicability change",
+      mutate: (proposal: PlanningProposalRecord) => ({
+        ...proposal,
+        applicableDomains: ["security" as const],
+        fingerprint: fingerprint(13)
+      }),
+      expectedReason: "applicabilityChanged",
+      expectedIssue: undefined
+    },
+    {
+      label: "same-version content regeneration",
+      mutate: (proposal: PlanningProposalRecord) => ({
+        ...proposal,
+        recommendation: "Changed confirmed recommendation without a version change.",
+        fingerprint: fingerprint(14)
+      }),
+      expectedReason: "proposalRegenerated",
+      expectedIssue: "unversionedRuleContentChange"
+    }
+  ] as const)("ignores Confirmed lifecycle status during $label analysis", async ({ mutate, expectedReason, expectedIssue }) => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...mutate(proposal),
+      status: "Confirmed"
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)!;
+    expect(proposal.disposition).toBe("staleRequired");
+    expect(proposal.staleReason).toBe(expectedReason);
+    expect(proposal.changedFields).not.toContain("status");
+    expect(proposal.disposition).not.toBe("ambiguous");
+    if (expectedIssue) {
+      expect(result.issues).toContainEqual(expect.objectContaining({ code: expectedIssue }));
+    } else {
+      expect(result.issues).toEqual([]);
+    }
+  });
+
   it("maps applicability-only proposal changes to applicabilityChanged", async () => {
     const fixture = await ttiFixture();
     const planning = exactPlanning(fixture);
@@ -324,6 +492,46 @@ describe("planning clarification lifecycle analysis", () => {
     expect(mixed.disposition).toBe("ambiguous");
     expect(mixed.staleReason).toBeUndefined();
     expect(mixedResult.issues).toEqual([expect.objectContaining({ code: "multipleLifecycleReasons" })]);
+  });
+
+  it("treats fingerprint-only proposal differences from changed source evidence as unresolved ambiguity without multiple reasons", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const changedSourceKey = fixture.proposals[0].sourceKeys.find((sourceKey) => sourceKey.startsWith("readinessPrerequisite|"))!;
+    const changedSources = fixture.sources.map((source) => sourceKeyForBlueprint(source) === changedSourceKey
+      ? { ...source, label: `${source.label} changed` }
+      : source);
+    const changedProposals = withUpdatedSourceEvidenceInputs(fixture.proposals, changedSources);
+    const changedFixture = await withRecomputedFingerprints(changedSources, changedProposals);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: changedFixture.sources,
+      proposals: changedFixture.proposals,
+      fingerprints: changedFixture.fingerprints
+    });
+
+    expect(result.sources).toContainEqual(expect.objectContaining({
+      semanticKey: changedSourceKey,
+      disposition: "staleRequired",
+      staleReason: "sourceChanged",
+      changedFields: ["label"]
+    }));
+    const proposal = result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)!;
+    expect(proposal.disposition).toBe("ambiguous");
+    expect(proposal.staleReason).toBeUndefined();
+    expect(proposal.changedFields).toEqual(["fingerprint"]);
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "proposalChangeAmbiguous",
+      proposalKey: fixture.proposals[0].proposalKey,
+      field: "fingerprint"
+    }));
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "lifecycleCauseUnresolved",
+      proposalKey: fixture.proposals[0].proposalKey
+    }));
+    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: "multipleLifecycleReasons" }));
   });
 
   it("reports existing-only records without fabricating replacement lineage and preserves terminal history", async () => {

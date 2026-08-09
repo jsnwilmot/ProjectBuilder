@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-08-09 - Phase 5C.2.2B.1 Lifecycle Change Analysis Classification Correction
+
+### Summary
+
+- Corrected lifecycle proposal classification for realistic project-rule version rollovers where the project-rule source semantic identity changes from `projectRule|{ruleId}|{oldRuleVersion}` to `projectRule|{ruleId}|{newRuleVersion}` as a deterministic consequence of the rule-version change.
+- Removed persisted non-terminal proposal `status` from lifecycle-cause structural comparison so valid historical/current lifecycle state is not treated as an architecture-change cause.
+- Corrected fingerprint-only proposal differences so unresolved single-category fingerprint changes return ambiguity without misusing `multipleLifecycleReasons`.
+- Preserved the approved review-only lifecycle boundary: no planning mutation, stale transitions, supersession, decisions, conflicts, dependencies, repository writes, UI, readiness integration, output integration, remote persistence, external AI, Wrangler, deployment, PR, tag, release, or main integration.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationLifecycleAnalysis.ts` - adds deterministic project-rule source rollover handling, excludes proposal status from changed-field comparison, and restricts `multipleLifecycleReasons` to genuine multi-category lifecycle-cause changes.
+- `src/tests/planningClarificationLifecycleAnalysis.test.ts` - adds regression coverage for realistic project-rule source identity rollover, Confirmed proposal status preservation across approved stale reasons, and fingerprint-only ambiguity.
+- `CHANGE_LOG.md` - records this correction.
+- `TEST_PLAN.md` - records this correction validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `14` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `139` tests).
+- Focused readiness regression passed (`4` files, `82` tests).
+- Focused output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`45` unit/integration files, `1965` tests; `7` UI files, `61` tests; `52` combined files, `2026` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2026` tests) with `90.26%` statements, `81.82%` branches, `95.51%` functions, and `94.67%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this correction.
+- Low: build reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Return to GPT Architect for independent re-review of the corrected review-branch commit. Do not integrate to `main` or begin later planning lifecycle, UI, readiness, output, remote persistence, or external AI phases without explicit Architect approval.
+
 ## 2026-08-09 - Phase 5C.2.2B Deterministic Clarification Lifecycle Change Analysis
 
 ### Summary

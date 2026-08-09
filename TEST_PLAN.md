@@ -1,5 +1,29 @@
 # Test Plan
 
+## 2026-08-09 Phase 5C.2.2B.1 lifecycle change analysis classification correction
+
+- Realistic project-rule rollover coverage verifies persisted planning from an older rule version uses an old `projectRule|{ruleId}|{oldRuleVersion}` source plus the existing readiness-prerequisite source, reports the old project-rule source as `noLongerGenerated`, reports the generated current project-rule source as current `newSource`, does not fabricate UUID lineage, and classifies the same proposal semantic key as `staleRequired` with stale reason `ruleChanged`.
+- Lifecycle-status preservation coverage verifies a persisted `Confirmed` proposal with a rule-version change is classified as `ruleChanged`, excludes `status` from `changedFields`, and does not become status-driven ambiguity.
+- Lifecycle-status preservation coverage verifies a persisted `Confirmed` proposal with an applicability-only change is classified as `applicabilityChanged`, excludes `status` from `changedFields`, and preserves the non-terminal persisted lifecycle state as analysis input only.
+- Lifecycle-status preservation coverage verifies a persisted `Confirmed` proposal with same-version content regeneration is classified as `proposalRegenerated`, emits `unversionedRuleContentChange`, and excludes `status` from `changedFields`.
+- Fingerprint-only ambiguity coverage verifies changed source evidence under the same deterministic source identity can produce a proposal fingerprint-only difference, reports the proposal as `ambiguous`, emits unresolved ambiguity issues, and does not emit `multipleLifecycleReasons`.
+- Multiple-category coverage remains in place to verify applicability plus recommendation/content changes still return `ambiguous` with `multipleLifecycleReasons` and no stale-reason winner.
+- Regression coverage preserves exact `unchanged`, source `sourceChanged`, applicability `applicabilityChanged`, same-version `proposalRegenerated`, existing-only source/proposal `noLongerGenerated`, terminal history, fail-closed reconciliation issues, input-order invariance, immutability, and isolation scenarios.
+- Isolation coverage verifies the correction does not introduce UUID generation, timestamps, repository writes, storage access, lifecycle mutation, stale timestamps, supersession, decisions, conflicts, dependencies, UI, hooks, readiness integration, output integration, Power Fx, YAML, generated documents, manifest/ZIP changes, remote persistence, network calls, external AI, or telemetry.
+- Review-before-main governance coverage verifies the correction remains on `review/phase-5c2-2b-clarification-lifecycle-analysis`, committed and pushed for Architect re-review only, with `main` unchanged and integration blocked pending explicit approval.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`1` file, `14` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts`: passed (`9` files, `139` tests).
+- Focused readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`45` unit/integration files, `1965` tests; `7` UI files, `61` tests; `52` combined files, `2026` tests).
+- `npm.cmd run test:coverage`: passed (`52` combined files, `2026` tests) with `90.26%` statements, `81.82%` branches, `95.51%` functions, and `94.67%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
 ## 2026-08-09 Phase 5C.2.2B deterministic clarification lifecycle change analysis
 
 - Exact TTI lifecycle-analysis coverage verifies persisted `22` clarification sources and `11` clarification proposals are reported as `unchanged`, with zero stale reasons, zero mutation, and zero issues.

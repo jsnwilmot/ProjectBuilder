@@ -272,6 +272,7 @@ function analyzeProposals(
   const generatedByKey = new Map(proposals.map((proposal) => [proposal.proposalKey, proposal]));
   const existingById = new Map(planning.proposals.map((proposal) => [proposal.proposalId, proposal]));
   const sourceIdsByKey = sourceIdsBySemanticKey(sourceReconciliation);
+  const sourcesById = new Map(planning.sources.map((source) => [source.sourceId, source]));
   const records: PlanningClarificationProposalLifecycleAnalysisRecord[] = [];
   const issues: PlanningClarificationLifecycleAnalysisIssue[] = [];
 
@@ -311,7 +312,7 @@ function analyzeProposals(
       });
       continue;
     }
-    const classified = classifyChangedProposal(existing, generated, entry, sourceIdsByKey);
+    const classified = classifyChangedProposal(existing, generated, entry, sourceIdsByKey, sourceReconciliation, sourcesById);
     records.push(classified.record);
     issues.push(...classified.issues);
   }
@@ -344,36 +345,54 @@ function classifyChangedProposal(
   existing: PlanningProposalRecord,
   generated: PlanningClarificationProposalBlueprint,
   reconciliation: PlanningClarificationCurrentReconciliation,
-  sourceIdsByKey: ReadonlyMap<string, string>
+  sourceIdsByKey: ReadonlyMap<string, string>,
+  sourceReconciliation: PlanningClarificationSourceReconciliationResult,
+  sourcesById: ReadonlyMap<string, PlanningSourceReference>
 ): { record: PlanningClarificationProposalLifecycleAnalysisRecord; issues: PlanningClarificationLifecycleAnalysisIssue[] } {
   const changedFields = compareProposalFields(existing, generated, sourceIdsByKey);
-  const categories = changedCategories(changedFields);
+  const ruleSourceRollover = ruleVersionSourceRolloverApplies(existing, generated, changedFields, sourceReconciliation, sourcesById);
+  const effectiveChangedFields = changedFields;
+  const categories = changedCategories(effectiveChangedFields);
+  const effectiveCategories = new Set(categories);
+  if (ruleSourceRollover) {
+    effectiveCategories.delete("source");
+  }
   const issues: PlanningClarificationLifecycleAnalysisIssue[] = [];
   const base = {
     semanticKey: reconciliation.proposalKey,
     persistedId: reconciliation.existingProposalId,
-    changedFields,
+    changedFields: effectiveChangedFields,
     generatedFingerprint: reconciliation.generatedFingerprint,
     existingFingerprint: reconciliation.existingFingerprint,
     proposalReconciliationDisposition: reconciliation.disposition
   };
 
-  if (categories.has("identity") || categories.has("target") || categories.has("source") || categories.size === 0) {
-    issues.push(issue("proposalChangeAmbiguous", "Changed proposal contains unsupported identity, target, source, or fingerprint-only differences.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, changedFields.join(",")));
+  if (effectiveCategories.has("identity") || effectiveCategories.has("target") || effectiveCategories.has("source") || effectiveCategories.size === 0) {
+    issues.push(issue("proposalChangeAmbiguous", "Changed proposal contains unsupported identity, target, source, or fingerprint-only differences.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
     issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
     return { record: { ...base, disposition: "ambiguous" }, issues };
   }
-  if (categories.has("rule")) {
+  if (effectiveCategories.has("rule")) {
     return { record: { ...base, disposition: "staleRequired", staleReason: "ruleChanged" }, issues };
   }
-  if (categories.size === 1 && categories.has("applicability")) {
+  if (effectiveCategories.size === 1 && effectiveCategories.has("applicability")) {
     return { record: { ...base, disposition: "staleRequired", staleReason: "applicabilityChanged" }, issues };
   }
-  if (categories.size === 1 && categories.has("content")) {
-    issues.push(issue("unversionedRuleContentChange", "Generated clarification content changed without a rule-version change.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, changedFields.join(",")));
+  if (effectiveCategories.size === 1 && effectiveCategories.has("content")) {
+    issues.push(issue("unversionedRuleContentChange", "Generated clarification content changed without a rule-version change.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
     return { record: { ...base, disposition: "staleRequired", staleReason: "proposalRegenerated" }, issues };
   }
-  issues.push(issue("multipleLifecycleReasons", "Changed proposal crosses multiple independent lifecycle reason categories.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, changedFields.join(",")));
+  if (effectiveCategories.size === 1 && effectiveCategories.has("fingerprint")) {
+    issues.push(issue("proposalChangeAmbiguous", "Changed proposal has only a fingerprint difference without an approved deterministic cause.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, "fingerprint"));
+    issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
+    return { record: { ...base, disposition: "ambiguous" }, issues };
+  }
+  if (approvedReasonCategoryCount(effectiveCategories) >= 2) {
+    issues.push(issue("multipleLifecycleReasons", "Changed proposal crosses multiple independent lifecycle reason categories.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
+  } else {
+    issues.push(issue("proposalChangeAmbiguous", "Changed proposal has no approved deterministic lifecycle category.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId, effectiveChangedFields.join(",")));
+    issues.push(issue("lifecycleCauseUnresolved", "Changed proposal has no approved deterministic stale reason in this phase.", undefined, reconciliation.proposalKey, reconciliation.existingProposalId));
+  }
   return { record: { ...base, disposition: "ambiguous" }, issues };
 }
 
@@ -435,7 +454,6 @@ function compareProposalFields(
   if (existing.ruleVersion !== generated.ruleVersion) fields.push("ruleVersion");
   if (!sameTarget(existing.target, generated.target)) fields.push("target");
   if (existing.category !== generated.category) fields.push("category");
-  if (existing.status !== generated.status) fields.push("status");
   for (const field of PROPOSAL_CONTENT_FIELDS) {
     if (!sameJson(existing[field], generated[field])) {
       fields.push(field);
@@ -455,6 +473,79 @@ function compareProposalFields(
     fields.push("fingerprint");
   }
   return fields.sort();
+}
+
+function ruleVersionSourceRolloverApplies(
+  existing: PlanningProposalRecord,
+  generated: PlanningClarificationProposalBlueprint,
+  changedFields: readonly string[],
+  sourceReconciliation: PlanningClarificationSourceReconciliationResult,
+  sourcesById: ReadonlyMap<string, PlanningSourceReference>
+): boolean {
+  const ruleVersionChanged = existing.ruleVersion !== generated.ruleVersion;
+  const ruleSetVersionChanged = existing.ruleSetVersion !== generated.ruleSetVersion;
+  if (!changedFields.includes("sourceIds") || (!ruleVersionChanged && !ruleSetVersionChanged)) return false;
+  if (existing.ruleId !== generated.ruleId || !sameTarget(existing.target, generated.target)) return false;
+  if (
+    existing.projectId !== generated.projectId ||
+    existing.ruleSetId !== generated.ruleSetId ||
+    existing.category !== generated.category
+  ) {
+    return false;
+  }
+
+  const existingSourceKeys = existing.sourceIds.map((sourceId) => {
+    const source = sourcesById.get(sourceId);
+    return source ? deriveExistingSourceKey(source) : null;
+  });
+  if (!existingSourceKeys.every((entry): entry is string => Boolean(entry))) return false;
+
+  const existingReadinessKeys = existingSourceKeys.filter((sourceKey) => sourceKey.startsWith("readinessPrerequisite|"));
+  const generatedReadinessKeys = generated.sourceKeys.filter((sourceKey) => sourceKey.startsWith("readinessPrerequisite|"));
+  if (!sameStringArray(existingReadinessKeys, generatedReadinessKeys)) return false;
+
+  if (!ruleVersionChanged) {
+    return !generated.sourceKeys.some((sourceKey) => !existingSourceKeys.includes(sourceKey));
+  }
+
+  const oldProjectRuleKey = `projectRule|${existing.ruleId}|${existing.ruleVersion}`;
+  const newProjectRuleKey = `projectRule|${generated.ruleId}|${generated.ruleVersion}`;
+  return (
+    existingSourceKeys.includes(oldProjectRuleKey) &&
+    generated.sourceKeys.includes(newProjectRuleKey) &&
+    sourceReconciliation.existingOnly.some((entry) => entry.sourceKey === oldProjectRuleKey) &&
+    sourceReconciliation.current.some((entry) => entry.sourceKey === newProjectRuleKey && entry.disposition === "newSource")
+  );
+}
+
+function deriveExistingSourceKey(source: PlanningSourceReference): string | null {
+  if (source.sourceType === "projectRule") {
+    const ruleId = parseLocator(source.locator, "planning-rule:");
+    return ruleId && source.version && isCanonicalSourceKeySegment(source.version)
+      ? `projectRule|${ruleId}|${source.version}`
+      : null;
+  }
+  if (source.sourceType === "readinessPrerequisite") {
+    const targetKey = parseLocator(source.locator, "phase-gate:");
+    return targetKey ? `readinessPrerequisite|${targetKey}` : null;
+  }
+  return null;
+}
+
+function parseLocator(locator: string, prefix: string): string | null {
+  if (!locator.startsWith(prefix)) return null;
+  const value = locator.slice(prefix.length);
+  return isCanonicalSourceKeySegment(value) ? value : null;
+}
+
+function isCanonicalSourceKeySegment(input: string | undefined): input is string {
+  return typeof input === "string" && input.length > 0 && !input.includes("|");
+}
+
+function approvedReasonCategoryCount(categories: ReadonlySet<"identity" | "rule" | "target" | "source" | "applicability" | "content" | "fingerprint">): number {
+  return Number(categories.has("rule")) +
+    Number(categories.has("applicability")) +
+    Number(categories.has("content"));
 }
 
 function changedCategories(changedFields: readonly string[]): Set<"identity" | "rule" | "target" | "source" | "applicability" | "content" | "fingerprint"> {
