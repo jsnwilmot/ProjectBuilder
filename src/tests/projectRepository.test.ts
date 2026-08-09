@@ -35,6 +35,7 @@ import {
   getProjectById,
   listProjects,
   loadStorageState,
+  materializeProjectPlanningClarifications,
   resetStorage,
   restoreProject,
   saveGeneratedDocuments,
@@ -223,6 +224,36 @@ describe("projectRepository", () => {
     expect(loaded.projects[0].identity.projectName).toBe("Community Services Portal");
     expect(loaded.projects[0].status).toBe("Intake Complete");
     expect(loaded.projects[0].planning).toEqual(createEmptyProjectPlanningState());
+  });
+
+  it("guards clarification materialization project lookup and project-type boundaries without storage writes", async () => {
+    const storage = new MemoryStorage();
+    createProject({
+      identity: { id: "web-project", projectName: "Web Project" },
+      intake: { appType: "webApplication" }
+    }, storage);
+    const before = storage.getItem(STORAGE_KEY);
+
+    await expect(materializeProjectPlanningClarifications("missing-project", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage)).resolves.toMatchObject({ outcome: "projectNotFound" });
+    await expect(materializeProjectPlanningClarifications("invalid\nproject", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage)).resolves.toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "invalidProjectId" })]
+    });
+    await expect(materializeProjectPlanningClarifications("web-project", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage)).resolves.toMatchObject({ outcome: "unsupportedProjectType" });
+
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
   });
 
   it("keeps legacy-compatible storage keys and does not rewrite current saved records while loading", () => {

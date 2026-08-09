@@ -1,5 +1,37 @@
 # Test Plan
 
+## 2026-08-09 Phase 5C.2.2A controlled clarification record materialization and repository persistence
+
+- Initial TTI persistence coverage verifies the unresolved TTI fixture materializes from empty planning with `22` created sources, `11` created proposals, `33` unique canonical UUIDs, `11` preserved fingerprints, zero decisions/dependencies/conflicts, all proposals in `Needs Clarification`, valid source UUID bindings, fixed transaction `updatedAt`, and Draft/review-needed blockers unchanged.
+- Reload/idempotence coverage verifies the same generated TTI input returns `unchanged` after reload, reuses all `22` sources and `11` proposals, calls no UUID factory, calls no clock, performs no storage write, preserves `updatedAt`, and preserves planning byte-for-semantic-byte.
+- Mixed append coverage verifies exact persisted sources/proposals are reused, only missing current records receive new UUIDs, existing record order and historical records remain unchanged, new sources append by source key, new proposals append by canonical proposal order, and one storage write persists the changed transaction.
+- Exact identity reuse coverage verifies source `exactMatch` keeps `sourceId`, fields, `observedAt`, and availability unchanged, and proposal `exactMatch` keeps `proposalId`, status, timestamps, value, source IDs, and decision history unchanged.
+- Source UUID binding coverage verifies new proposal `sourceIds` are mapped from current proposal `sourceKeys` in canonical blueprint order and exact proposals are accepted only when their persisted `sourceIds` exactly match expected current source UUIDs.
+- Lifecycle blocking coverage verifies changed sources, no-longer-generated sources, changed proposals, no-longer-generated proposals, reconciliation issues, ambiguity, and identity defects return `blocked`/`lifecycleMutationRequired` without UUID calls, clock calls, storage writes, stale transitions, supersession, or partial materialization.
+- Runtime UUID failure coverage verifies unavailable `crypto.randomUUID`, invalid UUID syntax, uppercase UUIDs, duplicate generated UUIDs, and generated UUID collisions against existing source, proposal, decision, dependency, and conflict IDs all fail closed with structured issues and no persistence.
+- Clock validation coverage verifies valid canonical UTC timestamps are accepted and malformed, missing-millisecond, offset, local, and invalid calendar timestamps return `invalidMaterializationTimestamp` without persistence.
+- Candidate normalization and cap coverage verifies materialized candidates pass `normalizeProjectPlanningState` before writing, candidate normalization issues return `candidatePlanningInvalid`, existing planning caps are not exceeded, and records are never truncated to fit caps.
+- Concurrency coverage verifies the repository reloads current state after async reconciliation and returns `projectChangedDuringMaterialization` when the target project snapshot changed before commit, preserving the newer project and avoiding overwrite.
+- Storage failure coverage verifies `setItem` failures return `persistenceFailed`, do not report success, and do not mutate caller input or previously loaded project objects.
+- Immutability coverage verifies input objects, source blueprints, proposal blueprints, fingerprint records, baseline persisted project objects, existing planning records, reused records, historical records, returned arrays/issues, and unrelated projects remain unchanged.
+- Readiness/project-status isolation coverage verifies materialization does not clear phase gates, satisfy readiness prerequisites, alter readiness confirmations, mark Ready for Codex, approve Client Review, change package readiness, change generated-document status, change generated file counts, or set `packageGeneratedAt`.
+- Output isolation coverage verifies persisted clarification planning is not included in generated documents, package preview, manifests, ZIP/export, export integrity inventory, Power Fx, YAML, Codex implementation prompts, deployment files, or release files.
+- Privacy and external-AI coverage verifies local browser storage remains the only persistence target and no network call, provider, model, API key, token, telemetry, remote persistence, hidden reasoning, or external AI integration is added.
+- Review-before-main governance coverage verifies implementation remains on `review/phase-5c2-2a-clarification-materialization`, committed and pushed for Architect review only, with `main` unchanged and integration blocked pending explicit approval.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationMaterialization.test.ts`: passed (`1` file, `10` tests).
+- `npm.cmd run test:unit -- src/tests/projectRepository.test.ts`: passed (`1` file, `77` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts`: passed (`8` files, `125` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`44` unit/integration files, `1951` tests; `7` UI files, `61` tests; `51` combined files, `2012` tests).
+- `npm.cmd run test:coverage`: timed out once at the tool timeout, then passed on rerun (`51` combined files, `2012` tests) with `90.43%` statements, `81.91%` branches, `95.55%` functions, and `94.88%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
 ## 2026-08-08 Phase 5C.2.1F deterministic clarification source reconciliation
 
 - Existing planning normalization coverage verifies valid empty planning, valid populated planning, unsupported schema, malformed source records, duplicate source IDs, invalid proposal-to-source cross-references, and fail-closed behavior when `normalizeProjectPlanningState` returns any issue.

@@ -15,6 +15,18 @@ import {
 } from "./clientReview";
 import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
 import { createEmptyProjectPlanningState } from "./planningProposals";
+import {
+  finalizePlanningClarificationMaterialization,
+  invalidProjectIdResult,
+  persistenceFailedResult,
+  preparePlanningClarificationMaterialization,
+  projectChangedDuringMaterializationResult,
+  projectNotFoundResult,
+  unsupportedProjectTypeResult,
+  type PlanningClarificationRepositoryInput,
+  type PlanningClarificationRepositoryResult,
+  type PlanningClarificationRepositoryRuntime
+} from "./planningClarificationMaterialization";
 import type {
   GeneratedDocument,
   ProjectInputField,
@@ -422,6 +434,64 @@ export function setActiveProject(id: string, storage: StorageAdapter = browserSt
 export function getActiveProject(storage: StorageAdapter = browserStorage()): ProjectRecord | null {
   const state = loadStorageState(storage);
   return state.projects.find((project) => project.identity.id === state.activeProjectId) ?? null;
+}
+
+export async function materializeProjectPlanningClarifications(
+  projectId: string,
+  input: unknown,
+  storage: StorageAdapter = browserStorage(),
+  runtime: PlanningClarificationRepositoryRuntime = {}
+): Promise<PlanningClarificationRepositoryResult> {
+  if (
+    typeof projectId !== "string" ||
+    projectId.trim().length === 0 ||
+    projectId.length > 200 ||
+    /[\r\n]/.test(projectId)
+  ) {
+    return invalidProjectIdResult(typeof projectId === "string" ? projectId : "");
+  }
+
+  const baselineState = loadStorageState(storage);
+  const baselineProject = baselineState.projects.find((project) => project.identity.id === projectId);
+  if (!baselineProject) {
+    return projectNotFoundResult(projectId);
+  }
+  if (baselineProject.intake.appType !== "powerAppsCanvas") {
+    return unsupportedProjectTypeResult(projectId);
+  }
+
+  const baselineSnapshot = JSON.stringify(baselineProject);
+  const preparation = await preparePlanningClarificationMaterialization(
+    projectId,
+    baselineProject.planning ?? createEmptyProjectPlanningState(),
+    input as PlanningClarificationRepositoryInput
+  );
+  if (preparation.kind === "blocked" || preparation.kind === "unchanged") {
+    return preparation.result;
+  }
+
+  const latestState = loadStorageState(storage);
+  const latestProject = latestState.projects.find((project) => project.identity.id === projectId);
+  if (!latestProject || JSON.stringify(latestProject) !== baselineSnapshot) {
+    return projectChangedDuringMaterializationResult(projectId);
+  }
+
+  const finalized = finalizePlanningClarificationMaterialization(preparation, runtime);
+  if (!finalized.planning || !finalized.materializedAt || finalized.result.outcome !== "persisted") {
+    return finalized.result;
+  }
+
+  const updatedProject: ProjectRecord = {
+    ...latestProject,
+    planning: finalized.planning,
+    createdAt: latestProject.createdAt,
+    updatedAt: finalized.materializedAt
+  };
+  const wrote = writeCurrentStorageState({
+    ...latestState,
+    projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
+  }, storage);
+  return wrote ? finalized.result : persistenceFailedResult(projectId);
 }
 
 export function resetStorage(storage: StorageAdapter = browserStorage()): StorageState {

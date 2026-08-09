@@ -1,5 +1,61 @@
 # Change Log
 
+## 2026-08-09 - Phase 5C.2.2A Controlled Clarification Record Materialization and Repository Persistence
+
+### Summary
+
+- Added the first controlled planning materialization boundary for deterministic clarification records.
+- Added repository-owned UUID generation through an injectable runtime boundary, with production defaulting to `globalThis.crypto.randomUUID()` only.
+- Added an injectable repository UTC materialization clock that is called once for changed transactions and never for true no-op transactions.
+- Added exact source/proposal identity reuse, append-only-safe new source/proposal creation, and exact proposal source-binding validation.
+- Added atomic single-write repository persistence with baseline snapshot reread protection and `projectChangedDuringMaterialization` fail-closed behavior.
+- Added idempotent no-op behavior that preserves `updatedAt`, existing planning, UUID calls, clock calls, and storage writes.
+- Added lifecycle-change blocking for changed/no-longer-generated source and proposal dispositions, reconciliation issues, ambiguity, source identity defects, and exact proposal source-binding mismatches.
+- Preserved phase boundaries: no planning decisions, stale transitions, supersession, UI, readiness integration, generated-output integration, remote persistence, external AI, deployment, tag, release, PR, Wrangler, or main integration.
+- Applied review-before-main governance: implementation is committed and pushed only to the review branch for Architect inspection.
+
+### Files created
+
+- `src/lib/planningClarificationMaterialization.ts` - repository-safe materialization preparation/finalization contracts, runtime validation, reconciliation gating, UUID/timestamp validation, append-only candidate construction, candidate normalization, structured outcomes, and defensive result copies.
+- `src/tests/planningClarificationMaterialization.test.ts` - focused coverage for TTI persistence/reload, exact reuse, mixed append, lifecycle blocks, exact binding mismatch, concurrency, runtime failures, candidate caps, storage failure, immutability, readiness/output isolation, and privacy boundaries.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - adds `materializeProjectPlanningClarifications` with project lookup/type guards, baseline reread protection, repository-owned timestamp use, and a single internal storage write.
+- `src/tests/projectRepository.test.ts` - adds repository boundary coverage for invalid project IDs, missing projects, unsupported project types, and no-write behavior.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationMaterialization.test.ts`: passed (`1` file, `10` tests).
+- `npm.cmd run test:unit -- src/tests/projectRepository.test.ts`: passed (`1` file, `77` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts`: passed (`8` files, `125` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests).
+- Focused output isolation batch passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`44` unit/integration files, `1951` tests; `7` UI files, `61` tests; `51` combined files, `2012` tests).
+- `npm.cmd run test:coverage`: timed out once at the tool timeout, then passed on rerun (`51` combined files, `2012` tests) with `90.43%` statements, `81.91%` branches, `95.55%` functions, and `94.88%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`6` vulnerabilities: `2` moderate, `4` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: build reports the existing Vite large-chunk warning.
+- Low: the first coverage attempt timed out at the tool timeout; the rerun passed.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of the review-branch commit. Do not integrate to `main` or begin later planning lifecycle/UI/readiness/output phases without explicit Architect approval.
+
 ## 2026-08-08 - Phase 5C.2.1F Deterministic Clarification Source Reconciliation
 
 ### Summary
