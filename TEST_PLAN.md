@@ -1,5 +1,39 @@
 # Test Plan
 
+## 2026-08-08 Phase 5C.2.1E deterministic clarification reconciliation classification
+
+- Existing planning normalization coverage verifies valid empty planning, valid populated planning, unsupported schema, malformed proposal records, duplicate IDs, invalid cross-reference handling, and fail-closed behavior when `normalizeProjectPlanningState` returns any issue.
+- Independent fingerprint verification coverage verifies the reconciliation classifier regenerates expected fingerprints from the supplied sources and proposal blueprints before trusting supplied fingerprint records.
+- Supplied fingerprint-set comparison coverage verifies exact one-to-one matching by proposal key and rejects duplicate supplied keys, missing records, unexpected records, fingerprint-input mismatches, fingerprint mismatches, and malformed fingerprint records.
+- Current classification coverage verifies `newProposal`, `exactMatch`, and `changedProposal` dispositions for non-terminal existing clarification proposals.
+- Existing-only coverage verifies non-terminal existing clarification proposals absent from current regeneration are reported as `noLongerGenerated` without stale mutation.
+- Historical coverage verifies `Rejected` and `Superseded` clarification proposals are reported separately, never selected as current candidates, never reopened, and do not prevent new generated proposals.
+- Ambiguity coverage verifies duplicate non-terminal existing semantic keys and duplicate existing fingerprints produce structured issues, select no winner for affected keys, and allow unrelated keys to continue.
+- Stable identity coverage verifies an existing proposal with matching fingerprint but altered stable identity metadata produces `existingProposalIdentityMismatch` and is not classified as an exact match.
+- TTI fixture scenario coverage verifies Scenario A new proposals, Scenario B exact current matches, Scenario C one changed fingerprint, Scenario D one no-longer-generated proposal, Scenario E unrelated proposal ignored, Scenario F ambiguous semantic key, Scenario G terminal history, and Scenario H identity drift.
+- Input-order independence coverage verifies reversed existing sources, reversed existing proposals, reversed generated sources, reversed generated proposals, and reversed supplied fingerprints produce equivalent ordered results.
+- Immutability coverage verifies root input, existing planning, source blueprints, proposal blueprints, supplied fingerprints, normalized planning, returned current results, returned existing-only results, returned historical results, returned issues, rule registry, draft contracts, blueprint contracts, and fingerprint contracts remain unchanged.
+- Lifecycle isolation coverage verifies no UUID generation, randomness, clock access, timestamp generation, planning-record materialization, decision creation, stale mutation, supersession mutation, repository calls, storage writes, or persistence occurs.
+- Readiness and output isolation coverage verifies reconciliation metadata does not clear blockers, change review/project status, mark Ready for Codex, enter generated documents, package preview, manifests, ZIP/export, Power Fx, YAML, deployment files, release files, or Codex prompts.
+- Privacy coverage verifies local processing only, no project data transmission, no network access, no external AI, no provider/model/API-key/token fields, no telemetry, no protected-data logging, and no hidden reasoning storage.
+- Review-before-main governance coverage verifies this phase remains on a pushed review branch with `main` unchanged until Architect approval.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationReconciliation.test.ts`: passed (`1` file, `12` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`2` files, `23` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`3` files, `38` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`4` files, `57` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`5` files, `73` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`6` files, `104` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`42` unit/integration files, `1929` tests; `7` UI files, `61` tests; `49` combined files, `1990` tests).
+- `npm.cmd run test:coverage`: passed (`49` combined files, `1990` tests) with `90.42%` statements, `81.89%` branches, `95.56%` functions, and `94.97%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`.
+
 ## 2026-08-08 Phase 5C.2.1D deterministic clarification fingerprint generation
 
 - SHA-256 primitive coverage verifies the standard `abc` vector, lowercase 64-character hexadecimal output, repeatability, different-input sensitivity, UTF-8 content stability, and exact input handling without trimming or rewriting.

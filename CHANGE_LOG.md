@@ -1,5 +1,61 @@
 # Change Log
 
+## 2026-08-08 - Phase 5C.2.1E Deterministic Clarification Reconciliation Classification
+
+### Summary
+
+- Added pure read-only deterministic clarification reconciliation classification.
+- Added fingerprint-first matching against existing normalized planning state without mutating existing records.
+- Added semantic-key changed-proposal detection for non-terminal existing clarification proposals.
+- Added `newProposal`, `exactMatch`, `changedProposal`, and `noLongerGenerated` classification outputs.
+- Added terminal history separation for `Rejected` and `Superseded` clarification records so they are reported but never reused as current candidates.
+- Added ambiguity fail-safe handling for duplicate current semantic keys and duplicate existing fingerprints.
+- Added supplied fingerprint-set verification against independently regenerated Phase 5C.2.1D fingerprints.
+- Added fail-closed handling for existing planning normalization issues, generated fingerprint issues, and supplied fingerprint mismatches.
+- Preserved lifecycle boundaries: no UUID generation, timestamps, materialization, decisions, stale/supersession mutation, reconciliation persistence, repository/storage writes, UI, readiness integration, output integration, network calls, external AI, deployment, tag, release, PR, or main integration.
+- Applied the new review-before-main governance: implementation is committed and pushed only to the review branch for Architect inspection.
+
+### Files created
+
+- `src/lib/planningClarificationReconciliation.ts` - read-only reconciliation input/output contracts, runtime validation, existing planning normalization, generated fingerprint verification, current/historical classification, deterministic ordering, structured issues, and defensive copy handling.
+- `src/tests/planningClarificationReconciliation.test.ts` - focused coverage for normalization failures, fingerprint-set verification, TTI scenarios, classifications, ambiguity handling, terminal history, determinism, immutability, lifecycle isolation, readiness/output isolation, and privacy boundaries.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationReconciliation.test.ts`: passed (`1` file, `12` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`2` files, `23` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`3` files, `38` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`4` files, `57` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`5` files, `73` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts`: passed (`6` files, `104` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests).
+- Focused output isolation batch passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`42` unit/integration files, `1929` tests; `7` UI files, `61` tests; `49` combined files, `1990` tests).
+- `npm.cmd run test:coverage`: passed (`49` combined files, `1990` tests) with `90.42%` statements, `81.89%` branches, `95.56%` functions, and `94.97%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`.
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+
+### Remaining work
+
+- Commit exactly the four approved files on the review branch, push the review branch only, leave `main` unchanged, and return to GPT Architect for independent review.
+
 ## 2026-08-08 - Phase 5C.2.1D Deterministic Clarification Fingerprint Generation
 
 ### Summary
