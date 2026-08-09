@@ -1,5 +1,42 @@
 # Test Plan
 
+## 2026-08-08 Phase 5C.2.1F deterministic clarification source reconciliation
+
+- Existing planning normalization coverage verifies valid empty planning, valid populated planning, unsupported schema, malformed source records, duplicate source IDs, invalid proposal-to-source cross-references, and fail-closed behavior when `normalizeProjectPlanningState` returns any issue.
+- Current generated-set validation coverage verifies source and proposal blueprint arrays are treated as untrusted and are independently validated through `generatePlanningClarificationFingerprints` before reconciliation classifications are produced.
+- Source-set completeness coverage verifies duplicate generated source blueprint keys, unexpected/orphan source blueprints, and canonical one-source-per-required-key behavior. Missing source references remain fail-closed through generated-set validation when the fingerprint contract rejects the supplied proposal/source set.
+- Deterministic source-key derivation coverage verifies persisted `projectRule` sources derive `projectRule|{ruleId}|{version}` from `planning-rule:{ruleId}` plus version, and persisted `readinessPrerequisite` sources derive `readinessPrerequisite|{targetKey}` from `phase-gate:{targetKey}` without persisting the derived key.
+- Generated source identity binding coverage verifies approved project-rule and readiness-prerequisite source forms, including source type, locator, authority, availability, project-rule version, and absence of unsupported generated version/excerpt metadata.
+- Exact/changed/new behavior coverage verifies `exactMatch` preserves existing source UUIDs, `changedSource` reports changed labels or excerpts without lifecycle mutation, and `newSource` is returned when no current persisted source has the generated semantic key.
+- Existing-only coverage verifies relevant current persisted sources absent from the current generated source set are reported as `noLongerGenerated` without being marked stale or deleted.
+- Non-current coverage verifies safely derivable relevant `stale`, `missing`, `deleted`, and `unverified` source records are reported as history only and never selected as current matches.
+- Ambiguity coverage verifies duplicate current persisted sources with the same semantic key produce `ambiguousExistingSourceKey`, select no winner, suppress only the affected generated key, and allow unrelated keys to continue.
+- Project-rule version-change coverage verifies an old current `projectRule|ruleId|oldVersion` source is `noLongerGenerated` while the current generated `projectRule|ruleId|newVersion` source remains `newSource`.
+- Unsupported-lineage coverage verifies an in-scope clarification proposal referencing a source type outside the deterministic clarification contract returns `unsupportedExistingClarificationSource` without conversion or repair.
+- Unrecognized-identity coverage verifies malformed deterministic `projectRule` or `readinessPrerequisite` locator/version shapes return `unrecognizedExistingSourceIdentity` without guessing.
+- TTI fixture coverage verifies the unresolved TTI fixture remains Draft-like and produces exactly `22` source blueprints and `11` clarification proposal blueprints with Scenario A new sources, Scenario B exact current matches, Scenario C readiness evidence changes, Scenario D project-rule metadata changes, Scenario E prior stale sources, Scenario F generated source removal, Scenario G ambiguous current identity, Scenario H project-rule version changes, and unrelated-source isolation.
+- Input-order independence coverage verifies reversed existing source arrays, reversed existing proposal arrays, reversed generated source blueprint arrays, and reversed generated proposal blueprint arrays produce equivalent ordered results.
+- Immutability coverage verifies root input, existing planning, existing source records, existing proposals, generated source arrays, generated source blueprints, generated proposal arrays, generated proposal blueprints, returned current results, returned existing-only results, returned non-current results, returned issues, the rule registry, clarification drafts, materialization blueprints, fingerprint outputs, and Phase 5C.2.1E proposal reconciliation behavior remain unchanged.
+- Persistence-isolation coverage verifies no source UUID generation, timestamp generation, actual `PlanningSourceReference` creation, actual `PlanningProposalRecord` creation, source availability mutation, proposal stale/supersession/reopen/confirmation mutation, repository call, storage call, storage-version change, or localStorage access occurs.
+- Readiness and output isolation coverage verifies source reconciliation metadata does not clear blockers, change review status, change project status, mark Ready for Codex, enter generated documents, package preview, manifests, ZIP/export, Power Fx, YAML, deployment files, release files, or Codex prompts.
+- Privacy coverage verifies local computation only, no project-data transmission, no network service, no external AI, no provider/model/API-key/token fields, no telemetry, no source logging, and no hidden reasoning storage.
+- Review-before-main governance coverage verifies this phase remains on a pushed review branch with `main` unchanged until Architect approval and explicit integration authorization.
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`1` file, `10` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`2` files, `25` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`3` files, `33` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`6` files, `83` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`7` files, `114` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output isolation batch passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`43` unit/integration files, `1939` tests; `7` UI files, `61` tests; `50` combined files, `2000` tests).
+- `npm.cmd run test:coverage`: passed (`50` combined files, `2000` tests) with `90.45%` statements, `81.92%` branches, `95.58%` functions, and `95.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-08 Phase 5C.2.1E deterministic clarification reconciliation classification
 
 - Existing planning normalization coverage verifies valid empty planning, valid populated planning, unsupported schema, malformed proposal records, duplicate IDs, invalid cross-reference handling, and fail-closed behavior when `normalizeProjectPlanningState` returns any issue.

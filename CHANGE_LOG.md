@@ -1,5 +1,61 @@
 # Change Log
 
+## 2026-08-08 - Phase 5C.2.1F Deterministic Clarification Source Reconciliation
+
+### Summary
+
+- Added pure read-only deterministic clarification source reconciliation classification.
+- Added derived semantic source identity for persisted `projectRule` and `readinessPrerequisite` source records without changing the persisted planning schema or adding `sourceKey`.
+- Added current vs non-current source separation so only current persisted sources can be reused as current matches.
+- Added `newSource`, `exactMatch`, `changedSource`, `noLongerGenerated`, and non-current history reporting.
+- Added source-set completeness validation for duplicate, missing, and unexpected generated source blueprints.
+- Added generated source identity binding checks for approved project-rule and readiness-prerequisite source forms.
+- Added existing source-lineage protection for unsupported clarification sources and unrecognized deterministic source identity shapes.
+- Added ambiguous current-source key protection without UUID ordering, array-order winner selection, or lifecycle repair.
+- Preserved lifecycle boundaries: no UUID generation, timestamps, materialization, source availability mutation, proposal lifecycle mutation, persistence, repository/storage writes, UI, readiness integration, output integration, network calls, external AI, deployment, tag, release, PR, or main integration.
+- Applied review-before-main governance: implementation is committed and pushed only to the review branch for Architect inspection.
+
+### Files created
+
+- `src/lib/planningClarificationSourceReconciliation.ts` - read-only source reconciliation input/output contracts, runtime validation, existing planning normalization, independent generated-set validation, source-set completeness checks, existing semantic-key derivation, current/existing-only/non-current classification, ambiguity protection, deterministic ordering, structured issues, and defensive copy handling.
+- `src/tests/planningClarificationSourceReconciliation.test.ts` - focused coverage for validation failures, TTI source scenarios, exact/changed/new behavior, existing-only behavior, non-current reporting, ambiguous keys, unsupported lineage, unrecognized identities, unrelated-source isolation, ordering, immutability, lifecycle isolation, readiness/output isolation, and privacy boundaries.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing development audit advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`1` file, `10` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`2` files, `25` tests).
+- `npm.cmd run test:unit -- src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`3` files, `33` tests).
+- `npm.cmd run test:unit -- src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`6` files, `83` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts`: passed (`7` files, `114` tests).
+- Focused readiness isolation batch passed (`4` files, `82` tests).
+- Focused output isolation batch passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`43` unit/integration files, `1939` tests; `7` UI files, `61` tests; `50` combined files, `2000` tests).
+- `npm.cmd run test:coverage`: passed (`50` combined files, `2000` tests) with `90.45%` statements, `81.92%` branches, `95.58%` functions, and `95.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed only on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development-only advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: build reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Commit exactly the four approved files on the review branch, push the review branch only, leave `main` unchanged, and return to GPT Architect for independent review.
+
 ## 2026-08-08 - Phase 5C.2.1E Deterministic Clarification Reconciliation Classification
 
 ### Summary
