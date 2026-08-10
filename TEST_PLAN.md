@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-08-09 Phase 5C.2.2C.1 fail-closed validation correction
+
+- Raw-input dereference regression verifies stale propagation does not build existing source, existing proposal, generated proposal, or propagation lookup maps after B lifecycle analysis reports validation or reconciliation failure.
+- Authoritative B failure-gate coverage verifies failure-class B issues immediately return outcome `blocked`, empty `sources`, empty `proposals`, and public `lifecycleAnalysisFailed` issues with `underlyingIssueCode` preserved.
+- Malformed persisted source-member coverage verifies an otherwise object-shaped planning state with `sources: [null]` resolves without throwing, preserves `invalidExistingPlanning`, returns zero transition records, and does not mutate the malformed input.
+- Malformed generated proposal-member coverage verifies `proposals: [null]` resolves without throwing, maps B reconciliation failure through `lifecycleAnalysisFailed`, and returns no propagation result.
+- Malformed generated source-member coverage verifies `sources: [null]` resolves deterministically as `blocked`, preserves the B reconciliation failure, and returns zero transition records.
+- Hostile nested-state coverage verifies invalid project input combined with malformed nested arrays stops at the B failure gate without raw nested access or runtime exception.
+- Zero-conclusion coverage verifies B validation or reconciliation failures never return `staleTransitionsRequired`, propagated source keys, propagated source IDs, rule rollover promotion, source transition conclusions, or proposal transition conclusions.
+- Regression coverage preserves all existing A-M behavior: exact planning, sourceChanged propagation, fingerprint-only source dependency resolution, multiple-source sorting, multi-cause blocking, rule rollover, non-current rule history, ordinary existing-only blocking, unversioned content blocking, terminal history, deterministic ordering, input-order invariance, and immutability.
+- Isolation coverage verifies no alternate validator, independent normalization, sanitization, repair, UUID generation, randomness, timestamps, `Date`, repository writes, storage/localStorage, lifecycle persistence, stale mutation, supersession, decisions, conflicts, dependencies, UI, readiness integration, output integration, Power Fx, YAML, generated-document integration, manifest/ZIP/export integration, remote persistence, network, telemetry, or external AI is introduced.
+- Review-before-main governance coverage verifies the correction remains on `review/phase-5c2-2c-clarification-stale-propagation`, committed and pushed for Architect re-review only, with `main` unchanged and integration blocked pending explicit approval.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run test:unit -- src/tests/planningClarificationStalePropagation.test.ts`: passed (`1` file, `18` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts src/tests/planningClarificationStalePropagation.test.ts`: passed (`10` files, `166` tests).
+- Repository regression passed (`2` files, `87` tests): `src/tests/projectRepository.test.ts` and `src/tests/planningClarificationMaterialization.test.ts`.
+- Focused readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: first attempt timed out at the tool limit before returning output; rerun with a longer timeout passed (`46` unit/integration files, `1992` tests; `7` UI files, `61` tests; `53` combined files, `2053` tests).
+- `npm.cmd run test:coverage`: passed (`53` combined files, `2053` tests) with `90.42%` statements, `82.04%` branches, `95.65%` functions, and `94.78%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-09 Phase 5C.2.2C deterministic clarification stale-propagation analysis
 
 - Exact TTI coverage verifies unchanged persisted TTI planning remains `unchanged` with no issues and no stale reasons.

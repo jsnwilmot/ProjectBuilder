@@ -104,6 +104,19 @@ export async function analyzePlanningClarificationStalePropagation(
   input: unknown
 ): Promise<PlanningClarificationStalePropagationResult> {
   const lifecycle = await analyzePlanningClarificationLifecycleChanges(input);
+  const failureIssues = lifecycle.issues.filter((entry) => FAILURE_LIFECYCLE_CODES.has(entry.code));
+  if (failureIssues.length > 0) {
+    const issues: PlanningClarificationStalePropagationIssue[] = [];
+    mapLifecycleIssues(failureIssues, new Set(), issues);
+    return {
+      projectId: lifecycle.projectId,
+      outcome: "blocked",
+      sources: [],
+      proposals: [],
+      issues: dedupeIssues(issues).sort(sortIssues)
+    };
+  }
+
   const rawInput = isPlainObject(input) ? input : {};
   const existingPlanning = isPlanningStateLike(rawInput.existingPlanning)
     ? rawInput.existingPlanning

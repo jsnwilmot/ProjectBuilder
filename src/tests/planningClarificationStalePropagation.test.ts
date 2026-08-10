@@ -569,6 +569,138 @@ describe("planning clarification stale propagation", () => {
     expect(reversed).toEqual(forward);
   });
 
+  it("blocks malformed persisted source members without raw propagation map access", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const malformedPlanning = {
+      ...planning,
+      sources: [null]
+    } as unknown as ProjectPlanningState;
+    const before = JSON.stringify(malformedPlanning);
+
+    const result = await analyzePlanningClarificationStalePropagation({
+      projectId,
+      existingPlanning: malformedPlanning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result.outcome).toBe("blocked");
+    expect(result.sources).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "lifecycleAnalysisFailed",
+      underlyingIssueCode: "invalidExistingPlanning"
+    }));
+    expect(JSON.stringify(malformedPlanning)).toBe(before);
+  });
+
+  it("blocks malformed generated proposal members without raw generated proposal map access", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+
+    const result = await analyzePlanningClarificationStalePropagation({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: [null] as unknown as PlanningClarificationProposalBlueprint[],
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result.outcome).toBe("blocked");
+    expect(result.sources).toEqual([]);
+    expect(result.proposals).toEqual([]);
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "lifecycleAnalysisFailed",
+      underlyingIssueCode: "sourceReconciliationFailed"
+    }));
+    expect(result.proposals.some((proposal) => proposal.propagatedFromSourceIds)).toBe(false);
+  });
+
+  it("blocks malformed generated source members with zero transition records", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+
+    const result = await analyzePlanningClarificationStalePropagation({
+      projectId,
+      existingPlanning: planning,
+      sources: [null] as unknown as PlanningClarificationSourceBlueprint[],
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      sources: [],
+      proposals: []
+    });
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "lifecycleAnalysisFailed",
+      underlyingIssueCode: "sourceReconciliationFailed"
+    }));
+  });
+
+  it("stops at the B failure gate when invalid project input also contains malformed nested state", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const malformedPlanning = {
+      ...planning,
+      sources: [null],
+      proposals: [null]
+    } as unknown as ProjectPlanningState;
+
+    const result = await analyzePlanningClarificationStalePropagation({
+      projectId: "",
+      existingPlanning: malformedPlanning,
+      sources: [null] as unknown as PlanningClarificationSourceBlueprint[],
+      proposals: [null] as unknown as PlanningClarificationProposalBlueprint[],
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result).toMatchObject({
+      projectId: "",
+      outcome: "blocked",
+      sources: [],
+      proposals: [],
+      issues: [expect.objectContaining({
+        code: "lifecycleAnalysisFailed",
+        underlyingIssueCode: "invalidProjectId"
+      })]
+    });
+  });
+
+  it("returns zero source and proposal conclusions for B validation or reconciliation failure", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+
+    const results = await Promise.all([
+      analyzePlanningClarificationStalePropagation({
+        projectId,
+        existingPlanning: { ...planning, proposals: [null] } as unknown as ProjectPlanningState,
+        sources: fixture.sources,
+        proposals: fixture.proposals,
+        fingerprints: fixture.fingerprints
+      }),
+      analyzePlanningClarificationStalePropagation({
+        projectId,
+        existingPlanning: planning,
+        sources: fixture.sources,
+        proposals: [null] as unknown as PlanningClarificationProposalBlueprint[],
+        fingerprints: fixture.fingerprints
+      })
+    ]);
+
+    for (const result of results) {
+      expect(result.outcome).toBe("blocked");
+      expect(result.sources).toEqual([]);
+      expect(result.proposals).toEqual([]);
+      expect(result.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ code: "lifecycleAnalysisFailed" })
+      ]));
+    }
+  });
+
   it("M does not mutate inputs and keeps isolation boundaries absent", async () => {
     const fixture = await ttiFixture();
     const planning = exactPlanning(fixture);
