@@ -1,5 +1,58 @@
 # Change Log
 
+## 2026-08-10 - Phase 5C.2.2E Deterministic Clarification Replacement Pairing Analysis
+
+### Summary
+
+- Added a pure, deterministic, read-only clarification replacement analyzer for post-Stale planning lineage.
+- The analyzer normalizes existing planning, independently invokes source reconciliation and proposal reconciliation, validates supplied generated fingerprints through the existing reconciliation path, and fails closed with zero replacement conclusions when normalization or reconciliation reports issues.
+- Added cause-specific proof for `sourceChanged`, `ruleChanged`, and `applicabilityChanged` stale proposals, including exact semantic source lineage, exact rule rollover checks, applicability-only checks, coherent `markStale` history validation, deterministic ordering, defensive copies, and fail-closed mismatch behavior.
+- Preserved unresolved TTI blockers and excluded persistence, generated replacement IDs, supersession, user decisions, readiness integration, output integration, UI, storage, network, external AI, Wrangler, deployment, PR, tag, release, and `main` integration.
+
+### Files created
+
+- `src/lib/planningClarificationReplacementAnalysis.ts` - read-only replacement pairing analyzer and public result contracts.
+- `src/tests/planningClarificationReplacementAnalysis.test.ts` - focused replacement pairing, fail-closed, ordering, immutability, and TTI safety coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused replacement-analysis tests passed (`1` file, `24` tests): `src/tests/planningClarificationReplacementAnalysis.test.ts`.
+- Focused stale-materialization regression passed (`1` file, `15` tests).
+- Focused stale-propagation regression passed (`1` file, `18` tests).
+- Focused lifecycle-analysis regression passed (`1` file, `23` tests).
+- Focused reconciliation regression passed (`1` file, `12` tests).
+- Focused source-reconciliation regression passed (`1` file, `11` tests).
+- Full planning regression passed (`12` files, `205` tests): planning proposals, rules, clarification drafts, blueprints, fingerprints, reconciliation, source reconciliation, materialization, lifecycle analysis, stale propagation, stale materialization, and replacement analysis.
+- Repository regression passed (`3` files, `106` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`48` unit/integration files, `2035` tests; `7` UI files, `61` tests; `55` combined files, `2096` tests).
+- `npm.cmd run test:coverage`: passed (`55` combined files, `2096` tests) with `90.12%` statements, `81.77%` branches, `95.53%` functions, and `94.35%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: `npm.cmd run build` reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Commit the exact four-file review branch scope, push the review branch, and return to GPT Architect for independent review.
+
 ## 2026-08-10 - Phase 5C.2.2D Controlled Clarification Stale-Transition Materialization
 
 ### Summary
