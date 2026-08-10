@@ -1,5 +1,35 @@
 # Test Plan
 
+## 2026-08-09 Phase 5C.2.2C deterministic clarification stale-propagation analysis
+
+- Exact TTI coverage verifies unchanged persisted TTI planning remains `unchanged` with no issues and no stale reasons.
+- Source propagation coverage verifies only persisted changed sources with `sourceChanged` propagate to dependent proposals through actual persisted proposal `sourceIds`.
+- Fingerprint-only generated evidence coverage verifies a proposal ambiguity with only `changedFields: ["fingerprint"]` is resolved to `sourceChanged` only when changed source dependency evidence exists.
+- Multi-source coverage verifies multiple changed source dependencies produce one `sourceChanged` proposal stale reason and deterministic propagated source key/id arrays.
+- Multi-cause blocking coverage verifies source propagation combined with direct proposal applicability change returns `blocked` with `multipleLifecycleReasons`.
+- Rule-rollover coverage verifies a current old `projectRule|{ruleId}|{oldVersion}` source moves from base `noLongerGenerated` to effective `staleRequired/ruleChanged`, the generated replacement source remains new/unpersisted/unchanged, and the proposal remains `ruleChanged`.
+- Historical old-rule coverage verifies already non-current old project-rule sources remain historical while the associated proposal may still receive `ruleChanged`.
+- Existing-only coverage verifies ordinary existing-only sources and proposals block without inferred lineage or fabricated stale reasons.
+- Unversioned content coverage verifies `proposalRegenerated` and `unversionedRuleContentChange` remain blocked and are not treated as safe stale propagation.
+- Terminal history coverage verifies `Rejected` and `Superseded` proposal history remains historical and is not reopened by source propagation.
+- Invariance coverage verifies reversed source, proposal, fingerprint, and persisted planning order returns an identical result.
+- Immutability coverage verifies the analyzer does not mutate source blueprints, proposal blueprints, fingerprints, existing planning, or returned source/proposal records across calls.
+- Isolation coverage verifies no UUID generation, randomness, timestamps, `Date`, repository writes, storage/localStorage, stale mutation, supersession, planning decisions, conflicts, dependencies, UI, hooks, readiness integration, output integration, Power Fx, YAML, generated documents, manifest, ZIP/export, remote persistence, network, telemetry, or external AI is introduced.
+- Review-before-main governance coverage verifies implementation remains on `review/phase-5c2-2c-clarification-stale-propagation`, committed and pushed for Architect re-review only, with `main` unchanged and integration blocked pending explicit approval.
+- `npm.cmd ci`: passed; install output reported existing dependency audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npm.cmd exec -- tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd exec -- vitest run src/tests/planningClarificationStalePropagation.test.ts --config vitest.unit.config.ts`: passed (`1` file, `13` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts src/tests/planningClarificationStalePropagation.test.ts`: passed (`10` files, `161` tests).
+- Repository regression passed (`2` files, `87` tests): `src/tests/projectRepository.test.ts` and `src/tests/planningClarificationMaterialization.test.ts`.
+- Focused readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`46` unit/integration files, `1987` tests; `7` UI files, `61` tests; `53` combined files, `2048` tests).
+- `npm.cmd run test:coverage`: passed (`53` combined files, `2048` tests) with `90.34%` statements, `81.97%` branches, `95.61%` functions, and `94.69%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-09 Phase 5C.2.2B.3 strict lifecycle validation correction
 
 - Authoritative-normalization coverage verifies lifecycle analysis calls `normalizeProjectPlanningState` directly and does not sanitize, repair, translate, or temporarily replace invalid persisted proposal `ruleSetVersion` values.

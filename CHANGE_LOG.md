@@ -1,5 +1,54 @@
 # Change Log
 
+## 2026-08-09 - Phase 5C.2.2C Deterministic Clarification Stale-Propagation Analysis
+
+### Summary
+
+- Added a pure deterministic stale-propagation analyzer that calls the authoritative lifecycle analyzer internally and never trusts caller-provided lifecycle results.
+- Propagates approved source-change stale requirements from changed persisted sources to otherwise unchanged or fingerprint-only ambiguous dependent proposals through persisted proposal `sourceIds`.
+- Resolves only the approved fingerprint-only ambiguity caused by changed source dependencies, blocks multi-cause source-plus-proposal changes, and preserves unversioned generated content changes as blocked.
+- Adds exact rule-rollover handling for current old project-rule sources while keeping already non-current old rule sources historical and unpersisted generated replacement sources unchanged.
+- Preserves the approved read-only boundary: no lifecycle mutation, stale timestamps, supersession, planning decisions, conflicts, dependencies, repository writes, storage writes, UI, readiness integration, output integration, Power Fx, YAML, generated documents, manifest/ZIP/export changes, remote persistence, network, telemetry, external AI, Wrangler, deployment, PR, tag, release, or main integration.
+
+### Files created
+
+- `src/lib/planningClarificationStalePropagation.ts` - pure stale-propagation analyzer and public result contracts.
+- `src/tests/planningClarificationStalePropagation.test.ts` - focused A-M stale-propagation coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported existing dependency audit advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npm.cmd exec -- tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd exec -- vitest run src/tests/planningClarificationStalePropagation.test.ts --config vitest.unit.config.ts`: passed (`1` file, `13` tests).
+- `npm.cmd run test:unit -- src/tests/planningProposals.test.ts src/tests/planningRules.test.ts src/tests/planningClarificationDrafts.test.ts src/tests/planningClarificationBlueprints.test.ts src/tests/planningClarificationFingerprints.test.ts src/tests/planningClarificationReconciliation.test.ts src/tests/planningClarificationSourceReconciliation.test.ts src/tests/planningClarificationMaterialization.test.ts src/tests/planningClarificationLifecycleAnalysis.test.ts src/tests/planningClarificationStalePropagation.test.ts`: passed (`10` files, `161` tests).
+- Repository regression passed (`2` files, `87` tests): `src/tests/projectRepository.test.ts` and `src/tests/planningClarificationMaterialization.test.ts`.
+- Focused readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Focused output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`46` unit/integration files, `1987` tests; `7` UI files, `61` tests; `53` combined files, `2048` tests).
+- `npm.cmd run test:coverage`: passed (`53` combined files, `2048` tests) with `90.34%` statements, `81.97%` branches, `95.61%` functions, and `94.69%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: full dependency audit reports development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: build reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of the Phase 5C.2.2C review-branch commit. Do not integrate to `main` or begin stale lifecycle persistence, planning decisions, planning UI, readiness integration, output integration, remote persistence, or external AI phases without explicit Architect approval.
+
 ## 2026-08-09 - Phase 5C.2.2B.3 Strict Lifecycle Validation Correction
 
 ### Summary
