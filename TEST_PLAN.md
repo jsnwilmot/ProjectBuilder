@@ -1,5 +1,36 @@
 # Test Plan
 
+## 2026-08-10 Phase 5C.2.2D controlled clarification stale-transition materialization
+
+- Transition-matrix coverage verifies only `Blocked -> Stale` and `Needs Clarification -> Stale` were added, `Rejected -> Stale` and `Superseded -> Stale` remain invalid, same-state `Stale -> Stale` remains invalid, and no unrelated transition changed.
+- Preparation coverage verifies invalid project IDs, invalid top-level input, invalid existing planning, C `blocked`, C `unchanged`, unsupported stale reasons, missing persisted source/proposal bindings, non-current source mismatch, invalid status transitions, and incoherent already-stale records fail closed before UUID, clock, or storage access.
+- Source transition coverage verifies only C-authorized `sourceChanged` and `ruleChanged` source transitions change source availability from `current` to `stale`, preserve source identity, label, locator, authority, version, excerpt, array order, and `observedAt`, and do not add source stale-reason or stale timestamp fields.
+- Proposal transition coverage verifies C-authorized `sourceChanged`, `ruleChanged`, and `applicabilityChanged` proposal transitions persist only `status: Stale`, `staleReason`, `staleAt`, `updatedAt`, and `lastDecisionId` while preserving old proposal content, fingerprint, target, value, source IDs, optional history fields, readiness requirement IDs, applicable project types, and applicable domains.
+- Decision coverage verifies each newly stale proposal appends exactly one `markStale` decision with `origin: deterministicRule`, exact stale-reason code, one canonical transaction timestamp, `PLANNING_RULE_SET_VERSION`, no actor identity, no source IDs, and deterministic ordering by proposal semantic key then persisted ID.
+- Runtime coverage verifies one clock call per changed transaction, zero clock and UUID calls for no-op paths, UUID unavailability, malformed UUIDs, duplicates against existing planning IDs, and duplicates within a transaction all block without partial candidate persistence.
+- Scenario coverage verifies exact planning unchanged; sourceChanged; rule-version rollover; old non-current rule source; applicabilityChanged; multiple proposals in one transaction; C-blocked propagation; unversioned content blocking; Needs Clarification, Blocked, and Confirmed to Stale; terminal Rejected/Superseded history; coherent already-stale idempotence; incoherent stale-history blocking; deterministic ordering; input-order invariance; and caller-input immutability.
+- Repository coverage verifies the public API supports only Power Apps Canvas, returns structured `projectNotFound` and `unsupportedProjectType`, protects the whole project snapshot, writes once atomically on success, blocks concurrent project changes, reports persistence failure without false transitions, and preserves non-planning project fields.
+- Isolation coverage verifies no replacement proposal generation, replacement current source generation, supersession, user planning decisions, intake confirmation, readiness integration, output integration, UI, storage version change, schema version change, source schema expansion, network, telemetry, external AI, Wrangler, deployment, PR, tag, release, or `main` integration.
+- TTI safety coverage verifies the TTI-like Power Apps Canvas fixture remains draft/gated: missing schema, screen/control/component targets, YAML planning, delegation, security, testing, ALM, SharePoint internal names, Power Fx, paste-ready YAML, readiness promotion, and generated outputs are not resolved by stale materialization.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused transition/materialization/repository tests passed (`3` files, `127` tests): `src/tests/planningProposals.test.ts`, `src/tests/planningClarificationStaleMaterialization.test.ts`, and `src/tests/projectRepository.test.ts`.
+- Focused planning transition tests passed (`1` file, `31` tests): `src/tests/planningProposals.test.ts`.
+- Focused stale-materialization tests passed (`1` file, `15` tests): `src/tests/planningClarificationStaleMaterialization.test.ts`.
+- Focused stale-propagation regression passed (`1` file, `18` tests): `src/tests/planningClarificationStalePropagation.test.ts`.
+- Full planning regression passed (`11` files, `181` tests): planning proposals, rules, clarification drafts, blueprints, fingerprints, reconciliation, source reconciliation, materialization, lifecycle analysis, stale propagation, and stale materialization.
+- Repository regression passed (`3` files, `106` tests): `src/tests/projectRepository.test.ts`, `src/tests/planningClarificationMaterialization.test.ts`, and `src/tests/planningClarificationStaleMaterialization.test.ts`.
+- Readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`47` unit/integration files, `2011` tests; `7` UI files, `61` tests; `54` combined files, `2072` tests).
+- `npm.cmd run test:coverage`: passed (`54` combined files, `2072` tests) with `90.22%` statements, `81.85%` branches, `95.40%` functions, and `94.44%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+- `git diff --check`: passed.
+- `git status --short`: showed only the eight approved phase files.
+
 ## 2026-08-09 Phase 5C.2.2C.1 fail-closed validation correction
 
 - Raw-input dereference regression verifies stale propagation does not build existing source, existing proposal, generated proposal, or propagation lookup maps after B lifecycle analysis reports validation or reconciliation failure.

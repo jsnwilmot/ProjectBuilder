@@ -1,5 +1,66 @@
 # Change Log
 
+## 2026-08-10 - Phase 5C.2.2D Controlled Clarification Stale-Transition Materialization
+
+### Summary
+
+- Added the first controlled persistence boundary for deterministic clarification stale transitions.
+- Preserved Phase 5C.2.2B and Phase 5C.2.2C as the analytical authorities; stale materialization recomputes C internally and persists only C-approved safe transitions.
+- Added source `current` to `stale` materialization for approved `sourceChanged` and `ruleChanged` source transitions without adding source stale metadata or changing `observedAt`.
+- Added proposal transition materialization to `Stale` with approved `staleReason`, one transaction `staleAt`, `updatedAt`, `lastDecisionId`, and append-only `markStale` decisions.
+- Corrected the planning transition matrix so `Blocked` and `Needs Clarification` can transition to `Stale`, while terminal `Rejected` and `Superseded` remain closed and `Stale` to `Stale` remains invalid.
+- Added one-timestamp, validated UUID, candidate-normalization, idempotent already-stale, project-snapshot, and atomic repository-write protection.
+- Preserved readiness/output isolation and excluded replacement proposal generation, source replacement, supersession, user decision materialization, UI, remote persistence, external AI, Wrangler, deployment, PR, tag, release, and `main` integration.
+
+### Files created
+
+- `src/lib/planningClarificationStaleMaterialization.ts` - preparation/finalization contracts and deterministic stale-transition materialization.
+- `src/tests/planningClarificationStaleMaterialization.test.ts` - focused stale materialization regression coverage.
+
+### Files updated
+
+- `src/lib/planningProposals.ts` - adds only `Blocked -> Stale` and `Needs Clarification -> Stale`.
+- `src/tests/planningProposals.test.ts` - proves the approved transition correction and terminal/same-state preservation.
+- `src/lib/projectRepository.ts` - adds the public stale-transition repository wrapper with full-project snapshot protection and one atomic write.
+- `src/tests/projectRepository.test.ts` - adds stale-transition repository guard, persistence, concurrent-change, and write-failure regressions.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused transition/materialization/repository tests passed (`3` files, `127` tests): `src/tests/planningProposals.test.ts`, `src/tests/planningClarificationStaleMaterialization.test.ts`, and `src/tests/projectRepository.test.ts`.
+- Focused planning transition tests passed (`1` file, `31` tests): `src/tests/planningProposals.test.ts`.
+- Focused stale-materialization tests passed (`1` file, `15` tests): `src/tests/planningClarificationStaleMaterialization.test.ts`.
+- Focused stale-propagation regression passed (`1` file, `18` tests): `src/tests/planningClarificationStalePropagation.test.ts`.
+- Full planning regression passed (`11` files, `181` tests): planning proposals, rules, clarification drafts, blueprints, fingerprints, reconciliation, source reconciliation, materialization, lifecycle analysis, stale propagation, and stale materialization.
+- Repository regression passed (`3` files, `106` tests): `src/tests/projectRepository.test.ts`, `src/tests/planningClarificationMaterialization.test.ts`, and `src/tests/planningClarificationStaleMaterialization.test.ts`.
+- Readiness regression passed (`4` files, `82` tests): `src/tests/clientReview.test.ts`, `src/tests/validateIntake.test.ts`, `src/tests/powerPlatform.test.ts`, and `src/tests/phase5b4b5Regression.test.ts`.
+- Output regression passed (`7` files, `188` tests): `src/tests/generateProjectPackage.test.ts`, `src/tests/documentReview.test.ts`, `src/tests/exportManifest.test.ts`, `src/tests/exportProjectPackage.test.ts`, `src/tests/exportIntegrity.test.ts`, `src/tests/implementationAssets.test.ts`, and `src/tests/recordLifecyclePowerFxGeneration.test.ts`.
+- `npm.cmd test`: passed (`47` unit/integration files, `2011` tests; `7` UI files, `61` tests; `54` combined files, `2072` tests).
+- `npm.cmd run test:coverage`: passed (`54` combined files, `2072` tests) with `90.22%` statements, `81.85%` branches, `95.40%` functions, and `94.44%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+- `git diff --check`: passed.
+- `git status --short`: showed only the eight approved phase files.
+
+### Issues found
+
+- Low: `npm.cmd ci` reports existing development dependency advisories; dependency changes are outside this phase.
+- Low: `npm.cmd audit --audit-level=high` reports known development dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: `npm.cmd run build` reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Commit the exact eight-file review branch scope, push the review branch, and return to GPT Architect for independent review.
+
 ## 2026-08-09 - Phase 5C.2.2C.1 Fail-Closed Validation Correction
 
 ### Summary

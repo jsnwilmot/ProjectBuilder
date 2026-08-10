@@ -1,3 +1,6 @@
+// @ts-expect-error -- Vitest runs Web Crypto setup in Node; the app tsconfig intentionally excludes Node ambient types.
+import { webcrypto } from "node:crypto";
+import { afterEach, beforeEach, vi } from "vitest";
 import { CORE_DOCUMENT_LOCATIONS } from "../data/folderStructure";
 import { createSeedProject } from "../data/seedProject";
 import { expectedDocumentLocations } from "../lib/powerPlatform";
@@ -13,6 +16,18 @@ import {
   type PlanningSourceReference,
   type ProjectPlanningState
 } from "../lib/planningProposals";
+import type { PhaseGateId, PhaseGateResult } from "../lib/phaseGates";
+import {
+  generatePlanningClarificationBlueprints,
+  type PlanningClarificationProposalBlueprint,
+  type PlanningClarificationSourceBlueprint
+} from "../lib/planningClarificationBlueprints";
+import { generatePlanningClarificationDrafts } from "../lib/planningClarificationDrafts";
+import {
+  generatePlanningClarificationFingerprints,
+  type PlanningClarificationFingerprintRecord
+} from "../lib/planningClarificationFingerprints";
+import { getPlanningRuleById } from "../lib/planningRules";
 import type { ProjectRecord } from "../types/project";
 import {
   RECORD_LIFECYCLE_FORMULA_EVIDENCE_SCHEMA_VERSION,
@@ -36,6 +51,7 @@ import {
   listProjects,
   loadStorageState,
   materializeProjectPlanningClarifications,
+  materializeProjectPlanningClarificationStaleTransitions,
   resetStorage,
   restoreProject,
   saveGeneratedDocuments,
@@ -48,6 +64,7 @@ import {
   type StorageAdapter
 } from "../lib/projectRepository";
 import { CURRENT_STORAGE_VERSION, migrateStorageState } from "../lib/storageVersion";
+import type { PowerPlatformGateStatus } from "../types/project";
 
 class MemoryStorage implements StorageAdapter {
   private values = new Map<string, string>();
@@ -62,6 +79,39 @@ class WriteFailStorage extends MemoryStorage {
       throw new Error("quota exceeded");
     }
     super.setItem(key, value);
+  }
+}
+
+class CountingStorage extends MemoryStorage {
+  writes = 0;
+  override setItem(key: string, value: string) {
+    if (key === STORAGE_KEY) {
+      this.writes += 1;
+    }
+    super.setItem(key, value);
+  }
+}
+
+class ChangingReadStorage extends MemoryStorage {
+  private currentReads = 0;
+  override getItem(key: string) {
+    const value = super.getItem(key);
+    if (key !== STORAGE_KEY || !value) {
+      return value;
+    }
+    this.currentReads += 1;
+    if (this.currentReads === 2) {
+      const parsed = JSON.parse(value) as { projects: ProjectRecord[] };
+      super.setItem(key, JSON.stringify({
+        ...parsed,
+        projects: parsed.projects.map((project, index) => index === 0 ? {
+          ...project,
+          updatedAt: "2026-07-22T13:30:00.000Z"
+        } : project)
+      }));
+      return super.getItem(key);
+    }
+    return value;
   }
 }
 
@@ -113,6 +163,37 @@ const planningConflictId = "55555555-5555-4555-8555-555555555555";
 const planningTimestamp = "2026-08-01T10:30:00-06:00";
 const planningTimestampUtc = "2026-08-01T16:30:00.000Z";
 const planningFingerprint = "a".repeat(64);
+const staleProjectId = "tti-software-licence-tracker";
+const staleTimestamp = "2026-07-22T12:00:00.000Z";
+const staleMaterializedAt = "2026-07-22T13:00:00.000Z";
+const staleDecisionId = "74000000-0000-4000-8000-000000000001";
+const staleRuleIds = [
+  "pp.canvas.schema.confirmation",
+  "pp.sharepoint.internalnames.confirmation",
+  "pp.canvas.screentargets.confirmation",
+  "pp.canvas.controltargets.confirmation",
+  "pp.canvas.components.confirmation",
+  "pp.canvas.yamlplanning.confirmation",
+  "pp.canvas.delegation.confirmation",
+  "pp.security.permissions.confirmation",
+  "pp.testing.outcomes.confirmation",
+  "pp.alm.rollback.confirmation",
+  "pp.release.approval.confirmation"
+] as const;
+
+const staleGateStatuses: Record<PhaseGateId, PowerPlatformGateStatus> = {
+  schema: "reviewNeeded",
+  internalNames: "reviewNeeded",
+  screenTargets: "missingInformation",
+  controlTargets: "missingInformation",
+  componentTargets: "missingInformation",
+  yaml: "reviewNeeded",
+  delegation: "missingInformation",
+  security: "reviewNeeded",
+  testing: "reviewNeeded",
+  alm: "reviewNeeded",
+  releaseApproval: "reviewNeeded"
+} as Record<PhaseGateId, PowerPlatformGateStatus>;
 
 function planningSource(overrides: Partial<PlanningSourceReference> = {}): PlanningSourceReference {
   return {
@@ -212,6 +293,137 @@ function validPlanning(projectId: string, overrides: Partial<ProjectPlanningStat
   };
 }
 
+function staleGate(id: PhaseGateId, status: PowerPlatformGateStatus): PhaseGateResult {
+  return {
+    id,
+    label: `Gate ${id}`,
+    status,
+    blockingReason: `TTI ${id} blocker remains unresolved.`,
+    sourceSection: `TTI ${id} source section`
+  };
+}
+
+async function staleFixture() {
+  const draftResult = generatePlanningClarificationDrafts({
+    projectId: staleProjectId,
+    projectType: "powerAppsCanvas",
+    gateResults: staleRuleIds.map((ruleId) => {
+      const rule = getPlanningRuleById(ruleId)!;
+      return staleGate(rule.target.targetKey, staleGateStatuses[rule.target.targetKey]);
+    })
+  });
+  expect(draftResult.issues).toEqual([]);
+  const blueprintResult = generatePlanningClarificationBlueprints({
+    projectId: staleProjectId,
+    drafts: draftResult.drafts
+  });
+  expect(blueprintResult.issues).toEqual([]);
+  const fingerprintResult = await generatePlanningClarificationFingerprints({
+    projectId: staleProjectId,
+    sources: blueprintResult.sources,
+    proposals: blueprintResult.proposals
+  });
+  expect(fingerprintResult.issues).toEqual([]);
+  return {
+    sources: JSON.parse(JSON.stringify(blueprintResult.sources)) as PlanningClarificationSourceBlueprint[],
+    proposals: JSON.parse(JSON.stringify(blueprintResult.proposals)) as PlanningClarificationProposalBlueprint[],
+    fingerprints: JSON.parse(JSON.stringify(fingerprintResult.fingerprints)) as PlanningClarificationFingerprintRecord[]
+  };
+}
+
+function stalePlanning(fixture: Awaited<ReturnType<typeof staleFixture>>): ProjectPlanningState {
+  const sources = fixture.sources.map((source, index) => staleSourceRecord(source, index));
+  const sourceIdsByKey = new Map(sources.map((source) => [staleSourceKey(source), source.sourceId]));
+  return {
+    ...createEmptyProjectPlanningState(),
+    sources,
+    proposals: fixture.proposals.map((proposal, index) => staleProposalRecord(
+      proposal,
+      fixture.fingerprints[index],
+      index,
+      proposal.sourceKeys.map((sourceKey) => sourceIdsByKey.get(sourceKey)!)
+    ))
+  };
+}
+
+function staleSourceRecord(source: PlanningClarificationSourceBlueprint, index: number): PlanningSourceReference {
+  return {
+    sourceId: `75000000-0000-4000-8000-${(index + 1).toString().padStart(12, "0")}`,
+    sourceType: source.sourceType,
+    locator: source.locator,
+    label: source.label,
+    authority: source.authority,
+    availability: "current",
+    observedAt: staleTimestamp,
+    ...(source.version ? { version: source.version } : {}),
+    ...(source.excerpt ? { excerpt: source.excerpt } : {})
+  };
+}
+
+function staleProposalRecord(
+  proposal: PlanningClarificationProposalBlueprint,
+  fingerprintRecord: PlanningClarificationFingerprintRecord,
+  index: number,
+  sourceIds: readonly string[]
+): PlanningProposalRecord {
+  return {
+    proposalId: `76000000-0000-4000-8000-${(index + 1).toString().padStart(12, "0")}`,
+    proposalSchemaVersion: PLANNING_SCHEMA_VERSION,
+    projectId: staleProjectId,
+    ruleSetId: proposal.ruleSetId,
+    ruleSetVersion: proposal.ruleSetVersion,
+    ruleId: proposal.ruleId,
+    ruleVersion: proposal.ruleVersion,
+    fingerprint: fingerprintRecord.fingerprint,
+    target: { ...proposal.target },
+    category: proposal.category,
+    status: proposal.status,
+    value: { ...proposal.value },
+    title: proposal.title,
+    recommendation: proposal.recommendation,
+    rationale: proposal.rationale,
+    sourceIds: [...sourceIds],
+    uncertainty: proposal.uncertainty,
+    restriction: proposal.restriction,
+    createdAt: staleTimestamp,
+    updatedAt: staleTimestamp,
+    consequence: proposal.consequence,
+    readinessRequirementIds: [...proposal.readinessRequirementIds],
+    applicableProjectTypes: [...proposal.applicableProjectTypes],
+    applicableDomains: [...proposal.applicableDomains]
+  };
+}
+
+function staleSourceKey(source: PlanningSourceReference): string {
+  return source.sourceType === "projectRule"
+    ? `projectRule|${source.locator.slice("planning-rule:".length)}|${source.version}`
+    : `readinessPrerequisite|${source.locator.slice("phase-gate:".length)}`;
+}
+
+function staleProposalSourceKey(
+  fixture: Awaited<ReturnType<typeof staleFixture>>,
+  proposalIndex: number,
+  prefix: string
+): string {
+  return fixture.proposals[proposalIndex].sourceKeys.find((sourceKey) => sourceKey.startsWith(prefix))!;
+}
+
+function mutateStaleSourceLabel(planning: ProjectPlanningState, sourceKey: string): string {
+  const source = planning.sources.find((entry) => staleSourceKey(entry) === sourceKey)!;
+  planning.sources = planning.sources.map((entry) =>
+    entry.sourceId === source.sourceId ? { ...entry, label: `${entry.label} previous` } : entry
+  );
+  return source.sourceId;
+}
+
+beforeEach(() => {
+  vi.stubGlobal("crypto", webcrypto);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("projectRepository", () => {
   it("saves and loads versioned state", () => {
     const storage = new MemoryStorage();
@@ -254,6 +466,196 @@ describe("projectRepository", () => {
     }, storage)).resolves.toMatchObject({ outcome: "unsupportedProjectType" });
 
     expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("guards stale-transition materialization project lookup and project-type boundaries without storage writes or runtime calls", async () => {
+    const storage = new MemoryStorage();
+    createProject({
+      identity: { id: "web-project", projectName: "Web Project" },
+      intake: { appType: "webApplication" }
+    }, storage);
+    const before = storage.getItem(STORAGE_KEY);
+    const runtimeCalls = { now: 0, uuid: 0 };
+    const runtime = {
+      now: () => {
+        runtimeCalls.now += 1;
+        return staleMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return staleDecisionId;
+      }
+    };
+
+    await expect(materializeProjectPlanningClarificationStaleTransitions("missing-project", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage, runtime)).resolves.toMatchObject({ outcome: "projectNotFound" });
+    await expect(materializeProjectPlanningClarificationStaleTransitions("invalid\nproject", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage, runtime)).resolves.toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "invalidProjectId" })]
+    });
+    await expect(materializeProjectPlanningClarificationStaleTransitions("web-project", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage, runtime)).resolves.toMatchObject({ outcome: "unsupportedProjectType" });
+
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("persists stale transitions atomically while preserving non-planning project fields", async () => {
+    const fixture = await staleFixture();
+    const planning = stalePlanning(fixture);
+    const sourceKey = staleProposalSourceKey(fixture, 0, "readinessPrerequisite|");
+    const sourceId = mutateStaleSourceLabel(planning, sourceKey);
+    const storage = new CountingStorage();
+    const project = createProject({
+      identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+      intake: { appType: "powerAppsCanvas" },
+      generatedDocuments: [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Existing package" }],
+      packageGeneratedAt: "2026-07-22T11:00:00.000Z",
+      readinessConfirmations: { scopeReviewed: true },
+      now: staleTimestamp
+    }, new MemoryStorage());
+    saveStorageState({
+      version: 4,
+      activeProjectId: staleProjectId,
+      projects: [{ ...project, planning }]
+    }, storage);
+    const writesBefore = storage.writes;
+
+    const result = await materializeProjectPlanningClarificationStaleTransitions(staleProjectId, {
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    }, storage, {
+      now: () => staleMaterializedAt,
+      uuid: () => staleDecisionId
+    });
+
+    expect(result).toMatchObject({
+      outcome: "persisted",
+      transitionedSources: [{ semanticKey: sourceKey, persistedId: sourceId, staleReason: "sourceChanged" }],
+      transitionedProposals: [{ decisionId: staleDecisionId, staleReason: "sourceChanged" }],
+      issues: []
+    });
+    expect(storage.writes).toBe(writesBefore + 1);
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.updatedAt).toBe(staleMaterializedAt);
+    expect(loaded.generatedDocuments).toEqual(project.generatedDocuments);
+    expect(loaded.packageGeneratedAt).toBe("2026-07-22T11:00:00.000Z");
+    expect(loaded.readinessConfirmations).toEqual({ scopeReviewed: true });
+    expect(loaded.planning?.sources.find((source) => source.sourceId === sourceId)).toMatchObject({
+      availability: "stale",
+      observedAt: staleTimestamp
+    });
+    expect(loaded.planning?.proposals[0]).toMatchObject({
+      status: "Stale",
+      staleReason: "sourceChanged",
+      staleAt: staleMaterializedAt,
+      updatedAt: staleMaterializedAt,
+      lastDecisionId: staleDecisionId
+    });
+    expect(loaded.planning?.decisions[0]).toMatchObject({
+      decisionId: staleDecisionId,
+      action: "markStale",
+      previousStatus: "Needs Clarification",
+      resultingStatus: "Stale",
+      origin: "deterministicRule",
+      reason: "sourceChanged",
+      recordedAt: staleMaterializedAt
+    });
+    expect(loaded.planning?.decisions[0].sourceIds).toBeUndefined();
+  });
+
+  it("blocks stale materialization when the project changes between preparation and write", async () => {
+    const fixture = await staleFixture();
+    const planning = stalePlanning(fixture);
+    mutateStaleSourceLabel(planning, staleProposalSourceKey(fixture, 0, "readinessPrerequisite|"));
+    const storage = new ChangingReadStorage();
+    const project = createProject({
+      identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+      intake: { appType: "powerAppsCanvas" },
+      now: staleTimestamp
+    }, new MemoryStorage());
+    saveStorageState({
+      version: 4,
+      activeProjectId: staleProjectId,
+      projects: [{ ...project, planning }]
+    }, storage);
+    const beforeRuntime = { now: 0, uuid: 0 };
+
+    const result = await materializeProjectPlanningClarificationStaleTransitions(staleProjectId, {
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    }, storage, {
+      now: () => {
+        beforeRuntime.now += 1;
+        return staleMaterializedAt;
+      },
+      uuid: () => {
+        beforeRuntime.uuid += 1;
+        return staleDecisionId;
+      }
+    });
+
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "projectChangedDuringMaterialization" })]
+    });
+    expect(beforeRuntime).toEqual({ now: 0, uuid: 0 });
+    expect(loadStorageState(storage).projects[0].updatedAt).toBe("2026-07-22T13:30:00.000Z");
+  });
+
+  it("reports stale materialization persistence failure without mutating caller-owned project objects", async () => {
+    clearPersistenceWarning();
+    try {
+      const fixture = await staleFixture();
+      const planning = stalePlanning(fixture);
+      mutateStaleSourceLabel(planning, staleProposalSourceKey(fixture, 0, "readinessPrerequisite|"));
+      const project = createProject({
+        identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+        intake: { appType: "powerAppsCanvas" },
+        now: staleTimestamp
+      }, new MemoryStorage());
+      const callerState = {
+        version: 4 as const,
+        activeProjectId: staleProjectId,
+        projects: [{ ...project, planning }]
+      };
+      const before = JSON.stringify(callerState);
+      const storage = new WriteFailStorage();
+      storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify(callerState));
+
+      const result = await materializeProjectPlanningClarificationStaleTransitions(staleProjectId, {
+        sources: fixture.sources,
+        proposals: fixture.proposals,
+        fingerprints: fixture.fingerprints
+      }, storage, {
+        now: () => staleMaterializedAt,
+        uuid: () => staleDecisionId
+      });
+
+      expect(result).toMatchObject({
+        outcome: "persistenceFailed",
+        transitionedSources: [],
+        transitionedProposals: [],
+        issues: [expect.objectContaining({ code: "persistenceFailed" })]
+      });
+      expect(JSON.stringify(callerState)).toBe(before);
+      expect(storage.getItem(STORAGE_KEY)).toBeNull();
+      expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
+    } finally {
+      clearPersistenceWarning();
+    }
   });
 
   it("keeps legacy-compatible storage keys and does not rewrite current saved records while loading", () => {

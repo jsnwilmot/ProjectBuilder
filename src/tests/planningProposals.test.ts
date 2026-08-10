@@ -428,8 +428,8 @@ describe("planning proposal normalization", () => {
       "Not Applicable": ["Stale", "Superseded"],
       Stale: ["Proposed", "Revised", "Confirmed", "Rejected", "Deferred", "Superseded", "Blocked", "Needs Clarification"],
       Superseded: [],
-      Blocked: ["Proposed", "Revised", "Rejected", "Deferred", "Superseded", "Needs Clarification"],
-      "Needs Clarification": ["Proposed", "Revised", "Rejected", "Deferred", "Blocked", "Superseded"]
+      Blocked: ["Proposed", "Revised", "Rejected", "Deferred", "Stale", "Superseded", "Needs Clarification"],
+      "Needs Clarification": ["Proposed", "Revised", "Rejected", "Deferred", "Stale", "Blocked", "Superseded"]
     };
 
     for (const from of PLANNING_STATUSES) {
@@ -438,6 +438,11 @@ describe("planning proposal normalization", () => {
         expect(isValidPlanningTransition(from, to)).toBe(from !== to && valid[from].includes(to));
       }
     }
+    expect(isValidPlanningTransition("Blocked", "Stale")).toBe(true);
+    expect(isValidPlanningTransition("Needs Clarification", "Stale")).toBe(true);
+    expect(isValidPlanningTransition("Rejected", "Stale")).toBe(false);
+    expect(isValidPlanningTransition("Superseded", "Stale")).toBe(false);
+    expect(isValidPlanningTransition("Stale", "Stale")).toBe(false);
     expect(valid.Rejected).toHaveLength(0);
     expect(valid.Superseded).toHaveLength(0);
   });
