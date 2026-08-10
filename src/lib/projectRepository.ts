@@ -39,6 +39,18 @@ import {
   type PlanningClarificationStaleRepositoryResult,
   type PlanningClarificationStaleRepositoryRuntime
 } from "./planningClarificationStaleMaterialization";
+import {
+  finalizePlanningClarificationReplacementMaterialization,
+  invalidProjectIdReplacementResult,
+  persistenceFailedReplacementResult,
+  preparePlanningClarificationReplacementMaterialization,
+  projectChangedDuringReplacementMaterializationResult,
+  projectNotFoundReplacementResult,
+  unsupportedProjectTypeReplacementResult,
+  type PlanningClarificationReplacementRepositoryInput,
+  type PlanningClarificationReplacementRepositoryResult,
+  type PlanningClarificationReplacementRepositoryRuntime
+} from "./planningClarificationReplacementMaterialization";
 import type {
   GeneratedDocument,
   ProjectInputField,
@@ -562,6 +574,64 @@ export async function materializeProjectPlanningClarificationStaleTransitions(
     projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
   }, storage);
   return wrote ? finalized.result : persistenceFailedStaleResult(projectId);
+}
+
+export async function materializeProjectPlanningClarificationReplacements(
+  projectId: string,
+  input: unknown,
+  storage: StorageAdapter = browserStorage(),
+  runtime: PlanningClarificationReplacementRepositoryRuntime = {}
+): Promise<PlanningClarificationReplacementRepositoryResult> {
+  if (
+    typeof projectId !== "string" ||
+    projectId.trim().length === 0 ||
+    projectId.length > 200 ||
+    /[\r\n]/.test(projectId)
+  ) {
+    return invalidProjectIdReplacementResult(typeof projectId === "string" ? projectId : "");
+  }
+
+  const baselineState = loadStorageState(storage);
+  const baselineProject = baselineState.projects.find((project) => project.identity.id === projectId);
+  if (!baselineProject) {
+    return projectNotFoundReplacementResult(projectId);
+  }
+  if (baselineProject.intake.appType !== "powerAppsCanvas") {
+    return unsupportedProjectTypeReplacementResult(projectId);
+  }
+
+  const baselineSnapshot = JSON.stringify(baselineProject);
+  const preparation = await preparePlanningClarificationReplacementMaterialization(
+    projectId,
+    baselineProject.planning ?? createEmptyProjectPlanningState(),
+    input as PlanningClarificationReplacementRepositoryInput
+  );
+  if (preparation.kind === "blocked" || preparation.kind === "unchanged") {
+    return preparation.result;
+  }
+
+  const latestState = loadStorageState(storage);
+  const latestProject = latestState.projects.find((project) => project.identity.id === projectId);
+  if (!latestProject || JSON.stringify(latestProject) !== baselineSnapshot) {
+    return projectChangedDuringReplacementMaterializationResult(projectId);
+  }
+
+  const finalized = await finalizePlanningClarificationReplacementMaterialization(preparation, runtime);
+  if (!finalized.planning || !finalized.materializedAt || finalized.result.outcome !== "persisted") {
+    return finalized.result;
+  }
+
+  const updatedProject: ProjectRecord = {
+    ...latestProject,
+    planning: finalized.planning,
+    createdAt: latestProject.createdAt,
+    updatedAt: finalized.materializedAt
+  };
+  const wrote = writeCurrentStorageState({
+    ...latestState,
+    projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
+  }, storage);
+  return wrote ? finalized.result : persistenceFailedReplacementResult(projectId);
 }
 
 export function resetStorage(storage: StorageAdapter = browserStorage()): StorageState {

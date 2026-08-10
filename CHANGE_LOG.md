@@ -1,5 +1,67 @@
 # Change Log
 
+## 2026-08-10 - Phase 5C.2.2F Controlled Clarification Replacement and Supersession Materialization
+
+### Summary
+
+- Added the controlled persistence boundary for E-proven clarification replacements.
+- Replacement materialization internally invokes the Phase 5C.2.2E analyzer as the authoritative proof of stale predecessor, generated successor, fingerprint, stale reason, and replacement-source lineage.
+- Replacement source creation, successor proposal creation, stale-predecessor `Stale -> Superseded` transition, `supersededByProposalId`, append-only `supersede` decision, and project `updatedAt` now happen in one repository transaction.
+- A persisted half-state is not allowed because reconciliation treats both `Stale` and `Needs Clarification` as non-terminal; persisting the successor without superseding the predecessor would create same-key ambiguity.
+- Replacement sources are limited to E-approved source relationships; exact current sources are reused by persisted ID in generated blueprint order, and unrelated generated sources/proposals remain unpersisted.
+- Successor proposals remain `Needs Clarification`; no user confirmation, readiness satisfaction, output integration, UI, conflicts, dependencies, external AI, Wrangler, deployment, PR, tag, release, or `main` integration was added.
+- Predecessor history remains append-only: prior `markStale` decisions are preserved, stale metadata is removed from the Superseded predecessor, and one deterministic `supersede` decision records the technical lifecycle transition.
+
+### Files created
+
+- `src/lib/planningClarificationReplacementMaterialization.ts` - preparation/finalization contracts and deterministic replacement/supersession materialization.
+- `src/tests/planningClarificationReplacementMaterialization.test.ts` - focused replacement materialization, topology, runtime, history, isolation, and TTI safety coverage.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - adds the public replacement materialization repository wrapper with project snapshot protection and one atomic write.
+- `src/tests/projectRepository.test.ts` - adds replacement repository guard, persistence, idempotency, race, failure, and preservation regressions.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused replacement-materialization tests passed (`1` file, `10` tests): `src/tests/planningClarificationReplacementMaterialization.test.ts`.
+- Focused replacement-analysis regression passed (`1` file, `24` tests): `src/tests/planningClarificationReplacementAnalysis.test.ts`.
+- Focused stale-materialization regression passed (`1` file, `15` tests).
+- Focused stale-propagation regression passed (`1` file, `18` tests).
+- Focused lifecycle-analysis regression passed (`1` file, `23` tests).
+- Focused proposal-reconciliation regression passed (`1` file, `12` tests).
+- Focused source-reconciliation regression passed (`1` file, `11` tests).
+- Focused initial clarification materialization regression passed (`1` file, `10` tests).
+- Full planning regression passed (`13` files, `215` tests): planning proposals, rules, drafts, blueprints, fingerprints, reconciliation, source reconciliation, initial materialization, lifecycle analysis, stale propagation, stale materialization, replacement analysis, and replacement materialization.
+- Repository regression passed (`4` files, `121` tests): `src/tests/projectRepository.test.ts`, initial materialization, stale materialization, and replacement materialization.
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`49` unit/integration files, `2050` tests; `7` UI files, `61` tests; `56` combined files, `2111` tests).
+- `npm.cmd run test:coverage`: passed (`56` combined files, `2111` tests) with `90.02%` statements, `81.55%` branches, `95.29%` functions, and `94.12%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+- `git diff --check`: passed.
+- `git status --short`: showed only the six approved phase files.
+
+### Issues found
+
+- Low: full dependency audit reports known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: `npm.cmd run build` reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Commit the exact six-file review branch scope, push the review branch, and return to GPT Architect for independent review.
+
 ## 2026-08-10 - Phase 5C.2.2E Deterministic Clarification Replacement Pairing Analysis
 
 ### Summary

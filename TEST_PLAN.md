@@ -1,5 +1,43 @@
 # Test Plan
 
+## 2026-08-10 Phase 5C.2.2F controlled clarification replacement and supersession materialization
+
+- Preparation coverage verifies invalid project IDs, invalid top-level input, invalid source/proposal/fingerprint arrays, invalid existing planning, E-blocked analysis, E-unchanged analysis, and E replacementRequired behavior.
+- E-authority coverage verifies replacement materialization recomputes Phase 5C.2.2E internally and does not accept caller-provided predecessor IDs, replacement relationships, stale causes, or source replacement relationships.
+- Generated binding coverage verifies each replacement proposal binds exactly to one generated blueprint, one supplied/generated fingerprint, status `Needs Clarification`, one exact persisted stale predecessor ID, and the E-proven generated fingerprint.
+- Predecessor coverage verifies exact stale predecessor state, clarification/readiness/clarificationOnly scope, same semantic key, matching existing fingerprint, matching stale reason, coherent `markStale` history, valid `Stale -> Superseded` transition, and pre-linked predecessor blocking.
+- Source coverage verifies only E-approved replacement sources are created, generated replacement sources must reconcile as `newSource`, unchanged current sources must reconcile as `exactMatch`, source IDs are bound in generated `sourceKeys` order, and unrelated generated sources are excluded.
+- Runtime coverage verifies one canonical UTC timestamp per changed transaction, timestamp validation before UUID allocation, deterministic UUID allocation order by source key/proposal key, UUID unavailable, malformed UUIDs, existing-ID collisions, decision/source/proposal collisions, and in-transaction duplicate UUID blocking.
+- Candidate coverage verifies existing source/proposal/decision ordering is preserved, new replacement sources append in semantic-key order, stale predecessors are modified in place, new replacement proposals append in proposal-key order, supersede decisions append after existing decisions, candidate normalization has zero issues, and post-candidate E returns clean `unchanged`.
+- Supersession coverage verifies old predecessors become `Superseded`, receive `supersededByProposalId`, point `lastDecisionId` to the new supersede decision, remove `staleReason` and `staleAt`, preserve all historical content fields, and retain the old `markStale` decision unchanged.
+- Successor coverage verifies replacement proposals are new unresolved `Needs Clarification` records with current generated fingerprint/content, transaction timestamps, exact source IDs, no predecessor stale metadata, and no automatic confirmation.
+- Scenario coverage verifies exact-current unchanged; `sourceChanged`; `ruleChanged`; deleted historical rule source; `applicabilityChanged`; multiple replacements; mixed new plus replacement; E-blocked topology; pre-linked predecessor; invalid timestamp; UUID unavailable; malformed UUID; duplicate UUID; post-candidate topology; stale-history chain; stale metadata removal; successor content; source-binding order; idempotent second call; and immutability.
+- Repository coverage verifies the public API supports only Power Apps Canvas, returns structured project-not-found and unsupported-project-type results, uses full-project snapshot race protection before clock/UUID calls, writes once atomically on success, reports persistence failure without false success, preserves non-planning project fields, and remains idempotent after success.
+- Isolation coverage verifies no user decisions, confirmation/revision/rejection/defer/not-applicable actions, readiness integration, output integration, generated documents, manifests, ZIP/export, Power Fx, YAML, conflict/dependency creation, UI, storage/schema/rule-set version changes, network, telemetry, external AI, Wrangler, deployment, PR, tag, release, or `main` integration.
+- TTI safety coverage verifies the TTI-like fixture remains Draft/gated: schema, security, testing, ALM, structured screen/control/component targets, YAML planning, delegation, SharePoint internal names, release approval, prohibited final Power Fx, paste-ready YAML, connector/scope blockers, readiness, and output are not resolved by replacement materialization.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused replacement-materialization tests passed (`1` file, `10` tests): `src/tests/planningClarificationReplacementMaterialization.test.ts`.
+- Focused replacement-analysis regression passed (`1` file, `24` tests): `src/tests/planningClarificationReplacementAnalysis.test.ts`.
+- Focused stale-materialization regression passed (`1` file, `15` tests): `src/tests/planningClarificationStaleMaterialization.test.ts`.
+- Focused stale-propagation regression passed (`1` file, `18` tests): `src/tests/planningClarificationStalePropagation.test.ts`.
+- Focused lifecycle-analysis regression passed (`1` file, `23` tests): `src/tests/planningClarificationLifecycleAnalysis.test.ts`.
+- Focused proposal-reconciliation regression passed (`1` file, `12` tests): `src/tests/planningClarificationReconciliation.test.ts`.
+- Focused source-reconciliation regression passed (`1` file, `11` tests): `src/tests/planningClarificationSourceReconciliation.test.ts`.
+- Focused initial-materialization regression passed (`1` file, `10` tests): `src/tests/planningClarificationMaterialization.test.ts`.
+- Full planning regression passed (`13` files, `215` tests).
+- Repository regression passed (`4` files, `121` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`49` unit/integration files, `2050` tests; `7` UI files, `61` tests; `56` combined files, `2111` tests).
+- `npm.cmd run test:coverage`: passed (`56` combined files, `2111` tests) with `90.02%` statements, `81.55%` branches, `95.29%` functions, and `94.12%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+- `git diff --check`: passed.
+- `git status --short`: showed only the six approved phase files.
+
 ## 2026-08-10 Phase 5C.2.2E deterministic clarification replacement pairing analysis
 
 - Exact-current coverage verifies persisted TTI clarification planning with no stale proposals returns `unchanged`, zero proposal replacements, zero source replacements, and zero issues.

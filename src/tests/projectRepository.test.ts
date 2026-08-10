@@ -51,6 +51,7 @@ import {
   listProjects,
   loadStorageState,
   materializeProjectPlanningClarifications,
+  materializeProjectPlanningClarificationReplacements,
   materializeProjectPlanningClarificationStaleTransitions,
   resetStorage,
   restoreProject,
@@ -416,6 +417,102 @@ function mutateStaleSourceLabel(planning: ProjectPlanningState, sourceKey: strin
   return source.sourceId;
 }
 
+function markReplacementSourceStale(planning: ProjectPlanningState, sourceKey: string): string {
+  const source = planning.sources.find((entry) => staleSourceKey(entry) === sourceKey)!;
+  planning.sources = planning.sources.map((entry) =>
+    entry.sourceId === source.sourceId ? { ...entry, availability: "stale" } : entry
+  );
+  return source.sourceId;
+}
+
+function markReplacementProposalStale(
+  planning: ProjectPlanningState,
+  proposalIndex: number,
+  reason: "sourceChanged" | "ruleChanged" | "applicabilityChanged",
+  overrides: Partial<PlanningProposalRecord> = {}
+): { proposalId: string; decisionId: string } {
+  const proposal = planning.proposals[proposalIndex];
+  const decisionId = `78000000-0000-4000-8000-${(proposalIndex + 1).toString().padStart(12, "0")}`;
+  planning.proposals = planning.proposals.map((entry, index) => index === proposalIndex ? {
+    ...entry,
+    ...overrides,
+    status: "Stale",
+    staleReason: reason,
+    staleAt: staleMaterializedAt,
+    updatedAt: staleMaterializedAt,
+    lastDecisionId: decisionId
+  } : entry);
+  planning.decisions = [...planning.decisions, {
+    decisionId,
+    proposalId: proposal.proposalId,
+    projectId: staleProjectId,
+    action: "markStale",
+    previousStatus: proposal.status,
+    resultingStatus: "Stale",
+    origin: "deterministicRule",
+    recordedAt: staleMaterializedAt,
+    reason,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  }];
+  return { proposalId: proposal.proposalId, decisionId };
+}
+
+async function replacementChangedSourceFixture(
+  fixture: Awaited<ReturnType<typeof staleFixture>>,
+  sourceKey: string
+): Promise<Awaited<ReturnType<typeof staleFixture>>> {
+  const sources = fixture.sources.map((source) =>
+    source.sourceKey === sourceKey ? { ...source, label: `${source.label} replacement` } : source
+  );
+  const proposals = replacementWithUpdatedSourceEvidenceInputs(fixture.proposals, sources);
+  const fingerprintResult = await generatePlanningClarificationFingerprints({
+    projectId: staleProjectId,
+    sources,
+    proposals
+  });
+  expect(fingerprintResult.issues).toEqual([]);
+  return {
+    sources: JSON.parse(JSON.stringify(sources)) as PlanningClarificationSourceBlueprint[],
+    proposals: JSON.parse(JSON.stringify(proposals)) as PlanningClarificationProposalBlueprint[],
+    fingerprints: JSON.parse(JSON.stringify(fingerprintResult.fingerprints)) as PlanningClarificationFingerprintRecord[]
+  };
+}
+
+function replacementWithUpdatedSourceEvidenceInputs(
+  proposals: readonly PlanningClarificationProposalBlueprint[],
+  sources: readonly PlanningClarificationSourceBlueprint[]
+): PlanningClarificationProposalBlueprint[] {
+  const sourcesByKey = new Map(sources.map((source) => [source.sourceKey, source]));
+  return proposals.map((proposal) => {
+    const parsed = JSON.parse(proposal.fingerprintInput) as {
+      sourceEvidence: Array<Record<string, unknown> & { sourceKey: string }>;
+    };
+    const sourceEvidence = parsed.sourceEvidence.map((entry) => {
+      const source = sourcesByKey.get(entry.sourceKey);
+      return source
+        ? {
+            ...entry,
+            sourceType: source.sourceType,
+            locator: source.locator,
+            label: source.label,
+            authority: source.authority,
+            availability: source.availability,
+            version: source.version ?? null,
+            excerpt: source.excerpt ?? null
+          }
+        : entry;
+    });
+    return {
+      ...proposal,
+      fingerprintInput: JSON.stringify({ ...parsed, sourceEvidence })
+    };
+  });
+}
+
+function replacementUuid(index: number): string {
+  return `79000000-0000-4000-8000-${index.toString().padStart(12, "0")}`;
+}
+
 beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto);
 });
@@ -653,6 +750,242 @@ describe("projectRepository", () => {
       expect(JSON.stringify(callerState)).toBe(before);
       expect(storage.getItem(STORAGE_KEY)).toBeNull();
       expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
+    } finally {
+      clearPersistenceWarning();
+    }
+  });
+
+  it("guards replacement materialization project lookup and project-type boundaries without storage writes or runtime calls", async () => {
+    const storage = new MemoryStorage();
+    createProject({
+      identity: { id: "web-project", projectName: "Web Project" },
+      intake: { appType: "webApplication" }
+    }, storage);
+    const before = storage.getItem(STORAGE_KEY);
+    const runtimeCalls = { now: 0, uuid: 0 };
+    const runtime = {
+      now: () => {
+        runtimeCalls.now += 1;
+        return staleMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return replacementUuid(1);
+      }
+    };
+
+    await expect(materializeProjectPlanningClarificationReplacements("missing-project", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage, runtime)).resolves.toMatchObject({ outcome: "projectNotFound" });
+    await expect(materializeProjectPlanningClarificationReplacements("invalid\nproject", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage, runtime)).resolves.toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "invalidProjectId" })]
+    });
+    await expect(materializeProjectPlanningClarificationReplacements("web-project", {
+      sources: [],
+      proposals: [],
+      fingerprints: []
+    }, storage, runtime)).resolves.toMatchObject({ outcome: "unsupportedProjectType" });
+
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("persists replacement materialization atomically while preserving project readiness and output fields", async () => {
+    const fixture = await staleFixture();
+    const planning = stalePlanning(fixture);
+    const sourceKey = staleProposalSourceKey(fixture, 0, "readinessPrerequisite|");
+    const staleSourceId = markReplacementSourceStale(planning, sourceKey);
+    const staleProposal = markReplacementProposalStale(planning, 0, "sourceChanged");
+    const changedFixture = await replacementChangedSourceFixture(fixture, sourceKey);
+    const storage = new CountingStorage();
+    const project = createProject({
+      identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+      intake: { appType: "powerAppsCanvas" },
+      generatedDocuments: [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Existing package" }],
+      packageGeneratedAt: "2026-07-22T11:00:00.000Z",
+      readinessConfirmations: { scopeReviewed: true },
+      now: staleTimestamp
+    }, new MemoryStorage());
+    saveStorageState({
+      version: 4,
+      activeProjectId: staleProjectId,
+      projects: [{ ...project, planning }]
+    }, storage);
+    const writesBefore = storage.writes;
+
+    const result = await materializeProjectPlanningClarificationReplacements(staleProjectId, {
+      sources: changedFixture.sources,
+      proposals: changedFixture.proposals,
+      fingerprints: changedFixture.fingerprints
+    }, storage, {
+      now: () => staleMaterializedAt,
+      uuid: (() => {
+        const ids = [replacementUuid(1), replacementUuid(2), replacementUuid(3)];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    });
+
+    expect(result).toMatchObject({
+      outcome: "persisted",
+      createdSources: [{ semanticKey: sourceKey, persistedId: replacementUuid(1) }],
+      createdProposals: [{
+        persistedId: replacementUuid(2),
+        predecessorProposalId: staleProposal.proposalId,
+        supersedeDecisionId: replacementUuid(3)
+      }],
+      issues: []
+    });
+    expect(storage.writes).toBe(writesBefore + 1);
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.updatedAt).toBe(staleMaterializedAt);
+    expect(loaded.generatedDocuments).toEqual(project.generatedDocuments);
+    expect(loaded.packageGeneratedAt).toBe("2026-07-22T11:00:00.000Z");
+    expect(loaded.readinessConfirmations).toEqual({ scopeReviewed: true });
+    expect(loaded.planning?.sources.find((source) => source.sourceId === staleSourceId)).toMatchObject({ availability: "stale" });
+    expect(loaded.planning?.sources.find((source) => source.sourceId === replacementUuid(1))).toMatchObject({
+      availability: "current",
+      observedAt: staleMaterializedAt
+    });
+    expect(loaded.planning?.proposals.find((proposal) => proposal.proposalId === staleProposal.proposalId)).toMatchObject({
+      status: "Superseded",
+      supersededByProposalId: replacementUuid(2),
+      lastDecisionId: replacementUuid(3)
+    });
+    expect(loaded.planning?.proposals.find((proposal) => proposal.proposalId === replacementUuid(2))).toMatchObject({
+      status: "Needs Clarification",
+      createdAt: staleMaterializedAt,
+      updatedAt: staleMaterializedAt
+    });
+    expect(loaded.planning?.decisions.at(-1)).toMatchObject({
+      decisionId: replacementUuid(3),
+      action: "supersede",
+      previousStatus: "Stale",
+      resultingStatus: "Superseded",
+      origin: "deterministicRule"
+    });
+  });
+
+  it("keeps replacement materialization idempotent after a successful transaction", async () => {
+    const fixture = await staleFixture();
+    const planning = stalePlanning(fixture);
+    const sourceKey = staleProposalSourceKey(fixture, 0, "readinessPrerequisite|");
+    markReplacementSourceStale(planning, sourceKey);
+    markReplacementProposalStale(planning, 0, "sourceChanged");
+    const changedFixture = await replacementChangedSourceFixture(fixture, sourceKey);
+    const storage = new CountingStorage();
+    const project = createProject({
+      identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+      intake: { appType: "powerAppsCanvas" },
+      now: staleTimestamp
+    }, new MemoryStorage());
+    saveStorageState({ version: 4, activeProjectId: staleProjectId, projects: [{ ...project, planning }] }, storage);
+
+    await materializeProjectPlanningClarificationReplacements(staleProjectId, changedFixture, storage, {
+      now: () => staleMaterializedAt,
+      uuid: (() => {
+        const ids = [replacementUuid(4), replacementUuid(5), replacementUuid(6)];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    });
+    const writesAfterFirst = storage.writes;
+    const runtimeCalls = { now: 0, uuid: 0 };
+    const second = await materializeProjectPlanningClarificationReplacements(staleProjectId, changedFixture, storage, {
+      now: () => {
+        runtimeCalls.now += 1;
+        return staleMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return replacementUuid(7);
+      }
+    });
+
+    expect(second).toMatchObject({ outcome: "unchanged", createdSources: [], createdProposals: [], issues: [] });
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
+    expect(storage.writes).toBe(writesAfterFirst);
+  });
+
+  it("blocks replacement materialization when the project changes between preparation and write", async () => {
+    const fixture = await staleFixture();
+    const planning = stalePlanning(fixture);
+    const sourceKey = staleProposalSourceKey(fixture, 0, "readinessPrerequisite|");
+    markReplacementSourceStale(planning, sourceKey);
+    markReplacementProposalStale(planning, 0, "sourceChanged");
+    const changedFixture = await replacementChangedSourceFixture(fixture, sourceKey);
+    const storage = new ChangingReadStorage();
+    const project = createProject({
+      identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+      intake: { appType: "powerAppsCanvas" },
+      now: staleTimestamp
+    }, new MemoryStorage());
+    saveStorageState({ version: 4, activeProjectId: staleProjectId, projects: [{ ...project, planning }] }, storage);
+    const runtimeCalls = { now: 0, uuid: 0 };
+
+    const result = await materializeProjectPlanningClarificationReplacements(staleProjectId, changedFixture, storage, {
+      now: () => {
+        runtimeCalls.now += 1;
+        return staleMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return replacementUuid(8);
+      }
+    });
+
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "projectChangedDuringReplacementMaterialization" })]
+    });
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
+    expect(loadStorageState(storage).projects[0].updatedAt).toBe("2026-07-22T13:30:00.000Z");
+  });
+
+  it("reports replacement materialization persistence failure without false success", async () => {
+    clearPersistenceWarning();
+    try {
+      const fixture = await staleFixture();
+      const planning = stalePlanning(fixture);
+      const sourceKey = staleProposalSourceKey(fixture, 0, "readinessPrerequisite|");
+      markReplacementSourceStale(planning, sourceKey);
+      markReplacementProposalStale(planning, 0, "sourceChanged");
+      const changedFixture = await replacementChangedSourceFixture(fixture, sourceKey);
+      const project = createProject({
+        identity: { id: staleProjectId, projectName: "TTI Software Licence Tracker" },
+        intake: { appType: "powerAppsCanvas" },
+        now: staleTimestamp
+      }, new MemoryStorage());
+      const storage = new WriteFailStorage();
+      storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+        version: 4,
+        activeProjectId: staleProjectId,
+        projects: [{ ...project, planning }]
+      }));
+
+      const result = await materializeProjectPlanningClarificationReplacements(staleProjectId, changedFixture, storage, {
+        now: () => staleMaterializedAt,
+        uuid: (() => {
+          const ids = [replacementUuid(9), replacementUuid(10), replacementUuid(11)];
+          let index = 0;
+          return () => ids[index++]!;
+        })()
+      });
+
+      expect(result).toMatchObject({
+        outcome: "persistenceFailed",
+        createdSources: [],
+        createdProposals: [],
+        issues: [expect.objectContaining({ code: "persistenceFailed" })]
+      });
+      expect(storage.getItem(STORAGE_KEY)).toBeNull();
     } finally {
       clearPersistenceWarning();
     }
