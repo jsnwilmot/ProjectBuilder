@@ -226,8 +226,8 @@ function analyzeRevise(
     return blocked(issue("answerRequired", "Revision requires an answer value.", proposal.proposalId, "value"));
   }
 
-  const value = normalizePlanningValue(inputValue);
-  if (!value || !REVISION_VALUE_KINDS.has(value.kind)) {
+  const value = normalizeRevisionValue(inputValue);
+  if (!value) {
     return blocked(issue("invalidAnswerValue", "Revision answer value kind is not permitted.", proposal.proposalId, "value"));
   }
 
@@ -492,12 +492,12 @@ function isSupportedAction(input: unknown): input is PlanningClarificationHumanD
   return typeof input === "string" && (SUPPORTED_ACTIONS as readonly string[]).includes(input);
 }
 
-function normalizePlanningValue(input: unknown): PlanningProposalValue | null {
-  return normalizeValue(input, 1);
+function normalizeRevisionValue(input: unknown): PlanningProposalValue | null {
+  return normalizeRevisionSafeValue(input, 1);
 }
 
-function normalizeValue(input: unknown, depth: number): PlanningProposalValue | null {
-  if (!isPlainObject(input) || depth > LIMITS.structuredDepth) return null;
+function normalizeRevisionSafeValue(input: unknown, depth: number): PlanningProposalValue | null {
+  if (!isPlainObject(input) || depth > LIMITS.structuredDepth || !REVISION_VALUE_KINDS.has(input.kind as PlanningProposalValue["kind"])) return null;
   switch (input.kind) {
     case "text": {
       const value = normalizeMultiline(input.value, LIMITS.textValue);
@@ -514,42 +514,24 @@ function normalizeValue(input: unknown, depth: number): PlanningProposalValue | 
       return value ? { kind: "stringList", value } : null;
     }
     case "structuredRecord": {
-      const value = normalizeStructuredRecord(input.value, depth + 1);
+      const value = normalizeRevisionStructuredRecord(input.value, depth + 1);
       return value && JSON.stringify(value).length <= LIMITS.structuredSize
         ? { kind: "structuredRecord", value }
         : null;
-    }
-    case "recordCreation": {
-      const value = normalizeStructuredRecord(input.value, depth + 1);
-      return value && JSON.stringify(value).length <= LIMITS.structuredSize
-        ? { kind: "recordCreation", value }
-        : null;
-    }
-    case "notApplicable": {
-      const reason = normalizeMultiline(input.reason, LIMITS.longText);
-      return reason ? { kind: "notApplicable", reason } : null;
-    }
-    case "deferred": {
-      const reason = normalizeMultiline(input.reason, LIMITS.longText);
-      return reason ? { kind: "deferred", reason } : null;
-    }
-    case "clarification": {
-      const question = normalizeMultiline(input.question, LIMITS.longText);
-      return question ? { kind: "clarification", question } : null;
     }
     default:
       return null;
   }
 }
 
-function normalizeStructuredRecord(input: unknown, depth: number): Record<string, PlanningProposalValue> | null {
+function normalizeRevisionStructuredRecord(input: unknown, depth: number): Record<string, PlanningProposalValue> | null {
   if (!isPlainObject(input) || depth > LIMITS.structuredDepth) return null;
   const entries = Object.entries(input);
   if (entries.length > LIMITS.structuredKeys) return null;
   const normalized: Record<string, PlanningProposalValue> = {};
   for (const [rawKey, rawValue] of entries) {
     const key = normalizeSingleLine(rawKey, LIMITS.shortText);
-    const value = normalizeValue(rawValue, depth + 1);
+    const value = normalizeRevisionSafeValue(rawValue, depth);
     if (!key || !value || key === "__proto__" || key === "constructor" || key === "prototype") return null;
     normalized[key] = value;
   }

@@ -1,5 +1,59 @@
 # Change Log
 
+## 2026-08-11 - Phase 5C.2.3B Architect Correction 1 Recursive Revision Value Enforcement
+
+### Summary
+
+- Corrected the clarification `revise` contract so prohibited planning value kinds are rejected at every structured-record depth.
+- Added a revision-specific recursive normalization boundary that permits only text, boolean, enum, string-list, and structured-record values without changing the general planning value normalizer.
+- Blocked nested `clarification`, `deferred`, `notApplicable`, and `recordCreation` values with `invalidAnswerValue`.
+- Preserved valid nested structured answers, existing revise/confirm behavior, the Not Applicable and defer actions, deterministic fingerprints, provenance plans, readiness/output isolation, UI exclusion, and persistence exclusion.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationDecisionContract.ts` - adds revision-specific recursive value normalization and removes the unused general local normalizer boundary from this module.
+- `src/tests/planningClarificationDecisionContract.test.ts` - adds nested prohibited-value regressions and valid nested structured-record coverage.
+- `CHANGE_LOG.md` - records this Architect correction.
+- `TEST_PLAN.md` - records this correction's focused scenarios and validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused human-decision-contract tests passed (`1` file, `32` tests).
+- PlanningProposals and planning-rules regressions passed (`2` files, `47` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Clarification reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Full planning regression passed (`14` files, `247` tests).
+- Repository regression passed (`4` files, `121` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`50` unit/integration files, `2082` tests; `7` UI files, `61` tests; `57` combined files, `2143` tests).
+- `npm.cmd run test:coverage`: passed (`57` combined files, `2143` tests) with `89.96%` statements, `81.58%` branches, `95.37%` functions, and `94.07%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this correction.
+- Low: `npm.cmd run build` reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Commit the correction scope, push the review branch only, and return to GPT Architect for independent review.
+
 ## 2026-08-11 - Phase 5C.2.3B Clarification Human Decision Contract and Provenance Foundation
 
 ### Summary

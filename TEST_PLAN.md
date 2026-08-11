@@ -1,5 +1,34 @@
 # Test Plan
 
+## 2026-08-11 Phase 5C.2.3B Architect Correction 1 recursive revision value enforcement
+
+- Recursive revision coverage verifies `revise` accepts only text, boolean, enum, string-list, and structured-record values at every structured-record depth.
+- Nested Not Applicable coverage verifies `structuredRecord -> notApplicable` is blocked with `invalidAnswerValue` and cannot bypass the separate `markNotApplicable` action.
+- Nested Deferred coverage verifies `structuredRecord -> deferred` is blocked with `invalidAnswerValue` and cannot bypass the separate `defer` action.
+- Nested Clarification coverage verifies unresolved clarification values cannot be embedded in a successful answer.
+- Nested Record Creation coverage verifies record-creation semantics cannot be introduced through a human clarification revision.
+- Deep nesting coverage verifies prohibited values are blocked recursively, not only at the top structured-record level.
+- Positive nested structured coverage verifies valid nested text, boolean, enum, string-list, and structured-record answers remain allowed.
+- Isolation coverage verifies no change to general planning normalization, confirmation lifecycle, Not Applicable transition, rule authority, fingerprints, provenance plans, readiness, outputs, persistence, UI, runtime, controlled apply, conflict resolution, or TTI safety.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused human-decision-contract tests passed (`1` file, `32` tests).
+- PlanningProposals and planning-rules regressions passed (`2` files, `47` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Clarification reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Full planning regression passed (`14` files, `247` tests).
+- Repository regression passed (`4` files, `121` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`50` unit/integration files, `2082` tests; `7` UI files, `61` tests; `57` combined files, `2143` tests).
+- `npm.cmd run test:coverage`: passed (`57` combined files, `2143` tests) with `89.96%` statements, `81.58%` branches, `95.37%` functions, and `94.07%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-11 Phase 5C.2.3B clarification human decision contract and provenance foundation
 
 - Transition coverage verifies only `Needs Clarification -> Not Applicable` was added, direct `Needs Clarification -> Confirmed` remains invalid, same-state transitions remain invalid, and `Rejected`/`Superseded` remain terminal.

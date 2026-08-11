@@ -58,6 +58,41 @@ function structuredValue(): PlanningProposalValue {
   };
 }
 
+function nestedStructuredValue(): PlanningProposalValue {
+  return {
+    kind: "structuredRecord",
+    value: {
+      owner: { kind: "text", value: "Business owner" },
+      approved: { kind: "boolean", value: true },
+      environment: { kind: "enum", value: "Production" },
+      responsibilities: { kind: "stringList", value: ["Review", "Confirm"] },
+      details: {
+        kind: "structuredRecord",
+        value: {
+          notes: { kind: "text", value: "Nested answer remains allowed." },
+          confirmed: { kind: "boolean", value: true }
+        }
+      }
+    }
+  };
+}
+
+function structuredWithNested(value: PlanningProposalValue): PlanningProposalValue {
+  return {
+    kind: "structuredRecord",
+    value: {
+      response: value
+    }
+  };
+}
+
+function deeplyNestedProhibitedValue(): PlanningProposalValue {
+  return structuredWithNested(structuredWithNested(structuredWithNested({
+    kind: "notApplicable",
+    reason: "No longer applies."
+  } as PlanningProposalValue)));
+}
+
 function ruleFor(ruleId: string) {
   const rule = getPlanningRuleById(ruleId);
   if (!rule) throw new Error(`Missing fixture rule ${ruleId}`);
@@ -274,6 +309,33 @@ describe("planning clarification human decision contract", () => {
     ["record-creation", { kind: "recordCreation", value: { name: textValue("Record") } } as PlanningProposalValue]
   ])("rejects %s values as revision answers", (_label, value) => {
     expectBlockedCode(analyze({ action: "revise", value }), "invalidAnswerValue");
+  });
+
+  it.each([
+    ["nested not-applicable", structuredWithNested({ kind: "notApplicable", reason: "No longer applies." } as PlanningProposalValue)],
+    ["nested deferred", structuredWithNested({ kind: "deferred", reason: "Later." } as PlanningProposalValue)],
+    ["nested clarification", structuredWithNested({ kind: "clarification", question: "Still unresolved?" } as PlanningProposalValue)],
+    ["nested record-creation", structuredWithNested({ kind: "recordCreation", value: { name: textValue("Record") } } as PlanningProposalValue)],
+    ["deeply nested not-applicable", deeplyNestedProhibitedValue()]
+  ])("rejects %s values inside structured revision answers", (_label, value) => {
+    expectBlockedCode(analyze({ action: "revise", value }), "invalidAnswerValue");
+  });
+
+  it("allows valid nested structured revision answers", () => {
+    const value = nestedStructuredValue();
+
+    const result = analyze({ action: "revise", value });
+
+    expect(result).toMatchObject({
+      outcome: "allowed",
+      plan: {
+        action: "revise",
+        resultingStatus: "Revised",
+        nextValue: value,
+        decisionValue: value,
+        userAnswerSourceAction: "createInformational"
+      }
+    });
   });
 
   it("blocks direct Needs Clarification -> Confirmed and allows Revised -> Confirmed with coherent revision history", () => {
