@@ -1,5 +1,40 @@
 # Test Plan
 
+## 2026-08-11 Phase 5C.2.3D.3A controlled apply candidate eligibility contract
+
+- Positive candidate coverage verifies a synthetic future proposal with `Confirmed`, `Known`, `concreteProposalAllowed`, eligible category, explicit `projectField`, `setValue`, self-identifying `fieldKey`, text value, coherent user-action confirm decision, current source binding, and confirmed or approved evidence returns `candidate`.
+- Candidate plan coverage verifies `writeAuthorized`, `readinessEligible`, and `outputEligible` are always `false`, and returned target, value, and source IDs are defensive copies.
+- Status coverage verifies every non-`Confirmed` planning status blocks.
+- Target-kind coverage verifies every non-`projectField` kind blocks, especially current `readinessRequirement` clarification targets.
+- Operation coverage verifies `setValue` is the only eligible operation and `createRecord`, `setApplicability`, `clarificationOnly`, and omitted operation block.
+- Target identity coverage verifies missing `fieldKey`, `targetKey` / `fieldKey` mismatch, and present `entityId` block.
+- Value coverage verifies only text values can become candidates; boolean, enum, string list, structured record, record creation, Not Applicable, deferred, and clarification values block without coercion.
+- Category coverage verifies `userFact`, `approvedConstraint`, and `architectProposal` are eligible categories while derived dependency, assumption, missing decision, and clarification categories block.
+- Restriction coverage verifies only `concreteProposalAllowed` can become a candidate; `optionsOnly`, `clarificationOnly`, `authoritativeSourceRequired`, `architectApprovalRequired`, and `neverAutoGenerate` block.
+- Uncertainty coverage verifies only `Known` can become a candidate.
+- Confirmation coverage verifies `lastDecisionId`, a coherent `confirm` action, `Confirmed` resulting status, `userAction` origin, current rule-set version, and exact decision/proposal source binding are required.
+- Source coverage verifies current source availability, confirmed or approved evidence authority, and informational-only rejection; source precedence is not used as mutation authority.
+- Boundary coverage verifies alternative groups, open conflicts involving the proposal, and dependencies involving the proposal block without mutation or resolution.
+- Current clarification-rule regression verifies all 11 active clarification rules remain blocked by the non-writable `readinessRequirement` / `clarificationOnly` boundary and no rule mappings are introduced.
+- TTI safety coverage verifies the analyzer cannot make a TTI-style Draft project less Draft, confirm schema, derive internal names, invent screens or controls, resolve components, YAML, delegation, permissions, testing, ALM, release, Power Fx, or output.
+- Static isolation coverage verifies the new contract source does not import or call repository, project field mutation, Power Platform mutation, readiness writers, generators, Power Fx/YAML generation, network APIs, external AI, Cloudflare, Wrangler, clocks, UUID allocation, or randomness.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused controlled-apply candidate contract tests passed (`1` file, `53` tests).
+- PlanningProposals and planning-rules regressions passed (`2` files, `47` tests).
+- Clarification decision-contract and decision-materialization regressions passed (`2` files, `61` tests).
+- Stale/replacement lifecycle regressions passed (`5` files, `90` tests).
+- Repository regression passed (`1` file, `96` tests).
+- Readiness regression passed (`4` files, `83` tests).
+- Output regression passed (`7` files, `139` tests).
+- Full planning regression passed (`16` files, `329` tests).
+- `npm.cmd test`: passed (`52` unit/integration files, `2174` tests; `7` UI files, `61` tests; `59` combined files, `2235` tests).
+- `npm.cmd run test:coverage`: passed (`59` combined files, `2235` tests) with `90.02%` statements, `81.65%` branches, `95.26%` functions, and `94.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-11 Phase 5C.2.3C Architect Correction 1 current evidence source enforcement
 
 - Current-evidence coverage verifies every source ID bound to the target proposal must resolve to an existing planning source with `availability: "current"` before a human decision can reach runtime allocation.

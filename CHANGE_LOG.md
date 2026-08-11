@@ -1,5 +1,57 @@
 # Change Log
 
+## 2026-08-11 - Phase 5C.2.3D.3A Controlled Apply Candidate Eligibility Contract
+
+### Summary
+
+- Added a pure planning-side controlled-apply candidate analyzer that performs no project mutation, destination validation, persistence, runtime allocation, readiness updates, or output changes.
+- Limited the initial candidate shape to explicit `projectField` targets with `operation: "setValue"` and `kind: "text"` values.
+- Required `Confirmed` proposals with `Known` uncertainty, `concreteProposalAllowed` restriction, eligible categories, coherent user-action confirmation decisions, exact source binding, current sources, and confirmed or approved evidence authority.
+- Preserved the non-writable boundary for the current 11 clarification rules; `readinessRequirement`, `clarificationOnly`, `authoritativeSourceRequired`, `architectApprovalRequired`, assumptions, missing decisions, dependencies, conflicts, and alternative groups remain blocked.
+- Preserved the source-precedence boundary: evidence ranking is not mutation authority.
+
+### Files created
+
+- `src/lib/planningControlledApplyContract.ts` - pure candidate eligibility analyzer and result contract.
+- `src/tests/planningControlledApplyContract.test.ts` - focused positive, negative, TTI-safety, and static isolation coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records focused controlled-apply candidate validation coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused controlled-apply candidate contract tests passed (`1` file, `53` tests).
+- PlanningProposals and planning-rules regressions passed (`2` files, `47` tests).
+- Clarification decision-contract and decision-materialization regressions passed (`2` files, `61` tests).
+- Stale/replacement lifecycle regressions passed (`5` files, `90` tests).
+- Repository regression passed (`1` file, `96` tests).
+- Readiness regression passed (`4` files, `83` tests).
+- Output regression passed (`7` files, `139` tests).
+- Full planning regression passed (`16` files, `329` tests).
+- `npm.cmd test`: passed (`52` unit/integration files, `2174` tests; `7` UI files, `61` tests; `59` combined files, `2235` tests).
+- `npm.cmd run test:coverage`: passed (`59` combined files, `2235` tests) with `90.02%` statements, `81.65%` branches, `95.26%` functions, and `94.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Commit the exact four-file scope, push the review branch, and return to GPT Architect for independent review.
+
 ## 2026-08-11 - Phase 5C.2.3C Architect Correction 1 Current Evidence Source Enforcement
 
 ### Summary
