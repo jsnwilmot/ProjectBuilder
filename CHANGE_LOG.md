@@ -1,5 +1,65 @@
 # Change Log
 
+## 2026-08-11 - Phase 5C.2.3C Controlled Clarification Human Decision Persistence
+
+### Summary
+
+- Added controlled repository materialization for the five approved clarification human actions: `revise`, `confirm`, `reject`, `defer`, and `markNotApplicable`.
+- Persisted append-only user-action decision records while preserving proposal identity, deterministic fingerprints, historical decisions, dependencies, conflicts, and existing collection order.
+- Added informational `userAnswer` provenance for revisions and confirmed `userAnswer` provenance for confirmations, including staling only the prior informational source while preserving its historical authority, UUID, locator, and observed timestamp.
+- Enforced one canonical UTC transaction timestamp, decision-first UUID allocation, UUID collision checks, candidate normalization, final topology validation, full-project race protection, and one atomic repository write.
+- Preserved TTI unresolved status and excluded controlled apply, readiness integration, generated output integration, UI, actor identity, remote persistence, storage migration, Power Fx generation, and YAML generation.
+
+### Files created
+
+- `src/lib/planningClarificationDecisionMaterialization.ts` - controlled preparation/finalization materializer for approved clarification human decisions.
+- `src/tests/planningClarificationDecisionMaterialization.test.ts` - focused materialization, lifecycle, runtime, topology, TTI-safety, isolation, and immutability coverage.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - adds the public atomic repository wrapper `materializeProjectPlanningClarificationHumanDecision`.
+- `src/tests/projectRepository.test.ts` - adds repository wrapper coverage for boundaries, successful actions, race protection, persistence failure, one-write behavior, preservation, and repeated-action state behavior.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused decision-materialization tests passed (`1` file, `21` tests).
+- Focused decision-contract regression passed (`1` file, `32` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Full planning regression passed (`15` files, `268` tests).
+- Repository regression passed (`5` files, `151` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: first attempt timed out at the tool timeout; rerun passed (`51` unit/integration files, `2112` tests; `7` UI files, `61` tests; `58` combined files, `2173` tests).
+- `npm.cmd run test:coverage`: passed (`58` combined files, `2173` tests) with `89.93%` statements, `81.50%` branches, `95.21%` functions, and `93.97%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through `miniflare`/`wrangler` (`6` vulnerabilities: `2` moderate, `4` high).
+- `git diff --check`: passed.
+
+### Issues found
+
+- Low: full dependency audit reports known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: `npm.cmd run build` reports the existing Vite large-chunk warning.
+- Low: the first `npm.cmd test` attempt timed out at the tool timeout; the longer rerun passed.
+
+### Remaining work
+
+- Commit the six-file phase scope, push the review branch only, and return to GPT Architect for independent review.
+
 ## 2026-08-11 - Phase 5C.2.3B Architect Correction 1 Recursive Revision Value Enforcement
 
 ### Summary

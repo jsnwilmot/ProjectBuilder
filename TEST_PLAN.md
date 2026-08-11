@@ -1,5 +1,39 @@
 # Test Plan
 
+## 2026-08-11 Phase 5C.2.3C controlled clarification human decision persistence
+
+- Revise coverage verifies a successful `Needs Clarification -> Revised` action appends exactly one `userAction` decision, creates one current informational `userAnswer` source, uses `planning:userAnswer:<proposalId>:<decisionId>`, stores the contract answer as proposal and decision value, appends source IDs in order, preserves the proposal UUID and fingerprint, and uses one transaction timestamp.
+- Confirm coverage verifies a successful `Revised -> Confirmed` action appends one decision, creates one new current confirmed `userAnswer` source, marks only the prior informational user-answer source stale, preserves its UUID, authority, locator, label, and observed timestamp, replaces the old source ID in current proposal evidence at the same position, and keeps the historical revise decision bound to the old source.
+- Reject, defer, and Not Applicable coverage verifies source-free actions append one decision, create no user-answer source, preserve source IDs, persist bounded reasons for reject/defer, persist the structured Not Applicable value for NA, and do not duplicate the NA reason into decision `reason`.
+- Shared-success coverage verifies every successful action sets `lastDecisionId`, uses `origin: userAction`, uses `PLANNING_RULE_SET_VERSION`, updates proposal and project timestamps with the same canonical UTC value, binds decisions to the complete resulting current evidence set, and preserves unrelated project fields.
+- Contract-boundary coverage verifies direct confirmation from Needs Clarification, nested invalid revision values, schema NA, SharePoint internal-name NA, blocking-conflict confirmation, alternative-group confirmation, stale confirmation, and terminal proposal actions all block before timestamp or UUID allocation.
+- Runtime coverage verifies invalid timestamps block before UUID allocation, UUID unavailable, malformed UUIDs, existing-ID collisions, and in-transaction UUID collisions all fail closed without persistence.
+- Candidate coverage verifies normalized candidate equality, final topology checks, defensive copies for nested values, immutability of input planning, and repeated human revision after success failing through the current contract rather than returning fabricated idempotent success.
+- Repository coverage verifies invalid project IDs, project not found, unsupported project type, successful revise, successful confirm, reject, defer, NA, full-project race protection before runtime allocation, one successful storage write, persistence failure reporting, project `updatedAt`, non-planning project preservation, and second-action state behavior.
+- Isolation coverage verifies no controlled apply, readiness updates, output generation, generated document updates, UI changes, actor identity fields, remote persistence, storage migration, Power Fx generation, YAML generation, network APIs, external AI, Cloudflare/Wrangler calls, dependency changes, or CI changes.
+- TTI safety coverage verifies the TTI package remains Draft/unresolved: backend schema, SharePoint internal names, target names, delegation, security, testing, ALM, release approval, YAML planning, final Power Fx, paste-ready YAML, fabricated schema, fabricated permissions, fabricated approval evidence, readiness, and output are not resolved by persistence.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused decision-materialization tests passed (`1` file, `21` tests).
+- Focused decision-contract regression passed (`1` file, `32` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Full planning regression passed (`15` files, `268` tests).
+- Repository regression passed (`5` files, `151` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: first attempt timed out at the tool timeout; rerun passed (`51` unit/integration files, `2112` tests; `7` UI files, `61` tests; `58` combined files, `2173` tests).
+- `npm.cmd run test:coverage`: passed (`58` combined files, `2173` tests) with `89.93%` statements, `81.50%` branches, `95.21%` functions, and `93.97%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through `miniflare`/`wrangler` (`6` vulnerabilities: `2` moderate, `4` high).
+- `git diff --check`: passed.
+
 ## 2026-08-11 Phase 5C.2.3B Architect Correction 1 recursive revision value enforcement
 
 - Recursive revision coverage verifies `revise` accepts only text, boolean, enum, string-list, and structured-record values at every structured-record depth.
