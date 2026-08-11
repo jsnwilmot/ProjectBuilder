@@ -1,5 +1,40 @@
 # Test Plan
 
+## 2026-08-11 Phase 5C.2.3B clarification human decision contract and provenance foundation
+
+- Transition coverage verifies only `Needs Clarification -> Not Applicable` was added, direct `Needs Clarification -> Confirmed` remains invalid, same-state transitions remain invalid, and `Rejected`/`Superseded` remain terminal.
+- Contract coverage verifies the pure analyzer supports only `revise`, `confirm`, `reject`, `defer`, and `markNotApplicable`, and blocks lifecycle-only actions such as `markStale`, `supersede`, `block`, `requestClarification`, `reopen`, and `resolveConflict`.
+- Rule-authority coverage verifies proposals are analyzed only when they are clarification readiness proposals whose active rule matches rule ID, rule version, target, category, and restriction.
+- Revision coverage verifies `Needs Clarification -> Revised` accepts text, boolean, enum, string-list, and structured-record answers while rejecting clarification, deferred, Not Applicable, and record-creation values.
+- Fingerprint coverage verifies revision plans preserve the deterministic generated blueprint fingerprint and do not introduce human fingerprints or recompute generated fingerprints.
+- Provenance coverage verifies `revise` plans `createInformational`, and `confirm` requires coherent revision history with one current informational `userAnswer` source using `planning:userAnswer:<proposalId>:<decisionId>` and the `User answer` label.
+- Confirmation coverage verifies `Revised -> Confirmed` is allowed only after valid user revision history, while direct Needs Clarification confirmation, stale confirmation, blocking conflicts, and alternative-group confirmation block.
+- Confirmed-source coverage verifies the plan is `createConfirmedAndStalePriorInformational`, preserving the prior informational source historically and requiring a future confirmed user-answer source without mutating sources in this phase.
+- Decision binding coverage verifies future decisions must use `origin: userAction`, `PLANNING_RULE_SET_VERSION`, future `lastDecisionId`, future transaction `updatedAt`, same proposal UUID, and complete resulting current evidence source IDs.
+- Reject/defer/NA coverage verifies reject and defer require bounded reasons, defer honors `deferralAllowed`, Not Applicable honors only `notApplicableAllowed`, and NA stores its reason in the structured value without duplicating it as a decision reason.
+- TTI safety coverage verifies component and YAML Not Applicable can be analyzed where rules allow, schema and SharePoint internal-name Not Applicable remain blocked, security can be revised as content confirmation only, and backend schema, internal names, security, testing, ALM, release, Power Fx, YAML, readiness, and outputs are not resolved.
+- Isolation coverage verifies no storage writes, repository API, source records, decision records, UUID allocation, clock, randomness, controlled apply, UI, conflict resolution, readiness integration, output integration, Power Fx, YAML, remote persistence, Wrangler, deployment, PR, tag, release, or `main` integration is introduced.
+- Immutability coverage verifies analyzer inputs and nested values are not mutated and returned plan data is defensively cloned.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused human-decision-contract and transition tests passed (`2` files, `57` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Clarification reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Initial clarification materialization regression passed (`1` file, `10` tests).
+- Full planning regression passed (`14` files, `241` tests).
+- Repository regression passed (`4` files, `121` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`50` unit/integration files, `2076` tests; `7` UI files, `61` tests; `57` combined files, `2137` tests).
+- `npm.cmd run test:coverage`: passed (`57` combined files, `2137` tests) with `89.95%` statements, `81.55%` branches, `95.37%` functions, and `94.08%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-10 Phase 5C.2.2F controlled clarification replacement and supersession materialization
 
 - Preparation coverage verifies invalid project IDs, invalid top-level input, invalid source/proposal/fingerprint arrays, invalid existing planning, E-blocked analysis, E-unchanged analysis, and E replacementRequired behavior.

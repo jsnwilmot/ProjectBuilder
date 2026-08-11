@@ -460,7 +460,7 @@ const VALID_TRANSITIONS: Record<PlanningProposalStatus, readonly PlanningProposa
   ],
   Superseded: [],
   Blocked: ["Proposed", "Revised", "Rejected", "Deferred", "Stale", "Superseded", "Needs Clarification"],
-  "Needs Clarification": ["Proposed", "Revised", "Rejected", "Deferred", "Stale", "Blocked", "Superseded"]
+  "Needs Clarification": ["Proposed", "Revised", "Rejected", "Deferred", "Not Applicable", "Stale", "Blocked", "Superseded"]
 };
 
 export function createEmptyProjectPlanningState(): ProjectPlanningState {

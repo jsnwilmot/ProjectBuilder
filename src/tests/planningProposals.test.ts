@@ -429,7 +429,7 @@ describe("planning proposal normalization", () => {
       Stale: ["Proposed", "Revised", "Confirmed", "Rejected", "Deferred", "Superseded", "Blocked", "Needs Clarification"],
       Superseded: [],
       Blocked: ["Proposed", "Revised", "Rejected", "Deferred", "Stale", "Superseded", "Needs Clarification"],
-      "Needs Clarification": ["Proposed", "Revised", "Rejected", "Deferred", "Stale", "Blocked", "Superseded"]
+      "Needs Clarification": ["Proposed", "Revised", "Rejected", "Deferred", "Not Applicable", "Stale", "Blocked", "Superseded"]
     };
 
     for (const from of PLANNING_STATUSES) {
@@ -440,6 +440,8 @@ describe("planning proposal normalization", () => {
     }
     expect(isValidPlanningTransition("Blocked", "Stale")).toBe(true);
     expect(isValidPlanningTransition("Needs Clarification", "Stale")).toBe(true);
+    expect(isValidPlanningTransition("Needs Clarification", "Not Applicable")).toBe(true);
+    expect(isValidPlanningTransition("Needs Clarification", "Confirmed")).toBe(false);
     expect(isValidPlanningTransition("Rejected", "Stale")).toBe(false);
     expect(isValidPlanningTransition("Superseded", "Stale")).toBe(false);
     expect(isValidPlanningTransition("Stale", "Stale")).toBe(false);

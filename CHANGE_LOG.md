@@ -1,5 +1,64 @@
 # Change Log
 
+## 2026-08-11 - Phase 5C.2.3B Clarification Human Decision Contract and Provenance Foundation
+
+### Summary
+
+- Added the pure clarification human-decision contract analyzer for `revise`, `confirm`, `reject`, `defer`, and `markNotApplicable`.
+- Added the single approved transition `Needs Clarification -> Not Applicable` while keeping direct `Needs Clarification -> Confirmed` blocked, same-state transitions invalid, and `Rejected`/`Superseded` terminal.
+- Defined the answered-then-confirmed lifecycle: `Needs Clarification -> Revised -> Confirmed`.
+- Added the canonical user-answer locator convention `planning:userAnswer:<proposalId>:<decisionId>` with canonical lowercase UUID validation and the approved `User answer` source label.
+- Planned future `revise` provenance as a current informational `userAnswer` source and future `confirm` provenance as a new current confirmed `userAnswer` source while preserving and staling the prior informational source.
+- Preserved deterministic clarification fingerprints as generated-blueprint fingerprints; human revisions do not create or recompute fingerprints.
+- Kept content confirmation separate from Architect approval, readiness eligibility, output eligibility, generated documents, Power Fx, YAML, UI, storage, and repository persistence.
+
+### Files created
+
+- `src/lib/planningClarificationDecisionContract.ts` - pure human-decision contract analyzer, deterministic plans, issue codes, and user-answer locator helper.
+- `src/tests/planningClarificationDecisionContract.test.ts` - focused contract, provenance, transition, TTI-safety, isolation, and immutability coverage.
+
+### Files updated
+
+- `src/lib/planningProposals.ts` - adds the approved `Needs Clarification -> Not Applicable` transition only.
+- `src/tests/planningProposals.test.ts` - locks the transition matrix correction and verifies direct confirmation remains blocked.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records this phase validation plan and evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused human-decision-contract and transition tests passed (`2` files, `57` tests): `src/tests/planningClarificationDecisionContract.test.ts` and `src/tests/planningProposals.test.ts`.
+- Focused planning-rules regression passed (`1` file, `16` tests): `src/tests/planningRules.test.ts`.
+- Focused clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Focused clarification reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Focused stale lifecycle regressions passed (`3` files, `56` tests).
+- Focused replacement lifecycle regressions passed (`2` files, `34` tests).
+- Focused initial-materialization regression passed (`1` file, `10` tests).
+- Full planning regression passed (`14` files, `241` tests).
+- Repository regression passed (`4` files, `121` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`50` unit/integration files, `2076` tests; `7` UI files, `61` tests; `57` combined files, `2137` tests).
+- `npm.cmd run test:coverage`: passed (`57` combined files, `2137` tests) with `89.95%` statements, `81.55%` branches, `95.37%` functions, and `94.08%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling dependency advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: full dependency audit reports known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici`; production audit remains `0` vulnerabilities and dependency changes are outside this phase.
+- Low: `npm.cmd run build` reports the existing Vite large-chunk warning.
+
+### Remaining work
+
+- Commit the exact six-file review branch scope, push the review branch, and return to GPT Architect for independent review.
+
 ## 2026-08-10 - Phase 5C.2.2F Controlled Clarification Replacement and Supersession Materialization
 
 ### Summary
