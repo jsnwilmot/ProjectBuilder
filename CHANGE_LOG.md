@@ -1,5 +1,65 @@
 # Change Log
 
+## 2026-08-11 - Phase 5C.2.3C Architect Correction 1 Current Evidence Source Enforcement
+
+### Summary
+
+- Corrected clarification human-decision persistence so every source ID already bound to the target proposal must resolve to `availability: "current"` before a new human decision can be materialized.
+- Added a precise `nonCurrentEvidenceSource` persistence issue that identifies the proposal ID, offending source ID, source availability, and `sourceIds` field.
+- Blocked stale, missing, deleted, and unverified proposal evidence during preparation before timestamp allocation, UUID allocation, candidate construction, or repository writes.
+- Preserved historical stale source records and historical decision source bindings; successful confirmation can still stale the old informational source after proving the pre-transaction evidence set is current.
+- Preserved no-repair behavior, no auto-stale behavior, source ordering, same proposal identity, fingerprint behavior, readiness isolation, output isolation, UI exclusion, and controlled-apply exclusion.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationDecisionMaterialization.ts` - adds preparation-time current-evidence validation and issue metadata.
+- `src/tests/planningClarificationDecisionMaterialization.test.ts` - adds stale/missing/deleted/unverified evidence regressions across supported human actions.
+- `src/tests/projectRepository.test.ts` - adds public repository zero-write coverage for non-current bound evidence.
+- `CHANGE_LOG.md` - records this Architect correction.
+- `TEST_PLAN.md` - records focused correction scenarios and validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- Focused decision-materialization tests passed (`1` file, `29` tests).
+- Focused decision-contract regression passed (`1` file, `32` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Full planning regression passed (`15` files, `276` tests).
+- Focused repository regression passed (`1` file, `96` tests).
+- Repository regression passed (`5` files, `160` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`51` unit/integration files, `2121` tests; `7` UI files, `61` tests; `58` combined files, `2182` tests).
+- `npm.cmd run test:coverage`: first attempt failed on a single `powerPlatform.test.ts` timeout; rerun passed (`58` combined files, `2182` tests) with `89.93%` statements, `81.50%` branches, `95.22%` functions, and `93.96%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through `miniflare`/`wrangler` (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `git diff --check`: passed.
+
+### Issues found
+
+- Low: known development/tooling dependency advisories and the existing Vite large-chunk warning remain outside this correction.
+- Low: the first `npm.cmd run test:coverage` attempt timed out one test under coverage; the rerun passed.
+
+### Remaining work
+
+- Commit the correction scope, push the review branch only, and return to GPT Architect for independent review.
+
 ## 2026-08-11 - Phase 5C.2.3C Controlled Clarification Human Decision Persistence
 
 ### Summary

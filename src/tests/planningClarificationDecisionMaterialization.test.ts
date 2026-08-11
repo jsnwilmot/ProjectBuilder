@@ -220,6 +220,69 @@ function expectBlockedCode(result: unknown, code: string): void {
   expect(issues.map((issue) => issue.code)).toContain(code);
 }
 
+function withSourceAvailability(
+  state: ProjectPlanningState,
+  sourceId: string,
+  availability: PlanningSourceReference["availability"]
+): ProjectPlanningState {
+  return {
+    ...state,
+    sources: state.sources.map((source) =>
+      source.sourceId === sourceId ? { ...source, availability } : { ...source }
+    ),
+    proposals: state.proposals.map((proposal) => ({ ...proposal, sourceIds: [...proposal.sourceIds] })),
+    decisions: state.decisions.map((decision) => ({
+      ...decision,
+      sourceIds: decision.sourceIds ? [...decision.sourceIds] : undefined,
+      value: decision.value ? JSON.parse(JSON.stringify(decision.value)) as PlanningProposalValue : undefined
+    })),
+    dependencies: state.dependencies.map((dependency) => ({ ...dependency })),
+    conflicts: state.conflicts.map((conflict) => ({ ...conflict }))
+  };
+}
+
+function expectNonCurrentEvidenceBlocked(
+  state: ProjectPlanningState,
+  input: unknown,
+  sourceId: string,
+  availability: PlanningSourceReference["availability"]
+): void {
+  const before = JSON.stringify(state);
+  const preparation = preparePlanningClarificationDecisionMaterialization(projectId, state, input);
+  expect(preparation).toMatchObject({
+    kind: "blocked",
+    result: {
+      outcome: "blocked",
+      issues: [
+        expect.objectContaining({
+          code: "nonCurrentEvidenceSource",
+          proposalId,
+          sourceId,
+          field: "sourceIds",
+          sourceAvailability: availability
+        })
+      ]
+    }
+  });
+  let nowCalls = 0;
+  let uuidCalls = 0;
+  if (preparation.kind === "ready") {
+    finalizePlanningClarificationDecisionMaterialization(preparation, {
+      now: () => {
+        nowCalls += 1;
+        return nextTimestamp;
+      },
+      uuid: () => {
+        uuidCalls += 1;
+        return decisionId;
+      }
+    });
+  }
+  expect(nowCalls).toBe(0);
+  expect(uuidCalls).toBe(0);
+  expect(JSON.stringify(state)).toBe(before);
+}
+
 describe("planning clarification human decision materialization", () => {
   it("persists revise with one decision, one informational user-answer source, complete evidence binding, and preserved fingerprint", () => {
     const answer = structuredValue();
@@ -402,6 +465,48 @@ describe("planning clarification human decision materialization", () => {
     }
     expect(nowCalls).toBe(0);
     expect(uuidCalls).toBe(0);
+  });
+
+  it.each([
+    "stale",
+    "missing",
+    "deleted",
+    "unverified"
+  ] as const)("blocks revise before runtime allocation when bound evidence is %s", (availability) => {
+    expectNonCurrentEvidenceBlocked(
+      withSourceAvailability(planning(), readinessSourceId, availability),
+      { proposalId, action: "revise", value: textValue() },
+      readinessSourceId,
+      availability
+    );
+  });
+
+  it("blocks confirm before runtime allocation when deterministic evidence is non-current", () => {
+    expectNonCurrentEvidenceBlocked(
+      withSourceAvailability(revisedPlanning(), projectRuleSourceId, "stale"),
+      { proposalId, action: "confirm" },
+      projectRuleSourceId,
+      "stale"
+    );
+  });
+
+  it.each([
+    ["reject", { proposalId, action: "reject", reason: "No longer acceptable." }],
+    ["defer", { proposalId, action: "defer", reason: "Waiting for client evidence." }],
+    ["markNotApplicable", { proposalId, action: "markNotApplicable", reason: "No components required." }]
+  ] as const)("blocks %s before runtime allocation when bound evidence is non-current", (_label, input) => {
+    const base = input.action === "markNotApplicable"
+      ? planning({
+          sources: sourcesFor("pp.canvas.components.confirmation"),
+          proposals: [proposalFor("pp.canvas.components.confirmation")]
+        })
+      : planning();
+    expectNonCurrentEvidenceBlocked(
+      withSourceAvailability(base, readinessSourceId, "stale"),
+      input,
+      readinessSourceId,
+      "stale"
+    );
   });
 
   it.each([

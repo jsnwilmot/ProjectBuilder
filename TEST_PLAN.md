@@ -1,5 +1,41 @@
 # Test Plan
 
+## 2026-08-11 Phase 5C.2.3C Architect Correction 1 current evidence source enforcement
+
+- Current-evidence coverage verifies every source ID bound to the target proposal must resolve to an existing planning source with `availability: "current"` before a human decision can reach runtime allocation.
+- Non-current revise coverage verifies `stale`, `missing`, `deleted`, and `unverified` source availability each block `revise` with `nonCurrentEvidenceSource`.
+- Confirmation coverage verifies an otherwise valid Revised proposal with current informational user-answer history still blocks when deterministic/approved evidence is non-current.
+- Reject, defer, and Not Applicable coverage verifies source-free actions cannot persist a decision whose current evidence binding would include non-current source records.
+- Issue metadata coverage verifies blocked results identify the proposal ID, offending source ID, `sourceIds` field, and source availability.
+- Runtime coverage verifies non-current evidence blocks during preparation before timestamp allocation, UUID allocation, candidate construction, or repository write.
+- Repository coverage verifies the public `materializeProjectPlanningClarificationHumanDecision` API returns `blocked`, performs zero writes, preserves project `updatedAt`, appends no decision, and creates no user-answer source when bound proposal evidence is non-current.
+- Historical provenance coverage verifies existing historical stale sources and historical decision source IDs remain valid history and are not repaired, deleted, or reinterpreted by this correction.
+- Preservation coverage verifies successful revise, confirm, reject, defer, and Not Applicable behavior remains unchanged when all proposal evidence is current.
+- Isolation coverage verifies no auto-stale lifecycle, source repair, source substitution, blueprint regeneration, replacement materialization, controlled apply, readiness updates, output generation, UI changes, actor identity, storage migration, remote persistence, Power Fx generation, or YAML generation.
+- TTI safety coverage verifies TTI Draft blockers remain unresolved and the correction does not fabricate schema, SharePoint internal names, screens, controls, components, delegation, security, testing, ALM, release approval, Power Fx, or YAML.
+- `npm.cmd ci`: passed; install output reported `6` vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused decision-materialization tests passed (`1` file, `29` tests).
+- Focused decision-contract regression passed (`1` file, `32` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification blueprint/draft/fingerprint regressions passed (`3` files, `45` tests).
+- Reconciliation/source-reconciliation regressions passed (`2` files, `23` tests).
+- Stale lifecycle regressions passed (`3` files, `56` tests).
+- Replacement lifecycle regressions passed (`2` files, `34` tests).
+- Full planning regression passed (`15` files, `276` tests).
+- Focused repository regression passed (`1` file, `96` tests).
+- Repository regression passed (`5` files, `160` tests).
+- Readiness regression passed (`4` files, `82` tests).
+- Output regression passed (`7` files, `188` tests).
+- `npm.cmd test`: passed (`51` unit/integration files, `2121` tests; `7` UI files, `61` tests; `58` combined files, `2182` tests).
+- `npm.cmd run test:coverage`: first attempt failed on a single `powerPlatform.test.ts` timeout; rerun passed (`58` combined files, `2182` tests) with `89.93%` statements, `81.50%` branches, `95.22%` functions, and `93.96%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through `miniflare`/`wrangler` (`6` vulnerabilities: `2` moderate, `4` high).
+- `git diff --check`: passed.
+
 ## 2026-08-11 Phase 5C.2.3C controlled clarification human decision persistence
 
 - Revise coverage verifies a successful `Needs Clarification -> Revised` action appends exactly one `userAction` decision, creates one current informational `userAnswer` source, uses `planning:userAnswer:<proposalId>:<decisionId>`, stores the contract answer as proposal and decision value, appends source IDs in order, preserves the proposal UUID and fingerprint, and uses one transaction timestamp.

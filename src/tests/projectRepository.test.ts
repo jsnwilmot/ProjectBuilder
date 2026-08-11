@@ -845,6 +845,55 @@ describe("projectRepository", () => {
     });
   });
 
+  it("blocks human-decision repository persistence when bound proposal evidence is non-current", async () => {
+    const storage = new CountingStorage();
+    const planning = humanPlanning(humanProjectId, {
+      sources: humanSources().map((source) =>
+        source.sourceId === humanReadinessSourceId ? { ...source, availability: "stale" } : source
+      )
+    });
+    const project = humanProject(planning);
+    saveStorageState({ version: 4, activeProjectId: humanProjectId, projects: [project] }, storage);
+    const before = storage.getItem(STORAGE_KEY);
+    const writesBefore = storage.writes;
+    const runtimeCalls = { now: 0, uuid: 0 };
+
+    const result = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "revise",
+      value: humanTextValue()
+    }, storage, {
+      now: () => {
+        runtimeCalls.now += 1;
+        return humanMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return humanDecisionId;
+      }
+    });
+
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [
+        expect.objectContaining({
+          code: "nonCurrentEvidenceSource",
+          proposalId: humanProposalId,
+          sourceId: humanReadinessSourceId,
+          field: "sourceIds",
+          sourceAvailability: "stale"
+        })
+      ]
+    });
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
+    expect(storage.writes).toBe(writesBefore);
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    const loaded = loadStorageState(storage).projects[0];
+    expect(loaded.updatedAt).toBe(project.updatedAt);
+    expect(loaded.planning?.decisions).toHaveLength(0);
+    expect(loaded.planning?.sources).toHaveLength(2);
+  });
+
   it("persists confirmation by staling the prior informational answer and binding a new confirmed answer source", async () => {
     const storage = new CountingStorage();
     const project = humanProject(humanRevisedPlanning());

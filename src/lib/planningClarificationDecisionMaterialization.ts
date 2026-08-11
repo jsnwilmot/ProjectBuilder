@@ -48,6 +48,7 @@ export type PlanningClarificationDecisionMaterializationIssueCode =
   | "invalidMaterializationTimestamp"
   | "candidatePlanningInvalid"
   | "candidateTopologyInvalid"
+  | "nonCurrentEvidenceSource"
   | "projectChangedDuringDecisionMaterialization"
   | "persistenceFailed";
 
@@ -58,6 +59,7 @@ export interface PlanningClarificationDecisionMaterializationIssue {
   sourceId?: string;
   decisionId?: string;
   field?: string;
+  sourceAvailability?: PlanningSourceReference["availability"];
   sourceIssueCode?: string;
 }
 
@@ -133,6 +135,10 @@ export function preparePlanningClarificationDecisionMaterialization(
     return blocked(projectId, [
       issue("candidateTopologyInvalid", "Allowed contract plan could not be bound to one existing proposal.", contract.plan.proposalId, undefined, undefined, "proposalId")
     ]);
+  }
+  const evidenceIssue = validateCurrentEvidenceSources(normalized.planning, proposal);
+  if (evidenceIssue) {
+    return blocked(projectId, [evidenceIssue]);
   }
 
   return {
@@ -323,6 +329,32 @@ function resultingProposalSourceIds(
 }
 
 type PlanningDecisionRecordSourceAction = PlanningClarificationDecisionPlan["userAnswerSourceAction"];
+
+function validateCurrentEvidenceSources(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionMaterializationIssue | null {
+  for (const sourceId of proposal.sourceIds) {
+    const matches = planning.sources.filter((source) => source.sourceId === sourceId);
+    const source = matches[0];
+    if (matches.length !== 1 || !source) {
+      return issue("candidateTopologyInvalid", "Proposal evidence source could not be resolved exactly once.", proposal.proposalId, sourceId, undefined, "sourceIds");
+    }
+    if (source.availability !== "current") {
+      return issue(
+        "nonCurrentEvidenceSource",
+        `Proposal evidence source ${source.sourceId} is ${source.availability}, not current.`,
+        proposal.proposalId,
+        source.sourceId,
+        undefined,
+        "sourceIds",
+        undefined,
+        source.availability
+      );
+    }
+  }
+  return null;
+}
 
 function proposalRecord(
   proposal: PlanningProposalRecord,
@@ -600,7 +632,8 @@ function issue(
   sourceId?: string,
   decisionId?: string,
   field?: string | number,
-  sourceIssueCode?: string
+  sourceIssueCode?: string,
+  sourceAvailability?: PlanningSourceReference["availability"]
 ): PlanningClarificationDecisionMaterializationIssue {
   return dropUndefined({
     code,
@@ -609,6 +642,7 @@ function issue(
     sourceId,
     decisionId,
     field: field === undefined ? undefined : String(field),
+    sourceAvailability,
     sourceIssueCode
   });
 }
