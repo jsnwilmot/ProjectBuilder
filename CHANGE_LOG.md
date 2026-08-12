@@ -1,5 +1,62 @@
 # Change Log
 
+## 2026-08-12 - Phase 5C.2.3D.3C.2A Architect Correction 1 - Confirmation-Before-Apply History Chronology
+
+### Summary
+
+- Corrected the Critical provenance defect identified by independent Architect review: a controlled-apply history record can no longer predate its referenced human confirmation decision.
+- Added deterministic absolute-instant comparison between the normalized confirming decision `recordedAt` and the caller-supplied canonical history `appliedAt`.
+- Added `applyPrecedesConfirmation` and defensive `invalidConfirmationTimestamp` issue codes; equal instants and later apply instants remain valid.
+- Verified equivalent offset and optional-millisecond decision timestamps compare correctly after authoritative planning normalization preserves their absolute instant.
+- Preserved the exact history record schema, `changed` / `unchanged` outcomes, semantic identity, 1,000-record cap, source/value semantics, historical lifecycle independence, and `appType` exclusion.
+- Preserved no ProjectRecord integration, storage-version change, migration, persistence, project mutation, D.3A/D.3B invocation, readiness/output behavior, UI action, Power Fx/YAML generation, external AI, or deployment behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningControlledApplyHistory.ts` - enforces confirmation-before-apply chronology using supplied absolute instants.
+- `src/tests/planningControlledApplyHistory.test.ts` - covers earlier, equal, later, offset-equivalent, offset-later, optional-millisecond, and invalid-confirmation cases.
+- `CHANGE_LOG.md` - records the independent Architect finding and correction.
+- `TEST_PLAN.md` - records the chronology validation matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.2A controlled-apply history tests passed (`1` file, `29` tests).
+- D.3B destination-contract regression passed (`1` file, `29` tests).
+- D.3A candidate-contract regression passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Repository/storage regression passed (`1` file, `96` tests).
+- Intake/readiness regression passed (`6` files, `32` tests).
+- Output regression passed (`7` files, `146` tests).
+- Full planning regression passed (`18` files, `390` tests).
+- `npm.cmd test`: passed (`54` unit/integration files, `2235` tests; `7` UI files, `61` tests; `61` combined files, `2296` tests).
+- `npm.cmd run test:coverage`: passed (`61` combined files, `2296` tests) with `90.13%` statements, `81.83%` branches, `95.35%` functions, and `94.05%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: reported known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this correction.
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this correction and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Commit the exact four-file correction, push the existing review branch only, and return to GPT Architect for independent re-review.
+
 ## 2026-08-12 - Phase 5C.2.3D.3C.2A - Controlled Apply History Record Contract
 
 ### Summary

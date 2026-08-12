@@ -50,6 +50,8 @@ export type PlanningControlledApplyHistoryIssueCode =
   | "sourceBindingMismatch"
   | "sourceNotFound"
   | "invalidTimestamp"
+  | "invalidConfirmationTimestamp"
+  | "applyPrecedesConfirmation"
   | "outcomeValueMismatch";
 
 export interface PlanningControlledApplyHistoryIssue {
@@ -252,8 +254,19 @@ function normalizeRecord(
     validateSourceBinding(sourceIds, decision.sourceIds, planning.sources, index, applyId, proposalId, decisionId, issues);
   }
 
-  if (typeof input.appliedAt !== "string" || !isCanonicalUtcTimestamp(input.appliedAt)) {
+  const appliedAtInstant = typeof input.appliedAt === "string" && isCanonicalUtcTimestamp(input.appliedAt)
+    ? parseAbsoluteInstant(input.appliedAt)
+    : null;
+  if (appliedAtInstant === null) {
     issues.push(issue("invalidTimestamp", "appliedAt must be canonical UTC with milliseconds.", index, applyId, proposalId, decisionId, undefined, "appliedAt"));
+  }
+  if (decision) {
+    const confirmationInstant = parseAbsoluteInstant(decision.recordedAt);
+    if (confirmationInstant === null) {
+      issues.push(issue("invalidConfirmationTimestamp", "Confirming decision recordedAt must represent a valid absolute instant.", index, applyId, proposalId, decisionId, undefined, "decisionId"));
+    } else if (appliedAtInstant !== null && appliedAtInstant < confirmationInstant) {
+      issues.push(issue("applyPrecedesConfirmation", "Controlled apply cannot precede its confirming decision.", index, applyId, proposalId, decisionId, undefined, "appliedAt"));
+    }
   }
 
   if (proposalId && decisionId && fieldKey) {
@@ -432,6 +445,11 @@ function isCanonicalUtcTimestamp(input: string): boolean {
     return false;
   }
   return true;
+}
+
+function parseAbsoluteInstant(input: string): number | null {
+  const instant = Date.parse(input);
+  return Number.isFinite(instant) ? instant : null;
 }
 
 function daysInMonth(year: number, month: number): number {

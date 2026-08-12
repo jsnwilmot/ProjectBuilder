@@ -361,11 +361,45 @@ describe("planning controlled apply history contract", () => {
   it("accepts only canonical UTC timestamps with milliseconds", () => {
     expectInvalidCode(normalize([record({ appliedAt: "0099-01-01T00:00:00.000Z" })]), "invalidTimestamp");
     expect(normalize([record({ appliedAt: "2026-02-29T23:59:59.999Z" })])).toMatchObject({ outcome: "invalid" });
-    expect(normalize([record({ appliedAt: "2024-02-29T23:59:59.999Z" })])).toMatchObject({ outcome: "valid" });
+    expect(normalize(
+      [record({ appliedAt: "2024-02-29T23:59:59.999Z" })],
+      planning({ decisions: [decision({ recordedAt: "2024-02-29T23:59:59.999Z" })] })
+    )).toMatchObject({ outcome: "valid" });
     expectInvalidCode(normalize([record({ appliedAt: "2026-08-12T03:00:00Z" })]), "invalidTimestamp");
     expectInvalidCode(normalize([record({ appliedAt: "2026-08-12T03:00:00" })]), "invalidTimestamp");
     expectInvalidCode(normalize([record({ appliedAt: "2026-08-12T03:00:00.000-06:00" })]), "invalidTimestamp");
     expectInvalidCode(normalize([record({ appliedAt: "not-a-date" })]), "invalidTimestamp");
+  });
+
+  it("enforces confirmation-before-apply chronology using absolute instants", () => {
+    expectInvalidCode(
+      normalize([record({ appliedAt: "2026-08-12T02:59:59.999Z" })]),
+      "applyPrecedesConfirmation"
+    );
+    expect(normalize([record({ appliedAt: "2026-08-12T03:00:00.000Z" })])).toMatchObject({ outcome: "valid" });
+    expect(normalize([record({ appliedAt: "2026-08-12T03:00:00.001Z" })])).toMatchObject({ outcome: "valid" });
+    expect(normalize(
+      [record({ appliedAt: "2026-08-12T03:00:00.000Z" })],
+      planning({ decisions: [decision({ recordedAt: "2026-08-11T21:00:00.000-06:00" })] })
+    )).toMatchObject({ outcome: "valid" });
+    expectInvalidCode(
+      normalize(
+        [record({ appliedAt: "2026-08-12T03:00:00.000Z" })],
+        planning({ decisions: [decision({ recordedAt: "2026-08-11T21:00:00.001-06:00" })] })
+      ),
+      "applyPrecedesConfirmation"
+    );
+    expect(normalize(
+      [record({ appliedAt: "2026-08-12T03:00:00.000Z" })],
+      planning({ decisions: [decision({ recordedAt: "2026-08-12T03:00:00Z" })] })
+    )).toMatchObject({ outcome: "valid" });
+    expectInvalidCode(
+      normalize(
+        [record()],
+        planning({ decisions: [decision({ recordedAt: "2026-02-29T03:00:00.000Z" })] })
+      ),
+      "invalidPlanning"
+    );
   });
 
   it("enforces collection cap and sparse-array rejection without truncation or compaction", () => {

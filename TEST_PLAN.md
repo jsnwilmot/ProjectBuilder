@@ -1,5 +1,37 @@
 # Test Plan
 
+## 2026-08-12 Phase 5C.2.3D.3C.2A Architect Correction 1 confirmation-before-apply history chronology
+
+- Earlier-apply coverage verifies confirmation at `2026-08-12T03:00:00.000Z` and apply at `2026-08-12T02:59:59.999Z` fail closed with `applyPrecedesConfirmation` and no trusted history.
+- Equal-instant coverage verifies confirmation and apply at the same millisecond remain valid without an artificial delay.
+- Later-apply coverage verifies a one-millisecond-later apply remains valid.
+- Offset-equivalence coverage verifies confirmation at `2026-08-11T21:00:00.000-06:00` compares equal to apply at `2026-08-12T03:00:00.000Z`.
+- Offset-ordering coverage verifies an offset confirmation representing an instant one millisecond after apply fails with `applyPrecedesConfirmation`, proving absolute-instant rather than lexical comparison.
+- Optional-millisecond coverage verifies a valid decision timestamp at `2026-08-12T03:00:00Z` compares equal to canonical history `appliedAt` after authoritative planning normalization.
+- Invalid-confirmation coverage verifies malformed or calendar-invalid decision timestamps are rejected upstream as `invalidPlanning`; `invalidConfirmationTimestamp` remains a defensive fail-closed branch if an uninterpretable normalized decision timestamp ever reaches record validation.
+- History timestamp regression retains rejection of missing milliseconds, missing timezone, timezone offsets, invalid calendar values, invalid text, and incompatible low years for `appliedAt`.
+- Preservation coverage retains proposal/source lifecycle independence, later-conflict independence, source binding, semantic duplicate, 1,000/1,001 cap, raw value, defensive-copy, immutability, determinism, storage/planning isolation, and TTI safety tests.
+- Runtime isolation coverage verifies chronology parses only supplied timestamps and introduces no current-time read, timestamp rewriting, clock injection, timer, or runtime allocation.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.2A controlled-apply history tests passed (`1` file, `29` tests).
+- D.3B destination-contract regression passed (`1` file, `29` tests).
+- D.3A candidate-contract regression passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Repository/storage regression passed (`1` file, `96` tests).
+- Intake/readiness regression passed (`6` files, `32` tests).
+- Output regression passed (`7` files, `146` tests).
+- Full planning regression passed (`18` files, `390` tests).
+- `npm.cmd test`: passed (`54` unit/integration files, `2235` tests; `7` UI files, `61` tests; `61` combined files, `2296` tests).
+- `npm.cmd run test:coverage`: passed (`61` combined files, `2296` tests) with `90.13%` statements, `81.83%` branches, `95.35%` functions, and `94.05%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this correction.
+
 ## 2026-08-12 Phase 5C.2.3D.3C.2A controlled apply history record contract
 
 - Empty-history coverage verifies `[]` is valid without supplied planning and returns a defensive empty history with no issues.
