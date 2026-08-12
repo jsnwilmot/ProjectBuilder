@@ -1,5 +1,67 @@
 # Change Log
 
+## 2026-08-12 - Phase 5C.2.3D.3C.2B - Controlled Apply History ProjectRecord and Storage v5 Integration
+
+### Summary
+
+- Integrated controlled-apply history into `ProjectRecord` as a persisted storage-container field using the existing D.3C.2A `PlanningControlledApplyHistoryRecord` type.
+- Advanced canonical storage from version 4 to version 5 while preserving v4 planning, retaining v1-v3 empty-planning migration behavior, and initializing all pre-v5 history as empty.
+- Added v5 all-or-nothing history normalization through the D.3C.2A normalizer: valid history is defensively preserved, while missing, invalid, partial, project-mismatched, or provenance-mismatched history becomes `[]`.
+- Preserved ordinary repository updates, field edits, document saves, review/readiness changes, archive, and restore without making those paths controlled-apply history writers.
+- Reset duplicate-project history to `[]` while preserving existing duplicate planning reset behavior and source history.
+- Applied Architect Scope Correction 1 after the original D.3C.2B authorization contradicted itself by requiring `CURRENT_STORAGE_VERSION` to become 5 while two regression tests were required to remain byte-unchanged with version-4 expectations.
+- Updated only the authorized storage-version expectations in `planningControlledApplyHistory.test.ts` and `recordLifecycleFormulaEvidence.test.ts`; no D.3C.2A or record-lifecycle evidence semantics were weakened.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/types/project.ts` - adds storage version 5 and the typed `controlledApplyHistory` ProjectRecord field.
+- `src/lib/createProject.ts` - initializes new projects with a fresh empty history array.
+- `src/lib/storageVersion.ts` - migrates to storage version 5, preserves v4 planning, initializes pre-v5 history empty, and validates v5 history.
+- `src/lib/projectRepository.ts` - preserves a defensive controlled-apply history snapshot through ordinary project updates.
+- `src/tests/createProject.test.ts` - covers empty history and separate arrays for direct project creation.
+- `src/tests/projectRepository.test.ts` - covers repository creation, v1-v5 migration, v5 history validation, duplicate reset, and ordinary-update preservation.
+- `src/tests/planningControlledApplyHistory.test.ts` - updates only the current-storage-version isolation assertion from 4 to 5.
+- `src/tests/recordLifecycleFormulaEvidence.test.ts` - updates only the current-storage-version assertion from 4 to 5 while retaining the storage-key assertion.
+- `CHANGE_LOG.md` - records this corrected phase.
+- `TEST_PLAN.md` - records the migration, preservation, isolation, and version-regression matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported development/tooling advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused `createProject.test.ts`: passed (`1` file, `2` tests).
+- Focused `projectRepository.test.ts`: passed (`1` file, `101` tests).
+- D.3C.2A controlled-apply history regression passed (`1` file, `29` tests).
+- Record lifecycle evidence regression passed (`1` file, `23` tests).
+- D.3A/D.3B/planning rules/proposals batch passed (`4` files, `132` tests).
+- Clarification decision regressions passed (`2` files, `61` tests).
+- Intake/readiness regressions passed (`6` files, `40` tests).
+- Output/export regressions passed (`7` files, `139` tests).
+- Planning regressions passed (`16` files, `329` tests) plus planning-adjacent collection/form/state/record-lifecycle regressions (`8` files, `758` tests).
+- `npm.cmd test`: passed (`54` unit/integration files, `2241` tests; `7` UI files, `61` tests; `61` combined files, `2302` tests).
+- `npm.cmd run test:coverage`: passed (`61` combined files, `2302` tests) with `90.13%` statements, `81.85%` branches, `95.36%` functions, and `94.06%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high); dependency remediation remains outside this phase.
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of the pushed review-branch commit. Integration to `main` remains blocked pending separate Architect authorization.
+
 ## 2026-08-12 - Phase 5C.2.3D.3C.2A Architect Correction 1 - Confirmation-Before-Apply History Chronology
 
 ### Summary

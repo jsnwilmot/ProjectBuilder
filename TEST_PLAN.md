@@ -1,5 +1,40 @@
 # Test Plan
 
+## 2026-08-12 Phase 5C.2.3D.3C.2B controlled apply history ProjectRecord and storage v5 integration
+
+- Scope-correction coverage verifies the only authorized semantic changes in `planningControlledApplyHistory.test.ts` and `recordLifecycleFormulaEvidence.test.ts` are current-storage-version expectations moving from 4 to 5.
+- ProjectRecord coverage verifies `controlledApplyHistory` reuses the D.3C.2A record type and `CreateProjectOptions` does not accept caller-injected history.
+- Direct creation coverage verifies new projects initialize `controlledApplyHistory: []` and separate calls receive separate arrays.
+- Repository creation coverage verifies persisted and reloaded projects use storage version 5 with empty history and no fabricated records.
+- Storage migration coverage verifies v1, v2, and v3 normalize to version 5 with canonical empty planning and empty history.
+- v4 migration coverage verifies valid v4 planning is preserved and normalized while any stray pre-v5 `controlledApplyHistory` value is ignored.
+- v5 empty-history coverage verifies `[]` round-trips as `[]`.
+- v5 valid-history coverage verifies all D.3C.2A fields, ordering, raw values, `sourceIds`, and `appliedAt` are preserved through storage normalization.
+- v5 invalid-history coverage verifies malformed, missing, project-mismatched, provenance-mismatched, and mixed valid-plus-invalid collections fail closed to `[]` without partial salvage.
+- Duplication coverage verifies source history remains unchanged, duplicate history resets to `[]`, and duplicate planning still resets to canonical empty planning.
+- Ordinary update coverage verifies partial replacement, functional replacement, and in-place mutation attempts cannot replace or corrupt existing history, including nested `sourceIds`.
+- Preservation coverage verifies `updateProjectFields`, archive, restore, review updates, readiness updates, and generated-document saves preserve existing history and append no records.
+- Isolation coverage verifies no dedicated history writer, no apply ID allocation, no `appliedAt` allocation, no controlled project mutation, no transaction preparation, no readiness consumer, no output/export consumer, and no storage-key rename.
+- Planning isolation coverage verifies `PLANNING_SCHEMA_VERSION` and `PLANNING_RULE_SET_VERSION` remain unchanged and current 11 TTI clarification rules remain `readinessRequirement` plus `clarificationOnly`.
+- TTI-safety coverage verifies TTI remains Draft and this phase resolves no TTI schema, security, testing, ALM, screen/control/component, YAML, delegation, SharePoint internal-name, Power Fx, or release blockers.
+- `npm.cmd ci`: passed; install output reported development/tooling advisories.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused `createProject.test.ts`: passed (`1` file, `2` tests).
+- Focused `projectRepository.test.ts`: passed (`1` file, `101` tests).
+- D.3C.2A controlled-apply history regression passed (`1` file, `29` tests).
+- Record lifecycle evidence regression passed (`1` file, `23` tests).
+- D.3A/D.3B/planning rules/proposals batch passed (`4` files, `132` tests).
+- Clarification decision regressions passed (`2` files, `61` tests).
+- Intake/readiness regressions passed (`6` files, `40` tests).
+- Output/export regressions passed (`7` files, `139` tests).
+- Planning regressions passed (`16` files, `329` tests) plus planning-adjacent collection/form/state/record-lifecycle regressions (`8` files, `758` tests).
+- `npm.cmd test`: passed (`54` unit/integration files, `2241` tests; `7` UI files, `61` tests; `61` combined files, `2302` tests).
+- `npm.cmd run test:coverage`: passed (`61` combined files, `2302` tests) with `90.13%` statements, `81.85%` branches, `95.36%` functions, and `94.06%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories (`25` vulnerabilities: `2` moderate, `23` high); dependency remediation remains outside this phase.
+
 ## 2026-08-12 Phase 5C.2.3D.3C.2A Architect Correction 1 confirmation-before-apply history chronology
 
 - Earlier-apply coverage verifies confirmation at `2026-08-12T03:00:00.000Z` and apply at `2026-08-12T02:59:59.999Z` fail closed with `applyPrecedesConfirmation` and no trusted history.

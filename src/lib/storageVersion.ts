@@ -1,4 +1,5 @@
 import { createProject, EMPTY_PROJECT_INTAKE } from "./createProject";
+import { normalizePlanningControlledApplyHistory } from "./planningControlledApplyHistory";
 import { createEmptyProjectPlanningState, normalizeProjectPlanningState } from "./planningProposals";
 import { normalizePowerPlatformData } from "./powerPlatform";
 import type {
@@ -21,7 +22,7 @@ import {
 } from "../types/project";
 import { normalizeProjectTypeValue } from "../data/projectTypes";
 
-export const CURRENT_STORAGE_VERSION: StorageVersion = 4;
+export const CURRENT_STORAGE_VERSION: StorageVersion = 5;
 
 export const EMPTY_STORAGE_STATE: StorageState = {
   version: CURRENT_STORAGE_VERSION,
@@ -140,11 +141,23 @@ function normalizeProject(value: unknown, sourceVersion: StorageVersion): Projec
     powerPlatform: normalizePowerPlatformData(value.powerPlatform, normalizedIntake.appType),
     now: asString(value.createdAt) || new Date().toISOString()
   });
+  const planning = sourceVersion === 4 || sourceVersion === 5
+    ? normalizeProjectPlanningState(value.planning, id).planning
+    : createEmptyProjectPlanningState();
+  const normalizedHistory = sourceVersion === CURRENT_STORAGE_VERSION
+    ? normalizePlanningControlledApplyHistory({
+        projectId: id,
+        planning,
+        history: value.controlledApplyHistory
+      })
+    : { outcome: "valid" as const, history: [] };
+
   return {
     ...project,
-    planning: sourceVersion === CURRENT_STORAGE_VERSION
-      ? normalizeProjectPlanningState(value.planning, id).planning
-      : createEmptyProjectPlanningState(),
+    planning,
+    controlledApplyHistory: normalizedHistory.outcome === "valid"
+      ? normalizedHistory.history.map((record) => ({ ...record, sourceIds: [...record.sourceIds] }))
+      : [],
     updatedAt: asString(value.updatedAt) || project.createdAt
   };
 }
@@ -176,8 +189,8 @@ function finalizeState(
 }
 
 function migrateLegacyStorage(input: Record<string, unknown>): StorageState {
-  // v1/v2/v3 -> v4 migration: preserve project data, normalize legacy app-type labels,
-  // and initialize safe optional Power Platform structures where applicable.
+  // Pre-v5 migration preserves project data, normalizes legacy app-type labels,
+  // and initializes safe optional Power Platform structures where applicable.
   return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects, input.version as StorageVersion);
 }
 
@@ -190,7 +203,7 @@ export function migrateStorageState(input: unknown): StorageState {
     return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
   }
 
-  if (input.version === 1 || input.version === 2 || input.version === 3) {
+  if (input.version === 1 || input.version === 2 || input.version === 3 || input.version === 4) {
     return migrateLegacyStorage(input);
   }
 

@@ -9,6 +9,7 @@ describe("createProject", () => {
     expect(project.reviewStatus).toBe("Not reviewed");
     expect(project.generatedDocuments).toEqual([]);
     expect(project.generatedFileCount).toBe(0);
+    expect(project.controlledApplyHistory).toEqual([]);
     expect(project.createdAt).toBe("2026-06-28T12:00:00.000Z");
     expect(project.updatedAt).toBe(project.createdAt);
     expect(project.intake).toMatchObject({
@@ -17,5 +18,14 @@ describe("createProject", () => {
       permissions: "",
       successCriteria: ""
     });
+  });
+
+  it("creates separate controlled apply history arrays for separate projects", () => {
+    const first = createProject();
+    const second = createProject();
+
+    expect(first.controlledApplyHistory).toEqual([]);
+    expect(second.controlledApplyHistory).toEqual([]);
+    expect(first.controlledApplyHistory).not.toBe(second.controlledApplyHistory);
   });
 });

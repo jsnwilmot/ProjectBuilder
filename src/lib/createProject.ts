@@ -209,6 +209,7 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
     sourceProjectId: options.sourceProjectId ?? null,
     duplicatedAt: options.duplicatedAt ?? null,
     powerPlatform: options.powerPlatform ?? createDefaultPowerPlatformData(normalizedAppType),
+    controlledApplyHistory: [],
     createdAt: now,
     updatedAt: now
   };

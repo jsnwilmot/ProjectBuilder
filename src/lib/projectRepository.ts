@@ -144,6 +144,15 @@ function synchronizeStorageState(state: StorageState): StorageState {
   };
 }
 
+function cloneControlledApplyHistory(
+  history: ProjectRecord["controlledApplyHistory"]
+): ProjectRecord["controlledApplyHistory"] {
+  return history.map((record) => ({
+    ...record,
+    sourceIds: [...record.sourceIds]
+  }));
+}
+
 function writeCurrentStorageState(state: StorageState, storage: StorageAdapter): boolean {
   if (storage === unavailableStorage) {
     setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
@@ -305,6 +314,7 @@ export function updateProject(
   const current = state.projects.find((project) => project.identity.id === id);
   if (!current) return null;
 
+  const preservedControlledApplyHistory = cloneControlledApplyHistory(current.controlledApplyHistory);
   const candidate = typeof update === "function"
     ? update(current)
     : {
@@ -317,6 +327,7 @@ export function updateProject(
   const updated = synchronizeDerivedFields({
     ...candidate,
     identity: { ...candidate.identity, id: current.identity.id },
+    controlledApplyHistory: preservedControlledApplyHistory,
     createdAt: current.createdAt,
     updatedAt: new Date().toISOString()
   });
