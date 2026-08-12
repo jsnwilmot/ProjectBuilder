@@ -1,5 +1,43 @@
 # Test Plan
 
+## 2026-08-12 Phase 5C.2.3D.3B controlled apply project-field destination validation contract
+
+- Positive ordinary-intake coverage verifies a synthetic D.3A-valid `appPurpose` project-field candidate with an empty destination returns `ready` with the typed field key, desired value, raw expected current value, source IDs, and all authorization/readiness/output flags false.
+- Whitespace-empty coverage verifies whitespace and newline-only current values return `ready` while preserving the exact raw `expectedCurrentValue`.
+- Exact-unchanged coverage verifies only exact raw string equality returns `unchanged`.
+- Near-match coverage verifies trailing whitespace, leading whitespace, case, punctuation, and newline differences block with `destinationConflict`.
+- Meaningful-conflict coverage verifies an existing non-empty project value blocks with `destinationConflict` and source precedence is not used as overwrite authority.
+- Marker-like coverage verifies `Unknown yet`, `TBD`, `N/A`, and `Missing information` remain meaningful values and are not treated as empty.
+- Runtime field coverage verifies `appName`, `clientName`, `businessName`, and ordinary `EMPTY_PROJECT_INTAKE` own keys are supported through the existing project-field read path.
+- Side-effect boundary coverage verifies `appType` blocks with `unsupportedSideEffectField` and does not invoke project type normalization or Power Platform reconciliation.
+- Unknown-field coverage verifies a D.3A-structural candidate with `fieldKey: "notAProjectField"` blocks with `unsupportedProjectField` in D.3B.
+- Project boundary coverage verifies archived projects block with `projectArchived`, missing planning blocks with `planningMissing`, and unreadable non-string destinations block with `destinationUnreadable`.
+- D.3A authority coverage verifies non-Confirmed proposals, stale sources, open conflicts, dependencies, and alternative groups block through `candidateBlocked` before destination validation.
+- Current clarification-rule coverage verifies all 11 active readiness clarification rules remain non-writable and are not mapped to ProjectInputField keys.
+- Immutability and determinism coverage verifies ready, unchanged, and blocked analysis does not mutate the project and repeated identical inputs return identical structures.
+- Defensive-copy coverage verifies returned source IDs can be mutated by a caller without mutating the project or later analyzer results.
+- TTI safety coverage verifies destination validation cannot confirm schema, derive SharePoint internal names, create screen/control/component targets, resolve YAML/delegation/security/testing/ALM/release, or produce Power Fx/YAML.
+- Static isolation coverage verifies the analyzer body consumes D.3A and `getProjectFieldValue` while avoiding mutation, repository, readiness, output, runtime allocation, network, Cloudflare, Wrangler, external AI, and rule-mapping concerns.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3B destination-contract tests passed (`1` file, `29` tests).
+- D.3A controlled-apply candidate regression passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Repository regression passed (`1` file, `96` tests).
+- No separate focused `projectFields` test file exists; D.3B focused tests exercise `getProjectFieldValue` for `appName`, `clientName`, `businessName`, ordinary intake keys, `appType`, and unreadable destinations.
+- Intake/readiness regression passed (`6` files, `42` tests).
+- Output regression passed (`7` files, `139` tests).
+- Full planning regression passed (`17` files, `361` tests).
+- `npm.cmd test`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`53` unit/integration files, `2206` tests; `7` UI files, `61` tests; `60` combined files, `2267` tests).
+- `npm.cmd run test:coverage`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`60` combined files, `2267` tests) with `90.05%` statements, `81.71%` branches, `95.31%` functions, and `94.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high).
+
 ## 2026-08-12 Phase 5C.2.3D.3A Architect Correction 1 proposal-linked open conflict enforcement
 
 - Proposal-linked conflict coverage verifies an otherwise eligible controlled-apply proposal blocks with `openConflict` when `proposal.conflictIds` contains an existing open conflict ID, even when the conflict has no reciprocal `proposalId` involved reference and no `affectedProposalIds` entry.

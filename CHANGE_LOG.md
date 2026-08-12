@@ -1,5 +1,62 @@
 # Change Log
 
+## 2026-08-12 - Phase 5C.2.3D.3B Controlled Apply Project-Field Destination Validation Contract
+
+### Summary
+
+- Added a pure, deterministic controlled-apply destination analyzer that consumes the D.3A candidate analyzer as the authoritative eligibility gate.
+- Added runtime ProjectInputField destination validation only in D.3B, using `EMPTY_PROJECT_INTAKE` ownership plus the existing `appName`, `clientName`, and `businessName` fields.
+- Excluded `appType` because the existing project-field apply path normalizes project type and reconciles Power Platform state as side effects.
+- Added destination state semantics: empty and whitespace-only destinations return `ready`, exact raw string matches return `unchanged`, and meaningful different values return `destinationConflict`.
+- Preserved marker-like user text as meaningful content; no recognized-missing marker list was introduced.
+- Preserved no apply history, no persistence, no project mutation, no readiness/output mutation, no Power Fx/YAML generation, and no deployment behavior.
+
+### Files created
+
+- `src/lib/planningControlledApplyDestinationContract.ts` - pure destination validation analyzer and result contract.
+- `src/tests/planningControlledApplyDestinationContract.test.ts` - focused positive, negative, boundary, TTI-safety, immutability, determinism, and static isolation coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records focused D.3B destination-validation coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3B destination-contract tests passed (`1` file, `29` tests).
+- D.3A controlled-apply candidate regression passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Repository regression passed (`1` file, `96` tests).
+- No separate focused `projectFields` test file exists; D.3B focused tests exercise `getProjectFieldValue` for `appName`, `clientName`, `businessName`, ordinary intake keys, `appType`, and unreadable destinations.
+- Intake/readiness regression passed (`6` files, `42` tests).
+- Output regression passed (`7` files, `139` tests).
+- Full planning regression passed (`17` files, `361` tests).
+- `npm.cmd test`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`53` unit/integration files, `2206` tests; `7` UI files, `61` tests; `60` combined files, `2267` tests).
+- `npm.cmd run test:coverage`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`60` combined files, `2267` tests) with `90.05%` statements, `81.71%` branches, `95.31%` functions, and `94.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high).
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: sandboxed Vitest startup hit a Vite temp-cache EPERM under `node_modules`; escalated reruns passed.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Commit the exact four-file scope, push the review branch only, and return to GPT Architect for independent review.
+
 ## 2026-08-12 - Phase 5C.2.3D.3A Architect Correction 1 Proposal-Linked Open Conflict Enforcement
 
 ### Summary
