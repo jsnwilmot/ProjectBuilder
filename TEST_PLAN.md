@@ -1,5 +1,45 @@
 # Test Plan
 
+## 2026-08-12 Phase 5C.2.3D.3C.2A controlled apply history record contract
+
+- Empty-history coverage verifies `[]` is valid without supplied planning and returns a defensive empty history with no issues.
+- Positive record coverage verifies both exact outcomes, all approved fields, exact raw previous/applied strings, marker-like text, and defensive cloning.
+- Record-shape coverage verifies every required field is present, unknown fields are rejected, and one invalid record invalidates the complete collection without partial salvage.
+- Apply identity coverage verifies canonical UUID syntax, unique apply IDs, and semantic duplicate rejection for `projectId + proposalId + decisionId + fieldKey` even when apply ID, timestamp, values, sources, or outcome differ.
+- Planning provenance coverage verifies project ownership, exactly one same-project proposal, exactly one same-project same-proposal decision, and the required `confirm` / `userAction` / `Confirmed` decision semantics.
+- Historical-boundary coverage verifies a record does not require the proposal to remain Confirmed or currently D.3A eligible, and does not call the D.3A candidate or D.3B destination analyzer.
+- Destination coverage verifies `projectField`, `setValue`, non-empty `fieldKey`, exact `targetKey` equality, absent `entityId`, and exact record/proposal field-key binding.
+- Supported-field coverage verifies `appName`, `clientName`, `businessName`, and own `EMPTY_PROJECT_INTAKE` keys are accepted while `appType` and unknown fields are rejected.
+- Value coverage verifies previous and applied values must be strings and preserve raw whitespace, newlines, case, punctuation, and marker-like content without normalization.
+- Outcome coverage verifies `changed` requires exact inequality and `unchanged` requires exact equality.
+- Source-provenance coverage verifies a non-empty dense duplicate-free source list exactly equals the confirming decision's source IDs in order and every source resolves exactly once in planning.
+- Historical-source coverage verifies source records are not required to remain current or authoritative after the apply event.
+- Timestamp coverage verifies canonical UTC `YYYY-MM-DDTHH:mm:ss.sssZ` timestamps, including calendar validity, without clock reads or normalization.
+- Collection coverage verifies only dense arrays are accepted, 1,000 records are valid, and 1,001 records fail closed.
+- Top-level coverage verifies malformed input, project, history, and planning structures cannot be treated as canonical history.
+- Immutability and determinism coverage verifies inputs remain unchanged and repeated identical normalization returns identical structures.
+- Isolation coverage verifies no repository, persistence, storage migration, project mutation, transaction preparation, readiness/output mutation, UI, runtime allocation, network, external AI, Wrangler, Power Fx, or YAML behavior is introduced.
+- TTI-safety coverage verifies current clarification rules and the authoritative TTI Draft blockers remain non-writable and unresolved.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.2A controlled-apply history tests passed (`1` file, `28` tests).
+- D.3B destination-contract regression passed (`1` file, `29` tests).
+- D.3A candidate-contract regression passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Repository/storage regression passed (`1` file, `96` tests).
+- Intake/readiness regression passed (`6` files, `32` tests).
+- Output regression passed (`7` files, `146` tests).
+- Full planning regression passed (`18` files, `389` tests).
+- `npm.cmd test`: passed (`54` unit/integration files, `2234` tests; `7` UI files, `61` tests; `61` combined files, `2295` tests).
+- `npm.cmd run test:coverage`: passed (`61` combined files, `2295` tests) with `90.13%` statements, `81.83%` branches, `95.35%` functions, and `94.06%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this phase.
+
 ## 2026-08-12 Phase 5C.2.3D.3B controlled apply project-field destination validation contract
 
 - Positive ordinary-intake coverage verifies a synthetic D.3A-valid `appPurpose` project-field candidate with an empty destination returns `ready` with the typed field key, desired value, raw expected current value, source IDs, and all authorization/readiness/output flags false.

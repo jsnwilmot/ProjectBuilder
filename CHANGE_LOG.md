@@ -1,5 +1,62 @@
 # Change Log
 
+## 2026-08-12 - Phase 5C.2.3D.3C.2A - Controlled Apply History Record Contract
+
+### Summary
+
+- Added a pure, deterministic controlled-apply history schema and normalizer with the fixed schema version `phase-5c.2.3d.3c.2a` and outcomes `changed` and `unchanged`.
+- Enforced exact record shape, canonical UUID apply IDs, canonical UTC millisecond timestamps, unique apply IDs, and semantic duplicate identity across project, proposal, decision, and field.
+- Bound each history record to an existing same-project planning proposal, its coherent user-action confirming decision, and the decision's exact ordered source provenance without requiring current proposal eligibility or current source authority.
+- Preserved exact previous and applied strings, including whitespace and marker-like text, and enforced outcome equality invariants without normalization or coercion.
+- Limited destinations to `appName`, `clientName`, `businessName`, and own keys of `EMPTY_PROJECT_INTAKE`, while excluding `appType` and validating the proposal's exact `projectField` / `setValue` target identity.
+- Added fail-closed collection validation with a 1,000-record cap, dense-array requirements, no partial salvage, defensive cloning, and a valid empty-history path that does not require planning.
+- Preserved no `ProjectRecord` integration, storage-version change, migration, persistence, mutation, transaction preparation, D.3A/D.3B invocation, readiness/output behavior, UI apply action, rollback, Power Fx/YAML generation, external AI, or deployment behavior.
+
+### Files created
+
+- `src/lib/planningControlledApplyHistory.ts` - pure controlled-apply history record schema, issue/result contracts, and deterministic normalizer.
+- `src/tests/planningControlledApplyHistory.test.ts` - focused contract, provenance, boundary, fail-closed, immutability, determinism, isolation, and TTI-safety coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the focused D.3C.2A validation matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.2A controlled-apply history tests passed (`1` file, `28` tests).
+- D.3B destination-contract regression passed (`1` file, `29` tests).
+- D.3A candidate-contract regression passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Repository/storage regression passed (`1` file, `96` tests).
+- Intake/readiness regression passed (`6` files, `32` tests).
+- Output regression passed (`7` files, `146` tests).
+- Full planning regression passed (`18` files, `389` tests).
+- `npm.cmd test`: passed (`54` unit/integration files, `2234` tests; `7` UI files, `61` tests; `61` combined files, `2295` tests).
+- `npm.cmd run test:coverage`: passed (`61` combined files, `2295` tests) with `90.13%` statements, `81.83%` branches, `95.35%` functions, and `94.06%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: reported known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this phase.
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Commit the exact four-file scope, push the review branch only, and return to GPT Architect for independent review.
+
 ## 2026-08-12 - Phase 5C.2.3D.3B Controlled Apply Project-Field Destination Validation Contract
 
 ### Summary
