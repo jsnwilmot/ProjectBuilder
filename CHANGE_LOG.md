@@ -1,5 +1,55 @@
 # Change Log
 
+## 2026-08-12 - Phase 5C.2.3D.3C.3A - Controlled Apply Transaction Preparation Contract
+
+### Summary
+
+- Added the pure deterministic controlled-apply transaction preparation contract.
+- The new contract delegates live destination eligibility to D.3B, validates persisted history through D.3C.2A before idempotency checks, captures deterministic project snapshots, and returns only `ready`, `alreadyApplied`, or `blocked` outcomes.
+- Preserved the read-only preparation boundary: no apply ID allocation, no `appliedAt` allocation, no durable history construction, no project mutation, no repository/storage writes, no readiness/output integration, and no UI behavior.
+
+### Files created
+
+- `src/lib/planningControlledApplyTransactionPreparation.ts` - implements transaction-preparation planning only.
+- `src/tests/planningControlledApplyTransactionPreparation.test.ts` - covers changed, unchanged, idempotent retry, drift, invalid history, capacity, snapshot, isolation, and TTI-safety behavior.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the D.3C.3A validation matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3A transaction-preparation tests passed (`1` file, `20` tests).
+- D.3C.2A controlled-apply history regression passed (`1` file, `29` tests).
+- D.3C.2B creation/repository/storage regression passed (`2` files, `103` tests).
+- D.3B destination, D.3A candidate, planning proposals, and planning rules regressions passed (`4` files, `132` tests).
+- Clarification decision regressions passed (`2` files, `61` tests).
+- Intake/readiness regressions passed (`6` files, `95` tests).
+- Output/export regressions passed (`7` files, `64` tests).
+- Full planning regression batch passed (`19` files, `410` tests); record-lifecycle planning-adjacent regression batch passed (`8` files, `587` tests).
+- `npm.cmd test`: passed (`55` unit/integration files, `2261` tests; `7` UI files, `61` tests; `62` combined files, `2322` tests).
+- `npm.cmd run test:coverage`: passed (`62` combined files, `2322` tests) with `90.14%` statements, `81.86%` branches, `95.38%` functions, and `94.04%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high); dependency remediation remains outside this phase.
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Return to GPT Architect for independent review of the pushed review-branch commit. Integration to `main` remains blocked pending separate Architect authorization.
+
 ## 2026-08-12 - Phase 5C.2.3D.3C.2B - Controlled Apply History ProjectRecord and Storage v5 Integration
 
 ### Summary

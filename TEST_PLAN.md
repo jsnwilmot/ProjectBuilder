@@ -1,5 +1,39 @@
 # Test Plan
 
+## 2026-08-12 Phase 5C.2.3D.3C.3A controlled apply transaction preparation contract
+
+- Changed preparation coverage verifies D.3B `ready` results become transaction `ready` with raw expected current value, previous/applied values, `historyOutcome: changed`, both concurrency guards, mutation required, history append required, and all write/readiness/output flags false.
+- Whitespace coverage verifies whitespace-only destination values remain exact expected/previous values and are treated as changed preparation, not normalized.
+- New unchanged coverage verifies D.3B `unchanged` results still prepare a history append with no destination mutation and `historyOutcome: unchanged`.
+- Idempotency coverage verifies existing semantic history records for both changed and unchanged retries return `alreadyApplied`, expose only `existingApplyId`, and require no mutation or append.
+- History mismatch coverage verifies a semantic history record with a different `appliedValue` blocks as `historyValueMismatch`.
+- Destination drift coverage verifies cleared destinations after matching history block as `destinationDriftAfterApply`, while meaningful different destinations preserve D.3B `destinationConflict` evidence.
+- History validation coverage verifies invalid persisted history blocks as `invalidHistory` before idempotency evidence and without clearing, salvaging, or mutating the caller history.
+- Capacity coverage verifies 1,000 existing nonmatching valid records block new append preparation, while a 1,000-record collection containing the matching semantic record still permits idempotent `alreadyApplied`.
+- D.3B propagation coverage verifies candidate blockers, archived projects, missing planning, meaningful destination conflicts, dependency blockers, and `appType` exclusion remain blocked through the live destination authority.
+- Snapshot coverage verifies `expectedProjectSnapshot` is the complete supplied `ProjectRecord` JSON, is deterministic across repeated calls, changes when project fields change, remains stable after caller mutation, and fails closed as `projectSnapshotUnavailable` when serialization fails.
+- Source/value coverage verifies `expectedCurrentValue` and `sourceIds` come exactly from D.3B, and `sourceIds` are defensively copied.
+- Immutability coverage verifies ready, already-applied, and blocked preparation results do not mutate the supplied project or controlled-apply history.
+- Static isolation coverage verifies the new production module imports only the approved D.3B/D.3C.2A/type dependencies and contains no repository, storage, runtime allocation, timestamp, apply-record construction, readiness, output, UI, network, Power Fx, YAML, Cloudflare, or schema/version changes.
+- Regression isolation coverage verifies storage remains v5, planning schema/version constants remain unchanged, and current clarification rules remain non-writable clarification-only rules.
+- TTI-safety coverage verifies Draft TTI blockers remain unresolved and transaction preparation does not infer internal names, connectors, schema/security/testing/ALM readiness, Power Fx, YAML, Dataverse, premium/custom connectors, Graph, Power BI, SPFx, responsive/mobile support, notifications, or automated workflows.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3A transaction-preparation tests passed (`1` file, `20` tests).
+- D.3C.2A controlled-apply history regression passed (`1` file, `29` tests).
+- D.3C.2B creation/repository/storage regression passed (`2` files, `103` tests).
+- D.3B destination, D.3A candidate, planning proposals, and planning rules regressions passed (`4` files, `132` tests).
+- Clarification decision regressions passed (`2` files, `61` tests).
+- Intake/readiness regressions passed (`6` files, `95` tests).
+- Output/export regressions passed (`7` files, `64` tests).
+- Full planning regression batch passed (`19` files, `410` tests); record-lifecycle planning-adjacent regression batch passed (`8` files, `587` tests).
+- `npm.cmd test`: passed (`55` unit/integration files, `2261` tests; `7` UI files, `61` tests; `62` combined files, `2322` tests).
+- `npm.cmd run test:coverage`: passed (`62` combined files, `2322` tests) with `90.14%` statements, `81.86%` branches, `95.38%` functions, and `94.04%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories (`25` vulnerabilities: `2` moderate, `23` high); dependency remediation remains outside this phase.
+
 ## 2026-08-12 Phase 5C.2.3D.3C.2B controlled apply history ProjectRecord and storage v5 integration
 
 - Scope-correction coverage verifies the only authorized semantic changes in `planningControlledApplyHistory.test.ts` and `recordLifecycleFormulaEvidence.test.ts` are current-storage-version expectations moving from 4 to 5.
