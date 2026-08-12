@@ -134,7 +134,7 @@ export function analyzePlanningControlledApplyCandidate(input: unknown): Plannin
     return blocked([issue("alternativeGroupNotSupported", "Alternative groups are not supported by the initial controlled-apply candidate contract.", proposal.proposalId, undefined, undefined, "alternativeGroupId")]);
   }
 
-  const conflict = normalized.planning.conflicts.find((candidate) => conflictInvolvesProposal(candidate, proposal.proposalId));
+  const conflict = normalized.planning.conflicts.find((candidate) => conflictInvolvesProposal(candidate, proposal));
   if (conflict) {
     return blocked([issue("openConflict", "Open conflicts involving the proposal block controlled-apply candidate eligibility.", proposal.proposalId, undefined, undefined, "conflicts")]);
   }
@@ -255,13 +255,16 @@ function sourceHasEvidenceAuthority(source: PlanningSourceReference): boolean {
   return source.authority === "confirmed" || source.authority === "approved";
 }
 
-function conflictInvolvesProposal(conflict: PlanningConflictRecord, proposalId: string): boolean {
+function conflictInvolvesProposal(conflict: PlanningConflictRecord, proposal: PlanningProposalRecord): boolean {
   if (conflict.status !== "open") {
     return false;
   }
+  if ((proposal.conflictIds ?? []).includes(conflict.conflictId)) {
+    return true;
+  }
   return conflict.involvedReferences.some((reference) =>
-    reference.kind === "proposalId" && reference.proposalId === proposalId
-  ) || (conflict.affectedProposalIds ?? []).includes(proposalId);
+    reference.kind === "proposalId" && reference.proposalId === proposal.proposalId
+  ) || (conflict.affectedProposalIds ?? []).includes(proposal.proposalId);
 }
 
 function dependencyInvolvesProposal(dependency: PlanningDependencyRecord, proposalId: string): boolean {

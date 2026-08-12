@@ -1,5 +1,37 @@
 # Test Plan
 
+## 2026-08-12 Phase 5C.2.3D.3A Architect Correction 1 proposal-linked open conflict enforcement
+
+- Proposal-linked conflict coverage verifies an otherwise eligible controlled-apply proposal blocks with `openConflict` when `proposal.conflictIds` contains an existing open conflict ID, even when the conflict has no reciprocal `proposalId` involved reference and no `affectedProposalIds` entry.
+- Historical conflict coverage verifies resolved and superseded conflicts listed in `proposal.conflictIds` remain non-blocking when the proposal is otherwise valid.
+- Direct proposal-reference regression verifies open conflicts with an involved `proposalId` reference to the target proposal still block.
+- Affected-proposal regression verifies open conflicts linked only by `affectedProposalIds` still block.
+- Unrelated-conflict coverage verifies an open conflict that is not listed in `proposal.conflictIds`, not linked by an involved `proposalId`, and not linked by `affectedProposalIds` does not block.
+- Determinism coverage verifies repeated analysis of the same proposal-linked open-conflict input returns the same blocked structure.
+- Immutability coverage verifies the analyzer does not mutate planning input, `proposal.conflictIds`, conflict `involvedReferences`, or conflict `affectedProposalIds`.
+- Boundary coverage verifies no inference from source IDs, target keys, rule IDs, text content, or other metadata is introduced; `proposal.conflictIds` is authoritative only for existing open conflict IDs.
+- Preservation coverage verifies the 11-rule clarification boundary, TTI Draft blockers, output isolation, readiness isolation, destination-validation boundary, no persistence, no mutation, no Power Fx, no YAML, no external AI, and no deployment behavior remain unchanged.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused controlled-apply candidate contract tests passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Stale/replacement lifecycle regressions passed (`5` files, `90` tests).
+- Repository regression passed (`1` file, `96` tests).
+- Readiness regression passed (`4` files, `30` tests).
+- Output regression passed (`7` files, `139` tests).
+- Full planning regression passed on explicit file rerun (`16` files, `332` tests); the first wildcard-filter attempt matched no files in this shell.
+- `npm.cmd test`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`52` unit/integration files, `2177` tests; `7` UI files, `61` tests; `59` combined files, `2238` tests).
+- `npm.cmd run test:coverage`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`59` combined files, `2238` tests) with `90.03%` statements, `81.66%` branches, `95.29%` functions, and `94.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high).
+- `git diff --check`: passed.
+- `git status --short --untracked-files=all`: confirmed exactly the four authorized modified files.
+
 ## 2026-08-11 Phase 5C.2.3D.3A controlled apply candidate eligibility contract
 
 - Positive candidate coverage verifies a synthetic future proposal with `Confirmed`, `Known`, `concreteProposalAllowed`, eligible category, explicit `projectField`, `setValue`, self-identifying `fieldKey`, text value, coherent user-action confirm decision, current source binding, and confirmed or approved evidence returns `candidate`.

@@ -1,5 +1,63 @@
 # Change Log
 
+## 2026-08-12 - Phase 5C.2.3D.3A Architect Correction 1 Proposal-Linked Open Conflict Enforcement
+
+### Summary
+
+- Corrected controlled-apply candidate conflict eligibility so an open conflict explicitly listed in `proposal.conflictIds` blocks with the existing `openConflict` issue code.
+- Preserved the existing direct `proposalId` involved-reference and `affectedProposalIds` open-conflict blocking paths.
+- Preserved resolved and superseded linked conflicts as non-blocking historical records.
+- Preserved unrelated open conflicts as non-blocking and avoided new inference from source IDs, target keys, rule IDs, or proposal text.
+- Preserved pure analysis behavior with no conflict mutation, proposal mutation, project mutation, persistence, readiness updates, output generation, destination validation, Power Fx, YAML, external AI, Wrangler, or deployment changes.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningControlledApplyContract.ts` - treats `proposal.conflictIds` as an authoritative open-conflict association for eligibility blocking.
+- `src/tests/planningControlledApplyContract.test.ts` - adds proposal-linked, affected-only, historical-status, unrelated-conflict, determinism, and immutability regressions.
+- `CHANGE_LOG.md` - records this Architect correction.
+- `TEST_PLAN.md` - records focused correction scenarios and validation evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused controlled-apply candidate contract tests passed (`1` file, `56` tests).
+- PlanningProposals regression passed (`1` file, `31` tests).
+- Planning-rules regression passed (`1` file, `16` tests).
+- Clarification decision-contract regression passed (`1` file, `32` tests).
+- Clarification decision-materialization regression passed (`1` file, `29` tests).
+- Stale/replacement lifecycle regressions passed (`5` files, `90` tests).
+- Repository regression passed (`1` file, `96` tests).
+- Readiness regression passed (`4` files, `30` tests).
+- Output regression passed (`7` files, `139` tests).
+- Full planning regression passed on explicit file rerun (`16` files, `332` tests); the first wildcard-filter attempt matched no files in this shell.
+- `npm.cmd test`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`52` unit/integration files, `2177` tests; `7` UI files, `61` tests; `59` combined files, `2238` tests).
+- `npm.cmd run test:coverage`: passed on escalated rerun after a sandboxed Vite temp-cache EPERM (`59` combined files, `2238` tests) with `90.03%` statements, `81.66%` branches, `95.29%` functions, and `94.03%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories for `brace-expansion`, `js-yaml`, `nanoid`, and `undici` through development tooling including ESLint, Vite/Vitest, Miniflare, and Wrangler (`25` vulnerabilities: `2` moderate, `23` high).
+- `git diff --check`: passed.
+- `git status --short --untracked-files=all`: confirmed exactly the four authorized modified files.
+
+### Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+- Low: sandboxed test and coverage startup attempts hit Vite temp-cache EPERM under `node_modules`; escalated reruns passed.
+
+### Remaining work
+
+- Commit the exact four-file correction scope, push the review branch only, and return to GPT Architect for independent review.
+
 ## 2026-08-11 - Phase 5C.2.3D.3A Controlled Apply Candidate Eligibility Contract
 
 ### Summary

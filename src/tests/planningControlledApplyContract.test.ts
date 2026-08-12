@@ -402,6 +402,77 @@ describe("planning controlled apply candidate contract", () => {
     );
   });
 
+  it("blocks proposal-linked open conflicts without requiring reciprocal conflict proposal references", () => {
+    const state = planning({
+      proposals: [proposal({ conflictIds: [conflictId] })],
+      conflicts: [
+        conflict({
+          involvedReferences: [{ kind: "sourceId", sourceId }],
+          affectedProposalIds: undefined
+        })
+      ]
+    });
+    const before = JSON.stringify(state);
+    const beforeProposalConflictIds = [...(state.proposals[0].conflictIds ?? [])];
+    const beforeInvolvedReferences = [...state.conflicts[0].involvedReferences];
+    const beforeAffectedProposalIds = state.conflicts[0].affectedProposalIds;
+
+    const first = analyzePlanningControlledApplyCandidate({ projectId, planning: state, proposalId });
+    const second = analyzePlanningControlledApplyCandidate({ projectId, planning: state, proposalId });
+
+    expectBlockedCode(first, "openConflict");
+    expect(first).toEqual(second);
+    expect(JSON.stringify(state)).toBe(before);
+    expect(state.proposals[0].conflictIds).toEqual(beforeProposalConflictIds);
+    expect(state.conflicts[0].involvedReferences).toEqual(beforeInvolvedReferences);
+    expect(state.conflicts[0].affectedProposalIds).toBe(beforeAffectedProposalIds);
+  });
+
+  it("does not block resolved, superseded, or unrelated proposal-linked conflict records", () => {
+    expect(analyze({
+      proposals: [proposal({ conflictIds: [conflictId] })],
+      conflicts: [
+        conflict({
+          status: "resolved",
+          involvedReferences: [{ kind: "sourceId", sourceId }],
+          resolvedAt: timestamp
+        })
+      ]
+    })).toMatchObject({ outcome: "candidate" });
+    expect(analyze({
+      proposals: [proposal({ conflictIds: [conflictId] })],
+      conflicts: [
+        conflict({
+          status: "superseded",
+          involvedReferences: [{ kind: "sourceId", sourceId }],
+          resolvedAt: timestamp
+        })
+      ]
+    })).toMatchObject({ outcome: "candidate" });
+    expect(analyze({
+      conflicts: [
+        conflict({
+          involvedReferences: [{ kind: "sourceId", sourceId }],
+          affectedProposalIds: undefined
+        })
+      ]
+    })).toMatchObject({ outcome: "candidate" });
+  });
+
+  it("blocks open conflicts associated only through affected proposal IDs", () => {
+    expectBlockedCode(
+      analyze({
+        conflicts: [
+          conflict({
+            involvedReferences: [{ kind: "sourceId", sourceId }],
+            affectedProposalIds: [proposalId]
+          })
+        ]
+      }),
+      "openConflict"
+    );
+  });
+
   it("blocks all current clarification rules through the non-writable target boundary", () => {
     const rules = getPlanningRuleRegistry();
     expect(rules).toHaveLength(11);
