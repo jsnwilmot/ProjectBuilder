@@ -1,5 +1,32 @@
 # Test Plan
 
+## 2026-08-13 Phase 5C.2.3D.3C.3A Architect Correction 1 snapshot fail-closed regression
+
+- Throwing JSON serialization coverage verifies the existing circular-reference project case remains blocked with `projectSnapshotUnavailable`.
+- Non-string JSON serialization coverage verifies an otherwise valid project-like input with runtime `toJSON() => undefined` is blocked with `projectSnapshotUnavailable`.
+- No-plan coverage verifies both snapshot failure modes return no `ready` plan, no `alreadyApplied` plan, and no `expectedProjectSnapshot`.
+- Normal valid project snapshot coverage verifies `expectedProjectSnapshot` remains exactly `JSON.stringify(project)` without sorting, hashing, parsing, storage normalization, field removal, or field addition.
+- Snapshot stability coverage verifies the captured snapshot remains immutable after caller mutation.
+- Boundary coverage verifies the correction does not change D.3B authority, D.3A indirect authority, D.3C.2A history validation, idempotency, capacity, drift handling, defensive `sourceIds`, `expectedCurrentValue`, or `writeAuthorized` / `readinessEligible` / `outputEligible` false flags.
+- TTI-safety coverage verifies the correction does not clear Draft readiness blockers, infer schema/security/testing/ALM readiness, derive internal names, generate Power Fx, generate YAML, or add repository/storage/readiness/output/UI behavior.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3A transaction-preparation tests passed (`1` file, `21` tests).
+- D.3C.2A controlled-apply history regression passed (`1` file, `29` tests).
+- D.3C.2B creation/repository/storage regression passed (`2` files, `103` tests).
+- D.3B destination and D.3A candidate regressions passed (`2` files, `85` tests).
+- Full planning regression batch passed (`19` files, `411` tests).
+- Clarification regression batch passed (`13` files, `229` tests).
+- Intake/readiness regressions passed (`6` files, `95` tests).
+- Output/export regressions passed (`7` files, `64` tests).
+- Record-lifecycle planning-adjacent regression batch passed (`8` files, `587` tests).
+- `npm.cmd test`: passed (`55` unit/integration files, `2262` tests; `7` UI files, `61` tests; `62` combined files, `2323` tests).
+- `npm.cmd run test:coverage`: passed (`62` combined files, `2323` tests) with `90.14%` statements, `81.86%` branches, `95.38%` functions, and `94.04%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: failed on known development/tooling advisories (`25` vulnerabilities: `2` moderate, `23` high); dependency remediation remains outside this correction.
+
 ## 2026-08-12 Phase 5C.2.3D.3C.3A controlled apply transaction preparation contract
 
 - Changed preparation coverage verifies D.3B `ready` results become transaction `ready` with raw expected current value, previous/applied values, `historyOutcome: changed`, both concurrency guards, mutation required, history append required, and all write/readiness/output flags false.

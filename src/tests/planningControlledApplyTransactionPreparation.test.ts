@@ -470,9 +470,33 @@ describe("planning controlled apply transaction preparation", () => {
 
   it("blocks when the supplied project cannot produce an expected project snapshot", () => {
     const project = projectForTransaction();
+    const historyBefore = JSON.stringify(project.controlledApplyHistory);
+    const intakeBefore = JSON.stringify(project.intake);
     (project as unknown as Record<string, unknown>).self = project;
 
-    expectBlockedCode(prepare(project), "projectSnapshotUnavailable");
+    const result = prepare(project);
+
+    expectBlockedCode(result, "projectSnapshotUnavailable");
+    expect("plan" in result).toBe(false);
+    expect(JSON.stringify(result)).not.toMatch(/expectedProjectSnapshot/);
+    expect(JSON.stringify(project.controlledApplyHistory)).toBe(historyBefore);
+    expect(JSON.stringify(project.intake)).toBe(intakeBefore);
+  });
+
+  it("blocks when JSON serialization returns a non-string snapshot without throwing", () => {
+    const project = projectForTransaction();
+    const historyBefore = JSON.stringify(project.controlledApplyHistory);
+    const intakeBefore = JSON.stringify(project.intake);
+    (project as unknown as { toJSON: () => undefined }).toJSON = () => undefined;
+
+    const result = prepare(project);
+
+    expect(JSON.stringify(project)).toBeUndefined();
+    expectBlockedCode(result, "projectSnapshotUnavailable");
+    expect("plan" in result).toBe(false);
+    expect(JSON.stringify(result)).not.toMatch(/expectedProjectSnapshot/);
+    expect(JSON.stringify(project.controlledApplyHistory)).toBe(historyBefore);
+    expect(JSON.stringify(project.intake)).toBe(intakeBefore);
   });
 
   it("uses D.3B expected destination values and defensive source copies exactly", () => {

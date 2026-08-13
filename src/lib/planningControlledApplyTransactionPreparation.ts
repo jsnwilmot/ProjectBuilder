@@ -262,7 +262,8 @@ function hasSameSemanticIdentity(
 
 function serializeProjectSnapshot(project: ProjectRecord): string | null {
   try {
-    return JSON.stringify(project);
+    const serialized = JSON.stringify(project);
+    return typeof serialized === "string" ? serialized : null;
   } catch {
     return null;
   }
