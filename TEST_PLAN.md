@@ -1,5 +1,35 @@
 # Test Plan
 
+## 2026-08-13 Phase 5C.2.3D.3C.3C controlled apply transaction finalization contract
+
+- Input-boundary coverage rejects unsupported semantic keys, literal runtime values, and unsupported runtime keys; production input remains only `project` and `proposalId`, with optional `now()` and `uuid()` runtime functions.
+- D.3C.3A propagation coverage verifies blocked results preserve cloned issue evidence and already-applied results preserve `existingApplyId`, while both paths allocate no timestamp or UUID.
+- Ready-path coverage verifies changed and exact-equality unchanged preparations produce only in-memory finalization evidence with all write/readiness/output flags false.
+- Exact-string coverage verifies exact equality alone is unchanged, whitespace-only current values remain changed with exact `previousValue`, and case/leading/trailing-whitespace differences are never normalized into unchanged values.
+- Runtime-order coverage verifies `appliedAt` is allocated and validated before one `applyId` allocation, with no UUID retry.
+- Timestamp coverage verifies canonical UTC milliseconds and valid calendar dates, thrown/unavailable clocks, invalid/noncanonical timestamps, and equal/later/earlier confirmation chronology.
+- UUID coverage verifies canonical lowercase UUIDs, thrown/unavailable generators, invalid values, duplicate history IDs, one-call failure, apply-history-only namespace uniqueness, and no cross-namespace restriction.
+- History-record coverage verifies the exact 11 approved properties, schema version, D.3C.3A derivation, exact changed/unchanged invariants, source ordering/copying, and no actor/additional fields.
+- Candidate-history coverage verifies complete append-in-memory behavior, D.3C.2A normalization, exact structural normalization equivalence, semantic-duplicate failure, capacity failure without truncation, and defensive cloning of records and nested `sourceIds`.
+- Immutability coverage verifies no mutation of ProjectRecord, planning, persisted history, existing records, source arrays, or separately captured D.3C.3A preparation evidence.
+- Static-isolation coverage verifies no repository/storage import or use, project-field mutation helper, readiness/output/package helper, React/UI, network, Cloudflare/Wrangler, rollback, or actor behavior.
+- Rule-safety coverage verifies all current 11 clarification-only rules and `appType` block before runtime finalization.
+- TTI-safety coverage verifies Draft status and all schema/security/testing/ALM, Canvas target/component, YAML, delegation, internal-name, connector, Power Fx, and out-of-scope technology blockers remain unresolved.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3C transaction-finalization tests passed (`1` file, `30` tests).
+- D.3C.3A preparation, D.3C.2A history, D.3B destination, and D.3A candidate regressions passed (`4` files, `135` tests).
+- Planning and clarification lifecycle/persistence regressions passed (`15` files, `276` tests).
+- Repository/storage regressions passed (`2` files, `103` tests).
+- Intake/readiness regressions passed (`6` files, `137` tests).
+- Output/export regressions passed (`7` files, `89` tests).
+- `npm.cmd test`: passed (`56` unit/integration files, `2292` tests; `7` UI files, `61` tests; `63` combined files, `2353` tests).
+- `npm.cmd run test:coverage`: passed (`63` combined files, `2353` tests) with `90.15%` statements, `81.90%` branches, `95.36%` functions, and `94.02%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this phase.
+
 ## 2026-08-13 Phase 5C.2.3D.3C.3A Architect Correction 1 snapshot fail-closed regression
 
 - Throwing JSON serialization coverage verifies the existing circular-reference project case remains blocked with `projectSnapshotUnavailable`.

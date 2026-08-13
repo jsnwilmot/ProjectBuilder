@@ -5306,3 +5306,50 @@
 
 - Optional: inspect a downloaded ZIP in the operating-system download directory; archive contents are already verified in memory because the built-in browser runtime does not expose download artifacts.
 - Resolve the product and deployment decisions in `NEXT_STEPS.md`.
+# 2026-08-13 - Phase 5C.2.3D.3C.3C - Controlled Apply Transaction Finalization Contract
+
+## Summary
+
+- Added the in-memory controlled-apply transaction finalization contract, with only `finalized`, `alreadyApplied`, and `blocked` outcomes.
+- The finalizer invokes D.3C.3A directly, allocates and validates canonical `appliedAt` before a canonical unique `applyId`, constructs exact durable-history candidate evidence, and validates the complete candidate collection through D.3C.2A with structural normalization equivalence.
+- Preserved the non-writing boundary: no ProjectRecord mutation, repository/storage access, history persistence, readiness/output integration, explicit Apply UI, rollback, actor identity, or current-rule mapping.
+
+## Files created
+
+- `src/lib/planningControlledApplyTransactionFinalization.ts` - implements deterministic in-memory transaction finalization evidence.
+- `src/tests/planningControlledApplyTransactionFinalization.test.ts` - covers outcomes, runtime order/failures, chronology, exact string semantics, history validation, immutability, isolation, and TTI safety.
+
+## Files updated
+
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the D.3C.3C validation matrix.
+
+## Files removed
+
+- None.
+
+## Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3C transaction-finalization tests passed (`1` file, `30` tests).
+- D.3C.3A preparation, D.3C.2A history, D.3B destination, and D.3A candidate regressions passed (`4` files, `135` tests).
+- Planning and clarification lifecycle/persistence regressions passed (`15` files, `276` tests).
+- Repository/storage regressions passed (`2` files, `103` tests).
+- Intake/readiness regressions passed (`6` files, `137` tests).
+- Output/export regressions passed (`7` files, `89` tests).
+- `npm.cmd test`: passed (`56` unit/integration files, `2292` tests; `7` UI files, `61` tests; `63` combined files, `2353` tests).
+- `npm.cmd run test:coverage`: passed (`63` combined files, `2353` tests) with `90.15%` statements, `81.90%` branches, `95.36%` functions, and `94.02%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this phase.
+
+## Issues found
+
+- Low: known development/tooling dependency advisories remain outside this phase and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+## Remaining work
+
+- Return the exact review commit to GPT Architect. Repository concurrency recheck, controlled ProjectRecord mutation, durable history persistence, atomic storage, and explicit Apply behavior remain unimplemented and require separate authorization.
