@@ -1,5 +1,56 @@
 # Change Log
 
+## 2026-08-13 - Phase 5C.2.3D.3C.3C Architect Correction 1 - Validate Apply Chronology Before UUID Allocation
+
+### Summary
+
+- Corrected the Medium runtime-order defect identified by independent Architect review: canonical `appliedAt` chronology is now validated against the exactly bound D.3C.3A confirming decision before `uuid()` is called.
+- An apply timestamp that precedes the confirming decision now fails closed with `applyPrecedesConfirmation`, consumes no UUID, and constructs no candidate record or history.
+- Equal and later apply timestamps proceed to exactly one UUID allocation; full D.3C.2A candidate-history normalization remains required afterward as defense in depth.
+- Malformed confirming timestamps remain rejected upstream by D.3C.3A planning normalization before either finalization runtime function is called.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningControlledApplyTransactionFinalization.ts` - resolves the trusted confirming decision and validates absolute chronology before UUID allocation.
+- `src/tests/planningControlledApplyTransactionFinalization.test.ts` - adds explicit earlier/equal/later UUID-call assertions and documents the upstream malformed-confirmation blocker.
+- `CHANGE_LOG.md` - records Architect Correction 1.
+- `TEST_PLAN.md` - records the chronology-before-UUID regression coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3C transaction-finalization tests passed (`1` file, `33` tests).
+- D.3C.3A preparation, D.3C.2A history, D.3B destination, and D.3A candidate regressions passed (`4` files, `135` tests).
+- Planning and clarification lifecycle/persistence regressions passed (`15` files, `276` tests).
+- Repository/storage regressions passed (`2` files, `103` tests).
+- Intake/readiness regressions passed (`6` files, `137` tests).
+- Output/export regressions passed (`7` files, `89` tests).
+- `npm.cmd test`: passed (`56` unit/integration files, `2295` tests; `7` UI files, `61` tests; `63` combined files, `2356` tests).
+- `npm.cmd run test:coverage`: passed (`63` combined files, `2356` tests) with `90.12%` statements, `81.88%` branches, `95.30%` functions, and `93.99%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this correction.
+
+### Issues found
+
+- Medium: the reviewed implementation allocated a UUID before candidate-history validation discovered an earlier apply timestamp; corrected in this commit.
+- Low: known development/tooling dependency advisories remain outside this correction and were not remediated.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Return both D.3C.3C commits to GPT Architect for independent re-review. Integration and all repository mutation/persistence behavior remain blocked pending separate authorization.
+
 ## 2026-08-13 - Phase 5C.2.3D.3C.3A Architect Correction 1 - Fail Closed on Missing Project Snapshot
 
 ### Summary

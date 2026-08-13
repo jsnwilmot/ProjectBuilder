@@ -28,6 +28,9 @@ export type PlanningControlledApplyTransactionFinalizationIssueCode =
   | "invalidPreparation"
   | "timestampUnavailable"
   | "invalidTimestamp"
+  | "confirmationDecisionUnavailable"
+  | "invalidConfirmationTimestamp"
+  | "applyPrecedesConfirmation"
   | "uuidUnavailable"
   | "invalidUuid"
   | "duplicateUuid"
@@ -154,6 +157,9 @@ export function finalizePlanningControlledApplyTransaction(
   const appliedAtResult = allocateAppliedAt(runtime);
   if (appliedAtResult.issue) return blocked([appliedAtResult.issue]);
   const appliedAt = appliedAtResult.value as string;
+
+  const chronologyIssue = validateApplyChronology(preparation.plan, typedInput.project, appliedAt);
+  if (chronologyIssue) return blocked([chronologyIssue]);
 
   const applyIdResult = allocateApplyId(runtime);
   if (applyIdResult.issue) return blocked([applyIdResult.issue]);
@@ -357,6 +363,48 @@ function allocateApplyId(
     };
   }
   return { value };
+}
+
+function validateApplyChronology(
+  plan: ReadyPlanningControlledApplyTransactionPlan,
+  project: ProjectRecord,
+  appliedAt: string
+): PlanningControlledApplyTransactionFinalizationIssue | null {
+  const matchingDecisions = project.planning?.decisions.filter((decision) => decision.decisionId === plan.decisionId) ?? [];
+  if (matchingDecisions.length !== 1) {
+    return issue(
+      "confirmationDecisionUnavailable",
+      "The prepared confirming decision must resolve exactly once before apply UUID allocation.",
+      plan.proposalId,
+      plan.decisionId,
+      plan.fieldKey
+    );
+  }
+
+  const confirmationInstant = Date.parse(matchingDecisions[0].recordedAt);
+  if (!Number.isFinite(confirmationInstant)) {
+    return issue(
+      "invalidConfirmationTimestamp",
+      "The prepared confirming decision timestamp cannot establish an absolute instant.",
+      plan.proposalId,
+      plan.decisionId,
+      plan.fieldKey,
+      matchingDecisions[0].recordedAt
+    );
+  }
+
+  if (Date.parse(appliedAt) < confirmationInstant) {
+    return issue(
+      "applyPrecedesConfirmation",
+      "Controlled apply cannot precede its prepared confirming decision.",
+      plan.proposalId,
+      plan.decisionId,
+      plan.fieldKey,
+      appliedAt
+    );
+  }
+
+  return null;
 }
 
 function buildCandidateRecord(

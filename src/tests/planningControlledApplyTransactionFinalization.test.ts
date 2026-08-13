@@ -376,13 +376,38 @@ describe("planning controlled apply transaction finalization", () => {
     expect(uuid).not.toHaveBeenCalled();
   });
 
-  it("accepts equal and later chronology and blocks earlier chronology", () => {
-    expect(finalize(projectForFinalization(), () => timestamp).outcome).toBe("finalized");
-    expect(finalize(projectForFinalization(), () => laterTimestamp).outcome).toBe("finalized");
-    const earlier = finalize(projectForFinalization(), () => "2026-08-12T03:59:59.999Z");
-    expectBlockedCode(earlier, "invalidCandidateHistory");
-    if (earlier.outcome !== "blocked") throw new Error("Expected blocked.");
-    expect(earlier.issues[0].historyIssues).toEqual(expect.arrayContaining([expect.objectContaining({ code: "applyPrecedesConfirmation" })]));
+  it("blocks earlier chronology before UUID allocation with no candidate evidence", () => {
+    const uuid = vi.fn(() => generatedApplyId);
+    const result = finalize(projectForFinalization(), () => "2026-08-12T03:59:59.999Z", uuid);
+
+    expectBlockedCode(result, "applyPrecedesConfirmation");
+    expect(uuid).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toMatch(/candidateRecord|candidateHistory|applyId/);
+  });
+
+  it("accepts equal chronology before allocating exactly one UUID", () => {
+    const uuid = vi.fn(() => generatedApplyId);
+
+    expect(finalize(projectForFinalization(), () => timestamp, uuid).outcome).toBe("finalized");
+    expect(uuid).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts later chronology before allocating exactly one UUID", () => {
+    const uuid = vi.fn(() => generatedApplyId);
+
+    expect(finalize(projectForFinalization(), () => laterTimestamp, uuid).outcome).toBe("finalized");
+    expect(uuid).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains the upstream malformed confirmation timestamp blocker without runtime allocation", () => {
+    const project = projectForFinalization({ decisions: [decision({ recordedAt: "not-an-instant" })] });
+    const now = vi.fn(() => timestamp);
+    const uuid = vi.fn(() => generatedApplyId);
+    const result = finalize(project, now, uuid);
+
+    expectBlockedCode(result, "preparationBlocked");
+    expect(now).not.toHaveBeenCalled();
+    expect(uuid).not.toHaveBeenCalled();
   });
 
   it.each(["AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", "not-a-uuid", "aaaaaaaa-aaaa-0aaa-8aaa-aaaaaaaaaaaa"])(

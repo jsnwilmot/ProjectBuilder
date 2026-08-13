@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-08-13 Phase 5C.2.3D.3C.3C Architect Correction 1 chronology-before-UUID regression
+
+- Earlier-chronology coverage verifies confirmation at `2026-08-12T04:00:00.000Z` and apply at `2026-08-12T03:59:59.999Z` return finalization-level `applyPrecedesConfirmation`, call `uuid()` zero times, and expose no candidate record, candidate history, or apply ID.
+- Equal-chronology coverage verifies an apply at `2026-08-12T04:00:00.000Z` passes the early absolute-instant comparison and calls `uuid()` exactly once.
+- Later-chronology coverage verifies an apply at `2026-08-12T04:00:00.001Z` passes the early absolute-instant comparison and calls `uuid()` exactly once.
+- Runtime-order coverage verifies the successful path remains `now()` -> canonical timestamp validation -> trusted decision binding -> chronology validation -> one `uuid()` call, with no UUID retry.
+- Decision-binding coverage resolves exactly one supplied planning decision using the already trusted D.3C.3A `decisionId`; no decision inference, alternate selection, proposal timestamp, or current-time fallback is introduced.
+- Invalid-confirmation coverage documents that malformed confirming `recordedAt` values are rejected by upstream D.3C.3A planning normalization before `now()` or `uuid()`; no unreachable test seam is fabricated.
+- Defense-in-depth coverage retains complete candidate construction, D.3C.2A history normalization, chronology validation, and structural normalization equivalence after early chronology and UUID checks pass.
+- Preservation coverage retains blocked/already-applied zero-runtime behavior, exact changed/unchanged string equality, whitespace preservation, apply-history-only UUID uniqueness, immutable candidate evidence, and all write/readiness/output flags false.
+- Isolation and TTI-safety coverage retain no ProjectRecord mutation, repository/storage access, readiness/output/UI behavior, rollback, actor identity, current-rule mapping, or resolution of any TTI Draft blocker.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3C transaction-finalization tests passed (`1` file, `33` tests).
+- D.3C.3A preparation, D.3C.2A history, D.3B destination, and D.3A candidate regressions passed (`4` files, `135` tests).
+- Planning and clarification lifecycle/persistence regressions passed (`15` files, `276` tests).
+- Repository/storage regressions passed (`2` files, `103` tests).
+- Intake/readiness regressions passed (`6` files, `137` tests).
+- Output/export regressions passed (`7` files, `89` tests).
+- `npm.cmd test`: passed (`56` unit/integration files, `2295` tests; `7` UI files, `61` tests; `63` combined files, `2356` tests).
+- `npm.cmd run test:coverage`: passed (`63` combined files, `2356` tests) with `90.12%` statements, `81.88%` branches, `95.30%` functions, and `93.99%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this correction.
+
 ## 2026-08-13 Phase 5C.2.3D.3C.3C controlled apply transaction finalization contract
 
 - Input-boundary coverage rejects unsupported semantic keys, literal runtime values, and unsupported runtime keys; production input remains only `project` and `proposalId`, with optional `now()` and `uuid()` runtime functions.
