@@ -1009,7 +1009,7 @@ function buildChangedControlledProject(
   };
   return {
     ...derived,
-    status: getProjectDisplayStatus(derived),
+    status: latestProject.generatedDocuments.length > 0 ? "Needs Review" : getProjectDisplayStatus(derived),
     reviewStatus: "Review needed"
   };
 }
@@ -1037,11 +1037,13 @@ function validateChangedControlledProject(
   const expectedOutstandingQuestions = unresolvedReviewFields.length > 0
     ? unresolvedReviewFields
     : getOutstandingFields(candidate);
-  const expectedStatus = getProjectDisplayStatus({
-    ...candidate,
-    status: latestProject.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started",
-    reviewStatus: "Review needed"
-  });
+  const expectedStatus = latestProject.generatedDocuments.length > 0
+    ? "Needs Review"
+    : getProjectDisplayStatus({
+        ...candidate,
+        status: "Intake Started",
+        reviewStatus: "Review needed"
+      });
   return candidate.identity.id === latestProject.identity.id &&
     structurallyEquivalent(candidate.identity, expectedIdentity) &&
     structurallyEquivalent(candidate.client, expectedClient) &&

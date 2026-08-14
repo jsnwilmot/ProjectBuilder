@@ -1,5 +1,57 @@
 # Change Log
 
+## 2026-08-13 - Phase 5C.2.3D.3C.3E Architect Correction 1 - Preserve Needs Review for Stored Generated Documents
+
+### Summary
+
+- Corrected changed controlled Apply status semantics so any stored generated document records force final status `Needs Review`, including when every document has blank or whitespace-only content.
+- Kept `generatedFileCount` independently recalculated; stored blank-only documents may correctly produce `generatedFileCount: 0` while status remains `Needs Review`.
+- Retained existing no-document status derivation: valid concrete intake becomes `Intake Complete`, while incomplete concrete intake remains `Intake Started`.
+- Updated changed-candidate validation to enforce the same stored-document rule and fail closed on an invalid candidate status.
+- Preserved generated documents exactly, invalidated `packageGeneratedAt`, retained final `Review needed`, and made no change to global project status selectors.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - preserves `Needs Review` for changed projects whenever generated document records remain stored and validates that invariant.
+- `src/tests/planningControlledApplyRepository.test.ts` - adds blank-only valid- and incomplete-intake regressions and retains nonblank/no-document status coverage.
+- `CHANGE_LOG.md` - records Architect Correction 1 and its validation.
+- `TEST_PLAN.md` - records the corrected status matrix and completed regression results.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; reported `6` development/tooling vulnerabilities (`2` moderate, `4` high) and the existing `whatwg-encoding` package deprecation notice.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3E repository tests passed (`1` file, `72` tests).
+- D.3C.3C finalization regression passed (`1` file, `33` tests).
+- D.3C.3A preparation regression passed (`1` file, `21` tests).
+- Controlled history, D.3B destination, and D.3A candidate regressions passed (`3` files, `114` tests).
+- Repository/storage regressions passed (`2` files, `173` tests).
+- Planning/clarification regressions passed (`15` files, `276` tests).
+- Intake/readiness/client-review regressions passed (`6` files, `42` tests).
+- Output/document/export regressions passed (`7` files, `139` tests).
+- `npm.cmd test`: passed (`57` unit/integration files, `2367` tests; `7` UI files, `61` tests; `64` combined files, `2428` tests).
+- `npm.cmd run test:coverage`: passed (`64` combined files, `2428` tests) with `90.13%` statements, `82.02%` branches, `95.28%` functions, and `93.93%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
+### Issues found
+
+- Development/tooling dependencies retain `2` moderate and `4` high audit advisories. Dependency remediation remains outside the authorized correction scope.
+
+### Scope exclusions
+
+- No global selector, dependency, Node, CI, UI, rollback, clarification-rule mapping, TTI blocker, remote persistence, external AI, deployment, main integration, pull request, tag, or release change was made.
+
 ## 2026-08-13 - Phase 5C.2.3D.3C.3E Controlled Apply Repository Transaction Implementation
 
 ### Summary

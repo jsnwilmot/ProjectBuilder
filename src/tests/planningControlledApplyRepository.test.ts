@@ -873,7 +873,7 @@ describe("controlled apply changed and unchanged persistence", () => {
     expect(storage.writes).toBe(1);
   });
 
-  it("preserves documents and confirmations, clears package freshness, and recalculates changed evidence", () => {
+  it("preserves nonblank documents and confirmations, clears package freshness, and requires review", () => {
     const documents = [
       { fileName: "README.md", folder: "00_Project_Overview", content: "# Existing" },
       { fileName: "BLANK.md", folder: "00_Project_Overview", content: "" }
@@ -901,6 +901,53 @@ describe("controlled apply changed and unchanged persistence", () => {
     expect(persisted.readinessSections.length).toBeGreaterThan(0);
   });
 
+  it("preserves Needs Review for blank-only stored documents when changed intake becomes valid", () => {
+    const documents = [
+      { fileName: "README.md", folder: "00_Project_Overview", content: "" },
+      { fileName: "PROJECT_SCOPE.md", folder: "01_Requirements", content: "   \n\t" }
+    ];
+    const project = projectForApply({
+      validIntake: true,
+      currentValue: "",
+      desired: "Completed purpose",
+      documents
+    });
+    project.packageGeneratedAt = initialAt;
+    project.reviewStatus = "Approved";
+    project.status = "Ready for Codex";
+    const storage = new ScriptedStorage(canonicalState([project]));
+
+    const result = applyConfirmedPlanningProposal(projectId, proposalId, storage, runtime());
+
+    expect(result.outcome).toBe("appliedChanged");
+    const persisted = target(persistedState(storage));
+    expect(persisted.generatedDocuments).toEqual(documents);
+    expect(persisted.generatedFileCount).toBe(0);
+    expect(persisted.packageGeneratedAt).toBeNull();
+    expect(persisted.status).toBe("Needs Review");
+    expect(persisted.reviewStatus).toBe("Review needed");
+    expect(persisted.updatedAt).toBe(appliedAt);
+    expect(storage.writes).toBe(1);
+  });
+
+  it("preserves Needs Review for blank-only stored documents when changed intake remains incomplete", () => {
+    const documents = [
+      { fileName: "README.md", folder: "00_Project_Overview", content: "" },
+      { fileName: "PROJECT_SCOPE.md", folder: "01_Requirements", content: " \t " }
+    ];
+    const storage = new ScriptedStorage(canonicalState([projectForApply({ documents })]));
+
+    const result = applyConfirmedPlanningProposal(projectId, proposalId, storage, runtime());
+
+    expect(result.outcome).toBe("appliedChanged");
+    const persisted = target(persistedState(storage));
+    expect(persisted.generatedDocuments).toEqual(documents);
+    expect(persisted.generatedFileCount).toBe(0);
+    expect(persisted.status).toBe("Needs Review");
+    expect(persisted.reviewStatus).toBe("Review needed");
+    expect(storage.writes).toBe(1);
+  });
+
   it("uses appliedAt for reconciled review evidence rather than ambient wall-clock time", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2035-01-01T00:00:00.000Z"));
@@ -916,14 +963,14 @@ describe("controlled apply changed and unchanged persistence", () => {
     expect(persistedPurposeItem?.updatedAt).not.toBe("2035-01-01T00:00:00.000Z");
   });
 
-  it("derives Intake Complete when an applied value completes otherwise valid intake", () => {
+  it("derives Intake Complete with no stored documents when an applied value completes otherwise valid intake", () => {
     const project = projectForApply({ validIntake: true, currentValue: "", desired: "Completed purpose" });
     const storage = new ScriptedStorage(canonicalState([project]));
     expect(applyConfirmedPlanningProposal(projectId, proposalId, storage, runtime()).outcome).toBe("appliedChanged");
     expect(target(persistedState(storage)).status).toBe("Intake Complete");
   });
 
-  it("derives Intake Started when concrete intake remains incomplete", () => {
+  it("derives Intake Started with no stored documents when concrete intake remains incomplete", () => {
     const storage = new ScriptedStorage(canonicalState([projectForApply()]));
     expect(applyConfirmedPlanningProposal(projectId, proposalId, storage, runtime()).outcome).toBe("appliedChanged");
     expect(target(persistedState(storage)).status).toBe("Intake Started");

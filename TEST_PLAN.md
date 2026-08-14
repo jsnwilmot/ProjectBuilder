@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-08-13 Phase 5C.2.3D.3C.3E Architect Correction 1 stored-document status regressions
+
+- Blank-only valid-intake coverage verifies a changed controlled Apply preserves all stored generated document records, recalculates `generatedFileCount` to `0`, clears `packageGeneratedAt`, sets `updatedAt` to `appliedAt`, writes exactly once, and finishes with `Needs Review` plus `Review needed` rather than `Intake Complete`.
+- Blank-only incomplete-intake coverage verifies stored blank document records still force `Needs Review` with `generatedFileCount: 0` and cannot fall through to `Intake Started`.
+- Nonblank-document coverage verifies at least one stored nonblank generated document continues to produce `Needs Review`, preserve documents, clear package freshness, recalculate generated-file count, and retain review invalidation.
+- No-document valid-intake coverage verifies existing `getProjectDisplayStatus` product semantics continue to derive `Intake Complete` after the changed value completes concrete intake.
+- No-document incomplete-intake coverage verifies existing product semantics continue to derive `Intake Started` when concrete intake remains incomplete.
+- Changed-validator coverage enforces the identical stored-document status rule and fails closed if a candidate with stored generated documents does not finish as `Needs Review`.
+- Independence coverage verifies stored generated-document presence controls changed-package invalidation status independently from nonblank generated-file count.
+- Unchanged-path coverage verifies only controlled history and `updatedAt` change; existing status, review status, documents, generated-file count, package timestamp, and readiness evidence remain untouched.
+- Isolation coverage verifies no change to `projectSelectors.ts`, controlled reads, concurrency guards, D.3C.3C runtime, authoritative candidate history, controlled writer, current-rule mapping, UI, rollback, or TTI Draft blockers.
+- `npm.cmd ci`: passed; reported `6` development/tooling vulnerabilities (`2` moderate, `4` high) and the existing `whatwg-encoding` package deprecation notice.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused D.3C.3E repository tests passed (`1` file, `72` tests).
+- D.3C.3C finalization regression passed (`1` file, `33` tests).
+- D.3C.3A preparation regression passed (`1` file, `21` tests).
+- Controlled history, D.3B destination, and D.3A candidate regressions passed (`3` files, `114` tests).
+- Repository/storage regressions passed (`2` files, `173` tests).
+- Planning/clarification regressions passed (`15` files, `276` tests).
+- Intake/readiness/client-review regressions passed (`6` files, `42` tests).
+- Output/document/export regressions passed (`7` files, `139` tests).
+- `npm.cmd test`: passed (`57` unit/integration files, `2367` tests; `7` UI files, `61` tests; `64` combined files, `2428` tests).
+- `npm.cmd run test:coverage`: passed (`64` combined files, `2428` tests) with `90.13%` statements, `82.02%` branches, `95.28%` functions, and `93.93%` lines; `src/lib/projectRepository.ts` reached `93.62%` statements, `91.01%` branches, `95.28%` functions, and `93.79%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-13 Phase 5C.2.3D.3C.3E controlled apply repository transaction
 
 - Controlled-reader coverage verifies only `STORAGE_KEY` is read; missing, unavailable, corrupt, non-object, non-v5, migration-invalid, and noncanonical raw states fail closed without synchronization or writes.
