@@ -1,0 +1,246 @@
+import { useEffect, useMemo, useRef } from "react";
+import {
+  buildPlanningUiViewModel,
+  type PlanningUiApplyState,
+  type PlanningUiConflict,
+  type PlanningUiDependency,
+  type PlanningUiHistoryItem,
+  type PlanningUiProposal,
+  type PlanningUiSource
+} from "../../lib/planningUiViewModel";
+import type { ProjectRecord } from "../../types/project";
+
+interface PlanningViewProps {
+  project: ProjectRecord;
+}
+
+export function PlanningView({ project }: PlanningViewProps) {
+  const mainRef = useRef<HTMLElement>(null);
+  const model = useMemo(() => buildPlanningUiViewModel(project), [project]);
+
+  useEffect(() => {
+    mainRef.current?.focus();
+  }, []);
+
+  return (
+    <main className="page planning-page" id="main-content" tabIndex={-1} ref={mainRef}>
+      <div className="page-heading planning-page-heading">
+        <div>
+          <h1>Architecture Planning</h1>
+          <p>Review persisted planning recommendations, questions, evidence, conflicts, and application history.</p>
+        </div>
+        <span className="planning-item-count">
+          {model.proposalCount} planning item{model.proposalCount === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {model.issues.length > 0 ? (
+        <div className="planning-issue" role="alert">
+          <strong>Some planning information cannot be displayed safely.</strong>
+          {model.issues.map((issue) => <p key={issue.code}>{issue.message}</p>)}
+        </div>
+      ) : null}
+
+      {model.state === "empty" ? (
+        <section className="planning-empty" aria-labelledby="planning-empty-title">
+          <h2 id="planning-empty-title">Planning is not available yet</h2>
+          <p>{model.emptyMessage}</p>
+        </section>
+      ) : null}
+
+      {model.groups.length > 0 ? (
+        <div className="planning-groups">
+          {model.groups.map((group) => (
+            <section className="planning-group" aria-labelledby={`planning-group-${group.id}`} key={group.id}>
+              <div className="planning-group-heading">
+                <h2 id={`planning-group-${group.id}`}>{group.label}</h2>
+                <span>{group.proposals.length}</span>
+              </div>
+              <div className="planning-proposal-list">
+                {group.proposals.map((proposal) => <PlanningProposalCard proposal={proposal} key={proposal.key} />)}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : null}
+
+      {model.history.length > 0 ? <PlanningHistory history={model.history} /> : null}
+    </main>
+  );
+}
+
+function PlanningProposalCard({ proposal }: { proposal: PlanningUiProposal }) {
+  return (
+    <article className={`planning-proposal status-${proposal.status.toLowerCase().replace(/\s+/g, "-")}`}>
+      <header className="planning-proposal-header">
+        <div>
+          <span className="planning-target">{proposal.targetArea}</span>
+          <h3>{proposal.title}</h3>
+        </div>
+        <div className="planning-proposal-badges">
+          <span className="planning-status">{proposal.statusLabel}</span>
+          <span className={`planning-uncertainty uncertainty-${proposal.uncertainty.toLowerCase()}`}>
+            Uncertainty: {proposal.uncertainty}
+          </span>
+        </div>
+      </header>
+
+      <p className="planning-recommendation">{proposal.recommendation}</p>
+
+      <section className="planning-rationale" aria-label="Planning rationale">
+        <h4>Why this is recommended</h4>
+        <dl>
+          <div><dt>Recommendation</dt><dd>{proposal.recommendation}</dd></div>
+          <div><dt>Rationale</dt><dd>{proposal.rationale}</dd></div>
+          {proposal.consequence ? <div><dt>Potential consequence</dt><dd>{proposal.consequence}</dd></div> : null}
+        </dl>
+      </section>
+
+      <PlanningSources sources={proposal.sources} />
+
+      {proposal.dependencies.length > 0 || proposal.conflicts.length > 0 ? (
+        <details className="planning-disclosure planning-relationship-disclosure">
+          <summary>Dependency and conflict details</summary>
+          <div className="planning-disclosure-content">
+            {proposal.dependencies.length > 0 ? <PlanningDependencies dependencies={proposal.dependencies} /> : null}
+            {proposal.conflicts.length > 0 ? <PlanningConflicts conflicts={proposal.conflicts} /> : null}
+          </div>
+        </details>
+      ) : null}
+
+      {proposal.applyState ? <PlanningApplyState applyState={proposal.applyState} /> : null}
+    </article>
+  );
+}
+
+function PlanningSources({ sources }: { sources: readonly PlanningUiSource[] }) {
+  return (
+    <section className="planning-sources" aria-label="Supporting sources">
+      <h4>Sources</h4>
+      {sources.length > 0 ? (
+        <ul>
+          {sources.map((source, index) => {
+            const hasDetails = Boolean(source.excerpt || source.version || source.observedAt);
+            return (
+              <li className={source.resolved ? "" : "is-unavailable"} key={`${source.label}-${index}`}>
+                <div className="planning-source-summary">
+                  <strong>{source.label}</strong>
+                  <span>{source.sourceType}</span>
+                  <span>Authority: {source.authority}</span>
+                  <span>Availability: {source.availability}</span>
+                </div>
+                {hasDetails ? (
+                  <details className="planning-disclosure planning-source-disclosure">
+                    <summary>Source details</summary>
+                    <dl className="planning-source-details">
+                      {source.version ? <div><dt>Version</dt><dd>{source.version}</dd></div> : null}
+                      {source.observedAt ? <div><dt>Observed</dt><dd>{source.observedAt}</dd></div> : null}
+                      {source.excerpt ? <div><dt>Excerpt</dt><dd>{source.excerpt}</dd></div> : null}
+                    </dl>
+                  </details>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : <p>No persisted source references are available.</p>}
+    </section>
+  );
+}
+
+function PlanningDependencies({ dependencies }: { dependencies: readonly PlanningUiDependency[] }) {
+  return (
+    <section>
+      <h4>Dependencies</h4>
+      <ul className="planning-relationship-list">
+        {dependencies.map((dependency, index) => (
+          <li key={`${dependency.dependencyType}-${dependency.targetLabel}-${index}`}>
+            <strong>{dependency.dependencyType}</strong>
+            <span>{dependency.required ? "Required" : "Informational"}</span>
+            <p>{dependency.targetLabel}</p>
+            <p>{dependency.rationale}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function PlanningConflicts({ conflicts }: { conflicts: readonly PlanningUiConflict[] }) {
+  return (
+    <section>
+      <h4>Conflicts</h4>
+      <ul className="planning-relationship-list">
+        {conflicts.map((conflict, index) => (
+          <li key={`${conflict.severity}-${conflict.status}-${index}`}>
+            <strong>Severity: {conflict.severity}</strong>
+            <span>Status: {conflict.status}</span>
+            <p>{conflict.explanation}</p>
+            {conflict.affectedProposalTitles.length > 0 ? (
+              <p>Affected planning items: {conflict.affectedProposalTitles.join(", ")}</p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function PlanningApplyState({ applyState }: { applyState: PlanningUiApplyState }) {
+  return (
+    <section className={`planning-apply-state apply-${applyState.state}`} aria-label="Read-only Apply state">
+      <h4>Apply state</h4>
+      <strong>{applyState.label}</strong>
+      {applyState.state === "ready" ? (
+        <dl className="planning-value-comparison">
+          <div><dt>Target field</dt><dd>{applyState.fieldLabel}</dd></div>
+          <div><dt>Current value</dt><dd>{applyState.currentValue || "Empty"}</dd></div>
+          <div><dt>Proposed value</dt><dd>{applyState.proposedValue}</dd></div>
+          <div><dt>Expected result</dt><dd>{applyState.historyOutcome === "changed" ? "Changed" : "Unchanged"}</dd></div>
+        </dl>
+      ) : null}
+      {applyState.state === "blocked" && applyState.details.length > 0 ? (
+        <details className="planning-disclosure">
+          <summary>Availability details</summary>
+          <ul>{applyState.details.map((detail) => <li key={detail}>{detail}</li>)}</ul>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
+function PlanningHistory({ history }: { history: readonly PlanningUiHistoryItem[] }) {
+  return (
+    <section className="planning-history" aria-labelledby="planning-history-heading">
+      <div className="planning-group-heading">
+        <h2 id="planning-history-heading">Applied history</h2>
+        <span>{history.length}</span>
+      </div>
+      <ol>
+        {history.map((item) => (
+          <li key={item.key}>
+            <article className="planning-history-item">
+              <div className="planning-history-summary">
+                <div>
+                  <strong>{item.proposalTitle ?? item.fieldLabel}</strong>
+                  <span>{item.appliedAt}</span>
+                </div>
+                <div>
+                  <span>{item.fieldLabel}</span>
+                  <strong>{item.outcome}</strong>
+                </div>
+              </div>
+              <details className="planning-disclosure planning-history-disclosure">
+                <summary>Show previous and applied values</summary>
+                <dl className="planning-history-values">
+                  <div><dt>Previous value</dt><dd>{item.previousValue || "Empty"}</dd></div>
+                  <div><dt>Applied value</dt><dd>{item.appliedValue || "Empty"}</dd></div>
+                </dl>
+              </details>
+            </article>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}

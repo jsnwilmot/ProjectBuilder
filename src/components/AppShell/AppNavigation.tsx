@@ -4,12 +4,13 @@ import {
   ClipboardCheck,
   FolderArchive,
   LayoutDashboard,
+  ListChecks,
   PanelLeftClose,
   Plus,
   Sparkles
 } from "../ui/Icons";
 
-export type AppView = "dashboard" | "intake" | "scope" | "documents" | "export";
+export type AppView = "dashboard" | "intake" | "planning" | "scope" | "documents" | "export";
 
 interface AppNavigationProps {
   currentView: AppView;
@@ -20,6 +21,7 @@ interface AppNavigationProps {
 const navigationItems: Array<{ id: AppView; label: string; icon: IconComponent }> = [
   { id: "dashboard", label: "Mission Control", icon: LayoutDashboard },
   { id: "intake", label: "Guided Intake", icon: ClipboardCheck },
+  { id: "planning", label: "Planning", icon: ListChecks },
   { id: "scope", label: "Scope Review", icon: BookOpenText },
   { id: "documents", label: "Documents", icon: Sparkles },
   { id: "export", label: "Export", icon: FolderArchive }

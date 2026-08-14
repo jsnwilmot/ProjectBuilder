@@ -82,6 +82,44 @@ describe("App - navigation", () => {
     expect(screen.getByRole("main")).toHaveFocus();
   }, 20000);
 
+  it("places Planning between Guided Intake and Scope Review", () => {
+    seedApp();
+    render(<App />);
+
+    const labels = within(screen.getByRole("navigation")).getAllByRole("button")
+      .map((button) => button.textContent?.trim());
+    expect(labels).toEqual([
+      "Mission Control",
+      "Guided Intake",
+      "Planning",
+      "Scope Review",
+      "Documents",
+      "Export"
+    ]);
+  });
+
+  it("opens Architecture Planning for an active project and focuses its main content", async () => {
+    seedApp();
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveFocus();
+  });
+
+  it("keeps no-project Planning navigation on Mission Control without persisting a project", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+
+    expect(screen.getByRole("heading", { name: "Mission Control" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Architecture Planning" })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
   it("opens the next incomplete stage when continuing intake", async () => {
     seedApp();
     const user = userEvent.setup();

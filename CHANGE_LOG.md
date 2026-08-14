@@ -1,5 +1,60 @@
 # Change Log
 
+## 2026-08-14 - Phase 5C.3B Read-Only Architect-Assisted Planning Workspace
+
+### Summary
+
+- Added a dedicated Planning navigation item and `Architecture Planning` workspace for projects with persisted planning state.
+- Added a pure read-only planning UI view model with the five approved human lifecycle groups, deterministic registered-rule ordering, and persisted-order fallback for general proposals.
+- Added read-only proposal cards for persisted recommendation, rationale, consequence, uncertainty, target area, safe source details, dependencies, and conflicts.
+- Added informational controlled-Apply states derived from the existing preparation contract for confirmed proposals, with current clarification-only rules remaining planning decisions rather than writable candidates.
+- Added read-only controlled Apply history summaries with prior/applied values available only in collapsed disclosures.
+- Added responsive single-column presentation and accessible landmarks, headings, focus behavior, visible state text, and native disclosures.
+- Added no decision controls, no Apply action, no repository writes, and no readiness or output mutation.
+
+### Files created
+
+- `src/lib/planningUiViewModel.ts` - builds the pure deterministic read-only planning presentation model.
+- `src/components/Planning/PlanningView.tsx` - renders the dedicated read-only Planning workspace.
+- `src/tests/planningUiViewModel.test.ts` - covers lifecycle grouping, ordering, privacy, Apply states, history, and immutability.
+- `src/tests/PlanningView.test.tsx` - covers presentation, accessibility, disclosures, privacy, and current-rule safety.
+
+### Files updated
+
+- `src/components/AppShell/AppNavigation.tsx` - adds Planning between Guided Intake and Scope Review.
+- `src/app/App.tsx` - routes active projects to the Planning workspace and preserves the no-project Mission Control guard.
+- `src/styles/global.css` - adds responsive Planning presentation and six-item navigation behavior.
+- `src/tests/App.navigation.test.tsx` - covers navigation order, active-project Planning, no-project behavior, and focus.
+- `CHANGE_LOG.md` - records Phase 5C.3B implementation and validation.
+- `TEST_PLAN.md` - records focused, responsive, accessibility, regression, coverage, build, and audit validation.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; reported the existing `whatwg-encoding` deprecation and `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused Planning view-model and view tests passed (`2` files, `40` tests); navigation tests passed (`1` file, `15` tests).
+- Planning regressions passed (`3` files, `78` tests); clarification regressions passed (`13` files, `229` tests).
+- Controlled Apply regressions passed (`6` files, `240` tests); repository/storage regressions passed (`2` files, `173` tests).
+- Readiness/client-review regressions passed (`4` files, `83` tests); output/export core regressions passed (`6` files, `33` tests).
+- `npm.cmd test`: passed (`59` unit/integration files, `2407` tests; `7` UI files, `64` tests; `66` combined files, `2471` tests).
+- `npm.cmd run test:coverage`: passed (`66` combined files, `2471` tests) with `90.15%` statements, `81.92%` branches, `95.29%` functions, and `93.90%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
+### Issues found
+
+- Development/tooling dependencies retain `2` moderate and `4` high audit advisories. Dependency remediation remains outside the authorized phase scope.
+
+### Scope exclusions
+
+- No clarification or general proposal decision controls, Apply action, repository write, current-rule mapping, readiness integration, rollback, output generation, dependency/Node/CI change, TTI blocker change, remote persistence, external AI, or deployment behavior was added.
+
 ## 2026-08-13 - Phase 5C.2.3D.3C.3E Architect Correction 1 - Preserve Needs Review for Stored Generated Documents
 
 ### Summary

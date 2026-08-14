@@ -1,5 +1,32 @@
 # Test Plan
 
+## 2026-08-14 Phase 5C.3B read-only Planning workspace
+
+- View-model coverage verifies empty and malformed planning states, all ten lifecycle statuses, exact five-group mapping, empty-group omission, deterministic registered-rule priority, persisted-order fallback for unregistered proposals, all four uncertainty states, and no input mutation.
+- Proposal presentation coverage verifies persisted recommendation, rationale, consequence, target area, human status labels, and no fabricated recommendation or missing planning data.
+- Source privacy coverage verifies safe labels/types/authority/availability, optional excerpt/version/observed-at disclosures, missing-source indicators, and exclusion of source IDs and raw locators.
+- Dependency and conflict coverage verifies persisted human-facing details, safely resolved labels/titles, visible severity/status, raw-ID exclusion, and no conflict-resolution controls.
+- Current-rule safety coverage verifies all 11 registered clarification-only rules remain read-only planning decisions and retain the approved component/YAML N/A facts without rendering decision actions.
+- Read-only Apply-state coverage verifies no preparation for non-confirmed proposals; planning-only current-rule messaging; existing preparation-contract authority for synthetic future ready, already-applied, and blocked confirmed writable cases; and zero Apply controls or repository calls.
+- History coverage verifies `controlledApplyHistory` is the sole source, summaries show applied time/field/outcome, prior/applied values remain in collapsed native disclosures, and actor and raw identity fields are excluded.
+- Navigation coverage verifies Planning appears exactly between Guided Intake and Scope Review, active-project navigation opens `Architecture Planning`, the main landmark receives focus, and no-project navigation remains on Mission Control without storage writes.
+- Responsive inspection verifies a single primary desktop column, stacked content at the existing medium/tablet breakpoint, stacked metadata/source/value layouts at `390px`, and readable six-item horizontally scrollable navigation at `320px`.
+- Accessibility coverage verifies one `main-content` landmark, logical page/group/proposal headings, visible status/uncertainty/source/conflict/Apply-state text, native keyboard-operable disclosures, and noninteractive proposal cards.
+- TTI-like fixture coverage verifies clarification items remain unresolved, no current rule exposes Apply, no recommendation is fabricated, and no readiness claim is introduced.
+- `npm.cmd ci`: passed; reported the existing `whatwg-encoding` deprecation and `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused Planning tests passed (`2` files, `40` tests); App navigation tests passed (`1` file, `15` tests).
+- Planning regressions passed (`3` files, `78` tests); clarification regressions passed (`13` files, `229` tests).
+- Controlled Apply regressions passed (`6` files, `240` tests); repository/storage regressions passed (`2` files, `173` tests).
+- Readiness/client-review regressions passed (`4` files, `83` tests); output/export core regressions passed (`6` files, `33` tests).
+- All App UI regressions passed (`7` files, `64` tests).
+- `npm.cmd test`: passed (`59` unit/integration files, `2407` tests; `7` UI files, `64` tests; `66` combined files, `2471` tests).
+- `npm.cmd run test:coverage`: passed (`66` combined files, `2471` tests) with `90.15%` statements, `81.92%` branches, `95.29%` functions, and `93.90%` lines; `planningUiViewModel.ts` reached `91.74%` statements, `77.45%` branches, `100%` functions, and `91.83%` lines, while `PlanningView.tsx` reached `90.47%` statements, `64.91%` branches, `88.23%` functions, and `90%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-13 Phase 5C.2.3D.3C.3E Architect Correction 1 stored-document status regressions
 
 - Blank-only valid-intake coverage verifies a changed controlled Apply preserves all stored generated document records, recalculates `generatedFileCount` to `0`, clears `packageGeneratedAt`, sets `updatedAt` to `appliedAt`, writes exactly once, and finishes with `Needs Review` plus `Review needed` rather than `Intake Complete`.

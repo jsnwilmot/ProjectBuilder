@@ -5,6 +5,7 @@ import { DocumentViewer } from "../components/DocumentViewer/DocumentViewer";
 import { ExportPanel } from "../components/ExportPanel/ExportPanel";
 import { IntakeBuilder } from "../components/IntakeBuilder/IntakeBuilder";
 import { MissionControl } from "../components/MissionControl/MissionControl";
+import { PlanningView } from "../components/Planning/PlanningView";
 import { GENERATE_STAGE_INDEX, INTAKE_STAGES, REVIEW_STAGE_INDEX } from "../data/intakeStages";
 import { useProjectBuilder } from "./useProjectBuilder";
 
@@ -138,6 +139,7 @@ export function App() {
             }}
           />
         ) : null}
+        {view === "planning" && project ? <PlanningView project={project} /> : null}
         {view === "export" ? (
           <ExportPanel
             project={project}

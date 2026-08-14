@@ -1,0 +1,302 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { PlanningView } from "../components/Planning/PlanningView";
+import { createProject } from "../lib/createProject";
+import { CONTROLLED_APPLY_HISTORY_SCHEMA_VERSION } from "../lib/planningControlledApplyHistory";
+import {
+  PLANNING_RULE_SET_ID,
+  PLANNING_RULE_SET_VERSION,
+  PLANNING_SCHEMA_VERSION,
+  type PlanningConflictRecord,
+  type PlanningDecisionRecord,
+  type PlanningDependencyRecord,
+  type PlanningProposalRecord,
+  type PlanningSourceReference,
+  type ProjectPlanningState
+} from "../lib/planningProposals";
+import { getPlanningRuleById } from "../lib/planningRules";
+import type { ProjectRecord } from "../types/project";
+
+const projectId = "planning-view-project";
+const timestamp = "2026-08-14T12:00:00.000Z";
+const sourceId = "11111111-1111-4111-8111-111111111111";
+const proposalId = "22222222-2222-4222-8222-222222222222";
+const decisionId = "33333333-3333-4333-8333-333333333333";
+const applyId = "44444444-4444-4444-8444-444444444444";
+
+function source(overrides: Partial<PlanningSourceReference> = {}): PlanningSourceReference {
+  return {
+    sourceId,
+    sourceType: "approvedDocument",
+    locator: "internal:approved-document:architecture",
+    label: "Approved architecture document",
+    authority: "approved",
+    availability: "current",
+    excerpt: "Approved evidence excerpt.",
+    version: "2.0",
+    observedAt: timestamp,
+    ...overrides
+  };
+}
+
+function writableProposal(overrides: Partial<PlanningProposalRecord> = {}): PlanningProposalRecord {
+  return {
+    proposalId,
+    proposalSchemaVersion: PLANNING_SCHEMA_VERSION,
+    projectId,
+    ruleSetId: PLANNING_RULE_SET_ID,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION,
+    ruleId: "future.project-field.app-purpose",
+    ruleVersion: "1.0.0",
+    fingerprint: "a".repeat(64),
+    target: {
+      kind: "projectField",
+      domain: "foundation",
+      targetKey: "appPurpose",
+      fieldKey: "appPurpose",
+      operation: "setValue"
+    },
+    category: "architectProposal",
+    status: "Confirmed",
+    value: { kind: "text", value: "Approved project purpose" },
+    title: "Apply approved project purpose",
+    recommendation: "Use the approved project purpose.",
+    rationale: "The approved document provides current authoritative evidence.",
+    consequence: "A changed value will require project review.",
+    sourceIds: [sourceId],
+    uncertainty: "Known",
+    restriction: "concreteProposalAllowed",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    lastDecisionId: decisionId,
+    ...overrides
+  };
+}
+
+function clarificationProposal(overrides: Partial<PlanningProposalRecord> = {}): PlanningProposalRecord {
+  const rule = getPlanningRuleById("pp.canvas.schema.confirmation");
+  if (!rule) throw new Error("Missing schema clarification rule.");
+  return {
+    ...writableProposal(),
+    ruleId: rule.ruleId,
+    ruleVersion: rule.ruleVersion,
+    target: { ...rule.target },
+    category: "clarification",
+    status: "Needs Clarification",
+    value: { kind: "clarification", question: rule.question },
+    title: rule.title,
+    recommendation: "Ask for authoritative schema clarification.",
+    rationale: rule.rationale,
+    consequence: rule.consequence,
+    uncertainty: rule.uncertainty,
+    restriction: rule.restriction,
+    lastDecisionId: undefined,
+    ...overrides
+  };
+}
+
+function decision(): PlanningDecisionRecord {
+  return {
+    decisionId,
+    proposalId,
+    projectId,
+    action: "confirm",
+    previousStatus: "Revised",
+    resultingStatus: "Confirmed",
+    origin: "userAction",
+    recordedAt: timestamp,
+    sourceIds: [sourceId],
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+}
+
+function planning(overrides: Partial<ProjectPlanningState> = {}): ProjectPlanningState {
+  return {
+    schemaVersion: PLANNING_SCHEMA_VERSION,
+    ruleSetId: PLANNING_RULE_SET_ID,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION,
+    sources: [source()],
+    proposals: [clarificationProposal()],
+    decisions: [],
+    dependencies: [],
+    conflicts: [],
+    ...overrides
+  };
+}
+
+function project(planningState?: ProjectPlanningState): ProjectRecord {
+  return {
+    ...createProject({
+      identity: { id: projectId, projectName: "Planning View Project" },
+      intake: { appType: "powerAppsCanvas", appPurpose: "" },
+      now: timestamp
+    }),
+    ...(planningState ? { planning: planningState } : {})
+  };
+}
+
+describe("PlanningView", () => {
+  it("renders the Architecture Planning landmark and deliberate zero-planning state", () => {
+    render(<PlanningView project={project()} />);
+
+    expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
+    expect(screen.getByRole("main")).toHaveFocus();
+    expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
+    expect(screen.getByText("No planning items are available for this project yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
+  });
+
+  it("renders exact groups, status, uncertainty, recommendation, rationale, and consequence", () => {
+    const second = clarificationProposal({
+      proposalId: "22222222-2222-4222-8222-222222222223",
+      ruleId: "future.revised",
+      title: "Revised planning item",
+      status: "Revised",
+      value: { kind: "text", value: "Recorded answer" },
+      uncertainty: "Likely"
+    });
+    render(<PlanningView project={project(planning({ proposals: [clarificationProposal(), second] }))} />);
+
+    expect(screen.getByRole("heading", { level: 2, name: "Questions to answer" })).toBeInTheDocument();
+    expect(screen.getByText("Answer required")).toBeInTheDocument();
+    expect(screen.getByText("Answer provided - confirm required")).toBeInTheDocument();
+    expect(screen.getByText("Uncertainty: Unknown")).toBeInTheDocument();
+    expect(screen.getByText("Uncertainty: Likely")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { level: 4, name: "Why this is recommended" })).toHaveLength(2);
+    expect(screen.getAllByText("Ask for authoritative schema clarification.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(getPlanningRuleById("pp.canvas.schema.confirmation")!.consequence).length).toBeGreaterThan(0);
+  });
+
+  it("renders safe source summaries and keeps optional details collapsed", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<PlanningView project={project(planning())} />);
+
+    expect(screen.getByText("Approved architecture document")).toBeInTheDocument();
+    expect(screen.getByText("Approved document")).toBeInTheDocument();
+    expect(screen.getByText("Authority: Approved")).toBeInTheDocument();
+    expect(screen.getByText("Availability: Current")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(sourceId);
+    expect(container).not.toHaveTextContent("internal:approved-document:architecture");
+
+    const summary = screen.getByText("Source details").closest("summary");
+    const details = summary?.closest("details");
+    expect(details).not.toHaveAttribute("open");
+    summary?.focus();
+    expect(summary).toHaveFocus();
+    await user.click(summary!);
+    expect(details).toHaveAttribute("open");
+    expect(screen.getByText("Approved evidence excerpt.")).toBeInTheDocument();
+    expect(screen.getByText("2.0")).toBeInTheDocument();
+  });
+
+  it("renders dependency and conflict details without controls or raw IDs", async () => {
+    const user = userEvent.setup();
+    const dependency: PlanningDependencyRecord = {
+      dependencyId: "55555555-5555-4555-8555-555555555555",
+      sourceProposalId: proposalId,
+      dependencyType: "requiresReadiness",
+      target: { kind: "readinessRequirementId", readinessRequirementId: "schema" },
+      required: true,
+      rationale: "Schema readiness is required."
+    };
+    const conflict: PlanningConflictRecord = {
+      conflictId: "66666666-6666-4666-8666-666666666666",
+      projectId,
+      conflictType: "proposalVsIntake",
+      severity: "blocking",
+      status: "open",
+      involvedReferences: [{ kind: "proposalId", proposalId }],
+      explanation: "Confirmed intake conflicts with the planning item.",
+      blocking: true,
+      createdAt: timestamp
+    };
+    const { container } = render(<PlanningView project={project(planning({
+      proposals: [clarificationProposal({ proposalId })],
+      dependencies: [dependency],
+      conflicts: [conflict]
+    }))} />);
+
+    const summary = screen.getByText("Dependency and conflict details").closest("summary");
+    summary?.focus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("Requires readiness")).toBeInTheDocument();
+    expect(screen.getByText("Schema readiness is required.")).toBeInTheDocument();
+    expect(screen.getByText("Severity: Blocking")).toBeInTheDocument();
+    expect(screen.getByText("Confirmed intake conflicts with the planning item.")).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(dependency.dependencyId);
+    expect(container).not.toHaveTextContent(conflict.conflictId);
+    expect(screen.queryByRole("button", { name: /resolve conflict/i })).not.toBeInTheDocument();
+  });
+
+  it("shows a current-rule Confirmed proposal as planning-only with no decision or Apply controls", () => {
+    const confirmed = clarificationProposal({ status: "Confirmed" });
+    render(<PlanningView project={project(planning({ proposals: [confirmed] }))} />);
+
+    expect(screen.getByText("Confirmed decision")).toBeInTheDocument();
+    expect(screen.getByText("Planning decision only - no project field change available")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /confirm|answer|revise|reject|defer|not applicable|reopen|mark stale|supersede|block|resolve conflict|apply/i })).not.toBeInTheDocument();
+  });
+
+  it("shows read-only Ready to apply details for a future writable proposal without an Apply control", () => {
+    render(<PlanningView project={project(planning({
+      proposals: [writableProposal()],
+      decisions: [decision()]
+    }))} />);
+
+    expect(screen.getByText("Ready to apply")).toBeInTheDocument();
+    expect(screen.getByText("App purpose")).toBeInTheDocument();
+    expect(screen.getByText("Approved project purpose")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /apply/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Already applied and a collapsed history value disclosure without raw IDs", () => {
+    const input = project(planning({ proposals: [writableProposal()], decisions: [decision()] }));
+    input.intake.appPurpose = "Approved project purpose";
+    input.controlledApplyHistory = [{
+      applyId,
+      applySchemaVersion: CONTROLLED_APPLY_HISTORY_SCHEMA_VERSION,
+      projectId,
+      proposalId,
+      decisionId,
+      fieldKey: "appPurpose",
+      previousValue: "Prior purpose",
+      appliedValue: "Approved project purpose",
+      sourceIds: [sourceId],
+      appliedAt: timestamp,
+      outcome: "changed"
+    }];
+    const { container } = render(<PlanningView project={input} />);
+
+    expect(screen.getByText("Already applied")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Applied history" })).toBeInTheDocument();
+    expect(screen.getByText("Changed")).toBeInTheDocument();
+    const summary = screen.getByText("Show previous and applied values").closest("summary");
+    expect(summary?.closest("details")).not.toHaveAttribute("open");
+    expect(container).not.toHaveTextContent(applyId);
+    expect(container).not.toHaveTextContent(decisionId);
+    expect(container).not.toHaveTextContent(proposalId);
+    expect(container).not.toHaveTextContent(projectId);
+  });
+
+  it("renders a TTI-like unresolved clarification without a recommendation group or readiness claim", () => {
+    render(<PlanningView project={project(planning({ proposals: [clarificationProposal()] }))} />);
+
+    expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
+    expect(screen.getByText("Answer required")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ready for Codex/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("uses logical proposal headings and non-interactive cards", () => {
+    render(<PlanningView project={project(planning())} />);
+
+    const group = screen.getByRole("heading", { level: 2, name: "Questions to answer" });
+    const proposalHeading = screen.getByRole("heading", { level: 3, name: "Confirm the backend schema" });
+    const article = proposalHeading.closest("article");
+    expect(group).toBeInTheDocument();
+    expect(article).not.toHaveAttribute("role", "button");
+    expect(within(article!).queryByRole("button")).not.toBeInTheDocument();
+  });
+});

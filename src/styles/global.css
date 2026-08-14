@@ -3097,6 +3097,386 @@ tbody tr:hover {
   margin: 20px 0 0;
 }
 
+.planning-page {
+  max-width: 1120px;
+}
+
+.planning-page h1,
+.planning-page h2,
+.planning-page h3,
+.planning-page h4 {
+  letter-spacing: 0;
+}
+
+.planning-page-heading {
+  align-items: center;
+}
+
+.planning-item-count,
+.planning-group-heading > span {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.planning-issue,
+.planning-empty {
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid #f1d49f;
+  border-radius: 8px;
+  background: var(--amber-soft);
+  color: #734407;
+}
+
+.planning-empty {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.planning-issue strong,
+.planning-empty h2 {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+}
+
+.planning-issue p,
+.planning-empty p {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.planning-groups {
+  display: grid;
+  gap: 28px;
+}
+
+.planning-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 11px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+.planning-group-heading h2 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.planning-proposal-list {
+  display: grid;
+  gap: 12px;
+}
+
+.planning-proposal {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid #9ca7b8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.planning-proposal.status-proposed,
+.planning-proposal.status-revised,
+.planning-proposal.status-needs-clarification {
+  border-left-color: var(--amber);
+}
+
+.planning-proposal.status-confirmed,
+.planning-proposal.status-not-applicable {
+  border-left-color: var(--green);
+}
+
+.planning-proposal.status-blocked,
+.planning-proposal.status-stale {
+  border-left-color: var(--red);
+}
+
+.planning-proposal-header,
+.planning-proposal-badges,
+.planning-source-summary,
+.planning-history-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.planning-proposal-header > div:first-child {
+  min-width: 0;
+}
+
+.planning-target {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--blue);
+  font-size: 0.66rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.planning-proposal-header h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.planning-proposal-badges {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.planning-status,
+.planning-uncertainty {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: #eef1f5;
+  color: #465169;
+  font-size: 0.68rem;
+  font-weight: 730;
+  line-height: 1.25;
+}
+
+.planning-uncertainty.uncertainty-known {
+  background: var(--green-soft);
+  color: #086644;
+}
+
+.planning-uncertainty.uncertainty-likely,
+.planning-uncertainty.uncertainty-uncertain,
+.planning-uncertainty.uncertainty-unknown {
+  background: var(--amber-soft);
+  color: #7f4a00;
+}
+
+.planning-recommendation {
+  margin: 14px 0 0;
+  color: #35415a;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.planning-rationale,
+.planning-sources,
+.planning-apply-state {
+  margin-top: 15px;
+}
+
+.planning-apply-state {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.planning-rationale h4,
+.planning-sources h4,
+.planning-apply-state h4,
+.planning-disclosure-content h4 {
+  margin: 0 0 6px;
+  font-size: 0.76rem;
+}
+
+.planning-sources > p {
+  margin: 0;
+  color: #465169;
+  font-size: 0.76rem;
+}
+
+.planning-rationale dl,
+.planning-source-details,
+.planning-value-comparison,
+.planning-history-values {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.planning-rationale dl {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planning-rationale dl > div,
+.planning-source-details > div,
+.planning-value-comparison > div,
+.planning-history-values > div {
+  min-width: 0;
+}
+
+.planning-rationale dt,
+.planning-source-details dt,
+.planning-value-comparison dt,
+.planning-history-values dt {
+  margin-bottom: 2px;
+  color: var(--subtle);
+  font-size: 0.62rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.planning-rationale dd,
+.planning-source-details dd,
+.planning-value-comparison dd,
+.planning-history-values dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #3f4858;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.planning-sources > ul,
+.planning-relationship-list,
+.planning-history > ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planning-sources > ul > li {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.planning-sources > ul > li:last-child {
+  padding-bottom: 0;
+}
+
+.planning-sources > ul > li.is-unavailable {
+  color: #8b2f34;
+}
+
+.planning-source-summary {
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.planning-source-summary strong {
+  margin-right: auto;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+
+.planning-source-summary span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.planning-disclosure {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.planning-disclosure > summary {
+  width: fit-content;
+  padding: 10px 4px 2px 0;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.planning-disclosure-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 12px;
+}
+
+.planning-relationship-list li {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.planning-relationship-list strong,
+.planning-relationship-list span {
+  display: block;
+  font-size: 0.7rem;
+}
+
+.planning-relationship-list span {
+  color: var(--muted);
+}
+
+.planning-relationship-list p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+  color: #465169;
+  font-size: 0.7rem;
+}
+
+.planning-apply-state {
+  border-color: #c9dcff;
+  background: #f7faff;
+}
+
+.planning-apply-state.apply-planningOnly {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.planning-apply-state > strong {
+  display: block;
+  font-size: 0.76rem;
+}
+
+.planning-value-comparison,
+.planning-history-values {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.planning-history {
+  margin-top: 30px;
+}
+
+.planning-history-item {
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.planning-history-summary > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.planning-history-summary > div:last-child {
+  justify-items: end;
+}
+
+.planning-history-summary strong {
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+}
+
+.planning-history-summary span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 @media (max-width: 1120px) {
   .package-review-summary > dl {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3195,7 +3575,7 @@ tbody tr:hover {
 
   .nav-list {
     display: grid;
-    grid-template-columns: repeat(5, minmax(105px, 1fr));
+    grid-template-columns: repeat(6, minmax(105px, 1fr));
     overflow-x: auto;
     gap: 4px;
     padding: 0 10px 8px;
@@ -3271,6 +3651,11 @@ tbody tr:hover {
 
   .project-management-summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .planning-rationale dl,
+  .planning-disclosure-content {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -3593,12 +3978,36 @@ tbody tr:hover {
   .tree-folder small {
     display: none;
   }
+
+  .planning-proposal-header,
+  .planning-source-summary,
+  .planning-history-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .planning-proposal-badges {
+    justify-content: flex-start;
+  }
+
+  .planning-source-summary strong {
+    margin-right: 0;
+  }
+
+  .planning-value-comparison,
+  .planning-history-values {
+    grid-template-columns: 1fr;
+  }
+
+  .planning-history-summary > div:last-child {
+    justify-items: start;
+  }
 }
 
 @media (max-width: 480px) {
   .nav-list {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    overflow-x: visible;
+    grid-template-columns: repeat(6, minmax(88px, 1fr));
+    overflow-x: auto;
   }
 
   .nav-item {
@@ -3609,6 +4018,17 @@ tbody tr:hover {
     line-height: 1.1;
     text-align: center;
     white-space: normal;
+  }
+
+  .planning-proposal {
+    padding: 14px;
+  }
+
+  .planning-status,
+  .planning-uncertainty,
+  .planning-disclosure > summary {
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 }
 
