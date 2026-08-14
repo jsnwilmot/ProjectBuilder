@@ -146,6 +146,33 @@ describe("PlanningView", () => {
     expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
   });
 
+  it("shows only the safe issue presentation for partially invalid planning", () => {
+    const survivor = clarificationProposal({ status: "Confirmed" });
+    const invalidSource = {
+      ...source({ sourceId: "11111111-1111-4111-8111-111111111112" }),
+      authority: "invalid-authority"
+    } as unknown as PlanningSourceReference;
+    const input = project(planning({
+      sources: [source(), invalidSource],
+      proposals: [survivor]
+    }));
+
+    render(<PlanningView project={input} />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
+    expect(screen.getByText("Some planning information cannot be displayed safely.")).toBeInTheDocument();
+    expect(screen.getByText("Planning information is unavailable or incomplete because saved planning data could not be validated.")).toBeInTheDocument();
+    expect(screen.queryByText(survivor.title)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Questions to answer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Confirmed decisions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Applied history" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready to apply")).not.toBeInTheDocument();
+    expect(screen.queryByText("Planning decision only - no project field change available")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^\d+ planning items?$/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
   it("renders exact groups, status, uncertainty, recommendation, rationale, and consequence", () => {
     const second = clarificationProposal({
       proposalId: "22222222-2222-4222-8222-222222222223",
@@ -277,6 +304,21 @@ describe("PlanningView", () => {
     expect(container).not.toHaveTextContent(decisionId);
     expect(container).not.toHaveTextContent(proposalId);
     expect(container).not.toHaveTextContent(projectId);
+  });
+
+  it("keeps valid planning visible while warning about invalid controlled Apply history", () => {
+    const input = project(planning());
+    input.controlledApplyHistory = [
+      { applySchemaVersion: "wrong" } as unknown as ProjectRecord["controlledApplyHistory"][number]
+    ];
+
+    render(<PlanningView project={input} />);
+
+    expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confirm the backend schema" })).toBeInTheDocument();
+    expect(screen.getByText("Some planning information cannot be displayed safely.")).toBeInTheDocument();
+    expect(screen.getByText("Applied history is unavailable because saved history could not be validated.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Applied history" })).not.toBeInTheDocument();
   });
 
   it("renders a TTI-like unresolved clarification without a recommendation group or readiness claim", () => {

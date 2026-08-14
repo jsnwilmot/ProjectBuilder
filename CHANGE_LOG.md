@@ -1,5 +1,56 @@
 # Change Log
 
+## 2026-08-14 - Phase 5C.3B Architect Correction 1 - Fail Closed on Partially Invalid Planning
+
+### Summary
+
+- Corrected the read-only Planning view model to return immediately when planning normalization reports any issue.
+- Prevented normalized surviving proposals, sources, dependencies, conflicts, Apply states, and history from being presented as a partial valid plan.
+- Invalid planning now exposes only the existing safe generic issue presentation, with empty groups/history, a zero internal proposal count, and no normal planning-item count badge.
+- Preserved valid planning presentation when controlled Apply history alone is invalid; proposal groups remain readable while invalid history is hidden behind a safe warning.
+- Preserved valid-planning navigation, lifecycle grouping, ordering, informational Apply states, source/history privacy, and zero decision or Apply controls.
+- Added no repository, persistence, readiness, or output behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningUiViewModel.ts` - fails closed before deriving any presentation from partially normalized planning.
+- `src/components/Planning/PlanningView.tsx` - suppresses normal count, groups, and history whenever model state is invalid.
+- `src/tests/planningUiViewModel.test.ts` - adds partial-normalization and invalid-history-separation regressions and strengthens unsupported-schema assertions.
+- `src/tests/PlanningView.test.tsx` - verifies partial-corruption UI suppression and valid-planning/invalid-history presentation.
+- `CHANGE_LOG.md` - records Architect Correction 1 and validation.
+- `TEST_PLAN.md` - records correction-specific and complete regression evidence.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; reported the existing `whatwg-encoding` deprecation and `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused Planning view-model and view tests passed (`2` files, `44` tests); App navigation passed (`1` file, `15` tests).
+- Planning regressions passed (`3` files, `201` tests); clarification regressions passed (`13` files, `229` tests).
+- Controlled Apply regressions passed (`6` files, `240` tests); repository regressions passed (`2` files, `173` tests).
+- Readiness/client-review regressions passed (`4` files, `29` tests); output/export regressions passed (`6` files, `136` tests).
+- `npm.cmd test`: passed (`59` unit/integration files, `2411` tests; `7` UI files, `64` tests; `66` combined files, `2475` tests).
+- `npm.cmd run test:coverage`: passed (`66` combined files, `2475` tests) with `90.20%` statements, `82.01%` branches, `95.33%` functions, and `93.97%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
+### Issues found
+
+- Development/tooling dependencies retain `2` moderate and `4` high audit advisories. Dependency remediation remains outside the authorized correction scope.
+
+### Scope exclusions
+
+- No navigation, styling, lifecycle mapping, ordering, rule, repository, persistence, readiness, output, dependency, Node, CI, TTI blocker, deployment, main-integration, pull-request, tag, or release change was made.
+
 ## 2026-08-14 - Phase 5C.3B Read-Only Architect-Assisted Planning Workspace
 
 ### Summary

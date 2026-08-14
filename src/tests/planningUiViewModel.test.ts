@@ -7,6 +7,7 @@ import {
   PLANNING_RULE_SET_ID,
   PLANNING_RULE_SET_VERSION,
   PLANNING_SCHEMA_VERSION,
+  normalizeProjectPlanningState,
   type PlanningConflictRecord,
   type PlanningDecisionRecord,
   type PlanningDependencyRecord,
@@ -191,6 +192,42 @@ describe("buildPlanningUiViewModel", () => {
     expect(model.issues).toEqual([
       expect.objectContaining({ code: "invalidPlanning", message: expect.stringContaining("could not be validated") })
     ]);
+    expect(model.groups).toEqual([]);
+    expect(model.history).toEqual([]);
+    expect(model.proposalCount).toBe(0);
+    expect(JSON.stringify(input)).toBe(before);
+  });
+
+  it("fully fails closed when normalization preserves a valid proposal beside an invalid source", () => {
+    const survivor = clarificationProposal("pp.canvas.schema.confirmation", "Confirmed");
+    const invalidSource = {
+      ...source({ sourceId: uuid(2) }),
+      authority: "invalid-authority"
+    } as unknown as PlanningSourceReference;
+    const input = project(planning({
+      sources: [source(), invalidSource],
+      proposals: [survivor]
+    }));
+    const before = JSON.stringify(input);
+    const normalized = normalizeProjectPlanningState(input.planning, projectId);
+
+    expect(normalized.issues.length).toBeGreaterThan(0);
+    expect(normalized.planning.proposals.map((entry) => entry.title)).toContain(survivor.title);
+
+    const model = buildPlanningUiViewModel(input);
+
+    expect(model).toEqual({
+      state: "invalid",
+      groups: [],
+      history: [],
+      issues: [{
+        code: "invalidPlanning",
+        message: "Planning information is unavailable or incomplete because saved planning data could not be validated."
+      }],
+      proposalCount: 0
+    });
+    expect(JSON.stringify(model)).not.toContain(survivor.title);
+    expect(JSON.stringify(model)).not.toMatch(/planningOnly|ready|alreadyApplied|blocked/);
     expect(JSON.stringify(input)).toBe(before);
   });
 
@@ -482,6 +519,26 @@ describe("buildPlanningUiViewModel", () => {
       appliedValue: "Approved project purpose"
     });
     expect(JSON.stringify(presented)).not.toMatch(/actor|username|email/i);
+  });
+
+  it("keeps valid planning readable while hiding invalid controlled Apply history", () => {
+    const input = project(planning({ proposals: [clarificationProposal()] }));
+    input.controlledApplyHistory = [
+      { applySchemaVersion: "wrong" } as unknown as PlanningControlledApplyHistoryRecord
+    ];
+    const before = JSON.stringify(input);
+
+    const model = buildPlanningUiViewModel(input);
+
+    expect(model.state).toBe("ready");
+    expect(model.groups[0].label).toBe("Questions to answer");
+    expect(model.groups[0].proposals[0].title).toBe("Confirm the backend schema");
+    expect(model.history).toEqual([]);
+    expect(model.issues).toEqual([{
+      code: "invalidHistory",
+      message: "Applied history is unavailable because saved history could not be validated."
+    }]);
+    expect(JSON.stringify(input)).toBe(before);
   });
 
   it("does not mutate nested planning, source, dependency, conflict, or history input", () => {

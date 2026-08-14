@@ -29,9 +29,11 @@ export function PlanningView({ project }: PlanningViewProps) {
           <h1>Architecture Planning</h1>
           <p>Review persisted planning recommendations, questions, evidence, conflicts, and application history.</p>
         </div>
-        <span className="planning-item-count">
-          {model.proposalCount} planning item{model.proposalCount === 1 ? "" : "s"}
-        </span>
+        {model.state !== "invalid" ? (
+          <span className="planning-item-count">
+            {model.proposalCount} planning item{model.proposalCount === 1 ? "" : "s"}
+          </span>
+        ) : null}
       </div>
 
       {model.issues.length > 0 ? (
@@ -48,7 +50,7 @@ export function PlanningView({ project }: PlanningViewProps) {
         </section>
       ) : null}
 
-      {model.groups.length > 0 ? (
+      {model.state !== "invalid" && model.groups.length > 0 ? (
         <div className="planning-groups">
           {model.groups.map((group) => (
             <section className="planning-group" aria-labelledby={`planning-group-${group.id}`} key={group.id}>
@@ -64,7 +66,7 @@ export function PlanningView({ project }: PlanningViewProps) {
         </div>
       ) : null}
 
-      {model.history.length > 0 ? <PlanningHistory history={model.history} /> : null}
+      {model.state !== "invalid" && model.history.length > 0 ? <PlanningHistory history={model.history} /> : null}
     </main>
   );
 }

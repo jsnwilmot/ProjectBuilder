@@ -1,5 +1,27 @@
 # Test Plan
 
+## 2026-08-14 Phase 5C.3B Architect Correction 1 fail-closed planning regressions
+
+- Partial-normalization corruption coverage constructs one valid confirmed clarification proposal plus a malformed source record, proves normalization reports issues while retaining the valid proposal, and verifies the view model returns only `state: invalid`, empty groups/history, one safe `invalidPlanning` issue, and `proposalCount: 0` without mutating input.
+- Invalid UI fail-closed coverage verifies the page heading and safe issue notice remain visible while the surviving proposal title, all lifecycle headings, Apply states, applied history, normal item-count badge, decision controls, and Apply controls remain absent.
+- Unsupported-schema coverage continues to verify malformed planning fails closed without mutation or repair and now explicitly verifies empty groups/history plus a zero proposal count.
+- Valid-planning regression coverage preserves lifecycle grouping, empty-group omission, registered-rule priority, unknown-proposal anchors, source privacy, clarification-only planning states, future writable informational Apply states, and valid controlled Apply history.
+- Invalid-history separation coverage verifies valid proposal groups remain readable when controlled Apply history normalization fails, while history stays hidden, a safe `invalidHistory` warning is visible, and no persisted data is repaired.
+- Static boundary coverage verifies no clarification writer, repository Apply, readiness mutation, output generation, dependency change, Node/CI maintenance, Wrangler, or deployment behavior was introduced.
+- `npm.cmd ci`: passed; reported the existing `whatwg-encoding` deprecation and `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused correction tests passed (`2` files, `44` tests); App navigation regression passed (`1` file, `15` tests).
+- Planning regressions passed (`3` files, `201` tests); clarification regressions passed (`13` files, `229` tests).
+- Controlled Apply regressions passed (`6` files, `240` tests); repository regressions passed (`2` files, `173` tests).
+- Readiness/client-review regressions passed (`4` files, `29` tests); output/export regressions passed (`6` files, `136` tests).
+- All App UI regressions passed (`7` files, `64` tests).
+- `npm.cmd test`: passed (`59` unit/integration files, `2411` tests; `7` UI files, `64` tests; `66` combined files, `2475` tests).
+- `npm.cmd run test:coverage`: passed (`66` combined files, `2475` tests) with `90.20%` statements, `82.01%` branches, `95.33%` functions, and `93.97%` lines; `planningUiViewModel.ts` reached `94.39%` statements, `78.12%` branches, `100%` functions, and `94.79%` lines, while `PlanningView.tsx` reached `95.23%` statements, `69.84%` branches, `94.11%` functions, and `95%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 Phase 5C.3B read-only Planning workspace
 
 - View-model coverage verifies empty and malformed planning states, all ten lifecycle statuses, exact five-group mapping, empty-group omission, deterministic registered-rule priority, persisted-order fallback for unregistered proposals, all four uncertainty states, and no input mutation.

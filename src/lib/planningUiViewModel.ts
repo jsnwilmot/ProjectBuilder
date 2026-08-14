@@ -162,17 +162,24 @@ const DEPENDENCY_TYPE_LABELS: Record<PlanningDependencyRecord["dependencyType"],
 export function buildPlanningUiViewModel(project: ProjectRecord): PlanningUiViewModel {
   const inputPlanning = project.planning ?? createEmptyProjectPlanningState();
   const normalized = normalizeProjectPlanningState(inputPlanning, project.identity.id);
-  const issues: PlanningUiIssue[] = normalized.issues.length > 0
-    ? [{
+  if (normalized.issues.length > 0) {
+    return {
+      state: "invalid",
+      groups: [],
+      history: [],
+      issues: [{
         code: "invalidPlanning",
         message: "Planning information is unavailable or incomplete because saved planning data could not be validated."
-      }]
-    : [];
+      }],
+      proposalCount: 0
+    };
+  }
+
+  const issues: PlanningUiIssue[] = [];
   const planning = normalized.planning;
   const proposalsById = new Map(planning.proposals.map((proposal) => [proposal.proposalId, proposal]));
   const sourcesById = new Map(planning.sources.map((source) => [source.sourceId, source]));
   const conflictsById = new Map(planning.conflicts.map((conflict) => [conflict.conflictId, conflict]));
-  const allowApplyAnalysis = normalized.issues.length === 0;
 
   const grouped = new Map<PlanningUiGroupId, Array<{ proposal: PlanningProposalRecord; index: number; priority?: number }>>();
   for (const [index, proposal] of planning.proposals.entries()) {
@@ -196,21 +203,16 @@ export function buildPlanningUiViewModel(project: ProjectRecord): PlanningUiView
         planning.conflicts,
         proposalsById,
         sourcesById,
-        conflictsById,
-        allowApplyAnalysis
+        conflictsById
       ))
     }];
   });
 
-  const history = buildHistory(project, planning.proposals, issues, normalized.issues.length === 0);
+  const history = buildHistory(project, planning.proposals, issues);
   const proposalCount = planning.proposals.length;
 
   return {
-    state: issues.some((entry) => entry.code === "invalidPlanning")
-      ? "invalid"
-      : proposalCount === 0
-        ? "empty"
-        : "ready",
+    state: proposalCount === 0 ? "empty" : "ready",
     ...(proposalCount === 0 && issues.length === 0
       ? { emptyMessage: "No planning items are available for this project yet." }
       : {}),
@@ -248,8 +250,7 @@ function buildProposal(
   conflicts: readonly PlanningConflictRecord[],
   proposalsById: ReadonlyMap<string, PlanningProposalRecord>,
   sourcesById: ReadonlyMap<string, PlanningSourceReference>,
-  conflictsById: ReadonlyMap<string, PlanningConflictRecord>,
-  allowApplyAnalysis: boolean
+  conflictsById: ReadonlyMap<string, PlanningConflictRecord>
 ): PlanningUiProposal {
   return {
     key: proposal.proposalId,
@@ -268,7 +269,7 @@ function buildProposal(
     conflicts: conflictsForProposal(proposal, conflicts, conflictsById)
       .map((conflict) => buildConflict(conflict, proposalsById)),
     ...(proposal.status === "Confirmed"
-      ? { applyState: buildApplyState(project, proposal, allowApplyAnalysis) }
+      ? { applyState: buildApplyState(project, proposal) }
       : {})
   };
 }
@@ -369,20 +370,12 @@ function buildConflict(
 
 function buildApplyState(
   project: ProjectRecord,
-  proposal: PlanningProposalRecord,
-  allowAnalysis: boolean
+  proposal: PlanningProposalRecord
 ): PlanningUiApplyState {
   if (proposal.target.kind === "readinessRequirement" && proposal.target.operation === "clarificationOnly") {
     return {
       state: "planningOnly",
       label: "Planning decision only - no project field change available"
-    };
-  }
-  if (!allowAnalysis) {
-    return {
-      state: "blocked",
-      label: "Not currently available to apply",
-      details: ["Saved planning information must be validated before Apply availability can be assessed."]
     };
   }
   const preparation = preparePlanningControlledApplyTransaction({ project, proposalId: proposal.proposalId });
@@ -416,10 +409,9 @@ function humanizePreparationIssues(
 function buildHistory(
   project: ProjectRecord,
   proposals: readonly PlanningProposalRecord[],
-  issues: PlanningUiIssue[],
-  planningValid: boolean
+  issues: PlanningUiIssue[]
 ): PlanningUiHistoryItem[] {
-  if (!planningValid || project.controlledApplyHistory.length === 0) return [];
+  if (project.controlledApplyHistory.length === 0) return [];
   const normalized = normalizePlanningControlledApplyHistory({
     projectId: project.identity.id,
     planning: project.planning,
