@@ -1,5 +1,51 @@
 # Change Log
 
+## 2026-08-13 - Phase 5C.2.3D.3C.3E Controlled Apply Repository Transaction Implementation
+
+### Summary
+
+- Added the explicit `applyConfirmedPlanningProposal` repository transaction API for one confirmed planning proposal and one current storage-v5 project record.
+- Added a strict private raw-state reader that reads only `STORAGE_KEY`, validates exact version 5 and canonical migrated structure, and does not synchronize, migrate, or write storage.
+- Added baseline, latest-state, commit-state, destination, and final raw-string concurrency guards that fail closed before persistence when controlled evidence changes.
+- Added changed and unchanged transaction materialization with exact D.3C.3A preparation, D.3C.3C finalization, project-field, history, review invalidation, status, and derived-count semantics.
+- Added one controlled direct `setItem` persistence boundary with exactly one write on successful changed or unchanged application, no write for already-applied or blocked outcomes, and `persistenceFailed` only after an attempted write throws.
+- Preserved unrelated current storage state, project ordering, active-project identity, existing repository write paths, TTI Draft blockers, and all readiness/output authority flags.
+
+### Files created
+
+- `src/tests/planningControlledApplyRepository.test.ts` - covers the controlled repository transaction, concurrency guards, mutation semantics, persistence behavior, evidence binding, and isolation boundaries.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - implements the controlled apply repository transaction and its strict private read/write boundaries.
+- `CHANGE_LOG.md` - records the repository transaction implementation and validation.
+- `TEST_PLAN.md` - records the focused, regression, full-suite, coverage, build, and audit results.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- Focused controlled repository transaction tests passed (`1` file, `70` tests).
+- Controlled apply and repository regressions passed (`7` files, `339` tests).
+- `npm.cmd test`: passed (`57` unit/integration files, `2365` tests; `7` UI files, `61` tests; `64` combined files, `2426` tests).
+- `npm.cmd run test:coverage`: passed (`64` combined files, `2426` tests) with `90.13%` statements, `82.02%` branches, `95.28%` functions, and `93.93%` lines.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); dependency remediation remains outside this phase.
+
+### Issues found
+
+- Development/tooling dependencies retain `2` moderate and `4` high audit advisories. Dependency remediation is outside the authorized phase scope.
+
+### Scope exclusions
+
+- No explicit Apply UI/action, rollback, current clarification-rule mapping, actor attribution, TTI blocker resolution, remote persistence, external AI, dependency remediation, Node/CI maintenance, deployment, main integration, tag, release, or pull request was added.
+
 ## 2026-08-13 - Phase 5C.2.3D.3C.3C Architect Correction 1 - Validate Apply Chronology Before UUID Allocation
 
 ### Summary

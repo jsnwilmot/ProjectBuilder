@@ -1,5 +1,30 @@
 # Test Plan
 
+## 2026-08-13 Phase 5C.2.3D.3C.3E controlled apply repository transaction
+
+- Controlled-reader coverage verifies only `STORAGE_KEY` is read; missing, unavailable, corrupt, non-object, non-v5, migration-invalid, and noncanonical raw states fail closed without synchronization or writes.
+- Baseline coverage verifies exact unique project resolution, current D.3C.3A preparation, blocked propagation, already-applied short-circuiting, and zero runtime or persistence activity for non-ready outcomes.
+- Latest-state coverage verifies the repository rereads immediately before finalization and blocks missing/duplicate targets, controlled snapshot changes, destination-value changes, and current-rule non-writability.
+- Runtime/finalizer coverage verifies refreshed current evidence is supplied to D.3C.3C, finalizer blockers and unexpected already-applied outcomes fail closed, and all returned proposal, decision, source, target, destination, history, and false-authority evidence is exactly bound.
+- Changed-materialization coverage verifies one exact `applyProjectFieldChanges` call, authoritative cloned candidate history, `updatedAt` and package invalidation, preserved documents, one explicit review derivation timestamp, approved derived fields, canonical status, and forced `Review needed`.
+- Unchanged-materialization coverage verifies only apply history and `updatedAt` change while project content, review evidence, generated documents, package timestamp, planning state, and power-platform metadata remain structurally unchanged.
+- Commit-guard coverage verifies a third strict current-state read blocks target identity, controlled snapshot, destination, and raw-state races while preserving unrelated concurrent project, ordering, and active-project changes in the committed state.
+- Persistence coverage verifies the controlled writer serializes directly, calls `setItem` exactly once for changed and unchanged success, never writes for blocked/already-applied outcomes, preserves warning semantics, and reports `persistenceFailed` only after an attempted write throws.
+- Final raw-string coverage verifies any storage change between the commit-state read and write returns `storageChangedBeforeWrite`, including final-guard read failure, with no write.
+- Isolation coverage verifies no use of `loadStorageState`, `updateProject`, `saveStorageState`, `writeCurrentStorageState`, synchronization, hidden wall-clock fallback, UI, rollback, actor attribution, readiness/output authority, remote persistence, external AI, Wrangler, or deployment behavior.
+- Rule and TTI-safety coverage verifies all current 11 clarification-only rules and `appType` remain non-writable and no TTI Draft blocker is resolved or weakened.
+- Focused controlled repository transaction tests passed (`1` file, `70` tests).
+- Controlled apply and repository regressions passed (`7` files, `339` tests).
+- `npm.cmd test`: passed (`57` unit/integration files, `2365` tests; `7` UI files, `61` tests; `64` combined files, `2426` tests).
+- `npm.cmd run test:coverage`: passed (`64` combined files, `2426` tests) with `90.13%` statements, `82.02%` branches, `95.28%` functions, and `93.93%` lines; `src/lib/projectRepository.ts` reached `93.62%` statements, `90.97%` branches, `95.28%` functions, and `93.79%` lines.
+- `npm.cmd ci`: passed; install output reported known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with known development/tooling advisories (`6` vulnerabilities: `2` moderate, `4` high); no remediation was performed because dependency changes are outside scope.
+- No Node runtime deprecation warning was observed in the executed validation commands; remote CI was not run and remains outside this phase.
+
 ## 2026-08-13 Phase 5C.2.3D.3C.3C Architect Correction 1 chronology-before-UUID regression
 
 - Earlier-chronology coverage verifies confirmation at `2026-08-12T04:00:00.000Z` and apply at `2026-08-12T03:59:59.999Z` return finalization-level `applyPrecedesConfirmation`, call `uuid()` zero times, and expose no candidate record, candidate history, or apply ID.

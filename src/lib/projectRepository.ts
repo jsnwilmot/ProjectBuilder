@@ -1,11 +1,11 @@
 import { createProject as createProjectRecord, type CreateProjectOptions } from "./createProject";
-import { applyProjectFieldChanges } from "./projectFields";
+import { applyProjectFieldChanges, getProjectFieldValue } from "./projectFields";
 import {
   getGeneratedFileCount,
   getProjectDisplayStatus,
   getReadinessSections
 } from "./projectSelectors";
-import { EMPTY_STORAGE_STATE, migrateStorageState } from "./storageVersion";
+import { CURRENT_STORAGE_VERSION, EMPTY_STORAGE_STATE, migrateStorageState } from "./storageVersion";
 import { getOutstandingFields } from "./validateIntake";
 import {
   deriveReviewItems,
@@ -63,6 +63,18 @@ import {
   type PlanningClarificationDecisionRepositoryResult,
   type PlanningClarificationDecisionRepositoryRuntime
 } from "./planningClarificationDecisionMaterialization";
+import {
+  preparePlanningControlledApplyTransaction,
+  type PlanningControlledApplyTransactionPreparationIssue,
+  type ReadyPlanningControlledApplyTransactionPlan
+} from "./planningControlledApplyTransactionPreparation";
+import {
+  finalizePlanningControlledApplyTransaction,
+  type FinalizedPlanningControlledApplyTransactionEvidence,
+  type PlanningControlledApplyTransactionFinalizationIssue,
+  type PlanningControlledApplyTransactionFinalizationRuntime
+} from "./planningControlledApplyTransactionFinalization";
+import type { PlanningControlledApplyHistoryRecord } from "./planningControlledApplyHistory";
 import type {
   GeneratedDocument,
   ProjectInputField,
@@ -87,6 +99,81 @@ export interface StorageAdapter {
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
+
+export type PlanningControlledApplyRepositoryIssueCode =
+  | "invalidProjectId"
+  | "storageUnavailable"
+  | "storageReadFailed"
+  | "corruptStorage"
+  | "storageVersionMismatch"
+  | "noncanonicalStorage"
+  | "ambiguousProjectIdentity"
+  | "preparationBlocked"
+  | "snapshotUnavailable"
+  | "projectChangedDuringApply"
+  | "destinationChangedDuringApply"
+  | "finalizationBlocked"
+  | "finalizationStateMismatch"
+  | "finalizationEvidenceMismatch"
+  | "candidateValidationFailed"
+  | "projectChangedBeforeWrite"
+  | "destinationChangedBeforeWrite"
+  | "storageChangedBeforeWrite"
+  | "writeSerializationFailed"
+  | "persistenceFailed";
+
+export interface PlanningControlledApplyRepositoryIssue {
+  readonly code: PlanningControlledApplyRepositoryIssueCode;
+  readonly message: string;
+  readonly preparationIssues?: readonly PlanningControlledApplyTransactionPreparationIssue[];
+  readonly finalizationIssues?: readonly PlanningControlledApplyTransactionFinalizationIssue[];
+}
+
+export interface PlanningControlledApplyRepositorySuccessEvidence {
+  readonly projectId: string;
+  readonly proposalId: string;
+  readonly decisionId: string;
+  readonly fieldKey: ProjectInputField;
+  readonly applyId: string;
+  readonly appliedAt: string;
+  readonly historyOutcome: "changed" | "unchanged";
+}
+
+export interface PlanningControlledApplyRepositoryAlreadyAppliedEvidence {
+  readonly projectId: string;
+  readonly proposalId: string;
+  readonly decisionId: string;
+  readonly fieldKey: ProjectInputField;
+  readonly existingApplyId: string;
+}
+
+export type PlanningControlledApplyRepositoryResult =
+  | {
+      readonly outcome: "appliedChanged" | "appliedUnchanged";
+      readonly issues: readonly [];
+      readonly evidence: PlanningControlledApplyRepositorySuccessEvidence;
+    }
+  | {
+      readonly outcome: "alreadyApplied";
+      readonly issues: readonly [];
+      readonly evidence: PlanningControlledApplyRepositoryAlreadyAppliedEvidence;
+    }
+  | {
+      readonly outcome: "blocked";
+      readonly issues: readonly PlanningControlledApplyRepositoryIssue[];
+      readonly evidence?: undefined;
+    }
+  | {
+      readonly outcome: "projectNotFound";
+      readonly projectId: string;
+      readonly issues: readonly [];
+      readonly evidence?: undefined;
+    }
+  | {
+      readonly outcome: "persistenceFailed";
+      readonly issues: readonly PlanningControlledApplyRepositoryIssue[];
+      readonly evidence?: undefined;
+    };
 
 const unavailableStorage: StorageAdapter = {
   getItem: () => null,
@@ -713,6 +800,602 @@ export async function materializeProjectPlanningClarificationHumanDecision(
     projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
   }, storage);
   return wrote ? finalized.result : persistenceFailedDecisionResult(projectId);
+}
+
+interface ControlledCurrentStorageRead {
+  state: StorageState;
+  raw: string;
+}
+
+type ControlledCurrentStorageReadResult =
+  | { outcome: "loaded"; value: ControlledCurrentStorageRead }
+  | { outcome: "missing" }
+  | { outcome: "blocked"; issue: PlanningControlledApplyRepositoryIssue };
+
+type ControlledProjectResolution =
+  | { outcome: "found"; project: ProjectRecord }
+  | { outcome: "missing" }
+  | { outcome: "ambiguous" };
+
+type ControlledWriteResult =
+  | { outcome: "written" }
+  | { outcome: "blocked"; issue: PlanningControlledApplyRepositoryIssue }
+  | { outcome: "persistenceFailed"; issue: PlanningControlledApplyRepositoryIssue };
+
+function controlledIssue(
+  code: PlanningControlledApplyRepositoryIssueCode,
+  message: string,
+  details: Partial<Pick<PlanningControlledApplyRepositoryIssue, "preparationIssues" | "finalizationIssues">> = {}
+): PlanningControlledApplyRepositoryIssue {
+  return { code, message, ...details };
+}
+
+function controlledBlocked(
+  issue: PlanningControlledApplyRepositoryIssue
+): PlanningControlledApplyRepositoryResult {
+  return { outcome: "blocked", issues: [issue] };
+}
+
+function controlledProjectNotFound(projectId: string): PlanningControlledApplyRepositoryResult {
+  return { outcome: "projectNotFound", projectId, issues: [] };
+}
+
+function readControlledCurrentStorageState(storage: StorageAdapter): ControlledCurrentStorageReadResult {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("storageUnavailable", "Controlled Apply cannot read browser storage in this context.")
+    };
+  }
+
+  let raw: string | null;
+  try {
+    raw = storage.getItem(STORAGE_KEY);
+  } catch {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("storageReadFailed", "Controlled Apply could not read the current repository state.")
+    };
+  }
+  if (raw === null) return { outcome: "missing" };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("corruptStorage", "Controlled Apply found corrupt JSON in the current repository state.")
+    };
+  }
+  if (!isPlainRecord(parsed)) {
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("corruptStorage", "Controlled Apply requires the current repository state to be a JSON object.")
+    };
+  }
+  if (parsed.version !== CURRENT_STORAGE_VERSION) {
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("storageVersionMismatch", `Controlled Apply requires storage version ${CURRENT_STORAGE_VERSION}.`)
+    };
+  }
+
+  let normalized: StorageState;
+  let normalizedPersisted: StorageState;
+  try {
+    normalized = migrateStorageState(parsed);
+    normalizedPersisted = JSON.parse(JSON.stringify(normalized)) as StorageState;
+  } catch {
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("noncanonicalStorage", "Controlled Apply could not validate the current repository state as canonical.")
+    };
+  }
+  if (!structurallyEquivalent(parsed, normalizedPersisted)) {
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("noncanonicalStorage", "Controlled Apply requires a canonical current-version repository state.")
+    };
+  }
+
+  return { outcome: "loaded", value: { state: normalizedPersisted, raw } };
+}
+
+function readControlledRawStorageValue(
+  storage: StorageAdapter
+): { outcome: "read"; raw: string | null } | { outcome: "blocked"; issue: PlanningControlledApplyRepositoryIssue } {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("storageUnavailable", "Controlled Apply cannot complete its final storage guard in this context.")
+    };
+  }
+  try {
+    return { outcome: "read", raw: storage.getItem(STORAGE_KEY) };
+  } catch {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("storageReadFailed", "Controlled Apply could not complete its final storage guard.")
+    };
+  }
+}
+
+function resolveControlledProject(state: StorageState, projectId: string): ControlledProjectResolution {
+  const matches = state.projects.filter((project) => project.identity.id === projectId);
+  if (matches.length === 0) return { outcome: "missing" };
+  if (matches.length !== 1) return { outcome: "ambiguous" };
+  return { outcome: "found", project: matches[0] };
+}
+
+function serializeControlledProject(project: ProjectRecord): string | null {
+  try {
+    const serialized = JSON.stringify(project);
+    return typeof serialized === "string" ? serialized : null;
+  } catch {
+    return null;
+  }
+}
+
+function cloneControlledHistory(
+  history: readonly PlanningControlledApplyHistoryRecord[]
+): PlanningControlledApplyHistoryRecord[] {
+  return history.map((record) => ({ ...record, sourceIds: [...record.sourceIds] }));
+}
+
+function cloneControlledPreparationIssues(
+  issues: readonly PlanningControlledApplyTransactionPreparationIssue[]
+): PlanningControlledApplyTransactionPreparationIssue[] {
+  return issues.map((entry) => ({
+    ...entry,
+    destinationIssues: entry.destinationIssues?.map((destinationIssue) => ({
+      ...destinationIssue,
+      candidateIssues: destinationIssue.candidateIssues?.map((candidateIssue) => ({ ...candidateIssue }))
+    })),
+    historyIssues: entry.historyIssues?.map((historyIssue) => ({ ...historyIssue }))
+  }));
+}
+
+function cloneControlledFinalizationIssues(
+  issues: readonly PlanningControlledApplyTransactionFinalizationIssue[]
+): PlanningControlledApplyTransactionFinalizationIssue[] {
+  return issues.map((entry) => ({
+    ...entry,
+    preparationIssues: entry.preparationIssues
+      ? cloneControlledPreparationIssues(entry.preparationIssues)
+      : undefined,
+    historyIssues: entry.historyIssues?.map((historyIssue) => ({ ...historyIssue }))
+  }));
+}
+
+function cloneReadyControlledPlan(
+  plan: ReadyPlanningControlledApplyTransactionPlan
+): ReadyPlanningControlledApplyTransactionPlan {
+  return { ...plan, sourceIds: [...plan.sourceIds] };
+}
+
+function buildChangedControlledProject(
+  latestProject: ProjectRecord,
+  evidence: FinalizedPlanningControlledApplyTransactionEvidence,
+  candidateHistory: PlanningControlledApplyHistoryRecord[]
+): ProjectRecord {
+  const changed = applyProjectFieldChanges(latestProject, {
+    [evidence.fieldKey]: evidence.appliedValue
+  });
+  const seeded: ProjectRecord = {
+    ...changed,
+    controlledApplyHistory: candidateHistory,
+    updatedAt: evidence.appliedAt,
+    packageGeneratedAt: null,
+    status: latestProject.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started",
+    reviewStatus: "Review needed"
+  };
+  const reviewItems = deriveReviewItems(seeded, evidence.appliedAt);
+  const reviewProject = { ...seeded, reviewItems };
+  const unresolvedReviewFields = [...new Set(
+    reviewItems.filter(reviewItemBlocksReadiness).map((item) => item.fieldKey)
+  )];
+  const derived: ProjectRecord = {
+    ...reviewProject,
+    generatedFileCount: getGeneratedFileCount(reviewProject),
+    outstandingQuestions: unresolvedReviewFields.length > 0
+      ? unresolvedReviewFields
+      : getOutstandingFields(reviewProject),
+    readinessSections: getReadinessSections(reviewProject)
+  };
+  return {
+    ...derived,
+    status: getProjectDisplayStatus(derived),
+    reviewStatus: "Review needed"
+  };
+}
+
+function validateChangedControlledProject(
+  candidate: ProjectRecord,
+  latestProject: ProjectRecord,
+  evidence: FinalizedPlanningControlledApplyTransactionEvidence,
+  candidateHistory: readonly PlanningControlledApplyHistoryRecord[]
+): boolean {
+  const expectedIdentity = evidence.fieldKey === "appName"
+    ? { ...latestProject.identity, projectName: evidence.appliedValue }
+    : latestProject.identity;
+  const expectedClient = evidence.fieldKey === "clientName" || evidence.fieldKey === "businessName"
+    ? { ...latestProject.client, [evidence.fieldKey]: evidence.appliedValue }
+    : latestProject.client;
+  const expectedIntake = evidence.fieldKey !== "appName" &&
+    evidence.fieldKey !== "clientName" &&
+    evidence.fieldKey !== "businessName"
+    ? { ...latestProject.intake, [evidence.fieldKey]: evidence.appliedValue }
+    : latestProject.intake;
+  const unresolvedReviewFields = [...new Set(
+    candidate.reviewItems.filter(reviewItemBlocksReadiness).map((item) => item.fieldKey)
+  )];
+  const expectedOutstandingQuestions = unresolvedReviewFields.length > 0
+    ? unresolvedReviewFields
+    : getOutstandingFields(candidate);
+  const expectedStatus = getProjectDisplayStatus({
+    ...candidate,
+    status: latestProject.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started",
+    reviewStatus: "Review needed"
+  });
+  return candidate.identity.id === latestProject.identity.id &&
+    structurallyEquivalent(candidate.identity, expectedIdentity) &&
+    structurallyEquivalent(candidate.client, expectedClient) &&
+    structurallyEquivalent(candidate.intake, expectedIntake) &&
+    candidate.createdAt === latestProject.createdAt &&
+    structurallyEquivalent(candidate.planning, latestProject.planning) &&
+    structurallyEquivalent(candidate.powerPlatform, latestProject.powerPlatform) &&
+    candidate.intake.appType === latestProject.intake.appType &&
+    getProjectFieldValue(candidate, evidence.fieldKey) === evidence.appliedValue &&
+    structurallyEquivalent(candidate.controlledApplyHistory, candidateHistory) &&
+    candidate.updatedAt === evidence.appliedAt &&
+    candidate.packageGeneratedAt === null &&
+    structurallyEquivalent(candidate.generatedDocuments, latestProject.generatedDocuments) &&
+    structurallyEquivalent(candidate.readinessConfirmations, latestProject.readinessConfirmations) &&
+    candidate.reviewStatus === "Review needed" &&
+    candidate.generatedFileCount === getGeneratedFileCount(candidate) &&
+    structurallyEquivalent(candidate.readinessSections, getReadinessSections(candidate)) &&
+    structurallyEquivalent(candidate.outstandingQuestions, expectedOutstandingQuestions) &&
+    candidate.status === expectedStatus &&
+    candidate.archivedAt === latestProject.archivedAt &&
+    candidate.sourceProjectId === latestProject.sourceProjectId &&
+    candidate.duplicatedAt === latestProject.duplicatedAt;
+}
+
+function buildUnchangedControlledProject(
+  latestProject: ProjectRecord,
+  evidence: FinalizedPlanningControlledApplyTransactionEvidence,
+  candidateHistory: PlanningControlledApplyHistoryRecord[]
+): ProjectRecord {
+  return {
+    ...latestProject,
+    controlledApplyHistory: candidateHistory,
+    updatedAt: evidence.appliedAt
+  };
+}
+
+function validateUnchangedControlledProject(
+  candidate: ProjectRecord,
+  latestProject: ProjectRecord,
+  evidence: FinalizedPlanningControlledApplyTransactionEvidence,
+  candidateHistory: readonly PlanningControlledApplyHistoryRecord[]
+): boolean {
+  return structurallyEquivalent(candidate, {
+    ...latestProject,
+    controlledApplyHistory: cloneControlledHistory(candidateHistory),
+    updatedAt: evidence.appliedAt
+  });
+}
+
+function finalizedEvidenceMatchesBaseline(
+  evidence: FinalizedPlanningControlledApplyTransactionEvidence,
+  baseline: ReadyPlanningControlledApplyTransactionPlan
+): boolean {
+  return evidence.projectId === baseline.projectId &&
+    evidence.proposalId === baseline.proposalId &&
+    evidence.decisionId === baseline.decisionId &&
+    evidence.fieldKey === baseline.fieldKey &&
+    evidence.expectedProjectSnapshot === baseline.expectedProjectSnapshot &&
+    evidence.expectedCurrentValue === baseline.expectedCurrentValue &&
+    evidence.previousValue === baseline.previousValue &&
+    evidence.appliedValue === baseline.appliedValue &&
+    evidence.historyOutcome === baseline.historyOutcome &&
+    sameStringArray(evidence.sourceIds, baseline.sourceIds) &&
+    evidence.writeAuthorized === false &&
+    evidence.readinessEligible === false &&
+    evidence.outputEligible === false;
+}
+
+function sameStringArray(first: readonly string[], second: readonly string[]): boolean {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
+}
+
+function structurallyEquivalent(first: unknown, second: unknown): boolean {
+  if (Object.is(first, second)) return true;
+  if (Array.isArray(first) || Array.isArray(second)) {
+    return Array.isArray(first) && Array.isArray(second) &&
+      first.length === second.length &&
+      first.every((value, index) => structurallyEquivalent(value, second[index]));
+  }
+  if (!isPlainRecord(first) || !isPlainRecord(second)) return false;
+  const firstKeys = Object.keys(first).sort();
+  const secondKeys = Object.keys(second).sort();
+  return sameStringArray(firstKeys, secondKeys) &&
+    firstKeys.every((key) => structurallyEquivalent(first[key], second[key]));
+}
+
+function isPlainRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === "object" && input !== null && !Array.isArray(input);
+}
+
+function writeControlledCurrentStorageState(
+  state: StorageState,
+  storage: StorageAdapter
+): ControlledWriteResult {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("storageUnavailable", "Controlled Apply cannot write browser storage in this context.")
+    };
+  }
+
+  let serialized: string;
+  try {
+    const candidate = JSON.stringify(state);
+    if (typeof candidate !== "string") {
+      return {
+        outcome: "blocked",
+        issue: controlledIssue("writeSerializationFailed", "Controlled Apply could not serialize the final repository state.")
+      };
+    }
+    serialized = candidate;
+  } catch {
+    return {
+      outcome: "blocked",
+      issue: controlledIssue("writeSerializationFailed", "Controlled Apply could not serialize the final repository state.")
+    };
+  }
+
+  try {
+    storage.setItem(STORAGE_KEY, serialized);
+    setPersistenceWarning(null);
+    return { outcome: "written" };
+  } catch {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return {
+      outcome: "persistenceFailed",
+      issue: controlledIssue("persistenceFailed", "Controlled Apply could not persist the repository transaction.")
+    };
+  }
+}
+
+export function applyConfirmedPlanningProposal(
+  projectId: string,
+  proposalId: string,
+  storage: StorageAdapter = browserStorage(),
+  runtime: PlanningControlledApplyTransactionFinalizationRuntime = {}
+): PlanningControlledApplyRepositoryResult {
+  if (
+    typeof projectId !== "string" ||
+    projectId.trim().length === 0 ||
+    projectId.length > 200 ||
+    /[\r\n]/.test(projectId)
+  ) {
+    return controlledBlocked(controlledIssue(
+      "invalidProjectId",
+      "Controlled Apply requires a non-empty single-line project ID no longer than 200 characters."
+    ));
+  }
+
+  const baselineRead = readControlledCurrentStorageState(storage);
+  if (baselineRead.outcome === "missing") return controlledProjectNotFound(projectId);
+  if (baselineRead.outcome === "blocked") return controlledBlocked(baselineRead.issue);
+  const baselineResolution = resolveControlledProject(baselineRead.value.state, projectId);
+  if (baselineResolution.outcome === "missing") return controlledProjectNotFound(projectId);
+  if (baselineResolution.outcome === "ambiguous") {
+    return controlledBlocked(controlledIssue(
+      "ambiguousProjectIdentity",
+      "Controlled Apply requires the target project ID to resolve exactly once."
+    ));
+  }
+
+  const preparation = preparePlanningControlledApplyTransaction({
+    project: baselineResolution.project,
+    proposalId
+  });
+  if (preparation.outcome === "blocked") {
+    return controlledBlocked(controlledIssue(
+      "preparationBlocked",
+      "Controlled Apply was blocked by transaction preparation.",
+      { preparationIssues: cloneControlledPreparationIssues(preparation.issues) }
+    ));
+  }
+  if (preparation.outcome === "alreadyApplied") {
+    return {
+      outcome: "alreadyApplied",
+      issues: [],
+      evidence: Object.freeze({
+        projectId: preparation.plan.projectId,
+        proposalId: preparation.plan.proposalId,
+        decisionId: preparation.plan.decisionId,
+        fieldKey: preparation.plan.fieldKey,
+        existingApplyId: preparation.plan.existingApplyId
+      })
+    };
+  }
+  const baselinePlan = cloneReadyControlledPlan(preparation.plan);
+
+  const latestRead = readControlledCurrentStorageState(storage);
+  if (latestRead.outcome === "missing") return controlledProjectNotFound(projectId);
+  if (latestRead.outcome === "blocked") return controlledBlocked(latestRead.issue);
+  const latestResolution = resolveControlledProject(latestRead.value.state, projectId);
+  if (latestResolution.outcome === "missing") return controlledProjectNotFound(projectId);
+  if (latestResolution.outcome === "ambiguous") {
+    return controlledBlocked(controlledIssue(
+      "ambiguousProjectIdentity",
+      "Controlled Apply requires the latest target project ID to resolve exactly once."
+    ));
+  }
+  const latestProject = latestResolution.project;
+  const latestSnapshot = serializeControlledProject(latestProject);
+  if (latestSnapshot === null) {
+    return controlledBlocked(controlledIssue(
+      "snapshotUnavailable",
+      "Controlled Apply could not serialize the latest target project snapshot."
+    ));
+  }
+  if (latestSnapshot !== baselinePlan.expectedProjectSnapshot) {
+    return controlledBlocked(controlledIssue(
+      "projectChangedDuringApply",
+      "The target project changed after Controlled Apply preparation."
+    ));
+  }
+  if (getProjectFieldValue(latestProject, baselinePlan.fieldKey) !== baselinePlan.expectedCurrentValue) {
+    return controlledBlocked(controlledIssue(
+      "destinationChangedDuringApply",
+      "The target destination changed after Controlled Apply preparation."
+    ));
+  }
+
+  const finalization = finalizePlanningControlledApplyTransaction({ project: latestProject, proposalId }, runtime);
+  if (finalization.outcome === "blocked") {
+    return controlledBlocked(controlledIssue(
+      "finalizationBlocked",
+      "Controlled Apply was blocked by refreshed transaction finalization.",
+      { finalizationIssues: cloneControlledFinalizationIssues(finalization.issues) }
+    ));
+  }
+  if (finalization.outcome === "alreadyApplied") {
+    return controlledBlocked(controlledIssue(
+      "finalizationStateMismatch",
+      "Controlled Apply finalization unexpectedly changed from ready to already applied."
+    ));
+  }
+  const evidence = finalization.evidence;
+  if (!finalizedEvidenceMatchesBaseline(evidence, baselinePlan)) {
+    return controlledBlocked(controlledIssue(
+      "finalizationEvidenceMismatch",
+      "Controlled Apply finalization evidence does not match the guarded baseline evidence."
+    ));
+  }
+  if (evidence.fieldKey === "appType") {
+    return controlledBlocked(controlledIssue(
+      "candidateValidationFailed",
+      "Controlled Apply does not support project-type mutation."
+    ));
+  }
+
+  const changedEligible = evidence.historyOutcome === "changed" &&
+    evidence.destinationMutationRequired === true &&
+    evidence.historyAppendRequired === true &&
+    evidence.previousValue !== evidence.appliedValue;
+  const unchangedEligible = evidence.historyOutcome === "unchanged" &&
+    evidence.destinationMutationRequired === false &&
+    evidence.historyAppendRequired === true &&
+    evidence.previousValue === evidence.appliedValue &&
+    evidence.expectedCurrentValue === evidence.appliedValue;
+  if (!changedEligible && !unchangedEligible) {
+    return controlledBlocked(controlledIssue(
+      "candidateValidationFailed",
+      "Controlled Apply finalization evidence does not authorize a valid changed or unchanged candidate."
+    ));
+  }
+
+  const candidateHistory = cloneControlledHistory(evidence.candidateHistory);
+  const candidateProject = changedEligible
+    ? buildChangedControlledProject(latestProject, evidence, candidateHistory)
+    : buildUnchangedControlledProject(latestProject, evidence, candidateHistory);
+  const candidateValid = changedEligible
+    ? validateChangedControlledProject(candidateProject, latestProject, evidence, candidateHistory)
+    : validateUnchangedControlledProject(candidateProject, latestProject, evidence, candidateHistory);
+  if (!candidateValid) {
+    return controlledBlocked(controlledIssue(
+      "candidateValidationFailed",
+      "Controlled Apply candidate project validation failed."
+    ));
+  }
+
+  const commitRead = readControlledCurrentStorageState(storage);
+  if (commitRead.outcome === "missing") return controlledProjectNotFound(projectId);
+  if (commitRead.outcome === "blocked") return controlledBlocked(commitRead.issue);
+  const commitResolution = resolveControlledProject(commitRead.value.state, projectId);
+  if (commitResolution.outcome === "missing") return controlledProjectNotFound(projectId);
+  if (commitResolution.outcome === "ambiguous") {
+    return controlledBlocked(controlledIssue(
+      "ambiguousProjectIdentity",
+      "Controlled Apply requires the commit target project ID to resolve exactly once."
+    ));
+  }
+  const commitSnapshot = serializeControlledProject(commitResolution.project);
+  if (commitSnapshot === null) {
+    return controlledBlocked(controlledIssue(
+      "snapshotUnavailable",
+      "Controlled Apply could not serialize the commit target project snapshot."
+    ));
+  }
+  if (commitSnapshot !== latestSnapshot) {
+    return controlledBlocked(controlledIssue(
+      "projectChangedBeforeWrite",
+      "The target project changed before Controlled Apply persistence."
+    ));
+  }
+  if (getProjectFieldValue(commitResolution.project, evidence.fieldKey) !== evidence.expectedCurrentValue) {
+    return controlledBlocked(controlledIssue(
+      "destinationChangedBeforeWrite",
+      "The target destination changed before Controlled Apply persistence."
+    ));
+  }
+
+  let replacementCount = 0;
+  const finalState: StorageState = {
+    ...commitRead.value.state,
+    projects: commitRead.value.state.projects.map((project) => {
+      if (project.identity.id !== projectId) return project;
+      replacementCount += 1;
+      return candidateProject;
+    })
+  };
+  if (replacementCount !== 1 || finalState.version !== CURRENT_STORAGE_VERSION) {
+    return controlledBlocked(controlledIssue(
+      "candidateValidationFailed",
+      "Controlled Apply could not construct a current-version state with exactly one target replacement."
+    ));
+  }
+
+  const finalGuard = readControlledRawStorageValue(storage);
+  if (finalGuard.outcome === "blocked") return controlledBlocked(finalGuard.issue);
+  if (finalGuard.raw !== commitRead.value.raw) {
+    return controlledBlocked(controlledIssue(
+      "storageChangedBeforeWrite",
+      "The repository storage value changed immediately before Controlled Apply persistence."
+    ));
+  }
+
+  const write = writeControlledCurrentStorageState(finalState, storage);
+  if (write.outcome === "blocked") return controlledBlocked(write.issue);
+  if (write.outcome === "persistenceFailed") {
+    return { outcome: "persistenceFailed", issues: [write.issue] };
+  }
+
+  const successEvidence = Object.freeze({
+    projectId: evidence.projectId,
+    proposalId: evidence.proposalId,
+    decisionId: evidence.decisionId,
+    fieldKey: evidence.fieldKey,
+    applyId: evidence.applyId,
+    appliedAt: evidence.appliedAt,
+    historyOutcome: evidence.historyOutcome
+  });
+  return {
+    outcome: changedEligible ? "appliedChanged" : "appliedUnchanged",
+    issues: [],
+    evidence: successEvidence
+  };
 }
 
 export function resetStorage(storage: StorageAdapter = browserStorage()): StorageState {
