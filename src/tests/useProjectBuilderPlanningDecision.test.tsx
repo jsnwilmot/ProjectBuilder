@@ -197,6 +197,113 @@ describe("useProjectBuilder planning clarification decision wiring", () => {
     expect(result.current.persistenceWarning).toBe("Warning after rejection.");
   });
 
+  it("preserves the repository error when loadStorageState also throws during refresh", async () => {
+    const calls: string[] = [];
+    const primaryError = new Error("Primary repository rejection");
+    const refreshError = new Error("Secondary load failure");
+    repositoryMocks.loadStorageState
+      .mockImplementationOnce(() => state(activeProjectId))
+      .mockImplementation(() => {
+        calls.push("loadStorageState");
+        throw refreshError;
+      });
+    repositoryMocks.getPersistenceWarning.mockReturnValue(null);
+    repositoryMocks.materializeProjectPlanningClarificationHumanDecision.mockImplementation(async () => {
+      calls.push("repository");
+      throw primaryError;
+    });
+    const { result } = renderHook(() => useProjectBuilder());
+    let caught: unknown;
+    let submission: unknown;
+
+    await act(async () => {
+      try {
+        submission = await result.current.submitPlanningClarificationDecision(suppliedProjectId, input);
+      } catch (error) {
+        caught = error;
+      }
+    });
+
+    expect(caught).toBe(primaryError);
+    expect(caught).not.toBe(refreshError);
+    expect(submission).toBeUndefined();
+    expect(calls).toEqual(["repository", "loadStorageState"]);
+    expect(repositoryMocks.loadStorageState).toHaveBeenCalledTimes(2);
+    expect(repositoryMocks.materializeProjectPlanningClarificationHumanDecision).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the repository error when getPersistenceWarning also throws during refresh", async () => {
+    const calls: string[] = [];
+    const primaryError = new Error("Primary repository rejection");
+    const refreshError = new Error("Secondary warning failure");
+    repositoryMocks.loadStorageState
+      .mockImplementationOnce(() => state(activeProjectId))
+      .mockImplementation(() => {
+        calls.push("loadStorageState");
+        return state("durable-after-primary-error");
+      });
+    repositoryMocks.getPersistenceWarning
+      .mockImplementationOnce(() => null)
+      .mockImplementationOnce(() => {
+        calls.push("getPersistenceWarning");
+        throw refreshError;
+      })
+      .mockReturnValue(null);
+    repositoryMocks.materializeProjectPlanningClarificationHumanDecision.mockImplementation(async () => {
+      calls.push("repository");
+      throw primaryError;
+    });
+    const { result } = renderHook(() => useProjectBuilder());
+    let caught: unknown;
+
+    await act(async () => {
+      try {
+        await result.current.submitPlanningClarificationDecision(suppliedProjectId, input);
+      } catch (error) {
+        caught = error;
+      }
+    });
+
+    expect(caught).toBe(primaryError);
+    expect(caught).not.toBe(refreshError);
+    expect(calls).toEqual(["repository", "loadStorageState", "getPersistenceWarning"]);
+    expect(repositoryMocks.materializeProjectPlanningClarificationHumanDecision).toHaveBeenCalledOnce();
+  });
+
+  it("propagates a refresh error when a normal repository result cannot be durably refreshed", async () => {
+    const calls: string[] = [];
+    const refreshError = new Error("Mandatory refresh failed");
+    const persisted = repositoryResult("persisted", { action: "confirm" });
+    repositoryMocks.loadStorageState
+      .mockImplementationOnce(() => state(activeProjectId))
+      .mockImplementation(() => {
+        calls.push("loadStorageState");
+        throw refreshError;
+      });
+    repositoryMocks.getPersistenceWarning.mockReturnValue(null);
+    repositoryMocks.materializeProjectPlanningClarificationHumanDecision.mockImplementation(async () => {
+      calls.push("repository");
+      return persisted;
+    });
+    const { result } = renderHook(() => useProjectBuilder());
+    let caught: unknown;
+    let submission: unknown;
+
+    await act(async () => {
+      try {
+        submission = await result.current.submitPlanningClarificationDecision(suppliedProjectId, input);
+      } catch (error) {
+        caught = error;
+      }
+    });
+
+    expect(caught).toBe(refreshError);
+    expect(submission).toBeUndefined();
+    expect(calls).toEqual(["repository", "loadStorageState"]);
+    expect(repositoryMocks.loadStorageState).toHaveBeenCalledTimes(2);
+    expect(repositoryMocks.materializeProjectPlanningClarificationHumanDecision).toHaveBeenCalledOnce();
+  });
+
   it("maps each explicit invocation to exactly one repository call without hook-level locking", async () => {
     const calls: string[] = [];
     arrangeRepository(repositoryResult("blocked"), calls);

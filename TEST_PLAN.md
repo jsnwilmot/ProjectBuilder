@@ -1,5 +1,26 @@
 # Test Plan
 
+## 2026-08-14 Phase 5C.3C.2B Architect Correction 1 error precedence
+
+- Primary-error/load-failure coverage verifies one repository call, one mandatory refresh attempt, exact propagation of the repository error, suppression of only the secondary `loadStorageState` error, no result fabrication, and no retry.
+- Primary-error/warning-failure coverage verifies successful state reload followed by a thrown `getPersistenceWarning` still propagates the exact primary repository error.
+- Normal-result/refresh-failure coverage verifies a persisted repository result is not returned when mandatory state reload throws; the refresh error propagates with one repository call and no retry.
+- Existing unexpected-rejection coverage continues to verify repository error plus successful refresh preserves the repository error and reloads durable state and persistence-warning state.
+- Existing normal-outcome coverage continues to verify refresh after persisted, blocked, concurrent blocked, project-not-found, unsupported-project, and persistence-failure results.
+- Contract coverage preserves explicit caller-supplied project ID, exact repository input, no hook pre-validation, no optimistic mutation, no in-flight lock, and all existing public hook methods.
+- Feedback preservation coverage verifies no feedback message, kind, privacy boundary, or authority claim changed.
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused hook and feedback tests passed (`2` files, `27` tests).
+- Targeted decision-contract, materialization, repository, Planning UI, readiness, controlled Apply, and output/export regressions passed (`22` files, `628` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`61` unit/integration files, `2453` tests; `7` UI files, `64` tests; `68` combined files, `2517` tests).
+- `npm.cmd run test:coverage`: passed (`68` combined files, `2517` tests) with `90%` statements, `82%` branches, `94.99%` functions, and `93.74%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 Phase 5C.3C.2B clarification decision hook and feedback
 
 - Feedback outcome coverage verifies action-aware persisted messages for all five actions, the safe persisted fallback, generic blocked feedback, project-not-found, unsupported-project, and persistence-failure feedback.

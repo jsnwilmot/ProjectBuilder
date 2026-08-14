@@ -1,5 +1,43 @@
 # Change Log
 
+## 2026-08-14 - Phase 5C.3C.2B Architect Correction 1 - Preserve Primary Decision Error
+
+### Summary
+
+- Corrected clarification submission error precedence so a secondary durable-refresh failure can no longer replace an existing primary repository/submission exception.
+- Kept durable refresh mandatory after a primary exception and suppresses only a secondary refresh exception while the primary exception propagates.
+- Preserved normal-result behavior: when submission returns normally but mandatory refresh fails, the refresh exception propagates and no successful result is returned.
+- Added no repository outcome, feedback kind, fabricated result, retry, UI control, draft state, answer schema, readiness behavior, output behavior, or TTI blocker change.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/app/useProjectBuilder.ts` - preserves the primary clarification submission exception across a secondary refresh failure.
+- `src/tests/useProjectBuilderPlanningDecision.test.tsx` - adds load-state, persistence-warning, and normal-result refresh-failure regressions.
+- `CHANGE_LOG.md` - records Architect Correction 1 and validation.
+- `TEST_PLAN.md` - records correction-specific error-precedence coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused hook and feedback tests passed (`2` files, `27` tests).
+- Decision-contract, materialization, repository, Planning UI, readiness, controlled Apply, and output/export regressions passed (`22` files, `628` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`61` unit/integration files, `2453` tests; `7` UI files, `64` tests; `68` combined files, `2517` tests).
+- `npm.cmd run test:coverage`: passed (`68` combined files, `2517` tests) with `90%` statements, `82%` branches, `94.99%` functions, and `93.74%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 - Phase 5C.3C.2B Clarification Decision Hook Wiring and Safe Result Translation
 
 ### Summary

@@ -156,15 +156,25 @@ export function useProjectBuilder() {
     projectId: string,
     input: PlanningClarificationDecisionRepositoryInput
   ): Promise<PlanningClarificationDecisionSubmissionResult> => {
+    let submissionResult: PlanningClarificationDecisionSubmissionResult;
+
     try {
       const repositoryResult = await materializeProjectPlanningClarificationHumanDecision(projectId, input);
-      return {
+      submissionResult = {
         repositoryResult,
         feedback: buildPlanningClarificationDecisionFeedback(repositoryResult)
       };
-    } finally {
-      refresh();
+    } catch (primaryError) {
+      try {
+        refresh();
+      } catch {
+        // Preserve the primary submission error after the mandatory refresh attempt.
+      }
+      throw primaryError;
     }
+
+    refresh();
+    return submissionResult;
   };
 
   return {
