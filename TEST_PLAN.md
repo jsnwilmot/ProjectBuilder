@@ -1,5 +1,30 @@
 # Test Plan
 
+## 2026-08-14 Phase 5C.3C.2B clarification decision hook and feedback
+
+- Feedback outcome coverage verifies action-aware persisted messages for all five actions, the safe persisted fallback, generic blocked feedback, project-not-found, unsupported-project, and persistence-failure feedback.
+- Concurrency coverage verifies a blocked result containing `projectChangedDuringDecisionMaterialization` takes precedence as `stateChanged` and remains unsuccessful.
+- Privacy coverage verifies feedback excludes raw issue messages plus project, proposal, decision, created-source, and stale-source identities.
+- Authority coverage verifies no feedback claims Architect approval, readiness completion, package readiness, Power Fx/YAML generation, Apply completion, or output generation.
+- Purity coverage verifies deterministic deeply equal output, no repository-result mutation, and no React, browser, repository, readiness, output, Apply, or answer-schema behavior in the translator.
+- Hook binding coverage verifies the exact supplied project ID and unchanged repository input are passed once to `materializeProjectPlanningClarificationHumanDecision`, independently of the active project ID.
+- Durable-refresh coverage verifies persisted, generic blocked, concurrent blocked, project-not-found, unsupported-project, and persistence-failure results reload storage and reread the existing persistence warning without optimistic planning mutation or retry.
+- Unexpected-rejection coverage verifies `finally` attempts the same durable refresh and the original error propagates without a fabricated repository result.
+- Duplicate-invocation coverage verifies no hook-level in-flight lock: each explicit call maps to exactly one repository call.
+- Existing-hook coverage verifies all prior public operations remain available and no answer, reason, submission, focus, success, or error draft state is added.
+- Regression coverage preserves clarification decision contract/materialization, repository, Planning view model/view, App navigation, readiness, controlled Apply, and output/export behavior.
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused feedback and hook tests passed (`2` files, `24` tests).
+- Targeted decision-contract, materialization, repository, Planning UI, readiness, controlled Apply, and output/export regressions passed (`22` files, `628` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`61` unit/integration files, `2450` tests; `7` UI files, `64` tests; `68` combined files, `2514` tests).
+- `npm.cmd run test:coverage`: passed (`68` combined files, `2514` tests) with `90%` statements, `82%` branches, `94.99%` functions, and `93.74%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 Phase 5C.3C.2A clarification action capability contract
 
 - Exact-output coverage verifies capability analysis always returns Revise, Confirm, Reject, Defer, and Mark Not Applicable in deterministic order with no unsupported action.

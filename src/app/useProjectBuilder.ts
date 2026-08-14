@@ -9,6 +9,7 @@ import {
   duplicateProject,
   getPersistenceWarning,
   loadStorageState,
+  materializeProjectPlanningClarificationHumanDecision,
   restoreProject,
   saveGeneratedDocuments,
   setActiveProject as persistActiveProject,
@@ -17,6 +18,14 @@ import {
   updateProjectFields,
   updateProjectPowerPlatform
 } from "../lib/projectRepository";
+import {
+  buildPlanningClarificationDecisionFeedback,
+  type PlanningClarificationDecisionFeedback
+} from "../lib/planningClarificationDecisionFeedback";
+import type {
+  PlanningClarificationDecisionRepositoryInput,
+  PlanningClarificationDecisionRepositoryResult
+} from "../lib/planningClarificationDecisionMaterialization";
 import { validateIntake } from "../lib/validateIntake";
 import type {
   ProjectInputField,
@@ -30,6 +39,11 @@ import type {
 
 function initializeStorage(): StorageState {
   return loadStorageState();
+}
+
+export interface PlanningClarificationDecisionSubmissionResult {
+  repositoryResult: PlanningClarificationDecisionRepositoryResult;
+  feedback: PlanningClarificationDecisionFeedback;
 }
 
 export function useProjectBuilder() {
@@ -138,6 +152,21 @@ export function useProjectBuilder() {
     refresh();
   };
 
+  const submitPlanningClarificationDecision = async (
+    projectId: string,
+    input: PlanningClarificationDecisionRepositoryInput
+  ): Promise<PlanningClarificationDecisionSubmissionResult> => {
+    try {
+      const repositoryResult = await materializeProjectPlanningClarificationHumanDecision(projectId, input);
+      return {
+        repositoryResult,
+        feedback: buildPlanningClarificationDecisionFeedback(repositoryResult)
+      };
+    } finally {
+      refresh();
+    }
+  };
+
   return {
     storageState,
     project,
@@ -153,6 +182,7 @@ export function useProjectBuilder() {
     archiveSavedProject,
     restoreSavedProject,
     deleteSavedProject,
+    submitPlanningClarificationDecision,
     validationResult,
     validationIssues: validationResult.missingFields,
     generatedPackage,

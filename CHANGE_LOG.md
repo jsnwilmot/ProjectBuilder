@@ -1,5 +1,45 @@
 # Change Log
 
+## 2026-08-14 - Phase 5C.3C.2B Clarification Decision Hook Wiring and Safe Result Translation
+
+### Summary
+
+- Added pure, deterministic translation from existing clarification repository results to safe presentation feedback for persisted, blocked, state-changed, missing-project, unsupported-project, and persistence-failure outcomes.
+- Added `submitPlanningClarificationDecision(projectId, input)` to `useProjectBuilder`, preserving the caller's explicit project ID and delegating unchanged input to the approved repository writer.
+- Reloaded durable storage state and the existing persistence warning after every normal repository result and through `finally` when an unexpected rejection propagates.
+- Exposed the trusted repository result separately from privacy-safe feedback without optimistic planning mutation, retries, hook-level locking, or raw issue/identity disclosure.
+- Added no clarification UI controls, local draft state, answer schema, Revise editor, general proposal decision API, controlled Apply behavior, readiness mutation, output generation, navigation, or TTI blocker resolution.
+
+### Files created
+
+- `src/lib/planningClarificationDecisionFeedback.ts` - provides the pure safe-feedback translator.
+- `src/tests/planningClarificationDecisionFeedback.test.ts` - covers the outcome matrix, privacy, authority boundaries, purity, and determinism.
+- `src/tests/useProjectBuilderPlanningDecision.test.tsx` - covers exact repository binding, durable refresh, error propagation, and hook boundaries.
+
+### Files updated
+
+- `src/app/useProjectBuilder.ts` - wires the existing repository writer through the new async hook method.
+- `CHANGE_LOG.md` - records this phase and validation.
+- `TEST_PLAN.md` - records focused and regression coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused feedback and hook tests passed (`2` files, `24` tests).
+- Decision-contract, materialization, repository, Planning UI, readiness, controlled Apply, and output/export regressions passed in the targeted batch (`22` files, `628` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`61` unit/integration files, `2450` tests; `7` UI files, `64` tests; `68` combined files, `2514` tests).
+- `npm.cmd run test:coverage`: passed (`68` combined files, `2514` tests) with `90%` statements, `82%` branches, `94.99%` functions, and `93.74%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 - Phase 5C.3C.2A Pure Clarification Action Capability Contract
 
 ### Summary
