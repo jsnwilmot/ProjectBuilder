@@ -15,11 +15,13 @@ import {
   type ProjectPlanningState
 } from "../lib/planningProposals";
 import {
+  analyzePlanningClarificationDecisionCapabilities,
   analyzePlanningClarificationHumanDecision,
   buildPlanningUserAnswerLocator,
+  type PlanningClarificationDecisionCapabilitiesResult,
   type PlanningClarificationHumanDecisionAction
 } from "../lib/planningClarificationDecisionContract";
-import { getPlanningRuleById } from "../lib/planningRules";
+import { getPlanningRuleById, getPlanningRuleRegistry } from "../lib/planningRules";
 
 const projectId = "tti-project";
 const proposalId = "22222222-2222-4222-8222-000000000001";
@@ -270,6 +272,27 @@ function analyze(input: {
 function expectBlockedCode(result: ReturnType<typeof analyze>, code: string): void {
   expect(result.outcome).toBe("blocked");
   expect(result.issues.map((issue) => issue.code)).toContain(code);
+}
+
+function analyzeCapabilities(
+  state: ProjectPlanningState = planning(),
+  id: string = proposalId
+): PlanningClarificationDecisionCapabilitiesResult {
+  return analyzePlanningClarificationDecisionCapabilities({ projectId, planning: state, proposalId: id });
+}
+
+function capability(
+  result: PlanningClarificationDecisionCapabilitiesResult,
+  action: PlanningClarificationHumanDecisionAction
+) {
+  const match = result.capabilities.find((candidate) => candidate.action === action);
+  if (!match) throw new Error(`Missing capability ${action}`);
+  return match;
+}
+
+function expectAllCapabilitiesUnavailable(result: PlanningClarificationDecisionCapabilitiesResult): void {
+  expect(result.capabilities).toHaveLength(5);
+  expect(result.capabilities.every((entry) => entry.state === "unavailable" && entry.requiredInput === "none")).toBe(true);
 }
 
 describe("planning clarification human decision contract", () => {
@@ -648,5 +671,213 @@ describe("planning clarification human decision contract", () => {
       }
     });
     expect(JSON.stringify(result)).not.toMatch(/Architect approved|Power Fx|YAML|generatedDocuments|export/i);
+  });
+
+  describe("pre-input action capabilities", () => {
+    it("returns exactly five deterministic action capabilities and only approved input metadata", () => {
+      const first = analyzeCapabilities();
+      const second = analyzeCapabilities();
+
+      expect(first).toEqual(second);
+      expect(first.capabilities.map((entry) => entry.action)).toEqual([
+        "revise",
+        "confirm",
+        "reject",
+        "defer",
+        "markNotApplicable"
+      ]);
+      expect(new Set(first.capabilities.map((entry) => entry.state))).toEqual(new Set([
+        "answerSchemaRequired",
+        "unavailable",
+        "inputRequired"
+      ]));
+      expect(first.capabilities.every((entry) => ["none", "reason", "answerSchema"].includes(entry.requiredInput))).toBe(true);
+      expect(JSON.stringify(first)).not.toMatch(/text|boolean|enum|stringList|structuredRecord|editorType|valueKind/);
+    });
+
+    it("reports the exact Needs Clarification matrix without fabricating answer or reason input", () => {
+      const result = analyzeCapabilities();
+
+      expect(capability(result, "revise")).toEqual({
+        action: "revise",
+        state: "answerSchemaRequired",
+        requiredInput: "answerSchema",
+        reasonCodes: ["answerSchemaRequired"]
+      });
+      expect(capability(result, "confirm")).toMatchObject({ state: "unavailable", requiredInput: "none" });
+      expect(capability(result, "reject")).toEqual({
+        action: "reject",
+        state: "inputRequired",
+        requiredInput: "reason",
+        reasonCodes: ["reasonRequired"]
+      });
+      expect(capability(result, "defer")).toEqual({
+        action: "defer",
+        state: "inputRequired",
+        requiredInput: "reason",
+        reasonCodes: ["reasonRequired"]
+      });
+      expect(capability(result, "markNotApplicable")).toMatchObject({
+        state: "unavailable",
+        requiredInput: "none",
+        reasonCodes: ["notApplicableNotAllowed"]
+      });
+    });
+
+    it("reports the exact Revised matrix and makes Confirm available only with coherent evidence", () => {
+      const result = analyzeCapabilities(revisedPlanning());
+
+      expect(capability(result, "revise")).toMatchObject({ state: "unavailable", requiredInput: "none" });
+      expect(capability(result, "confirm")).toEqual({
+        action: "confirm",
+        state: "available",
+        requiredInput: "none",
+        reasonCodes: []
+      });
+      expect(capability(result, "reject")).toMatchObject({ state: "inputRequired", requiredInput: "reason" });
+      expect(capability(result, "defer")).toMatchObject({ state: "inputRequired", requiredInput: "reason" });
+      expect(capability(result, "markNotApplicable")).toMatchObject({ state: "unavailable", requiredInput: "none" });
+    });
+
+    it.each([
+      ["Confirmed", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Confirmed", value: textValue() })] })],
+      ["Rejected", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Rejected" })] })],
+      ["Superseded", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Superseded" })] })],
+      ["Not Applicable", planning({
+        sources: sourcesFor("pp.canvas.components.confirmation"),
+        proposals: [proposalFor("pp.canvas.components.confirmation", {
+          status: "Not Applicable",
+          value: { kind: "notApplicable", reason: "Components are not required." }
+        })]
+      })]
+    ])("makes all actions unavailable for %s", (_status, state) => {
+      expectAllCapabilitiesUnavailable(analyzeCapabilities(state));
+    });
+
+    it.each([
+      ["Deferred", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Deferred" })] }), false],
+      ["Stale", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", {
+        status: "Stale",
+        staleReason: "sourceChanged",
+        staleAt: timestamp
+      })] }), true],
+      ["Blocked", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Blocked" })] }), true]
+    ])("reflects the existing Reject/Defer boundary for %s", (_status, state, deferAllowed) => {
+      const result = analyzeCapabilities(state);
+
+      expect(capability(result, "revise")).toMatchObject({ state: "unavailable" });
+      expect(capability(result, "confirm")).toMatchObject({ state: "unavailable" });
+      expect(capability(result, "reject")).toMatchObject({ state: "inputRequired", requiredInput: "reason" });
+      expect(capability(result, "defer")).toMatchObject(deferAllowed
+        ? { state: "inputRequired", requiredInput: "reason" }
+        : { state: "unavailable", requiredInput: "none" });
+      expect(capability(result, "markNotApplicable")).toMatchObject({ state: "unavailable" });
+      expect(result.capabilities.map((entry) => entry.action)).not.toContain("replace");
+      expect(result.capabilities.map((entry) => entry.action)).not.toContain("unblock");
+    });
+
+    it("disables Confirm for conflicts, alternative groups, broken history, and invalid informational evidence", () => {
+      const cases: Array<[ProjectPlanningState, string]> = [
+        [revisedPlanning(textValue(), { conflicts: [blockingConflict()] }), "blockingConflict"],
+        [revisedPlanning(textValue(), {}, { alternativeGroupId: secondProposalId }), "alternativeDecisionRequiresControlledResolution"],
+        [revisedPlanning(textValue(), { decisions: [reviseDecision(textValue("Different answer."))] }), "revisionHistoryInvalid"],
+        [revisedPlanning(textValue(), {
+          sources: [...sourcesFor(), userAnswerSource({ locator: "planning:userAnswer:not-canonical" })]
+        }), "userAnswerSourceInvalid"]
+      ];
+
+      for (const [state, reasonCode] of cases) {
+        expect(capability(analyzeCapabilities(state), "confirm")).toMatchObject({
+          state: "unavailable",
+          requiredInput: "none",
+          reasonCodes: [reasonCode]
+        });
+      }
+
+      const missingEvidence = analyzeCapabilities(revisedPlanning(textValue(), { sources: sourcesFor() }));
+      expectAllCapabilitiesUnavailable(missingEvidence);
+      expect(missingEvidence.issues.map((entry) => entry.code)).toContain("invalidPlanning");
+    });
+
+    it("derives current N/A capabilities from all 11 registered rule flags", () => {
+      const rules = getPlanningRuleRegistry();
+      const states = rules.map((rule) => ({
+        ruleId: rule.ruleId,
+        allowed: rule.notApplicableAllowed,
+        capability: capability(analyzeCapabilities(planning({
+          sources: sourcesFor(rule.ruleId),
+          proposals: [proposalFor(rule.ruleId)]
+        })), "markNotApplicable")
+      }));
+
+      expect(rules).toHaveLength(11);
+      for (const entry of states) {
+        expect(entry.capability).toMatchObject(entry.allowed
+          ? { state: "inputRequired", requiredInput: "reason", reasonCodes: ["reasonRequired"] }
+          : { state: "unavailable", requiredInput: "none", reasonCodes: ["notApplicableNotAllowed"] });
+      }
+      expect(states.filter((entry) => entry.capability.state === "inputRequired").map((entry) => entry.ruleId)).toEqual([
+        "pp.canvas.components.confirmation",
+        "pp.canvas.yamlplanning.confirmation"
+      ]);
+      expect(states.filter((entry) => entry.capability.state === "unavailable")).toHaveLength(9);
+
+      const sourceText = readFileSync("src/lib/planningClarificationDecisionContract.ts", "utf8");
+      expect(sourceText).not.toContain("pp.canvas.components.confirmation");
+      expect(sourceText).not.toContain("pp.canvas.yamlplanning.confirmation");
+    });
+
+    it("fails closed for unknown rules, mismatches, malformed planning, and non-clarification proposals", () => {
+      const cases: Array<[ProjectPlanningState, string]> = [
+        [planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { ruleId: "pp.unknown.confirmation" })] }), "unknownPlanningRule"],
+        [planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { ruleVersion: "2.0.0" })] }), "ruleMismatch"],
+        [{ ...planning(), schemaVersion: "future" } as unknown as ProjectPlanningState, "invalidPlanning"],
+        [planning({ proposals: [{ ...proposalFor(), category: "architectProposal" }] }), "proposalNotClarification"]
+      ];
+
+      for (const [state, issueCode] of cases) {
+        const result = analyzeCapabilities(state);
+        expectAllCapabilitiesUnavailable(result);
+        expect(result.issues.map((entry) => entry.code)).toContain(issueCode);
+        expect(result.capabilities.every((entry) => entry.reasonCodes.includes(issueCode as never))).toBe(true);
+      }
+    });
+
+    it("rejects non-capability fields and invalid identity inputs without accepting an action", () => {
+      const withReason = analyzePlanningClarificationDecisionCapabilities({
+        projectId,
+        planning: planning(),
+        proposalId,
+        reason: "Do not accept pre-input data."
+      });
+      expectAllCapabilitiesUnavailable(withReason);
+      expect(withReason.issues).toEqual([expect.objectContaining({ code: "invalidInput", field: "reason" })]);
+
+      const invalidProject = analyzePlanningClarificationDecisionCapabilities({ projectId: "", planning: planning(), proposalId });
+      expectAllCapabilitiesUnavailable(invalidProject);
+      expect(invalidProject.issues).toEqual([expect.objectContaining({ code: "invalidProjectId" })]);
+
+      const missingProposal = analyzeCapabilities(planning(), secondProposalId);
+      expectAllCapabilitiesUnavailable(missingProposal);
+      expect(missingProposal.issues).toEqual([expect.objectContaining({ code: "proposalNotFound" })]);
+    });
+
+    it("is pure, leaves caller input unchanged, and returns defensive deterministic results", () => {
+      const state = revisedPlanning();
+      const input = { projectId, planning: state, proposalId };
+      const before = JSON.stringify(input);
+      const first = analyzePlanningClarificationDecisionCapabilities(input);
+
+      expect(JSON.stringify(input)).toBe(before);
+      if (first.capabilities[0]) {
+        (first.capabilities[0].reasonCodes as string[]).push("local-result-mutation");
+      }
+      const second = analyzePlanningClarificationDecisionCapabilities(input);
+      const third = analyzePlanningClarificationDecisionCapabilities(input);
+
+      expect(JSON.stringify(input)).toBe(before);
+      expect(second).toEqual(third);
+      expect(JSON.stringify(second)).not.toContain("local-result-mutation");
+    });
   });
 });

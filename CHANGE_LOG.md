@@ -1,5 +1,51 @@
 # Change Log
 
+## 2026-08-14 - Phase 5C.3C.2A Pure Clarification Action Capability Contract
+
+### Summary
+
+- Added pure `analyzePlanningClarificationDecisionCapabilities(...)` pre-input analysis for exactly Revise, Confirm, Reject, Defer, and Mark Not Applicable.
+- Added the exact capability states `available`, `inputRequired`, `answerSchemaRequired`, and `unavailable`, with required-input metadata limited to `none`, `reason`, and `answerSchema`.
+- Refactored private clarification context and action-availability checks so capability and submission analysis share planning normalization, clarification scope, rule authority, transitions, conflicts, alternatives, revision history, and informational-source validation.
+- Kept the existing submission analyzer authoritative and behaviorally unchanged.
+- Revise intentionally reports `answerSchemaRequired` from an otherwise valid Needs Clarification proposal; no answer schema, answer kind, editor type, or per-rule mapping was added.
+- Confirm is available only for a valid persisted Revised proposal with coherent revision history and current informational user-answer evidence.
+- Reject, Defer, and Mark Not Applicable report `inputRequired` only when structurally valid and require a user-supplied reason without placeholder input.
+- Added no UI, repository, persistence, readiness, output, Apply, rollback, or TTI blocker-resolution behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationDecisionContract.ts` - adds the pure capability API and shared internal structural authority.
+- `src/tests/planningClarificationDecisionContract.test.ts` - adds capability matrices, fail-closed cases, rule-derived N/A checks, purity, determinism, and submission regressions.
+- `CHANGE_LOG.md` - records the capability contract and validation.
+- `TEST_PLAN.md` - records capability and regression coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; reported the existing `whatwg-encoding` deprecation and `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused decision contract tests passed (`1` file, `47` tests), including all existing submission tests.
+- Planning clarification regressions passed (`13` files, `244` tests).
+- Planning-rule regressions passed (`1` file, `16` tests); planning-proposal regressions passed (`1` file, `31` tests).
+- Controlled Apply regressions passed (`6` files, `240` tests).
+- Repository regressions passed (`2` files, `112` tests).
+- Readiness regressions passed (`4` files, `28` tests).
+- Output/export regressions passed (`7` files, `139` tests).
+- `npm.cmd test`: passed (`59` unit/integration files, `2426` tests; `7` UI files, `64` tests; `66` combined files, `2490` tests).
+- `npm.cmd run test:coverage`: passed (`66` combined files, `2490` tests) with `90.25%` statements, `82.06%` branches, `95.35%` functions, and `94.01%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 - Phase 5C.3B Architect Correction 1 - Fail Closed on Partially Invalid Planning
 
 ### Summary

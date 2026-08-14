@@ -1,5 +1,35 @@
 # Test Plan
 
+## 2026-08-14 Phase 5C.3C.2A clarification action capability contract
+
+- Exact-output coverage verifies capability analysis always returns Revise, Confirm, Reject, Defer, and Mark Not Applicable in deterministic order with no unsupported action.
+- Capability-state coverage verifies only `available`, `inputRequired`, `answerSchemaRequired`, and `unavailable`; required-input metadata is limited to `none`, `reason`, and `answerSchema`.
+- Needs Clarification coverage verifies Revise requires an Architect-approved answer schema, direct Confirm remains unavailable, Reject and Defer require reasons, and N/A requires a reason only where the governing rule permits it.
+- Revised coverage verifies Revise and N/A are unavailable, Reject and Defer require reasons, and Confirm is available only with coherent persisted revision history and current informational user-answer evidence.
+- Terminal and closed-state coverage verifies Confirmed, Rejected, Superseded, and Not Applicable expose no clarification actions.
+- Deferred coverage verifies only reason-backed Reject remains available; no reopen or repeated Defer capability is introduced.
+- Stale and Blocked coverage verifies Revise, Confirm, and N/A remain unavailable while existing reason-backed Reject and Defer transitions are preserved; no replacement or unblock action is added.
+- Confirm safety coverage verifies open blocking conflicts, alternative groups, broken revision history, missing evidence, and invalid informational user-answer evidence disable Confirm.
+- Rule-matrix coverage evaluates all 11 registered rules and derives N/A capability from `rule.notApplicableAllowed`; only component targets and YAML require an N/A reason, while the other nine remain unavailable.
+- Fail-closed coverage verifies unknown rules, rule mismatch, malformed planning, non-clarification proposals, missing proposals, invalid identity, and unsupported capability-input fields make all five actions unavailable with safe diagnostics.
+- Purity coverage verifies no input mutation, defensive result arrays, deterministic repeated calls, and no repository, browser, clock, UUID, persistence, readiness, output, or Apply behavior.
+- Submission regression coverage runs the complete existing clarification human-decision suite after shared private authority refactoring.
+- `npm.cmd ci`: passed; reported the existing `whatwg-encoding` deprecation and `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused decision contract tests passed (`1` file, `47` tests), including all existing submission tests.
+- Planning clarification regressions passed (`13` files, `244` tests).
+- Planning-rule regressions passed (`1` file, `16` tests); planning-proposal regressions passed (`1` file, `31` tests).
+- Controlled Apply regressions passed (`6` files, `240` tests).
+- Repository regressions passed (`2` files, `112` tests).
+- Readiness regressions passed (`4` files, `28` tests).
+- Output/export regressions passed (`7` files, `139` tests).
+- `npm.cmd test`: passed (`59` unit/integration files, `2426` tests; `7` UI files, `64` tests; `66` combined files, `2490` tests).
+- `npm.cmd run test:coverage`: passed (`66` combined files, `2490` tests) with `90.25%` statements, `82.06%` branches, `95.35%` functions, and `94.01%` lines; `planningClarificationDecisionContract.ts` reached `90.23%` statements, `86.25%` branches, `100%` functions, and `94.61%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `6` development/tooling vulnerabilities (`2` moderate, `4` high); no dependency remediation was performed.
+
 ## 2026-08-14 Phase 5C.3B Architect Correction 1 fail-closed planning regressions
 
 - Partial-normalization corruption coverage constructs one valid confirmed clarification proposal plus a malformed source record, proves normalization reports issues while retaining the valid proposal, and verifies the view model returns only `state: invalid`, empty groups/history, one safe `invalidPlanning` issue, and `proposalCount: 0` without mutating input.

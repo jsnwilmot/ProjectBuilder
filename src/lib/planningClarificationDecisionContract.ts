@@ -30,6 +30,23 @@ export interface PlanningClarificationDecisionContractInput {
   reason?: string;
 }
 
+export interface PlanningClarificationDecisionCapabilityInput {
+  projectId: string;
+  planning: ProjectPlanningState;
+  proposalId: string;
+}
+
+export type PlanningClarificationDecisionCapabilityState =
+  | "available"
+  | "inputRequired"
+  | "answerSchemaRequired"
+  | "unavailable";
+
+export type PlanningClarificationDecisionCapabilityRequiredInput =
+  | "none"
+  | "reason"
+  | "answerSchema";
+
 export type PlanningClarificationDecisionContractOutcome =
   | "allowed"
   | "blocked";
@@ -91,6 +108,23 @@ export interface PlanningClarificationDecisionContractIssue {
   underlyingIssueCode?: string;
 }
 
+export type PlanningClarificationDecisionCapabilityReasonCode =
+  | PlanningClarificationDecisionContractIssueCode
+  | "answerSchemaRequired";
+
+export interface PlanningClarificationDecisionActionCapability {
+  action: PlanningClarificationHumanDecisionAction;
+  state: PlanningClarificationDecisionCapabilityState;
+  requiredInput: PlanningClarificationDecisionCapabilityRequiredInput;
+  reasonCodes: readonly PlanningClarificationDecisionCapabilityReasonCode[];
+}
+
+export interface PlanningClarificationDecisionCapabilitiesResult {
+  proposalId?: string;
+  capabilities: readonly PlanningClarificationDecisionActionCapability[];
+  issues: readonly PlanningClarificationDecisionContractIssue[];
+}
+
 export type PlanningClarificationDecisionContractResult =
   | {
       outcome: "allowed";
@@ -121,6 +155,7 @@ const REVISION_VALUE_KINDS = new Set<PlanningProposalValue["kind"]>([
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const CAPABILITY_INPUT_KEYS = new Set(["projectId", "planning", "proposalId"]);
 
 const LIMITS = {
   projectId: 200,
@@ -146,6 +181,82 @@ export function buildPlanningUserAnswerLocator(
     : null;
 }
 
+export function analyzePlanningClarificationDecisionCapabilities(
+  input: unknown
+): PlanningClarificationDecisionCapabilitiesResult {
+  if (!isPlainObject(input)) {
+    return unavailableCapabilities([
+      issue("invalidInput", "Clarification decision capability input must be an object.")
+    ]);
+  }
+
+  const forbiddenKey = Object.keys(input).find((key) => !CAPABILITY_INPUT_KEYS.has(key));
+  if (forbiddenKey) {
+    return unavailableCapabilities([
+      issue("invalidInput", "Clarification decision capability input contains an unsupported field.", undefined, forbiddenKey)
+    ]);
+  }
+
+  const projectId = normalizeProjectId(input.projectId);
+  if (!projectId) {
+    return unavailableCapabilities([
+      issue("invalidProjectId", "Project ID must be a non-empty bounded single-line value.", undefined, "projectId")
+    ]);
+  }
+
+  const proposalId = normalizeUuid(input.proposalId);
+  if (!proposalId) {
+    return unavailableCapabilities([
+      issue("invalidProposalId", "Proposal ID must be a canonical lowercase UUID.", undefined, "proposalId")
+    ]);
+  }
+
+  const context = resolveClarificationDecisionContext(projectId, input.planning, proposalId);
+  if (context.outcome === "blocked") {
+    return unavailableCapabilities(context.issues, proposalId);
+  }
+
+  const { planning, proposal, rule } = context;
+  return {
+    proposalId,
+    capabilities: SUPPORTED_ACTIONS.map((action) => {
+      switch (action) {
+        case "revise": {
+          const structuralIssue = validateReviseAvailability(proposal);
+          return structuralIssue
+            ? unavailableCapability(action, structuralIssue.code)
+            : capability(action, "answerSchemaRequired", "answerSchema", ["answerSchemaRequired"]);
+        }
+        case "confirm": {
+          const structuralIssue = validateConfirmAvailability(planning, proposal);
+          return structuralIssue
+            ? unavailableCapability(action, structuralIssue.code)
+            : capability(action, "available", "none");
+        }
+        case "reject": {
+          const structuralIssue = validateRejectAvailability(proposal);
+          return structuralIssue
+            ? unavailableCapability(action, structuralIssue.code)
+            : capability(action, "inputRequired", "reason", ["reasonRequired"]);
+        }
+        case "defer": {
+          const structuralIssue = validateDeferAvailability(proposal, rule);
+          return structuralIssue
+            ? unavailableCapability(action, structuralIssue.code)
+            : capability(action, "inputRequired", "reason", ["reasonRequired"]);
+        }
+        case "markNotApplicable": {
+          const structuralIssue = validateMarkNotApplicableAvailability(proposal, rule);
+          return structuralIssue
+            ? unavailableCapability(action, structuralIssue.code)
+            : capability(action, "inputRequired", "reason", ["reasonRequired"]);
+        }
+      }
+    }),
+    issues: []
+  };
+}
+
 export function analyzePlanningClarificationHumanDecision(
   input: unknown
 ): PlanningClarificationDecisionContractResult {
@@ -168,37 +279,9 @@ export function analyzePlanningClarificationHumanDecision(
     return blocked(issue("unsupportedHumanAction", "Human action is outside the clarification decision contract.", proposalId, "action"));
   }
 
-  const normalized = normalizeProjectPlanningState(input.planning, projectId);
-  if (normalized.issues.length > 0) {
-    return blocked(...normalized.issues.map((entry) =>
-      issue("invalidPlanning", "Planning state failed normalization.", entry.recordId, entry.field ?? entry.collection, entry.code)
-    ));
-  }
-
-  const planning = normalized.planning;
-  const proposal = planning.proposals.find((candidate) => candidate.proposalId === proposalId);
-  if (!proposal) {
-    return blocked(issue("proposalNotFound", "Proposal was not found in normalized planning.", proposalId, "proposalId"));
-  }
-
-  const scopeIssue = validateClarificationScope(proposal);
-  if (scopeIssue) {
-    return blocked(scopeIssue);
-  }
-
-  if (TERMINAL_STATUSES.has(proposal.status)) {
-    return blocked(issue("terminalProposal", "Terminal clarification history cannot be changed by human decision.", proposalId, "status"));
-  }
-
-  const rule = getPlanningRuleById(proposal.ruleId);
-  if (!rule) {
-    return blocked(issue("unknownPlanningRule", "Clarification proposal is not associated with a known planning rule.", proposalId, "ruleId"));
-  }
-
-  const ruleIssue = validateRuleAuthority(proposal, rule);
-  if (ruleIssue) {
-    return blocked(ruleIssue);
-  }
+  const context = resolveClarificationDecisionContext(projectId, input.planning, proposalId);
+  if (context.outcome === "blocked") return blocked(...context.issues);
+  const { planning, proposal, rule } = context;
 
   switch (action) {
     case "revise":
@@ -218,9 +301,8 @@ function analyzeRevise(
   inputValue: unknown,
   proposal: PlanningProposalRecord
 ): PlanningClarificationDecisionContractResult {
-  if (!isValidPlanningTransition(proposal.status, "Revised") || proposal.status !== "Needs Clarification") {
-    return blocked(issue("invalidStatusTransition", "Clarification revisions must start from Needs Clarification.", proposal.proposalId, "status"));
-  }
+  const structuralIssue = validateReviseAvailability(proposal);
+  if (structuralIssue) return blocked(structuralIssue);
 
   if (inputValue === undefined) {
     return blocked(issue("answerRequired", "Revision requires an answer value.", proposal.proposalId, "value"));
@@ -245,26 +327,8 @@ function analyzeConfirm(
   planning: ProjectPlanningState,
   proposal: PlanningProposalRecord
 ): PlanningClarificationDecisionContractResult {
-  if (proposal.status === "Stale") {
-    return blocked(issue("staleClarificationRequiresReplacement", "Stale clarification records require deterministic replacement before human confirmation.", proposal.proposalId, "status"));
-  }
-
-  if (!isValidPlanningTransition(proposal.status, "Confirmed") || proposal.status !== "Revised") {
-    return blocked(issue("invalidStatusTransition", "Clarification confirmation requires a previously revised proposal.", proposal.proposalId, "status"));
-  }
-
-  if (proposal.alternativeGroupId) {
-    return blocked(issue("alternativeDecisionRequiresControlledResolution", "Alternative-group confirmation requires controlled resolution.", proposal.proposalId, "alternativeGroupId"));
-  }
-
-  if (hasOpenBlockingConflict(planning, proposal.proposalId)) {
-    return blocked(issue("blockingConflict", "Open blocking conflicts must be resolved before confirmation.", proposal.proposalId, "conflicts"));
-  }
-
-  const historyIssue = validateRevisionHistory(planning, proposal);
-  if (historyIssue) {
-    return blocked(historyIssue);
-  }
+  const structuralIssue = validateConfirmAvailability(planning, proposal);
+  if (structuralIssue) return blocked(structuralIssue);
 
   return allowed({
     proposal,
@@ -283,9 +347,8 @@ function analyzeReject(
   if (!reason) {
     return blocked(issue("reasonRequired", "Rejection requires a bounded reason.", proposal.proposalId, "reason"));
   }
-  if (!isValidPlanningTransition(proposal.status, "Rejected")) {
-    return blocked(issue("invalidStatusTransition", "Current proposal status cannot transition to Rejected.", proposal.proposalId, "status"));
-  }
+  const structuralIssue = validateRejectAvailability(proposal);
+  if (structuralIssue) return blocked(structuralIssue);
   return allowed({
     proposal,
     action: "reject",
@@ -305,12 +368,8 @@ function analyzeDefer(
   if (!reason) {
     return blocked(issue("reasonRequired", "Deferral requires a bounded reason.", proposal.proposalId, "reason"));
   }
-  if (!rule.deferralAllowed) {
-    return blocked(issue("deferralNotAllowed", "The governing clarification rule does not allow deferral.", proposal.proposalId, "ruleId"));
-  }
-  if (!isValidPlanningTransition(proposal.status, "Deferred")) {
-    return blocked(issue("invalidStatusTransition", "Current proposal status cannot transition to Deferred.", proposal.proposalId, "status"));
-  }
+  const structuralIssue = validateDeferAvailability(proposal, rule);
+  if (structuralIssue) return blocked(structuralIssue);
   return allowed({
     proposal,
     action: "defer",
@@ -330,12 +389,8 @@ function analyzeMarkNotApplicable(
   if (!reason) {
     return blocked(issue("reasonRequired", "Not Applicable requires a bounded reason.", proposal.proposalId, "reason"));
   }
-  if (!rule.notApplicableAllowed) {
-    return blocked(issue("notApplicableNotAllowed", "The governing clarification rule does not allow Not Applicable.", proposal.proposalId, "ruleId"));
-  }
-  if (!isValidPlanningTransition(proposal.status, "Not Applicable")) {
-    return blocked(issue("invalidStatusTransition", "Current proposal status cannot transition to Not Applicable.", proposal.proposalId, "status"));
-  }
+  const structuralIssue = validateMarkNotApplicableAvailability(proposal, rule);
+  if (structuralIssue) return blocked(structuralIssue);
 
   const nextValue: PlanningProposalValue = { kind: "notApplicable", reason };
   return allowed({
@@ -346,6 +401,125 @@ function analyzeMarkNotApplicable(
     decisionValue: nextValue,
     userAnswerSourceAction: "none"
   });
+}
+
+type ClarificationDecisionContextResolution =
+  | {
+      outcome: "resolved";
+      planning: ProjectPlanningState;
+      proposal: PlanningProposalRecord;
+      rule: PlanningClarificationRule;
+    }
+  | {
+      outcome: "blocked";
+      issues: readonly PlanningClarificationDecisionContractIssue[];
+    };
+
+function resolveClarificationDecisionContext(
+  projectId: string,
+  planningInput: unknown,
+  proposalId: string
+): ClarificationDecisionContextResolution {
+  const normalized = normalizeProjectPlanningState(planningInput, projectId);
+  if (normalized.issues.length > 0) {
+    return {
+      outcome: "blocked",
+      issues: normalized.issues.map((entry) =>
+        issue("invalidPlanning", "Planning state failed normalization.", entry.recordId, entry.field ?? entry.collection, entry.code)
+      )
+    };
+  }
+
+  const planning = normalized.planning;
+  const proposal = planning.proposals.find((candidate) => candidate.proposalId === proposalId);
+  if (!proposal) {
+    return {
+      outcome: "blocked",
+      issues: [issue("proposalNotFound", "Proposal was not found in normalized planning.", proposalId, "proposalId")]
+    };
+  }
+
+  const scopeIssue = validateClarificationScope(proposal);
+  if (scopeIssue) return { outcome: "blocked", issues: [scopeIssue] };
+
+  if (TERMINAL_STATUSES.has(proposal.status)) {
+    return {
+      outcome: "blocked",
+      issues: [issue("terminalProposal", "Terminal clarification history cannot be changed by human decision.", proposalId, "status")]
+    };
+  }
+
+  const rule = getPlanningRuleById(proposal.ruleId);
+  if (!rule) {
+    return {
+      outcome: "blocked",
+      issues: [issue("unknownPlanningRule", "Clarification proposal is not associated with a known planning rule.", proposalId, "ruleId")]
+    };
+  }
+
+  const ruleIssue = validateRuleAuthority(proposal, rule);
+  return ruleIssue
+    ? { outcome: "blocked", issues: [ruleIssue] }
+    : { outcome: "resolved", planning, proposal, rule };
+}
+
+function validateReviseAvailability(
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractIssue | null {
+  return !isValidPlanningTransition(proposal.status, "Revised") || proposal.status !== "Needs Clarification"
+    ? issue("invalidStatusTransition", "Clarification revisions must start from Needs Clarification.", proposal.proposalId, "status")
+    : null;
+}
+
+function validateConfirmAvailability(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractIssue | null {
+  if (proposal.status === "Stale") {
+    return issue("staleClarificationRequiresReplacement", "Stale clarification records require deterministic replacement before human confirmation.", proposal.proposalId, "status");
+  }
+  if (!isValidPlanningTransition(proposal.status, "Confirmed") || proposal.status !== "Revised") {
+    return issue("invalidStatusTransition", "Clarification confirmation requires a previously revised proposal.", proposal.proposalId, "status");
+  }
+  if (proposal.alternativeGroupId) {
+    return issue("alternativeDecisionRequiresControlledResolution", "Alternative-group confirmation requires controlled resolution.", proposal.proposalId, "alternativeGroupId");
+  }
+  if (hasOpenBlockingConflict(planning, proposal.proposalId)) {
+    return issue("blockingConflict", "Open blocking conflicts must be resolved before confirmation.", proposal.proposalId, "conflicts");
+  }
+  return validateRevisionHistory(planning, proposal);
+}
+
+function validateRejectAvailability(
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractIssue | null {
+  return isValidPlanningTransition(proposal.status, "Rejected")
+    ? null
+    : issue("invalidStatusTransition", "Current proposal status cannot transition to Rejected.", proposal.proposalId, "status");
+}
+
+function validateDeferAvailability(
+  proposal: PlanningProposalRecord,
+  rule: PlanningClarificationRule
+): PlanningClarificationDecisionContractIssue | null {
+  if (!rule.deferralAllowed) {
+    return issue("deferralNotAllowed", "The governing clarification rule does not allow deferral.", proposal.proposalId, "ruleId");
+  }
+  return isValidPlanningTransition(proposal.status, "Deferred")
+    ? null
+    : issue("invalidStatusTransition", "Current proposal status cannot transition to Deferred.", proposal.proposalId, "status");
+}
+
+function validateMarkNotApplicableAvailability(
+  proposal: PlanningProposalRecord,
+  rule: PlanningClarificationRule
+): PlanningClarificationDecisionContractIssue | null {
+  if (!rule.notApplicableAllowed) {
+    return issue("notApplicableNotAllowed", "The governing clarification rule does not allow Not Applicable.", proposal.proposalId, "ruleId");
+  }
+  return isValidPlanningTransition(proposal.status, "Not Applicable")
+    ? null
+    : issue("invalidStatusTransition", "Current proposal status cannot transition to Not Applicable.", proposal.proposalId, "status");
 }
 
 function validateClarificationScope(proposal: PlanningProposalRecord): PlanningClarificationDecisionContractIssue | null {
@@ -470,6 +644,36 @@ function allowed(input: {
     outputEligible: isPlanningStatusOutputEligible(input.resultingStatus)
   }) as PlanningClarificationDecisionPlan;
   return { outcome: "allowed", plan, issues: [] };
+}
+
+function capability(
+  action: PlanningClarificationHumanDecisionAction,
+  state: PlanningClarificationDecisionCapabilityState,
+  requiredInput: PlanningClarificationDecisionCapabilityRequiredInput,
+  reasonCodes: readonly PlanningClarificationDecisionCapabilityReasonCode[] = []
+): PlanningClarificationDecisionActionCapability {
+  return { action, state, requiredInput, reasonCodes: [...reasonCodes] };
+}
+
+function unavailableCapability(
+  action: PlanningClarificationHumanDecisionAction,
+  reasonCode: PlanningClarificationDecisionCapabilityReasonCode
+): PlanningClarificationDecisionActionCapability {
+  return capability(action, "unavailable", "none", [reasonCode]);
+}
+
+function unavailableCapabilities(
+  issues: readonly PlanningClarificationDecisionContractIssue[],
+  proposalId?: string
+): PlanningClarificationDecisionCapabilitiesResult {
+  const reasonCodes = issues.map((entry) => entry.code);
+  return dropUndefined({
+    proposalId,
+    capabilities: SUPPORTED_ACTIONS.map((action) =>
+      capability(action, "unavailable", "none", reasonCodes)
+    ),
+    issues: issues.map((entry) => ({ ...entry }))
+  }) as PlanningClarificationDecisionCapabilitiesResult;
 }
 
 function blocked(
