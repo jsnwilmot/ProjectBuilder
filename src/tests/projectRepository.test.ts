@@ -581,6 +581,22 @@ function humanTextValue(value = "Confirmed TTI planning answer."): PlanningPropo
   return { kind: "text", value };
 }
 
+function humanStructuredRecordListValue(): PlanningProposalValue {
+  return {
+    kind: "structuredRecordList",
+    value: [
+      { order: { kind: "enum", value: "first" }, detail: humanTextValue("First row.") },
+      {
+        order: { kind: "enum", value: "second" },
+        detail: {
+          kind: "structuredRecord",
+          value: { note: humanTextValue("Nested second row.") }
+        }
+      }
+    ]
+  };
+}
+
 function humanStructuredValue(): PlanningProposalValue {
   return {
     kind: "structuredRecord",
@@ -748,8 +764,8 @@ describe("projectRepository", () => {
     const project = createSeedProject();
     saveStorageState({ version: 3, activeProjectId: project.identity.id, projects: [project] }, storage);
     const loaded = loadStorageState(storage);
-    expect(CURRENT_STORAGE_VERSION).toBe(5);
-    expect(loaded.version).toBe(5);
+    expect(CURRENT_STORAGE_VERSION).toBe(6);
+    expect(loaded.version).toBe(6);
     expect(loaded.activeProjectId).toBe(project.identity.id);
     expect(loaded.projects[0].identity.projectName).toBe("Community Services Portal");
     expect(loaded.projects[0].status).toBe("Intake Complete");
@@ -757,17 +773,17 @@ describe("projectRepository", () => {
     expect(loaded.projects[0].controlledApplyHistory).toEqual([]);
   });
 
-  it("creates repository projects at storage version 5 with canonical empty controlled apply history", () => {
+  it("creates repository projects at storage version 6 with canonical empty controlled apply history", () => {
     const storage = new MemoryStorage();
     const project = createProject({ identity: { id: "history-create", projectName: "History Create" } }, storage);
     const loaded = loadStorageState(storage);
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(project.controlledApplyHistory).toEqual([]);
     expect(loaded.projects[0].controlledApplyHistory).toEqual([]);
   });
 
-  it("migrates v1, v2, and v3 projects to version 5 with empty planning and history", () => {
+  it("migrates v1, v2, and v3 projects to version 6 with empty planning and history", () => {
     for (const version of [1, 2, 3] as const) {
       const storage = new MemoryStorage();
       const project = createProject({
@@ -785,7 +801,7 @@ describe("projectRepository", () => {
 
       const loaded = loadStorageState(storage);
 
-      expect(loaded.version).toBe(5);
+      expect(loaded.version).toBe(6);
       expect(loaded.projects[0].planning).toEqual(createEmptyProjectPlanningState());
       expect(loaded.projects[0].controlledApplyHistory).toEqual([]);
     }
@@ -808,7 +824,7 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.projects[0].planning?.proposals[0].proposalId).toBe(planningProposalId);
     expect(loaded.projects[0].planning?.decisions[0].decisionId).toBe(planningDecisionId);
     expect(loaded.projects[0].controlledApplyHistory).toEqual([]);
@@ -875,7 +891,7 @@ describe("projectRepository", () => {
     const loaded = loadStorageState(storage);
     const byId = Object.fromEntries(loaded.projects.map((project) => [project.identity.id, project]));
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(byId[validProject.identity.id].controlledApplyHistory).toEqual([
       controlledApplyHistoryRecord(validProject.identity.id)
     ]);
@@ -887,6 +903,56 @@ describe("projectRepository", () => {
     expect(byId[mismatchProject.identity.id].controlledApplyHistory).toEqual([]);
     expect(byId[provenanceProject.identity.id].controlledApplyHistory).toEqual([]);
     expect(byId[validProject.identity.id].planning?.proposals[0].proposalId).toBe(planningProposalId);
+  });
+
+  it("round trips v6 structured record lists and preserves independent valid history", () => {
+    const storage = new MemoryStorage();
+    const structuredValue = humanStructuredRecordListValue();
+    const structuredProject = humanProject(humanRevisedPlanning(humanProjectId, structuredValue));
+    const historyProject = createProject({
+      identity: { id: "v6-history-round-trip", projectName: "V6 History Round Trip" }
+    }, new MemoryStorage());
+    const history = [controlledApplyHistoryRecord(historyProject.identity.id)];
+
+    saveStorageState({
+      version: 6,
+      activeProjectId: structuredProject.identity.id,
+      projects: [
+        structuredProject,
+        {
+          ...historyProject,
+          planning: controlledApplyPlanning(historyProject.identity.id),
+          controlledApplyHistory: history
+        }
+      ]
+    }, storage);
+
+    const loaded = loadStorageState(storage);
+    const loadedStructured = loaded.projects.find((project) => project.identity.id === structuredProject.identity.id)!;
+    const loadedHistory = loaded.projects.find((project) => project.identity.id === historyProject.identity.id)!;
+
+    expect(loaded.version).toBe(6);
+    expect(loadedStructured.planning?.proposals).toHaveLength(1);
+    expect(loadedStructured.planning?.proposals[0]).toMatchObject({
+      proposalId: humanProposalId,
+      fingerprint: humanFingerprint,
+      value: structuredValue
+    });
+    expect(loadedStructured.planning?.proposals[0].sourceIds).toEqual([
+      humanProjectRuleSourceId,
+      humanReadinessSourceId,
+      humanUserAnswerSourceId
+    ]);
+    expect(loadedStructured.planning?.decisions[0]).toMatchObject({
+      decisionId: humanReviseDecisionId,
+      value: structuredValue
+    });
+    expect(loadedStructured.planning?.sources.map((record) => record.sourceId)).toEqual([
+      humanProjectRuleSourceId,
+      humanReadinessSourceId,
+      humanUserAnswerSourceId
+    ]);
+    expect(loadedHistory.controlledApplyHistory).toEqual(history);
   });
 
   it("resets duplicate history, preserves source history, and preserves history through ordinary repository updates", () => {
@@ -932,6 +998,19 @@ describe("projectRepository", () => {
     expect(updateReviewItem(source.identity.id, reviewItem.id, { status: "Not applicable", notApplicableReason: "Confirmed." }, storage)?.controlledApplyHistory).toEqual(history);
     expect(updateReadinessConfirmation(source.identity.id, "scopeReviewed", true, storage)?.controlledApplyHistory).toEqual(history);
     expect(saveGeneratedDocuments(source.identity.id, [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Updated" }], storage)?.controlledApplyHistory).toEqual(history);
+  });
+
+  it("does not copy structured record list planning answers into duplicated projects", () => {
+    const storage = new MemoryStorage();
+    const structuredValue = humanStructuredRecordListValue();
+    const source = humanProject(humanRevisedPlanning(humanProjectId, structuredValue));
+    saveStorageState({ version: 6, activeProjectId: source.identity.id, projects: [source] }, storage);
+
+    const duplicated = duplicateProject(source.identity.id, storage, "2026-08-01T21:00:00.000Z")!;
+
+    expect(duplicated.planning).toEqual(createEmptyProjectPlanningState());
+    expect(duplicated.controlledApplyHistory).toEqual([]);
+    expect(getProjectById(source.identity.id, storage)?.planning?.proposals[0].value).toEqual(structuredValue);
   });
 
   it("guards clarification materialization project lookup and project-type boundaries without storage writes", async () => {
@@ -1800,7 +1879,7 @@ describe("projectRepository", () => {
   it("recovers safely from invalid localStorage data", () => {
     const storage = new MemoryStorage();
     storage.setItem(STORAGE_KEY, "{not-json");
-    expect(loadStorageState(storage)).toEqual({ version: 5, activeProjectId: null, projects: [] });
+    expect(loadStorageState(storage)).toEqual({ version: 6, activeProjectId: null, projects: [] });
   });
 
   it("does not fallback to older keys when the current storage key is corrupt", () => {
@@ -1814,7 +1893,7 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded).toEqual({ version: 5, activeProjectId: null, projects: [] });
+    expect(loaded).toEqual({ version: 6, activeProjectId: null, projects: [] });
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
   });
 
@@ -1832,7 +1911,7 @@ describe("projectRepository", () => {
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
   });
 
-  it("migrates current-key version 3 projects to version 5 with separate empty planning and no fabricated records", () => {
+  it("migrates current-key version 3 projects to version 6 with separate empty planning and no fabricated records", () => {
     const storage = new MemoryStorage();
     const first = createProject({
       identity: { id: "v3-first", projectName: "V3 First" },
@@ -1866,12 +1945,12 @@ describe("projectRepository", () => {
     const persisted = JSON.stringify(rawState);
     storage.setItem(STORAGE_KEY, persisted);
 
-    expect(migrateStorageState(rawState).version).toBe(5);
+    expect(migrateStorageState(rawState).version).toBe(6);
     const loaded = loadStorageState(storage);
 
     expect(JSON.stringify(rawState)).toBe(before);
     expect(storage.getItem(STORAGE_KEY)).toBe(persisted);
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.activeProjectId).toBe(second.identity.id);
     expect(loaded.projects.map((project) => project.identity.id)).toEqual(["v3-first", "v3-second"]);
     expect(loaded.projects[0].generatedDocuments).toEqual(first.generatedDocuments);
@@ -2046,7 +2125,7 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.projects[0].identity.id).toBe("previous");
     expect(loaded.projects[0].planning).toEqual(createEmptyProjectPlanningState());
     expect(storage.getItem(STORAGE_KEY)).not.toBeNull();
@@ -2096,7 +2175,7 @@ describe("projectRepository", () => {
     const loadedA = loaded.projects.find((project) => project.identity.id === "project-a-stable")!;
     const loadedB = loaded.projects.find((project) => project.identity.id === "project-b-stable")!;
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.projects).toHaveLength(2);
     expect(loaded.projects.map((project) => project.identity.id)).toEqual(
       expect.arrayContaining(["project-a-stable", "project-b-stable"])
@@ -2132,7 +2211,7 @@ describe("projectRepository", () => {
         loaded = loadStorageState(storage);
       }).not.toThrow();
 
-      expect(loaded?.version).toBe(5);
+      expect(loaded?.version).toBe(6);
       expect(loaded?.projects[0].identity.id).toBe("previous");
       expect(loaded?.projects[0].planning).toEqual(createEmptyProjectPlanningState());
       expect(storage.getItem(PREVIOUS_STORAGE_KEY)).not.toBeNull();
@@ -2237,7 +2316,7 @@ describe("projectRepository", () => {
     expect(loaded.powerPlatform?.common.connectors).toEqual([]);
   });
 
-  it("migrates version-2 Canvas projects to storage version 5 with empty formula evidence and planning by default", () => {
+  it("migrates version-2 Canvas projects to storage version 6 with empty formula evidence and planning by default", () => {
     const storage = new MemoryStorage();
     const project = createProject({
       identity: { id: "canvas-v2", projectName: "Canvas V2" },
@@ -2252,12 +2331,12 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.projects[0].powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([]);
     expect(loaded.projects[0].planning).toEqual(createEmptyProjectPlanningState());
   });
 
-  it("migrates version-1 Canvas projects through storage version 5 with empty formula evidence and planning by default", () => {
+  it("migrates version-1 Canvas projects through storage version 6 with empty formula evidence and planning by default", () => {
     const storage = new MemoryStorage();
     const project = createProject({
       identity: { id: "canvas-v1", projectName: "Canvas V1" },
@@ -2272,7 +2351,7 @@ describe("projectRepository", () => {
 
     const loaded = loadStorageState(storage);
 
-    expect(loaded.version).toBe(5);
+    expect(loaded.version).toBe(6);
     expect(loaded.projects[0].powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([]);
     expect(loaded.projects[0].planning).toEqual(createEmptyProjectPlanningState());
   });
@@ -3036,7 +3115,7 @@ describe("projectRepository", () => {
     createProject({ identity: { projectName: "Disposable" } }, storage);
     storage.setItem(PREVIOUS_STORAGE_KEY, "{\"version\":1,\"projects\":[]}");
     storage.setItem(LEGACY_STORAGE_KEY, "{\"intake\":{\"appName\":\"Legacy\"}}");
-    expect(resetStorage(storage)).toEqual({ version: 5, activeProjectId: null, projects: [] });
+    expect(resetStorage(storage)).toEqual({ version: 6, activeProjectId: null, projects: [] });
     expect(storage.getItem(STORAGE_KEY)).toBeNull();
     expect(storage.getItem(PREVIOUS_STORAGE_KEY)).toBeNull();
     expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
@@ -3304,7 +3383,7 @@ describe("projectRepository", () => {
       const persisted = JSON.parse(storage.getItem(STORAGE_KEY)!) as ReturnType<typeof loadStorageState>;
 
       expect(JSON.stringify(legacyData)).toBe(legacyBefore);
-      expect(loaded.version).toBe(5);
+      expect(loaded.version).toBe(6);
       expect(loaded.projects).toHaveLength(1);
       expect(loaded.activeProjectId).toBe(loaded.projects[0].identity.id);
       expect(loaded.projects[0].identity.projectName).toBe("Legacy App");
@@ -3323,7 +3402,7 @@ describe("projectRepository", () => {
       expect(loaded.projects[0].planning?.conflicts).toEqual([]);
       expect(JSON.stringify(loaded.projects[0].planning)).not.toContain("proposalId");
       expect(JSON.stringify(loaded.projects[0].planning)).not.toContain("fingerprint");
-      expect(persisted.version).toBe(5);
+      expect(persisted.version).toBe(6);
       expect(persisted.projects[0].planning).toEqual(loaded.projects[0].planning);
       expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     });
@@ -3355,7 +3434,7 @@ describe("projectRepository", () => {
         }).not.toThrow();
 
         expect(JSON.stringify(legacyData)).toBe(legacyBefore);
-        expect(loaded?.version).toBe(5);
+        expect(loaded?.version).toBe(6);
         expect(loaded?.projects[0].identity.id).toBe("legacy-fail-id");
         expect(loaded?.projects[0].identity.projectName).toBe("Legacy Write Failure");
         expect(loaded?.projects[0].client.clientName).toBe("Legacy Client");
@@ -3396,14 +3475,14 @@ describe("projectRepository", () => {
       const storage = new MemoryStorage();
       storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ metadata: { id: "orphaned" } }));
 
-      expect(loadStorageState(storage)).toEqual({ version: 5, activeProjectId: null, projects: [] });
+      expect(loadStorageState(storage)).toEqual({ version: 6, activeProjectId: null, projects: [] });
     });
 
     it("discards an unparsable legacy record instead of crashing", () => {
       const storage = new MemoryStorage();
       storage.setItem(LEGACY_STORAGE_KEY, "{not-valid-json");
 
-      expect(loadStorageState(storage)).toEqual({ version: 5, activeProjectId: null, projects: [] });
+      expect(loadStorageState(storage)).toEqual({ version: 6, activeProjectId: null, projects: [] });
       expect(storage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     });
 
@@ -3431,9 +3510,9 @@ describe("projectRepository", () => {
       });
 
       try {
-        expect(loadStorageState()).toEqual({ version: 5, activeProjectId: null, projects: [] });
+        expect(loadStorageState()).toEqual({ version: 6, activeProjectId: null, projects: [] });
         expect(() => saveStorageState({ version: 3, activeProjectId: null, projects: [] })).not.toThrow();
-        expect(resetStorage()).toEqual({ version: 5, activeProjectId: null, projects: [] });
+        expect(resetStorage()).toEqual({ version: 6, activeProjectId: null, projects: [] });
       } finally {
         if (originalDescriptor) {
           Object.defineProperty(window, "localStorage", originalDescriptor);

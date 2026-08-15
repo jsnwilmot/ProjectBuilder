@@ -78,11 +78,19 @@ function value(kind: PlanningProposalValue["kind"] = "text"): PlanningProposalVa
   if (kind === "enum") return { kind, value: "option-a" };
   if (kind === "stringList") return { kind, value: ["One", "Two"] };
   if (kind === "structuredRecord") return { kind, value: { field: { kind: "text", value: "Value" } } };
+  if (kind === "structuredRecordList") return { kind, value: [{ field: { kind: "text", value: "Value" } }] };
   if (kind === "recordCreation") return { kind, value: { name: { kind: "text", value: "Record" } } };
   if (kind === "notApplicable") return { kind, reason: "Not applicable for this project." };
   if (kind === "deferred") return { kind, reason: "Deferred until Architect review." };
   if (kind === "clarification") return { kind, question: "Which option should be used?" };
   return { kind, value: "Use the confirmed intake value." };
+}
+
+function structuredValueAtDepth(depth: number): PlanningProposalValue {
+  if (depth <= 1) {
+    return { kind: "structuredRecord", value: { leaf: value() } };
+  }
+  return { kind: "structuredRecord", value: { nested: structuredValueAtDepth(depth - 1) } };
 }
 
 function proposal(overrides: Partial<PlanningProposalRecord> = {}): PlanningProposalRecord {
@@ -247,6 +255,7 @@ describe("planning proposal normalization", () => {
       "enum",
       "stringList",
       "structuredRecord",
+      "structuredRecordList",
       "recordCreation",
       "notApplicable",
       "deferred",
@@ -651,7 +660,7 @@ describe("planning proposal normalization", () => {
             proposal({
               value: {
                 kind: "structuredRecord",
-                value: { a: { kind: "structuredRecord", value: { b: { kind: "structuredRecord", value: { c: { kind: "structuredRecord", value: { d: value() } } } } } } }
+                value: { a: { kind: "structuredRecord", value: { b: { kind: "structuredRecord", value: { c: { kind: "structuredRecord", value: { d: { kind: "structuredRecord", value: { e: value() } } } } } } } } }
               }
             })
           ]
@@ -659,6 +668,106 @@ describe("planning proposal normalization", () => {
         projectId
       ).planning.proposals
     ).toHaveLength(0);
+  });
+
+  it("accepts structured container depths one through four and rejects depth five", () => {
+    for (const depth of [1, 2, 3, 4]) {
+      const result = normalizeProjectPlanningState(
+        planning({ proposals: [proposal({ value: structuredValueAtDepth(depth) })] }),
+        projectId
+      );
+      expect(result.planning.proposals, `depth ${depth}`).toHaveLength(1);
+    }
+
+    const rejected = normalizeProjectPlanningState(
+      planning({ proposals: [proposal({ value: structuredValueAtDepth(5) })] }),
+      projectId
+    );
+    expect(rejected.planning.proposals).toHaveLength(0);
+  });
+
+  it("normalizes bounded structured record lists without sorting rows or keys", () => {
+    const nullPrototypeRow = Object.create(null) as Record<string, PlanningProposalValue>;
+    nullPrototypeRow[" normalized key "] = { kind: "text", value: "  normalized\r\ntext  " };
+    const input: PlanningProposalValue = {
+      kind: "structuredRecordList",
+      value: [
+        {},
+        { order: { kind: "enum", value: "second" }, nested: structuredValueAtDepth(2) },
+        nullPrototypeRow,
+        {
+          order: { kind: "enum", value: "fourth" },
+          children: {
+            kind: "structuredRecordList",
+            value: [{ created: { kind: "recordCreation", value: { name: value() } } }]
+          }
+        }
+      ]
+    };
+
+    const result = normalizeProjectPlanningState(planning({ proposals: [proposal({ value: input })] }), projectId);
+    const normalized = result.planning.proposals[0]?.value;
+
+    expect(normalized).toEqual({
+      kind: "structuredRecordList",
+      value: [
+        {},
+        { order: { kind: "enum", value: "second" }, nested: structuredValueAtDepth(2) },
+        { "normalized key": { kind: "text", value: "normalized\ntext" } },
+        {
+          order: { kind: "enum", value: "fourth" },
+          children: {
+            kind: "structuredRecordList",
+            value: [{ created: { kind: "recordCreation", value: { name: value() } } }]
+          }
+        }
+      ]
+    });
+    expect(normalized?.kind === "structuredRecordList" ? Object.keys(normalized.value[1]) : []).toEqual(["order", "nested"]);
+  });
+
+  it("accepts an empty structured record list and empty rows", () => {
+    for (const structuredList of [
+      { kind: "structuredRecordList", value: [] },
+      { kind: "structuredRecordList", value: [{}] }
+    ] as const) {
+      expect(normalizeProjectPlanningState(
+        planning({ proposals: [proposal({ value: structuredList })] }),
+        projectId
+      ).planning.proposals).toHaveLength(1);
+    }
+  });
+
+  it("rejects malformed structured record lists fail closed", () => {
+    class NonPlainRow {
+      field = value();
+    }
+    const sparseRows: Record<string, PlanningProposalValue>[] = [{}];
+    sparseRows.length = 2;
+    const dangerousRow = Object.create(null) as Record<string, PlanningProposalValue>;
+    Object.defineProperty(dangerousRow, "__proto__", { value: value(), enumerable: true });
+    const invalidLists: unknown[] = [
+      { kind: "structuredRecordList", value: Array.from({ length: 101 }, () => ({})) },
+      { kind: "structuredRecordList", value: sparseRows },
+      { kind: "structuredRecordList", value: [new NonPlainRow()] },
+      { kind: "structuredRecordList", value: [Object.fromEntries(Array.from({ length: 51 }, (_, index) => [`field${index}`, value()]))] },
+      { kind: "structuredRecordList", value: [dangerousRow] },
+      { kind: "structuredRecordList", value: [{ invalid: { kind: "unknown" } }] },
+      { kind: "structuredRecordList", value: [{ nested: structuredValueAtDepth(4) }] },
+      {
+        kind: "structuredRecordList",
+        value: Array.from({ length: 4 }, (_, index) => ({ [`field${index}`]: { kind: "text", value: "x".repeat(3500) } }))
+      }
+    ];
+
+    for (const invalidValue of invalidLists) {
+      const result = normalizeProjectPlanningState(
+        planning({ proposals: [proposal({ value: invalidValue as PlanningProposalValue })] }),
+        projectId
+      );
+      expect(result.planning.proposals).toHaveLength(0);
+      expect(result.issues.map((entry) => entry.code)).toContain("invalidRecord");
+    }
   });
 
   it("rejects executable source while accepting ordinary architectural discussion", () => {

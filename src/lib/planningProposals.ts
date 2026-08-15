@@ -117,6 +117,11 @@ export interface PlanningStructuredRecordValue {
   value: Record<string, PlanningProposalValue>;
 }
 
+export interface PlanningStructuredRecordListValue {
+  kind: "structuredRecordList";
+  value: readonly Record<string, PlanningProposalValue>[];
+}
+
 export interface PlanningRecordCreationValue {
   kind: "recordCreation";
   value: Record<string, PlanningProposalValue>;
@@ -143,6 +148,7 @@ export type PlanningProposalValue =
   | PlanningEnumValue
   | PlanningStringListValue
   | PlanningStructuredRecordValue
+  | PlanningStructuredRecordListValue
   | PlanningRecordCreationValue
   | PlanningNotApplicableValue
   | PlanningDeferredValue
@@ -815,7 +821,7 @@ function normalizeProposal(
   const target = normalizeTargetReference(input.target);
   const category = enumValue(input.category, PLANNING_CATEGORIES);
   const status = enumValue(input.status, PLANNING_STATUSES);
-  const value = normalizeProposalValue(input.value, 1);
+  const value = normalizeProposalValue(input.value, 0);
   const title = normalizeSingleLine(input.title, LIMITS.title);
   const recommendation = normalizeMultiline(input.recommendation, LIMITS.longText);
   const rationale = normalizeMultiline(input.rationale, LIMITS.longText);
@@ -960,7 +966,7 @@ function normalizeDecision(
     issues.push(issue("invalidRecord", "Decision is missing required valid fields.", "decisions", decisionId ?? undefined));
     return null;
   }
-  const value = input.value === undefined ? undefined : normalizeProposalValue(input.value, 1);
+  const value = input.value === undefined ? undefined : normalizeProposalValue(input.value, 0);
   const reason = optionalMultiline(input.reason, LIMITS.longText);
   const sourceIds = optionalUuidList(input.sourceIds, LIMITS.idsPerProposal);
   const supersedesDecisionId = optionalUuid(input.supersedesDecisionId);
@@ -1106,8 +1112,8 @@ function normalizeTargetReference(input: unknown): PlanningTargetReference | nul
   return dropUndefined({ kind, domain, targetKey, entityId, fieldKey, operation });
 }
 
-function normalizeProposalValue(input: unknown, depth: number): PlanningProposalValue | null {
-  if (!isPlainObject(input) || depth > LIMITS.structuredDepth) {
+function normalizeProposalValue(input: unknown, structuredDepth: number): PlanningProposalValue | null {
+  if (!isPlainObject(input)) {
     return null;
   }
   switch (input.kind) {
@@ -1127,11 +1133,26 @@ function normalizeProposalValue(input: unknown, depth: number): PlanningProposal
     }
     case "structuredRecord":
     case "recordCreation": {
-      const value = normalizeStructuredRecord(input.value, depth + 1);
+      const nextDepth = structuredDepth + 1;
+      if (nextDepth > LIMITS.structuredDepth) {
+        return null;
+      }
+      const value = normalizeStructuredRecord(input.value, nextDepth);
       if (!value || JSON.stringify(value).length > LIMITS.structuredSize) {
         return null;
       }
       return { kind: input.kind, value } as PlanningStructuredRecordValue | PlanningRecordCreationValue;
+    }
+    case "structuredRecordList": {
+      const nextDepth = structuredDepth + 1;
+      if (nextDepth > LIMITS.structuredDepth) {
+        return null;
+      }
+      const value = normalizeStructuredRecordList(input.value, nextDepth);
+      if (!value || JSON.stringify(value).length > LIMITS.structuredSize) {
+        return null;
+      }
+      return { kind: "structuredRecordList", value };
     }
     case "notApplicable": {
       const reason = normalizeMultiline(input.reason, LIMITS.longText);
@@ -1150,8 +1171,8 @@ function normalizeProposalValue(input: unknown, depth: number): PlanningProposal
   }
 }
 
-function normalizeStructuredRecord(input: unknown, depth: number): Record<string, PlanningProposalValue> | null {
-  if (!isPlainObject(input) || depth > LIMITS.structuredDepth) {
+function normalizeStructuredRecord(input: unknown, structuredDepth: number): Record<string, PlanningProposalValue> | null {
+  if (!isPlainObject(input)) {
     return null;
   }
   const entries = Object.entries(input);
@@ -1161,13 +1182,26 @@ function normalizeStructuredRecord(input: unknown, depth: number): Record<string
   const normalized: Record<string, PlanningProposalValue> = {};
   for (const [rawKey, rawValue] of entries) {
     const key = normalizeSingleLine(rawKey, LIMITS.shortText);
-    const value = normalizeProposalValue(rawValue, depth + 1);
+    const value = normalizeProposalValue(rawValue, structuredDepth);
     if (!key || !value || key === "__proto__" || key === "constructor" || key === "prototype") {
       return null;
     }
     normalized[key] = value;
   }
   return normalized;
+}
+
+function normalizeStructuredRecordList(
+  input: unknown,
+  structuredDepth: number
+): readonly Record<string, PlanningProposalValue>[] | null {
+  if (!Array.isArray(input) || input.length > LIMITS.listItems || hasSparseArrayEntry(input)) {
+    return null;
+  }
+  const normalized = input.map((row) => normalizeStructuredRecord(row, structuredDepth));
+  return normalized.every((row): row is Record<string, PlanningProposalValue> => row !== null)
+    ? normalized
+    : null;
 }
 
 function normalizeDependencyTarget(input: unknown): PlanningDependencyTarget | null {

@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-08-15 Phase 5C.3C.3B structured record list and storage v6 foundation
+
+- Positive normalization covers empty lists, empty rows, one and multiple rows, null-prototype rows, normalized keys/text, retained row/key order, nested structured records, nested structured-record lists, and nested record creation.
+- Malformed normalization covers more than 100 rows, sparse arrays, non-plain rows, more than 50 row keys, dangerous keys, invalid nested values, structured depth 5, and aggregate serialized size over 12000.
+- Semantic-depth coverage verifies persisted and currently revision-safe structured values accept depths 1, 2, 3, and 4 and reject depth 5.
+- Decision/persistence consistency coverage verifies the previously approved nested structured revision answer also passes persisted Planning normalization.
+- Revise isolation covers direct and nested `structuredRecordList` rejection as `invalidAnswerValue` while capabilities remain `answerSchemaRequired` with `answerSchema` input.
+- Storage migration coverage verifies v1-v3 produce empty Planning/history, v4 preserves normalized Planning with empty history, and v5-v6 preserve normalized Planning and valid controlled Apply history.
+- v5 regressions verify valid controlled Apply history survives migration to v6 and malformed history still fails closed as a whole.
+- v6 round-trip coverage verifies record-list row order, nested values, source/proposal/decision IDs, fingerprints, and independent valid controlled Apply history.
+- Duplication coverage retains canonical empty Planning and controlled Apply history for duplicates without copying record-list answers.
+- Controlled Apply coverage verifies a confirmed proposal with a structured-record-list value is rejected as `unsupportedValueKind` without production contract changes.
+- Reconciliation, replacement, readiness, output/export, clarification materialization/repository, controlled Apply history, and controlled Apply transaction regressions remain required.
+- Required install, lint, TypeScript, full tests, coverage, build, production/full audits, diff, and scope checks remain required.
+- Architect scope correction authorized three storage-version regression expectations to change from `5` to `6`, producing an exact 13-file final scope with no prior partial commit.
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Seven focused files passed (`317` tests); the updated repository suite independently passed (`103` tests).
+- Sixteen relevant materialization, repository, controlled Apply, transaction, reconciliation, replacement, readiness, generation, and export files passed (`388` tests).
+- `npm.cmd test`: passed (`63` unit/integration files, `2487` tests; `7` UI files, `64` tests; `70` combined files, `2551` tests).
+- `npm.cmd run test:coverage`: passed (`70` combined files, `2551` tests) with `90.06%` statements, `82.12%` branches, `95.05%` functions, and `93.8%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- Production audit passed with `0` vulnerabilities; the advisory full audit exited `1` with `25` development/tooling vulnerabilities (`2` moderate, `23` high), and no remediation was performed.
+- `git diff --check`: passed.
+
 ## 2026-08-15 Phase 5C.3C.2D clarification accessibility and responsive hardening
 
 - Accessible-name coverage renders two valid clarification proposals together and verifies independently discoverable `Clarification decision actions for <proposal title>` regions without proposal or rule IDs.

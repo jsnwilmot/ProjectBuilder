@@ -23,7 +23,7 @@ export const REVIEW_STATUSES = [
 ] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
-export type StorageVersion = 1 | 2 | 3 | 4 | 5;
+export type StorageVersion = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type RecordLifecycleFormulaTechnicalReviewOutcome =
   | "Accepted"

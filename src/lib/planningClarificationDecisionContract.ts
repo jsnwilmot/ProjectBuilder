@@ -697,11 +697,11 @@ function isSupportedAction(input: unknown): input is PlanningClarificationHumanD
 }
 
 function normalizeRevisionValue(input: unknown): PlanningProposalValue | null {
-  return normalizeRevisionSafeValue(input, 1);
+  return normalizeRevisionSafeValue(input, 0);
 }
 
-function normalizeRevisionSafeValue(input: unknown, depth: number): PlanningProposalValue | null {
-  if (!isPlainObject(input) || depth > LIMITS.structuredDepth || !REVISION_VALUE_KINDS.has(input.kind as PlanningProposalValue["kind"])) return null;
+function normalizeRevisionSafeValue(input: unknown, structuredDepth: number): PlanningProposalValue | null {
+  if (!isPlainObject(input) || !REVISION_VALUE_KINDS.has(input.kind as PlanningProposalValue["kind"])) return null;
   switch (input.kind) {
     case "text": {
       const value = normalizeMultiline(input.value, LIMITS.textValue);
@@ -718,7 +718,9 @@ function normalizeRevisionSafeValue(input: unknown, depth: number): PlanningProp
       return value ? { kind: "stringList", value } : null;
     }
     case "structuredRecord": {
-      const value = normalizeRevisionStructuredRecord(input.value, depth + 1);
+      const nextDepth = structuredDepth + 1;
+      if (nextDepth > LIMITS.structuredDepth) return null;
+      const value = normalizeRevisionStructuredRecord(input.value, nextDepth);
       return value && JSON.stringify(value).length <= LIMITS.structuredSize
         ? { kind: "structuredRecord", value }
         : null;
@@ -728,14 +730,14 @@ function normalizeRevisionSafeValue(input: unknown, depth: number): PlanningProp
   }
 }
 
-function normalizeRevisionStructuredRecord(input: unknown, depth: number): Record<string, PlanningProposalValue> | null {
-  if (!isPlainObject(input) || depth > LIMITS.structuredDepth) return null;
+function normalizeRevisionStructuredRecord(input: unknown, structuredDepth: number): Record<string, PlanningProposalValue> | null {
+  if (!isPlainObject(input)) return null;
   const entries = Object.entries(input);
   if (entries.length > LIMITS.structuredKeys) return null;
   const normalized: Record<string, PlanningProposalValue> = {};
   for (const [rawKey, rawValue] of entries) {
     const key = normalizeSingleLine(rawKey, LIMITS.shortText);
-    const value = normalizeRevisionSafeValue(rawValue, depth);
+    const value = normalizeRevisionSafeValue(rawValue, structuredDepth);
     if (!key || !value || key === "__proto__" || key === "constructor" || key === "prototype") return null;
     normalized[key] = value;
   }

@@ -22,7 +22,7 @@ import {
 } from "../types/project";
 import { normalizeProjectTypeValue } from "../data/projectTypes";
 
-export const CURRENT_STORAGE_VERSION: StorageVersion = 5;
+export const CURRENT_STORAGE_VERSION: StorageVersion = 6;
 
 export const EMPTY_STORAGE_STATE: StorageState = {
   version: CURRENT_STORAGE_VERSION,
@@ -141,10 +141,10 @@ function normalizeProject(value: unknown, sourceVersion: StorageVersion): Projec
     powerPlatform: normalizePowerPlatformData(value.powerPlatform, normalizedIntake.appType),
     now: asString(value.createdAt) || new Date().toISOString()
   });
-  const planning = sourceVersion === 4 || sourceVersion === 5
+  const planning = sourceVersion === 4 || sourceVersion === 5 || sourceVersion === 6
     ? normalizeProjectPlanningState(value.planning, id).planning
     : createEmptyProjectPlanningState();
-  const normalizedHistory = sourceVersion === CURRENT_STORAGE_VERSION
+  const normalizedHistory = sourceVersion === 5 || sourceVersion === 6
     ? normalizePlanningControlledApplyHistory({
         projectId: id,
         planning,
@@ -189,7 +189,7 @@ function finalizeState(
 }
 
 function migrateLegacyStorage(input: Record<string, unknown>): StorageState {
-  // Pre-v5 migration preserves project data, normalizes legacy app-type labels,
+  // Legacy migration preserves project data, normalizes legacy app-type labels,
   // and initializes safe optional Power Platform structures where applicable.
   return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects, input.version as StorageVersion);
 }
@@ -203,7 +203,7 @@ export function migrateStorageState(input: unknown): StorageState {
     return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
   }
 
-  if (input.version === 1 || input.version === 2 || input.version === 3 || input.version === 4) {
+  if (input.version === 1 || input.version === 2 || input.version === 3 || input.version === 4 || input.version === 5) {
     return migrateLegacyStorage(input);
   }
 

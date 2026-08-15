@@ -7,6 +7,7 @@ import {
   PLANNING_SCHEMA_VERSION,
   isPlanningStatusOutputEligible,
   isPlanningStatusReadinessEligible,
+  normalizeProjectPlanningState,
   type PlanningConflictRecord,
   type PlanningDecisionRecord,
   type PlanningProposalRecord,
@@ -86,6 +87,15 @@ function structuredWithNested(value: PlanningProposalValue): PlanningProposalVal
       response: value
     }
   };
+}
+
+function structuredValueAtDepth(depth: number): PlanningProposalValue {
+  if (depth <= 1) return structuredWithNested(textValue("Depth leaf."));
+  return structuredWithNested(structuredValueAtDepth(depth - 1));
+}
+
+function structuredRecordListValue(): PlanningProposalValue {
+  return { kind: "structuredRecordList", value: [{ answer: textValue("Repeated answer.") }] };
 }
 
 function deeplyNestedProhibitedValue(): PlanningProposalValue {
@@ -359,6 +369,27 @@ describe("planning clarification human decision contract", () => {
         userAnswerSourceAction: "createInformational"
       }
     });
+    expect(normalizeProjectPlanningState(revisedPlanning(value), projectId).planning.proposals[0]?.value).toEqual(value);
+  });
+
+  it("uses the persisted structured depth model for revision-safe answers", () => {
+    for (const depth of [1, 2, 3, 4]) {
+      expect(analyze({ action: "revise", value: structuredValueAtDepth(depth) }), `depth ${depth}`).toMatchObject({
+        outcome: "allowed"
+      });
+    }
+    expectBlockedCode(analyze({ action: "revise", value: structuredValueAtDepth(5) }), "invalidAnswerValue");
+  });
+
+  it("rejects structured record lists as direct revision answers", () => {
+    expectBlockedCode(analyze({ action: "revise", value: structuredRecordListValue() }), "invalidAnswerValue");
+  });
+
+  it("rejects structured record lists nested inside structured revision answers", () => {
+    expectBlockedCode(
+      analyze({ action: "revise", value: structuredWithNested(structuredRecordListValue()) }),
+      "invalidAnswerValue"
+    );
   });
 
   it("blocks direct Needs Clarification -> Confirmed and allows Revised -> Confirmed with coherent revision history", () => {

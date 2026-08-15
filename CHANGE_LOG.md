@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-08-15 - Phase 5C.3C.3B Structured Record List and Storage v6 Foundation
+
+### Summary
+
+- Added the persisted `structuredRecordList` Planning value primitive with the existing 100-row, 50-key, depth-4, and 12000-character aggregate bounds.
+- Preserved empty lists, empty rows, row order, and normalized key insertion order while rejecting sparse arrays, unsafe prototypes, dangerous keys, invalid nested values, excess depth, and excess aggregate size.
+- Unified persisted and Revise structured-depth semantics so structured containers at depths 1-4 are accepted and depth 5 is rejected.
+- Kept Revise limited to text, boolean, enum, string-list, and structured-record values; direct and nested structured-record-list answers remain blocked pending an answer schema.
+- Upgraded repository storage to version 6 with explicit Planning preservation for v4-v6 and controlled Apply history preservation for valid v5-v6 data.
+- Preserved the planning schema, rule-set version, fingerprints, reconciliation behavior, duplication isolation, controlled Apply eligibility, readiness, output, and TTI Draft blockers.
+- Added no answer-schema registry, validator, UI, writable mapping, Apply action, readiness integration, or output behavior.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningProposals.ts` - adds the bounded persisted record-list primitive and semantic structured-depth normalization.
+- `src/lib/planningClarificationDecisionContract.ts` - aligns existing revision-safe structured-record depth without adding the new kind to Revise.
+- `src/lib/storageVersion.ts` - adds storage v6 and explicit v4-v6 Planning/v5-v6 history migration rules.
+- `src/types/project.ts` - adds storage version 6 to the canonical union.
+- `src/tests/planningProposals.test.ts` - covers valid, malformed, recursive, bounded, ordering, and depth behavior.
+- `src/tests/planningClarificationDecisionContract.test.ts` - covers depth consistency and direct/nested record-list rejection.
+- `src/tests/projectRepository.test.ts` - covers the v1-v6 migration matrix, v5 history preservation, v6 round trip, identities, fingerprints, and duplication isolation.
+- `src/tests/planningControlledApplyContract.test.ts` - proves the new value kind remains ineligible for controlled Apply.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the validation matrix and results.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- Architect scope correction expanded the authorized scope from 10 to 13 files so three existing storage-version invariants could change from `5` to `6`; no prior partial commit existed.
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Seven focused Planning, decision-contract, repository, controlled Apply, history, transaction-preparation, and formula-evidence files passed (`317` tests); the repository suite passed again after explicit duplication isolation was added (`103` tests).
+- Sixteen materialization, repository, controlled Apply, transaction, reconciliation, replacement, readiness, generation, and export regression files passed (`388` tests).
+- `npm.cmd test`: passed (`63` unit/integration files, `2487` tests; `7` UI files, `64` tests; `70` combined files, `2551` tests).
+- `npm.cmd run test:coverage`: passed (`70` combined files, `2551` tests) with `90.06%` statements, `82.12%` branches, `95.05%` functions, and `93.8%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `25` development/tooling vulnerabilities (`2` moderate, `23` high); no dependency remediation was performed.
+- `git diff --check`: passed.
+
 ## 2026-08-15 - Phase 5C.3C.2D Clarification Decision Accessibility and Responsive Hardening
 
 ### Summary

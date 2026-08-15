@@ -491,7 +491,7 @@ describe("planning controlled apply history contract", () => {
   it("preserves storage, ProjectRecord, planning schema, decision action, decision record, and rule isolation", () => {
     const rules = getPlanningRuleRegistry();
 
-    expect(CURRENT_STORAGE_VERSION).toBe(5);
+    expect(CURRENT_STORAGE_VERSION).toBe(6);
     expect(PLANNING_SCHEMA_VERSION).toBe("phase-5c.1.1");
     expect(PLANNING_DECISION_ACTIONS).toEqual([
       "confirm",

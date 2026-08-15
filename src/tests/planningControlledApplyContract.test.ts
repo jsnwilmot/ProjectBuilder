@@ -47,6 +47,7 @@ function value(kind: PlanningProposalValue["kind"]): PlanningProposalValue {
   if (kind === "enum") return { kind, value: "option-a" };
   if (kind === "stringList") return { kind, value: ["One", "Two"] };
   if (kind === "structuredRecord") return { kind, value: { field: textValue("Nested") } };
+  if (kind === "structuredRecordList") return { kind, value: [{ field: textValue("Nested") }] };
   if (kind === "recordCreation") return { kind, value: { name: textValue("Record") } };
   if (kind === "notApplicable") return { kind, reason: "Not applicable." };
   if (kind === "deferred") return { kind, reason: "Deferred." };
@@ -294,7 +295,7 @@ describe("planning controlled apply candidate contract", () => {
     );
   });
 
-  it.each(["boolean", "enum", "stringList", "structuredRecord", "recordCreation", "notApplicable", "deferred", "clarification"] as const)(
+  it.each(["boolean", "enum", "stringList", "structuredRecord", "structuredRecordList", "recordCreation", "notApplicable", "deferred", "clarification"] as const)(
     "blocks value kind %s",
     (kind) => {
       expectBlockedCode(analyze({ proposals: [proposal({ value: value(kind) })] }), "unsupportedValueKind");
