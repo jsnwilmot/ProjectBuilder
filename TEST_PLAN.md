@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-08-15 Phase 5C.3C.2D clarification accessibility and responsive hardening
+
+- Accessible-name coverage renders two valid clarification proposals together and verifies independently discoverable `Clarification decision actions for <proposal title>` regions without proposal or rule IDs.
+- Reason-open focus coverage verifies Defer, Reject, and Not applicable move focus directly to their associated native textarea.
+- Action-switch coverage verifies Reject-to-Defer clears the rejection draft, opens an empty Deferral reason form, updates expanded/form relationships, and focuses the new textarea without a repository call.
+- Cancel coverage verifies the form closes, its draft clears, no submission occurs, and focus returns to the exact reason-action opener.
+- Successful-feedback coverage verifies the Planning status region is atomic, polite, `tabIndex="-1"`, and focused after successful persisted feedback while durable project input remains the sole lifecycle-group authority.
+- Unsuccessful and unexpected-error coverage verifies safe feedback is announced without forced feedback focus, the reason draft remains available, and `SECRET INTERNAL ERROR` is absent.
+- Pending-state coverage verifies the proposal region reports busy, `Saving decision...` is an atomic polite status, native controls remain disabled, duplicate invocation is blocked, and busy state clears after completion.
+- Relationship coverage verifies reason openers expose `aria-expanded` and only the active opener references the inline form through React-generated IDs rather than persisted identity.
+- Responsive source coverage verifies existing `860px`, `640px`, and `480px` breakpoints provide 44px clarification buttons, two-column minmax-safe action grids, and single-column stacking respectively.
+- Width-safety coverage verifies decision containers can shrink, action text wraps, feedback/note/progress text uses overflow wrapping, and the required vertically resizable textarea remains `width` and `max-width: 100%`.
+- Existing capability, exact-payload, draft, pending-lock, privacy, closed-state, general-proposal, durable-grouping, Revise, Apply, readiness, output, and persistence exclusions remain covered.
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused control, PlanningView, and App planning-decision tests passed (`3` files, `35` tests).
+- Targeted contract, feedback, hook, view-model, repository, readiness, controlled Apply, and output/export regressions passed (`17` files, `489` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`63` unit/integration files, `2477` tests; `7` UI files, `64` tests; `70` combined files, `2541` tests).
+- `npm.cmd run test:coverage`: passed on clean rerun (`70` combined files, `2541` tests) with `90.04%` statements, `82.09%` branches, `95.05%` functions, and `93.79%` lines. The initial run had one unrelated 5-second Power Platform timeout; its isolated instrumented body passed in `4.48s`, then the complete rerun passed.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `25` current development/tooling vulnerabilities (`2` moderate, `23` high); no dependency remediation was performed.
+- Browser capability was available and a fresh Canvas project plus draft package was exercised, but the supported UI produced zero Planning items. No decision-control viewport result is claimed because adding a fixture or directly manipulating storage/repository state is outside this phase.
+
 ## 2026-08-14 Phase 5C.3C.2C clarification decision controls
 
 - Capability-visibility coverage uses valid contract fixtures to verify Needs Clarification, Revised, current N/A-permitted rules, closed states, general proposals, and fail-closed contexts without duplicating rule/status policy in React.

@@ -24,6 +24,8 @@ import { getPlanningRuleById } from "../lib/planningRules";
 
 const projectId = "decision-controls-project";
 const proposalId = "22222222-2222-4222-8222-000000000001";
+const proposalTitle = "Confirm the backend schema";
+const decisionRegionName = `Clarification decision actions for ${proposalTitle}`;
 const projectRuleSourceId = "11111111-1111-4111-8111-000000000001";
 const readinessSourceId = "11111111-1111-4111-8111-000000000002";
 const userAnswerSourceId = "11111111-1111-4111-8111-000000000003";
@@ -179,6 +181,7 @@ function ControlHarness({
         projectId={projectId}
         planning={planning}
         proposalId={proposalId}
+        proposalTitle={proposalTitle}
         onSubmitClarificationDecision={onSubmit}
         onFeedback={setFeedback}
       />
@@ -200,7 +203,7 @@ function renderControls(
 describe("ClarificationDecisionControls", () => {
   it("derives Needs Clarification controls from capability authority without a Revise submission", () => {
     const { container } = renderControls(planningFor());
-    const controls = screen.getByRole("region", { name: "Clarification decision actions" });
+    const controls = screen.getByRole("region", { name: decisionRegionName });
 
     expect(within(controls).queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
     expect(within(controls).getByRole("button", { name: "Defer" })).toBeInTheDocument();
@@ -215,7 +218,7 @@ describe("ClarificationDecisionControls", () => {
   it("derives Not Applicable availability from the governing capability and preserves action order", () => {
     renderControls(planningFor("pp.canvas.components.confirmation"));
 
-    expect(within(screen.getByRole("region", { name: "Clarification decision actions" }))
+    expect(within(screen.getByRole("region", { name: decisionRegionName }))
       .getAllByRole("button").map((button) => button.textContent)).toEqual([
         "Defer",
         "Not applicable",
@@ -226,7 +229,7 @@ describe("ClarificationDecisionControls", () => {
   it("shows Confirm first only for a confirmable Revised clarification", () => {
     renderControls(revisedPlanning());
 
-    expect(within(screen.getByRole("region", { name: "Clarification decision actions" }))
+    expect(within(screen.getByRole("region", { name: decisionRegionName }))
       .getAllByRole("button").map((button) => button.textContent)).toEqual([
         "Confirm decision",
         "Defer",
@@ -269,7 +272,9 @@ describe("ClarificationDecisionControls", () => {
     renderControls(planning, onSubmit);
 
     await user.click(screen.getByRole("button", { name: openLabel }));
-    await user.type(screen.getByRole("textbox", { name: inputLabel }), reason);
+    const reasonInput = screen.getByRole("textbox", { name: inputLabel });
+    expect(reasonInput).toHaveFocus();
+    await user.type(reasonInput, reason);
     await user.click(screen.getByRole("button", { name: submitLabel }));
 
     expect(onSubmit).toHaveBeenCalledOnce();
@@ -285,6 +290,10 @@ describe("ClarificationDecisionControls", () => {
 
     await user.click(screen.getByRole("button", { name: "Reject" }));
     const rejectionReason = screen.getByRole("textbox", { name: "Rejection reason" });
+    const rejectButton = screen.getByRole("button", { name: "Reject" });
+    expect(rejectButton).toHaveAttribute("aria-expanded", "true");
+    expect(rejectButton).toHaveAttribute("aria-controls", rejectionReason.closest("form")?.id);
+    expect(rejectionReason).toHaveFocus();
     expect(rejectionReason).toHaveAttribute("required");
     expect(rejectionReason).toHaveAttribute("maxLength", "2000");
     expect(screen.getByRole("button", { name: "Reject decision" })).toBeDisabled();
@@ -293,10 +302,18 @@ describe("ClarificationDecisionControls", () => {
     await user.clear(rejectionReason);
     await user.type(rejectionReason, "Unsent rejection reason.");
     await user.click(screen.getByRole("button", { name: "Defer" }));
-    expect(screen.getByRole("textbox", { name: "Deferral reason" })).toHaveValue("");
-    await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Unsent deferral reason.");
+    const deferralReason = screen.getByRole("textbox", { name: "Deferral reason" });
+    const deferButton = screen.getByRole("button", { name: "Defer" });
+    expect(deferralReason).toHaveValue("");
+    expect(deferralReason).toHaveFocus();
+    expect(deferButton).toHaveAttribute("aria-expanded", "true");
+    expect(rejectButton).toHaveAttribute("aria-expanded", "false");
+    expect(rejectButton).not.toHaveAttribute("aria-controls");
+    await user.type(deferralReason, "Unsent deferral reason.");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("textbox", { name: "Deferral reason" })).not.toBeInTheDocument();
+    expect(deferButton).toHaveFocus();
+    expect(deferButton).toHaveAttribute("aria-expanded", "false");
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -313,7 +330,12 @@ describe("ClarificationDecisionControls", () => {
     await user.click(screen.getByRole("button", { name: "Defer decision" }));
 
     expect(onSubmit).toHaveBeenCalledOnce();
-    expect(screen.getByText("Saving decision...")).toBeInTheDocument();
+    const controls = screen.getByRole("region", { name: decisionRegionName });
+    const progress = screen.getByRole("status", { name: "" });
+    expect(controls).toHaveAttribute("aria-busy", "true");
+    expect(progress).toHaveTextContent("Saving decision...");
+    expect(progress).toHaveAttribute("aria-live", "polite");
+    expect(progress).toHaveAttribute("aria-atomic", "true");
     expect(screen.getByRole("textbox", { name: "Deferral reason" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Defer" })).toBeDisabled();
@@ -322,7 +344,8 @@ describe("ClarificationDecisionControls", () => {
     expect(onSubmit).toHaveBeenCalledOnce();
 
     resolveSubmission?.({ feedback: successfulFeedback("defer") });
-    expect(await screen.findByRole("status")).toHaveTextContent("Planning item deferred.");
+    expect(await screen.findByText("Planning item deferred.")).toBeInTheDocument();
+    expect(controls).toHaveAttribute("aria-busy", "false");
   });
 
   it("preserves the reason and surfaces only safe unsuccessful feedback", async () => {
@@ -372,14 +395,14 @@ describe("ClarificationDecisionControls", () => {
           : { kind: "clarification", question: ruleFor("pp.canvas.components.confirmation").question }
       }));
 
-      expect(screen.queryByRole("region", { name: "Clarification decision actions" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: decisionRegionName })).not.toBeInTheDocument();
     }
   );
 
   it("fails closed for a general proposal and exposes no modal", () => {
     renderControls(planningFor("pp.canvas.schema.confirmation", { category: "architectProposal" }));
 
-    expect(screen.queryByRole("region", { name: "Clarification decision actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: decisionRegionName })).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -390,5 +413,16 @@ describe("ClarificationDecisionControls", () => {
     expect(sourceText).not.toMatch(/applyConfirmedPlanningProposal|readinessConfirmations|setReadinessConfirmation/);
     expect(sourceText).not.toMatch(/generateProjectPackage|exportProjectPackage|localStorage|sessionStorage/);
     expect(sourceText).not.toMatch(/reasonCodes|repositoryResult|issue\.message/);
+  });
+
+  it("uses the existing responsive breakpoints for touch targets, layout, and width safety", () => {
+    const css = readFileSync("src/styles/global.css", "utf8");
+
+    expect(css).toMatch(/@media \(max-width: 860px\)[\s\S]*?\.planning-decision-actions \.button,[\s\S]*?min-height: 44px/);
+    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(css).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.planning-decision-actions,[\s\S]*?grid-template-columns: 1fr/);
+    expect(css).toMatch(/\.planning-decision-controls \{[\s\S]*?min-width: 0/);
+    expect(css).toMatch(/\.planning-decision-reason-form textarea \{[\s\S]*?width: 100%[\s\S]*?max-width: 100%/);
+    expect(css).toMatch(/\.planning-decision-feedback,[\s\S]*?overflow-wrap: anywhere/);
   });
 });

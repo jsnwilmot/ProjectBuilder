@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   analyzePlanningClarificationDecisionCapabilities,
   type PlanningClarificationHumanDecisionAction
@@ -21,6 +21,7 @@ interface ClarificationDecisionControlsProps {
   projectId: string;
   planning: ProjectPlanningState;
   proposalId: string;
+  proposalTitle: string;
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
   onFeedback: (feedback: PlanningDecisionUiFeedback | null) => void;
 }
@@ -67,6 +68,7 @@ export function ClarificationDecisionControls({
   projectId,
   planning,
   proposalId,
+  proposalTitle,
   onSubmitClarificationDecision,
   onFeedback
 }: ClarificationDecisionControlsProps) {
@@ -74,6 +76,10 @@ export function ClarificationDecisionControls({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const reasonInputId = useId();
+  const reasonFormId = useId();
+  const reasonInputRef = useRef<HTMLTextAreaElement>(null);
+  const reasonButtonRefs = useRef<Partial<Record<ReasonAction, HTMLButtonElement | null>>>({});
+  const returnFocusActionRef = useRef<ReasonAction | null>(null);
   const submissionPendingRef = useRef(false);
   const capabilities = useMemo(
     () => analyzePlanningClarificationDecisionCapabilities({ projectId, planning, proposalId }).capabilities,
@@ -90,6 +96,19 @@ export function ClarificationDecisionControls({
       entry.requiredInput === "answerSchema"
   );
   const activeReasonConfig = availableReasonActions.find(({ action }) => action === activeReasonAction);
+
+  useEffect(() => {
+    if (activeReasonAction) {
+      reasonInputRef.current?.focus();
+      return;
+    }
+
+    const actionToFocus = returnFocusActionRef.current;
+    if (actionToFocus) {
+      returnFocusActionRef.current = null;
+      reasonButtonRefs.current[actionToFocus]?.focus();
+    }
+  }, [activeReasonAction]);
 
   if (!confirmAvailable && availableReasonActions.length === 0 && !answerSchemaRequired) {
     return null;
@@ -123,12 +142,17 @@ export function ClarificationDecisionControls({
   };
 
   const cancelReasonAction = () => {
+    returnFocusActionRef.current = activeReasonAction;
     setActiveReasonAction(null);
     setReason("");
   };
 
   return (
-    <section className="planning-decision-controls" aria-label="Clarification decision actions">
+    <section
+      className="planning-decision-controls"
+      aria-label={`Clarification decision actions for ${proposalTitle}`}
+      aria-busy={submitting}
+    >
       {answerSchemaRequired ? (
         <p className="planning-decision-answer-note">
           An answer is required before this planning question can be confirmed. Answer entry is not available yet.
@@ -154,9 +178,14 @@ export function ClarificationDecisionControls({
           {availableReasonActions.map((actionConfig) => (
             <button
               className={`button ${actionConfig.buttonClassName}`}
+              aria-controls={activeReasonAction === actionConfig.action ? reasonFormId : undefined}
+              aria-expanded={activeReasonAction === actionConfig.action}
               disabled={submitting}
               type="button"
               key={actionConfig.action}
+              ref={(element) => {
+                reasonButtonRefs.current[actionConfig.action] = element;
+              }}
               onClick={() => selectReasonAction(actionConfig.action)}
             >
               {actionConfig.buttonLabel}
@@ -167,6 +196,7 @@ export function ClarificationDecisionControls({
 
       {activeReasonConfig ? (
         <form
+          id={reasonFormId}
           className="planning-decision-reason-form"
           onSubmit={(event) => {
             event.preventDefault();
@@ -177,6 +207,7 @@ export function ClarificationDecisionControls({
           <label htmlFor={reasonInputId}>{activeReasonConfig.inputLabel}</label>
           <textarea
             id={reasonInputId}
+            ref={reasonInputRef}
             disabled={submitting}
             maxLength={2000}
             required
@@ -203,7 +234,11 @@ export function ClarificationDecisionControls({
         </form>
       ) : null}
 
-      {submitting ? <p className="planning-decision-progress">Saving decision...</p> : null}
+      {submitting ? (
+        <p className="planning-decision-progress" role="status" aria-live="polite" aria-atomic="true">
+          Saving decision...
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -3287,6 +3287,7 @@ tbody tr:hover {
 .planning-decision-controls {
   display: grid;
   gap: 10px;
+  min-width: 0;
   margin-top: 15px;
   padding-top: 13px;
   border-top: 1px solid var(--border);
@@ -3297,18 +3298,22 @@ tbody tr:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .planning-decision-actions .button,
 .planning-decision-form-actions .button {
   min-height: 34px;
   padding: 7px 11px;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: 0.72rem;
 }
 
 .planning-decision-reason-form {
   display: grid;
   gap: 7px;
+  min-width: 0;
   max-width: 720px;
 }
 
@@ -3320,6 +3325,8 @@ tbody tr:hover {
 
 .planning-decision-reason-form textarea {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 92px;
   resize: vertical;
 }
@@ -3328,6 +3335,8 @@ tbody tr:hover {
 .planning-decision-answer-note,
 .planning-decision-progress {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 0.76rem;
   line-height: 1.5;
 }
@@ -3619,6 +3628,11 @@ tbody tr:hover {
     min-height: 44px;
   }
 
+  .planning-decision-actions .button,
+  .planning-decision-form-actions .button {
+    min-height: 44px;
+  }
+
   .app-shell {
     display: block;
   }
@@ -3736,6 +3750,18 @@ tbody tr:hover {
 }
 
 @media (max-width: 640px) {
+  .planning-decision-actions,
+  .planning-decision-form-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planning-decision-actions .button,
+  .planning-decision-form-actions .button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .page {
     padding: 20px 14px 32px;
   }
@@ -4081,6 +4107,11 @@ tbody tr:hover {
 }
 
 @media (max-width: 480px) {
+  .planning-decision-actions,
+  .planning-decision-form-actions {
+    grid-template-columns: 1fr;
+  }
+
   .nav-list {
     grid-template-columns: repeat(6, minmax(88px, 1fr));
     overflow-x: auto;

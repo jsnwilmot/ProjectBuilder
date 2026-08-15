@@ -22,12 +22,19 @@ interface PlanningViewProps {
 
 export function PlanningView({ project, onSubmitClarificationDecision }: PlanningViewProps) {
   const mainRef = useRef<HTMLElement>(null);
+  const decisionFeedbackRef = useRef<HTMLDivElement>(null);
   const [decisionFeedback, setDecisionFeedback] = useState<PlanningDecisionUiFeedback | null>(null);
   const model = useMemo(() => buildPlanningUiViewModel(project), [project]);
 
   useEffect(() => {
     mainRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (decisionFeedback?.successful) {
+      decisionFeedbackRef.current?.focus();
+    }
+  }, [decisionFeedback]);
 
   return (
     <main className="page planning-page" id="main-content" tabIndex={-1} ref={mainRef}>
@@ -53,8 +60,11 @@ export function PlanningView({ project, onSubmitClarificationDecision }: Plannin
       {decisionFeedback ? (
         <div
           className={`planning-decision-feedback ${decisionFeedback.successful ? "is-success" : "is-unsuccessful"}`}
+          ref={decisionFeedbackRef}
           role="status"
           aria-live="polite"
+          aria-atomic="true"
+          tabIndex={-1}
         >
           {decisionFeedback.message}
         </div>
@@ -152,6 +162,7 @@ function PlanningProposalCard({
           projectId={project.identity.id}
           planning={project.planning}
           proposalId={proposal.key}
+          proposalTitle={proposal.title}
           onSubmitClarificationDecision={onSubmitClarificationDecision}
           onFeedback={onDecisionFeedback}
         />

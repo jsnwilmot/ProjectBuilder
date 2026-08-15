@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlanningView } from "../components/Planning/PlanningView";
 import type { SubmitPlanningClarificationDecision } from "../components/Planning/ClarificationDecisionControls";
@@ -215,6 +215,37 @@ describe("PlanningView", () => {
     expect(screen.getAllByText(getPlanningRuleById("pp.canvas.schema.confirmation")!.consequence).length).toBeGreaterThan(0);
   });
 
+  it("gives simultaneous clarification regions distinct proposal-title names without raw IDs", () => {
+    const componentRule = getPlanningRuleById("pp.canvas.components.confirmation");
+    if (!componentRule) throw new Error("Missing component clarification rule.");
+    const componentProposalId = "22222222-2222-4222-8222-222222222224";
+    const componentProposal = clarificationProposal({
+      proposalId: componentProposalId,
+      ruleId: componentRule.ruleId,
+      ruleVersion: componentRule.ruleVersion,
+      target: { ...componentRule.target },
+      value: { kind: "clarification", question: componentRule.question },
+      title: componentRule.title,
+      rationale: componentRule.rationale,
+      consequence: componentRule.consequence,
+      uncertainty: componentRule.uncertainty,
+      restriction: componentRule.restriction
+    });
+    const { container } = renderPlanningView(project(planning({
+      proposals: [clarificationProposal(), componentProposal]
+    })));
+
+    expect(screen.getByRole("region", {
+      name: "Clarification decision actions for Confirm the backend schema"
+    })).toBeInTheDocument();
+    expect(screen.getByRole("region", {
+      name: `Clarification decision actions for ${componentRule.title}`
+    })).toBeInTheDocument();
+    expect(container).not.toHaveTextContent(proposalId);
+    expect(container).not.toHaveTextContent(componentProposalId);
+    expect(container.innerHTML).not.toContain(componentRule.ruleId);
+  });
+
   it("renders safe source summaries and keeps optional details collapsed", async () => {
     const user = userEvent.setup();
     const { container } = renderPlanningView(project(planning()));
@@ -379,7 +410,12 @@ describe("PlanningView", () => {
     await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Awaiting approved evidence.");
     await user.click(screen.getByRole("button", { name: "Defer decision" }));
 
-    expect(screen.getByText("Planning item deferred.")).toBeInTheDocument();
+    const feedback = await screen.findByRole("status");
+    expect(feedback).toHaveTextContent("Planning item deferred.");
+    expect(feedback).toHaveAttribute("aria-live", "polite");
+    expect(feedback).toHaveAttribute("aria-atomic", "true");
+    expect(feedback).toHaveAttribute("tabindex", "-1");
+    await waitFor(() => expect(feedback).toHaveFocus());
     expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Deferred or not needed" })).not.toBeInTheDocument();
 
@@ -411,5 +447,49 @@ describe("PlanningView", () => {
     expect(screen.getByText("Planning item deferred.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Deferred or not needed" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Questions to answer" })).not.toBeInTheDocument();
+    expect(feedback).toHaveFocus();
+  });
+
+  it("announces unsuccessful feedback without moving focus to it or clearing the reason", async () => {
+    const user = userEvent.setup();
+    const submit: SubmitPlanningClarificationDecision = async () => ({
+      feedback: {
+        kind: "stateChanged",
+        successful: false,
+        message: "This project changed before the decision could be saved. Review the latest planning state before trying again."
+      }
+    });
+    renderPlanningView(project(planning()), submit);
+
+    await user.click(screen.getByRole("button", { name: "Defer" }));
+    const reason = screen.getByRole("textbox", { name: "Deferral reason" });
+    await user.type(reason, "Preserve this reason.");
+    await user.click(screen.getByRole("button", { name: "Defer decision" }));
+
+    const feedback = await screen.findByRole("status");
+    expect(feedback).not.toHaveFocus();
+    expect(feedback).toHaveAttribute("tabindex", "-1");
+    expect(reason).toHaveValue("Preserve this reason.");
+  });
+
+  it("keeps focus in the decision form and hides raw unexpected errors", async () => {
+    const user = userEvent.setup();
+    const submit: SubmitPlanningClarificationDecision = async () => {
+      throw new Error("SECRET INTERNAL ERROR");
+    };
+    renderPlanningView(project(planning()), submit);
+
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    const reason = screen.getByRole("textbox", { name: "Rejection reason" });
+    await user.type(reason, "Preserve this rejection reason.");
+    await user.click(screen.getByRole("button", { name: "Reject decision" }));
+
+    const feedback = await screen.findByRole("status");
+    expect(feedback).toHaveTextContent(
+      "The planning decision could not be completed. Review the latest saved state before trying again."
+    );
+    expect(feedback).not.toHaveFocus();
+    expect(reason).toHaveValue("Preserve this rejection reason.");
+    expect(screen.queryByText("SECRET INTERNAL ERROR")).not.toBeInTheDocument();
   });
 });

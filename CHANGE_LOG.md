@@ -1,5 +1,50 @@
 # Change Log
 
+## 2026-08-15 - Phase 5C.3C.2D Clarification Decision Accessibility and Responsive Hardening
+
+### Summary
+
+- Added proposal-title-specific accessible names so multiple clarification decision regions can be distinguished without exposing persisted identities.
+- Added React-local focus management that focuses a newly opened or switched reason textarea and returns focus to the exact reason-action opener after Cancel.
+- Made the Planning-level safe feedback region programmatically focusable and moved focus there only after successful persisted decisions; unsuccessful and unexpected-error results preserve the active form context and reason draft.
+- Added atomic polite live-region semantics for safe feedback and `Saving decision...`, plus a per-proposal `aria-busy` state and `aria-expanded`/generated `aria-controls` relationships for reason actions.
+- Hardened clarification controls at existing breakpoints with 44px buttons at `860px`, two-column action grids at `640px`, and one-column action grids at `480px`.
+- Added minimum-width, full-width textarea, and overflow-wrapping safeguards for 320px layouts without changing Planning card design, action order, capability authority, payloads, persistence, readiness, Apply, output, or TTI Draft blockers.
+- Kept functional Revise controls at zero; the answer schema remains undefined.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/components/Planning/ClarificationDecisionControls.tsx` - adds proposal-specific naming, focus behavior, busy/live semantics, and generated form relationships.
+- `src/components/Planning/PlanningView.tsx` - passes the proposal title and focuses successful safe feedback without changing durable state authority.
+- `src/styles/global.css` - adds bounded touch-target, grid, width, and wrapping hardening at existing breakpoints.
+- `src/tests/ClarificationDecisionControls.test.tsx` - covers focus transitions, busy/live state, generated relationships, privacy, and responsive CSS contracts.
+- `src/tests/PlanningView.test.tsx` - covers unique region names and successful/unsuccessful/error feedback focus behavior.
+- `CHANGE_LOG.md` - records this phase and validation.
+- `TEST_PLAN.md` - records accessibility, focus, responsive, and regression coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused control, PlanningView, and App planning-decision tests passed (`3` files, `35` tests).
+- Targeted contract, feedback, hook, view-model, repository, readiness, controlled Apply, and output/export regressions passed (`17` files, `489` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`63` unit/integration files, `2477` tests; `7` UI files, `64` tests; `70` combined files, `2541` tests).
+- `npm.cmd run test:coverage`: passed on clean rerun (`70` combined files, `2541` tests) with `90.04%` statements, `82.09%` branches, `95.05%` functions, and `93.79%` lines. An initial unrelated Power Platform test exceeded its 5-second limit under instrumentation; its isolated instrumented body passed in `4.48s` before the complete clean rerun passed.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `25` current development/tooling vulnerabilities (`2` moderate, `23` high); no dependency remediation was performed.
+- Existing browser tooling connected, but a fresh supported Canvas project and draft generation produced zero Planning items. Decision-control viewport checks were not claimed because this phase prohibits adding a fixture or manipulating storage/repository state directly.
+
 ## 2026-08-14 - Phase 5C.3C.2C Scoped Clarification Decision Controls and Ephemeral UI State
 
 ### Summary
