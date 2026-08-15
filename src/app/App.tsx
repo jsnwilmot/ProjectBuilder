@@ -26,6 +26,7 @@ export function App() {
     archiveSavedProject,
     restoreSavedProject,
     deleteSavedProject,
+    submitPlanningClarificationDecision,
     validationIssues,
     validationResult,
     generatedPackage,
@@ -139,7 +140,12 @@ export function App() {
             }}
           />
         ) : null}
-        {view === "planning" && project ? <PlanningView project={project} /> : null}
+        {view === "planning" && project ? (
+          <PlanningView
+            project={project}
+            onSubmitClarificationDecision={submitPlanningClarificationDecision}
+          />
+        ) : null}
         {view === "export" ? (
           <ExportPanel
             project={project}

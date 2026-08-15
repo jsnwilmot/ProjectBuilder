@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildPlanningUiViewModel,
   type PlanningUiApplyState,
@@ -9,13 +9,20 @@ import {
   type PlanningUiSource
 } from "../../lib/planningUiViewModel";
 import type { ProjectRecord } from "../../types/project";
+import {
+  ClarificationDecisionControls,
+  type PlanningDecisionUiFeedback,
+  type SubmitPlanningClarificationDecision
+} from "./ClarificationDecisionControls";
 
 interface PlanningViewProps {
   project: ProjectRecord;
+  onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
 }
 
-export function PlanningView({ project }: PlanningViewProps) {
+export function PlanningView({ project, onSubmitClarificationDecision }: PlanningViewProps) {
   const mainRef = useRef<HTMLElement>(null);
+  const [decisionFeedback, setDecisionFeedback] = useState<PlanningDecisionUiFeedback | null>(null);
   const model = useMemo(() => buildPlanningUiViewModel(project), [project]);
 
   useEffect(() => {
@@ -43,6 +50,16 @@ export function PlanningView({ project }: PlanningViewProps) {
         </div>
       ) : null}
 
+      {decisionFeedback ? (
+        <div
+          className={`planning-decision-feedback ${decisionFeedback.successful ? "is-success" : "is-unsuccessful"}`}
+          role="status"
+          aria-live="polite"
+        >
+          {decisionFeedback.message}
+        </div>
+      ) : null}
+
       {model.state === "empty" ? (
         <section className="planning-empty" aria-labelledby="planning-empty-title">
           <h2 id="planning-empty-title">Planning is not available yet</h2>
@@ -59,7 +76,15 @@ export function PlanningView({ project }: PlanningViewProps) {
                 <span>{group.proposals.length}</span>
               </div>
               <div className="planning-proposal-list">
-                {group.proposals.map((proposal) => <PlanningProposalCard proposal={proposal} key={proposal.key} />)}
+                {group.proposals.map((proposal) => (
+                  <PlanningProposalCard
+                    project={project}
+                    proposal={proposal}
+                    onSubmitClarificationDecision={onSubmitClarificationDecision}
+                    onDecisionFeedback={setDecisionFeedback}
+                    key={proposal.key}
+                  />
+                ))}
               </div>
             </section>
           ))}
@@ -71,7 +96,17 @@ export function PlanningView({ project }: PlanningViewProps) {
   );
 }
 
-function PlanningProposalCard({ proposal }: { proposal: PlanningUiProposal }) {
+function PlanningProposalCard({
+  project,
+  proposal,
+  onSubmitClarificationDecision,
+  onDecisionFeedback
+}: {
+  project: ProjectRecord;
+  proposal: PlanningUiProposal;
+  onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
+  onDecisionFeedback: (feedback: PlanningDecisionUiFeedback | null) => void;
+}) {
   return (
     <article className={`planning-proposal status-${proposal.status.toLowerCase().replace(/\s+/g, "-")}`}>
       <header className="planning-proposal-header">
@@ -111,6 +146,16 @@ function PlanningProposalCard({ proposal }: { proposal: PlanningUiProposal }) {
       ) : null}
 
       {proposal.applyState ? <PlanningApplyState applyState={proposal.applyState} /> : null}
+
+      {project.planning ? (
+        <ClarificationDecisionControls
+          projectId={project.identity.id}
+          planning={project.planning}
+          proposalId={proposal.key}
+          onSubmitClarificationDecision={onSubmitClarificationDecision}
+          onFeedback={onDecisionFeedback}
+        />
+      ) : null}
     </article>
   );
 }

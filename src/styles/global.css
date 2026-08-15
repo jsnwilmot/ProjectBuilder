@@ -3284,6 +3284,82 @@ tbody tr:hover {
   background: var(--surface);
 }
 
+.planning-decision-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+}
+
+.planning-decision-actions,
+.planning-decision-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planning-decision-actions .button,
+.planning-decision-form-actions .button {
+  min-height: 34px;
+  padding: 7px 11px;
+  font-size: 0.72rem;
+}
+
+.planning-decision-reason-form {
+  display: grid;
+  gap: 7px;
+  max-width: 720px;
+}
+
+.planning-decision-reason-form label {
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 740;
+}
+
+.planning-decision-reason-form textarea {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+}
+
+.planning-decision-feedback,
+.planning-decision-answer-note,
+.planning-decision-progress {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.planning-decision-feedback {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.planning-decision-feedback.is-success {
+  border-color: #9cd5bd;
+  background: var(--green-soft);
+  color: #086644;
+}
+
+.planning-decision-feedback.is-unsuccessful {
+  border-color: #e9aeb1;
+  background: var(--red-soft);
+  color: #8b2f34;
+}
+
+.planning-decision-answer-note {
+  color: #6d4700;
+}
+
+.planning-decision-progress {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .planning-rationale h4,
 .planning-sources h4,
 .planning-apply-state h4,

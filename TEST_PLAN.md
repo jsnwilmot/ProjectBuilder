@@ -1,5 +1,30 @@
 # Test Plan
 
+## 2026-08-14 Phase 5C.3C.2C clarification decision controls
+
+- Capability-visibility coverage uses valid contract fixtures to verify Needs Clarification, Revised, current N/A-permitted rules, closed states, general proposals, and fail-closed contexts without duplicating rule/status policy in React.
+- Exact-binding coverage verifies Confirm submits only project ID plus `{ proposalId, action: "confirm" }`, while Reject, Defer, and N/A submit only the exact project ID, proposal ID, action, and entered reason with no value.
+- Reason-form coverage verifies action-specific associated labels, native required state, the 2000-character limit, blank/whitespace blocking, Cancel clearing without submission, and clearing when switching reason actions.
+- Submission-lock coverage uses a controllable pending promise to verify all controls, the active textarea, and Cancel are disabled for that proposal, repeat activation makes no second call, `Saving decision...` appears, and unrelated content remains readable.
+- Feedback-safety coverage verifies returned safe success/unsuccessful messages, Planning-level persistence across a durable rerender, prior-feedback clearing on a new submission, generic handling of an unexpected exception, raw-error exclusion, and failed-reason draft preservation.
+- Identity-privacy coverage verifies proposal IDs and rule IDs required internally by the control contract are absent from rendered markup and no raw capability/repository diagnostics are presented.
+- Durable-grouping coverage verifies successful callback feedback alone does not move a card; rerendering with persisted Deferred planning input moves it through the existing view model while feedback remains visible.
+- App integration coverage verifies the existing hook method reaches the durable repository path, reloads the project into the existing lifecycle group, keeps navigation and persistence warnings separate, and introduces no decision state in App.
+- Revise-boundary coverage verifies the answer-required informational note has no functional Revise/answer editor and source checks exclude `action: "revise"` plus any answer-schema workaround.
+- Apply/readiness/output boundary coverage verifies no Apply control/call, readiness mutation, generation/export invocation, local draft persistence, optimistic planning mutation, general proposal writer, or TTI Draft authority was added.
+- Existing PlanningView coverage remains for grouping, headings, sources, evidence privacy, dependencies/conflicts, Apply-state display, history, invalid-planning fail-close, and invalid-history separation.
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high) at install time.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused control, PlanningView, and App planning-decision tests passed (`3` files, `31` tests).
+- Targeted clarification contract/feedback/hook, Planning view-model, repository, readiness, controlled Apply, and output/export regressions passed (`22` files, `615` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`63` unit/integration files, `2473` tests; `7` UI files, `64` tests; `70` combined files, `2537` tests).
+- `npm.cmd run test:coverage`: passed (`70` combined files, `2537` tests) with `90.03%` statements, `82.08%` branches, `95.04%` functions, and `93.78%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `25` current development/tooling vulnerabilities (`2` moderate, `23` high); no dependency remediation was performed.
+
 ## 2026-08-14 Phase 5C.3C.2B Architect Correction 1 error precedence
 
 - Primary-error/load-failure coverage verifies one repository call, one mandatory refresh attempt, exact propagation of the repository error, suppression of only the secondary `loadStorageState` error, no result fabrication, and no retry.

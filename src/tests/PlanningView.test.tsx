@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlanningView } from "../components/Planning/PlanningView";
+import type { SubmitPlanningClarificationDecision } from "../components/Planning/ClarificationDecisionControls";
 import { createProject } from "../lib/createProject";
 import { CONTROLLED_APPLY_HISTORY_SCHEMA_VERSION } from "../lib/planningControlledApplyHistory";
 import {
@@ -135,9 +136,29 @@ function project(planningState?: ProjectPlanningState): ProjectRecord {
   };
 }
 
+const defaultSubmitClarificationDecision: SubmitPlanningClarificationDecision = async () => ({
+  feedback: {
+    kind: "blocked",
+    successful: false,
+    message: "This planning decision could not be saved. Review the latest planning state and required information."
+  }
+});
+
+function renderPlanningView(
+  input: ProjectRecord,
+  onSubmitClarificationDecision: SubmitPlanningClarificationDecision = defaultSubmitClarificationDecision
+) {
+  return render(
+    <PlanningView
+      project={input}
+      onSubmitClarificationDecision={onSubmitClarificationDecision}
+    />
+  );
+}
+
 describe("PlanningView", () => {
   it("renders the Architecture Planning landmark and deliberate zero-planning state", () => {
-    render(<PlanningView project={project()} />);
+    renderPlanningView(project());
 
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     expect(screen.getByRole("main")).toHaveFocus();
@@ -157,7 +178,7 @@ describe("PlanningView", () => {
       proposals: [survivor]
     }));
 
-    render(<PlanningView project={input} />);
+    renderPlanningView(input);
 
     expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
     expect(screen.getByText("Some planning information cannot be displayed safely.")).toBeInTheDocument();
@@ -182,7 +203,7 @@ describe("PlanningView", () => {
       value: { kind: "text", value: "Recorded answer" },
       uncertainty: "Likely"
     });
-    render(<PlanningView project={project(planning({ proposals: [clarificationProposal(), second] }))} />);
+    renderPlanningView(project(planning({ proposals: [clarificationProposal(), second] })));
 
     expect(screen.getByRole("heading", { level: 2, name: "Questions to answer" })).toBeInTheDocument();
     expect(screen.getByText("Answer required")).toBeInTheDocument();
@@ -196,7 +217,7 @@ describe("PlanningView", () => {
 
   it("renders safe source summaries and keeps optional details collapsed", async () => {
     const user = userEvent.setup();
-    const { container } = render(<PlanningView project={project(planning())} />);
+    const { container } = renderPlanningView(project(planning()));
 
     expect(screen.getByText("Approved architecture document")).toBeInTheDocument();
     expect(screen.getByText("Approved document")).toBeInTheDocument();
@@ -237,11 +258,11 @@ describe("PlanningView", () => {
       blocking: true,
       createdAt: timestamp
     };
-    const { container } = render(<PlanningView project={project(planning({
+    const { container } = renderPlanningView(project(planning({
       proposals: [clarificationProposal({ proposalId })],
       dependencies: [dependency],
       conflicts: [conflict]
-    }))} />);
+    })));
 
     const summary = screen.getByText("Dependency and conflict details").closest("summary");
     summary?.focus();
@@ -258,7 +279,7 @@ describe("PlanningView", () => {
 
   it("shows a current-rule Confirmed proposal as planning-only with no decision or Apply controls", () => {
     const confirmed = clarificationProposal({ status: "Confirmed" });
-    render(<PlanningView project={project(planning({ proposals: [confirmed] }))} />);
+    renderPlanningView(project(planning({ proposals: [confirmed] })));
 
     expect(screen.getByText("Confirmed decision")).toBeInTheDocument();
     expect(screen.getByText("Planning decision only - no project field change available")).toBeInTheDocument();
@@ -266,10 +287,10 @@ describe("PlanningView", () => {
   });
 
   it("shows read-only Ready to apply details for a future writable proposal without an Apply control", () => {
-    render(<PlanningView project={project(planning({
+    renderPlanningView(project(planning({
       proposals: [writableProposal()],
       decisions: [decision()]
-    }))} />);
+    })));
 
     expect(screen.getByText("Ready to apply")).toBeInTheDocument();
     expect(screen.getByText("App purpose")).toBeInTheDocument();
@@ -293,7 +314,7 @@ describe("PlanningView", () => {
       appliedAt: timestamp,
       outcome: "changed"
     }];
-    const { container } = render(<PlanningView project={input} />);
+    const { container } = renderPlanningView(input);
 
     expect(screen.getByText("Already applied")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Applied history" })).toBeInTheDocument();
@@ -312,7 +333,7 @@ describe("PlanningView", () => {
       { applySchemaVersion: "wrong" } as unknown as ProjectRecord["controlledApplyHistory"][number]
     ];
 
-    render(<PlanningView project={input} />);
+    renderPlanningView(input);
 
     expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Confirm the backend schema" })).toBeInTheDocument();
@@ -322,23 +343,73 @@ describe("PlanningView", () => {
   });
 
   it("renders a TTI-like unresolved clarification without a recommendation group or readiness claim", () => {
-    render(<PlanningView project={project(planning({ proposals: [clarificationProposal()] }))} />);
+    renderPlanningView(project(planning({ proposals: [clarificationProposal()] })));
 
     expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
     expect(screen.getByText("Answer required")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Ready for Codex/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByText(/Answer entry is not available yet/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Defer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /revise|provide answer|edit answer/i })).not.toBeInTheDocument();
   });
 
   it("uses logical proposal headings and non-interactive cards", () => {
-    render(<PlanningView project={project(planning())} />);
+    renderPlanningView(project(planning()));
 
     const group = screen.getByRole("heading", { level: 2, name: "Questions to answer" });
     const proposalHeading = screen.getByRole("heading", { level: 3, name: "Confirm the backend schema" });
     const article = proposalHeading.closest("article");
     expect(group).toBeInTheDocument();
     expect(article).not.toHaveAttribute("role", "button");
-    expect(within(article!).queryByRole("button")).not.toBeInTheDocument();
+    expect(within(article!).getByRole("button", { name: "Defer" })).toBeInTheDocument();
+    expect(within(article!).getByRole("button", { name: "Reject" })).toBeInTheDocument();
+  });
+
+  it("keeps safe feedback visible and moves a decision only after persisted project rerender", async () => {
+    const user = userEvent.setup();
+    const submit: SubmitPlanningClarificationDecision = async () => ({
+      feedback: { kind: "persisted", successful: true, message: "Planning item deferred." }
+    });
+    const initialProject = project(planning());
+    const { rerender } = renderPlanningView(initialProject, submit);
+
+    await user.click(screen.getByRole("button", { name: "Defer" }));
+    await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Awaiting approved evidence.");
+    await user.click(screen.getByRole("button", { name: "Defer decision" }));
+
+    expect(screen.getByText("Planning item deferred.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Deferred or not needed" })).not.toBeInTheDocument();
+
+    const deferredDecision: PlanningDecisionRecord = {
+      decisionId,
+      proposalId,
+      projectId,
+      action: "defer",
+      previousStatus: "Needs Clarification",
+      resultingStatus: "Deferred",
+      origin: "userAction",
+      recordedAt: timestamp,
+      reason: "Awaiting approved evidence.",
+      sourceIds: [sourceId],
+      ruleSetVersion: PLANNING_RULE_SET_VERSION
+    };
+    const persistedProject = project(planning({
+      proposals: [clarificationProposal({ status: "Deferred", lastDecisionId: decisionId })],
+      decisions: [deferredDecision]
+    }));
+
+    rerender(
+      <PlanningView
+        project={persistedProject}
+        onSubmitClarificationDecision={submit}
+      />
+    );
+
+    expect(screen.getByText("Planning item deferred.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Deferred or not needed" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Questions to answer" })).not.toBeInTheDocument();
   });
 });

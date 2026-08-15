@@ -1,5 +1,49 @@
 # Change Log
 
+## 2026-08-14 - Phase 5C.3C.2C Scoped Clarification Decision Controls and Ephemeral UI State
+
+### Summary
+
+- Added capability-driven clarification controls for Confirm, Reject, Defer, and Mark Not Applicable only, with the existing clarification capability contract as the sole action authority.
+- Added inline, action-specific reason forms with the existing 2000-character limit, blank-reason prevention, Cancel clearing, and unsent-reason clearing when the action changes.
+- Added per-proposal submission locking, duplicate-submit prevention, and bounded progress presentation without optimistic planning mutation or a workspace-wide lock.
+- Wired the existing hook submission method through App and PlanningView so durable repository refresh remains authoritative for lifecycle group movement.
+- Added one safe Planning-level feedback region that remains visible when a persisted proposal changes groups and does not expose raw repository diagnostics, errors, or proposal identity.
+- Kept Revise unavailable pending an authoritative answer schema; no Revise editor, modal, Apply action, readiness mutation, output generation, general proposal decision persistence, or TTI blocker change was added.
+
+### Files created
+
+- `src/components/Planning/ClarificationDecisionControls.tsx` - renders scoped capability-driven clarification actions and local reason/submission state.
+- `src/tests/ClarificationDecisionControls.test.tsx` - covers action visibility, payloads, reason behavior, locking, feedback safety, privacy, and static exclusions.
+- `src/tests/App.planningDecisions.test.tsx` - covers App wiring and one real hook/repository decision flow.
+
+### Files updated
+
+- `src/components/Planning/PlanningView.tsx` - hosts durable decision feedback and binds controls to explicit project/planning/proposal inputs.
+- `src/app/App.tsx` - passes the existing clarification submission method to PlanningView without adding decision state.
+- `src/styles/global.css` - adds minimal scoped styles for the controls, inline reason form, feedback, progress, and answer-schema note.
+- `src/tests/PlanningView.test.tsx` - preserves read-only coverage and adds persisted-input group movement plus durable feedback coverage.
+- `CHANGE_LOG.md` - records this phase and validation.
+- `TEST_PLAN.md` - records decision-control, integration, privacy, and boundary coverage.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed `432` packages and reported the existing deprecation plus `6` development/tooling vulnerabilities (`2` moderate, `4` high) at install time.
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused control, PlanningView, and App planning-decision tests passed (`3` files, `31` tests).
+- Targeted clarification contract/feedback/hook, Planning view-model, repository, readiness, controlled Apply, and output/export regressions passed (`22` files, `615` tests).
+- App navigation regression passed (`1` file, `15` tests).
+- `npm.cmd test`: passed (`63` unit/integration files, `2473` tests; `7` UI files, `64` tests; `70` combined files, `2537` tests).
+- `npm.cmd run test:coverage`: passed (`70` combined files, `2537` tests) with `90.03%` statements, `82.08%` branches, `95.04%` functions, and `93.78%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `25` current development/tooling vulnerabilities (`2` moderate, `23` high); no dependency remediation was performed.
+
 ## 2026-08-14 - Phase 5C.3C.2B Architect Correction 1 - Preserve Primary Decision Error
 
 ### Summary
