@@ -24,6 +24,7 @@ import {
   isPlanningStatusOutputEligible,
   isPlanningStatusReadinessEligible,
   isValidPlanningTransition,
+  normalizePlanningProposalValue,
   normalizeProjectPlanningState,
   type PlanningConflictRecord,
   type PlanningDependencyRecord,
@@ -279,6 +280,38 @@ describe("planning proposal normalization", () => {
     expect(new Set(result.planning.proposals.map((record) => record.target.operation))).toEqual(
       new Set(PLANNING_TARGET_OPERATIONS)
     );
+  });
+
+  it("exports the canonical Planning value normalizer without changing state-normalization behavior", () => {
+    const inputs: unknown[] = [
+      { kind: "text", value: "  normalized\r\ntext  " },
+      { kind: "boolean", value: false },
+      { kind: "enum", value: " option-a " },
+      { kind: "stringList", value: [" one ", "two"] },
+      { kind: "structuredRecord", value: { field: { kind: "text", value: " value " } } },
+      { kind: "structuredRecordList", value: [{ field: { kind: "text", value: " value " } }] },
+      { kind: "recordCreation", value: { name: { kind: "text", value: " record " } } },
+      { kind: "notApplicable", reason: " not applicable " },
+      { kind: "deferred", reason: " deferred " },
+      { kind: "clarification", question: " clarify this " }
+    ];
+
+    for (const input of inputs) {
+      const direct = normalizePlanningProposalValue(input);
+      const stateResult = normalizeProjectPlanningState(
+        planning({ proposals: [proposal({ value: input as PlanningProposalValue })] }),
+        projectId
+      );
+      expect(direct).not.toBeNull();
+      expect(stateResult.planning.proposals[0]?.value).toEqual(direct);
+    }
+
+    const invalid = { kind: "text", value: "<script>alert(1)</script>" };
+    expect(normalizePlanningProposalValue(invalid)).toBeNull();
+    expect(normalizeProjectPlanningState(
+      planning({ proposals: [proposal({ value: invalid as PlanningProposalValue })] }),
+      projectId
+    ).planning.proposals).toEqual([]);
   });
 
   it("derives active source precedence from source type, authority, and current availability", () => {

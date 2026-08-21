@@ -1,5 +1,55 @@
 # Change Log
 
+## 2026-08-21 - Phase 5C.3C.3C Semantic Clarification Answer-Schema Foundation
+
+### Summary
+
+- Added a pure semantic clarification answer-schema contract for text, boolean, enum, string-list, structured-record, and structured-record-list answers.
+- Exported the existing canonical Planning value normalizer and added a pure schema normalizer and answer-against-schema validator without changing persisted Planning behavior.
+- Added deterministic exact `ruleId` plus `ruleVersion` registry infrastructure with defensive copies and an intentionally empty production registry.
+- Registered no current clarification rules and added no Revise decision integration, UI, persistence, readiness, controlled Apply, writable mapping, generation, or output behavior.
+- Kept `PLANNING_SCHEMA_VERSION` and `PLANNING_RULE_SET_VERSION` at `phase-5c.1.1`, storage at version 6, and all TTI Draft blockers unchanged.
+
+### Files created
+
+- `src/lib/planningClarificationAnswerSchema.ts` - defines and purely validates semantic schemas and canonical answers.
+- `src/lib/planningClarificationAnswerSchemaRegistry.ts` - defines exact-version registry normalization, lookup, defensive-copy behavior, and the empty production registry.
+- `src/tests/planningClarificationAnswerSchema.test.ts` - covers schema kinds, bounds, depth, strict fields, canonical normalization, privacy, and isolation.
+- `src/tests/planningClarificationAnswerSchemaRegistry.test.ts` - covers exact lookup, duplicates, malformed entries, defensive copies, zero bindings, and isolation.
+
+### Files updated
+
+- `src/lib/planningProposals.ts` - exposes the existing canonical Planning value normalizer from structured depth zero.
+- `src/tests/planningProposals.test.ts` - proves the public wrapper matches Planning-state value normalization for all persisted value kinds.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the semantic schema and registry validation matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed 432 packages and reported the existing 6 development/tooling vulnerabilities (2 moderate, 4 high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused Planning, semantic answer-schema, registry, and decision-contract validation passed (4 files, 110 tests).
+- Clarification materialization/repository, reconciliation/replacement, controlled Apply, readiness, and output/export regressions passed (19 files, 472 tests).
+- `npm.cmd test`: passed (65 unit/integration files, 2512 tests; 7 UI files, 64 tests; 72 combined files, 2576 tests).
+- `npm.cmd run test:coverage`: passed with 90% statements, 82.14% branches, 95.06% functions, and 93.69% lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited 1 with the existing 6 development/tooling vulnerabilities (2 moderate, 4 high); no dependency remediation was performed.
+
+### Issues found
+
+- Low: existing development/tooling dependency advisories remain outside this phase.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent Architect review is required before integration or any current-rule schema binding, Revise integration, UI, persistence, readiness, Apply, or output work.
+
 ## 2026-08-15 - Phase 5C.3C.3B Structured Record List and Storage v6 Foundation
 
 ### Summary

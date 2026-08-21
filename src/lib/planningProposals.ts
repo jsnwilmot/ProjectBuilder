@@ -1112,6 +1112,10 @@ function normalizeTargetReference(input: unknown): PlanningTargetReference | nul
   return dropUndefined({ kind, domain, targetKey, entityId, fieldKey, operation });
 }
 
+export function normalizePlanningProposalValue(input: unknown): PlanningProposalValue | null {
+  return normalizeProposalValue(input, 0);
+}
+
 function normalizeProposalValue(input: unknown, structuredDepth: number): PlanningProposalValue | null {
   if (!isPlainObject(input)) {
     return null;

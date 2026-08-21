@@ -1,5 +1,29 @@
 # Test Plan
 
+## 2026-08-21 Phase 5C.3C.3C semantic clarification answer-schema foundation
+
+- Schema normalization covers all six semantic kinds: text, boolean, enum, string list, structured record, and structured record list.
+- Lifecycle-only Planning kinds remain excluded from semantic answer schemas.
+- Structured schema coverage accepts depths 1-4 and rejects depth 5 under the same semantic structured-container model as Planning values.
+- Field coverage validates bounded safe keys and labels, dangerous keys, duplicate keys, declaration order, required fields, optional fields, unknown fields, and nested fields.
+- Enum coverage validates non-empty ordered options, the 100-option cap, duplicate rejection, safe bounded option text, and exact option matching.
+- List coverage validates default and explicit item counts, per-item limits, sparse input rejection, row-field limits, and row-order preservation.
+- Canonical Planning normalization coverage verifies whitespace and CRLF normalization plus fail-closed unsafe text, dangerous keys, sparse record lists, depth, and aggregate bounds.
+- Answer failures verify bounded issue codes and paths without echoing answer text, enum values, source content, IDs, or sensitive field values.
+- Registry coverage validates the exact `ruleId` plus `ruleVersion` key, malformed containers, invalid identities, invalid schemas, duplicate-pair rejection, no fallback, and defensive-copy behavior.
+- Production registry coverage requires zero entries and zero bindings for all current clarification rules; tests use synthetic rule IDs and schemas only.
+- Static isolation coverage excludes repository, storage version, controlled Apply, readiness, generation/export, React, browser storage, network, runtime clocks, UUIDs, and runtime crypto allocation.
+- Decision capability regressions must retain `answerSchemaRequired`; no functional Revise controls or decision-contract integration are authorized.
+- Required focused tests, relevant regressions, full tests, coverage, build, production/full audits, diff, status, and exact eight-file scope checks remain mandatory.
+- `npm.cmd ci`: passed; installed 432 packages and reported the existing 6 development/tooling vulnerabilities (2 moderate, 4 high).
+- Lint and app TypeScript validation passed.
+- Focused Planning, schema, registry, and decision-contract validation passed (4 files, 110 tests).
+- Relevant materialization/repository, reconciliation/replacement, controlled Apply, readiness, and output/export regressions passed (19 files, 472 tests).
+- Full validation passed (65 unit/integration files, 2512 tests; 7 UI files, 64 tests; 72 combined files, 2576 tests).
+- Coverage passed with 90% statements, 82.14% branches, 95.06% functions, and 93.69% lines.
+- Build passed with the existing Vite large-chunk warning.
+- Production audit passed with 0 vulnerabilities; the advisory full audit exited 1 with 6 development/tooling vulnerabilities (2 moderate, 4 high), with no remediation.
+
 ## 2026-08-15 Phase 5C.3C.3B structured record list and storage v6 foundation
 
 - Positive normalization covers empty lists, empty rows, one and multiple rows, null-prototype rows, normalized keys/text, retained row/key order, nested structured records, nested structured-record lists, and nested record creation.
