@@ -2741,3 +2741,26 @@ Release-owner result:
 ## Known testing boundary
 
 The production ZIP download passed direct archive inspection and a visual Windows Explorer check. Physical Chrome keyboard navigation passed, including focus order, visible focus, Shift+Tab, skip-link activation, dialog containment, Escape, and focus restoration. Firefox remains unverified because it is not installed on the verification workstation.
+
+## Phase 5C.3C.3G registered answer-schema Revise validation
+
+1. Verify each of the ten exact current registered rule identities exposes Revise as `inputRequired / answer` while an eligible proposal is Needs Clarification.
+2. Verify the unbound `pp.canvas.schema.confirmation@1.0.0` backend exposes `answerSchemaRequired / answerSchema` and Revise execution blocks with `answerSchemaRequired`.
+3. Verify a bound Revise with no value blocks with `answerRequired`.
+4. Verify caller-supplied `answerSchema` and another unsupported top-level field block as `invalidInput` without exposing submitted content.
+5. Verify a valid root `structuredRecordList` answer and a valid nested `structuredRecordList` answer are accepted only through their exact registered schemas.
+6. Verify missing fields, unexpected fields, wrong kinds, invalid enums, minimum-item failures, and aggregate bounds project to one `invalidAnswerValue / value` issue with only the first deterministic semantic issue code.
+7. Verify the canonical validator answer is used for the proposal and decision plan without mutating caller input.
+8. Verify issue and rendered UI output do not echo answer values, invalid enum values, unknown submitted nested fields, security permission contents, source content, or caller schema content.
+9. Verify semantically valid bound historical Revised data may Confirm when revision history, informational source provenance, conflict, alternative-group, evidence, and active-rule safeguards pass.
+10. Verify schema-invalid bound and unbound backend historical Revised data cannot advertise or execute Confirm.
+11. Regress stale replacement, alternative-group resolution, blocking conflict, revision-history integrity, informational source integrity, and exact active-rule authority safeguards.
+12. Verify materialization persists a valid canonical answer atomically, creates one informational user-answer source on Revise, and stales it while creating one confirmed source only on explicit Confirm.
+13. Verify semantic-invalid and unbound Revise or Confirm blocks before timestamp/UUID allocation and before partial materialization.
+14. Verify repository persistence performs the bound Revise to Revised to explicit Confirm sequence atomically while generated output and readiness confirmations remain unchanged.
+15. Verify schema-invalid Revise, unbound backend Revise, schema-invalid historical Confirm, and unbound historical Confirm do not write repository state.
+16. Verify persisted Planning contains canonical answer and existing lifecycle records only, with no answer schema, registry entry, field definitions, or UI schema metadata.
+17. Verify both bound and unbound Needs Clarification UI states retain the existing answer-entry-unavailable notice and expose no answer form or Revise submission control.
+18. Verify a semantically valid bound YAML Revised fixture shows Confirm, while an unbound historical backend Revised fixture does not.
+19. Verify Revised and Confirmed clarification answers do not complete readiness, map to project destinations, become controlled Apply candidates, or become generation/export eligible.
+20. Run lint, app TypeScript checking, focused contract/materialization/repository/UI/schema tests, relevant lifecycle/readiness/Apply/output regressions, the full suite, coverage, build, production audit, advisory full audit, and Git scope checks.

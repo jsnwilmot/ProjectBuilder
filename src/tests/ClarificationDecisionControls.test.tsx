@@ -122,8 +122,22 @@ function planningFor(
   };
 }
 
-function revisedPlanning(): ProjectPlanningState {
-  const answer = { kind: "text" as const, value: "Approved backend schema." };
+function yamlAnswer() {
+  return {
+    kind: "structuredRecord" as const,
+    value: {
+      installationResponsibility: { kind: "text" as const, value: "Solution owner" },
+      validationResponsibility: { kind: "text" as const, value: "Technical reviewer" },
+      yamlInstallationLocation: { kind: "text" as const, value: "Approved Canvas app" },
+      yamlParentRelationship: { kind: "text" as const, value: "Install under the approved parent" }
+    }
+  };
+}
+
+function revisedPlanning(
+  ruleId = "pp.canvas.yamlplanning.confirmation",
+  answer: PlanningProposalRecord["value"] = yamlAnswer()
+): ProjectPlanningState {
   const userAnswerSource = source({
     sourceId: userAnswerSourceId,
     sourceType: "userAnswer",
@@ -145,13 +159,13 @@ function revisedPlanning(): ProjectPlanningState {
     sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId],
     ruleSetVersion: PLANNING_RULE_SET_VERSION
   };
-  return planningFor("pp.canvas.schema.confirmation", {
+  return planningFor(ruleId, {
     status: "Revised",
     value: answer,
     sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId],
     lastDecisionId: reviseDecisionId
   }, {
-    sources: [...sourcesFor("pp.canvas.schema.confirmation"), userAnswerSource],
+    sources: [...sourcesFor(ruleId), userAnswerSource],
     decisions: [reviseDecision]
   });
 }
@@ -215,6 +229,16 @@ describe("ClarificationDecisionControls", () => {
     expect(container.innerHTML).not.toContain("pp.canvas.schema.confirmation");
   });
 
+  it("preserves the answer-unavailable notice for a bound rule before the editor phase", () => {
+    const { container } = renderControls(planningFor("pp.canvas.yamlplanning.confirmation"));
+    const controls = screen.getByRole("region", { name: decisionRegionName });
+
+    expect(screen.getByText(/Answer entry is not available yet/)).toBeInTheDocument();
+    expect(within(controls).queryByRole("button", { name: /revise|answer|edit|save/i })).not.toBeInTheDocument();
+    expect(within(controls).queryByRole("textbox", { name: /answer/i })).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toContain("pp.canvas.yamlplanning.confirmation");
+  });
+
   it("derives Not Applicable availability from the governing capability and preserves action order", () => {
     renderControls(planningFor("pp.canvas.components.confirmation"));
 
@@ -237,6 +261,19 @@ describe("ClarificationDecisionControls", () => {
       ]);
     expect(screen.queryByRole("button", { name: "Not applicable" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /revise/i })).not.toBeInTheDocument();
+  });
+
+  it("hides Confirm for an unbound historical backend Revised proposal", () => {
+    renderControls(revisedPlanning(
+      "pp.canvas.schema.confirmation",
+      { kind: "text", value: "Historical backend answer" }
+    ));
+
+    const controls = screen.getByRole("region", { name: decisionRegionName });
+    expect(within(controls).queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
+    expect(within(controls).getByRole("button", { name: "Defer" })).toBeInTheDocument();
+    expect(within(controls).getByRole("button", { name: "Reject" })).toBeInTheDocument();
+    expect(controls).not.toHaveTextContent("Historical backend answer");
   });
 
   it("submits Confirm exactly once with no reason or value", async () => {

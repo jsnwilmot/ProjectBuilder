@@ -34,75 +34,80 @@ const reviseDecisionId = "44444444-4444-4444-8444-000000000001";
 const conflictId = "66666666-6666-4666-8666-000000000001";
 const timestamp = "2026-08-01T10:30:00.000Z";
 const fingerprint = "b".repeat(64);
+const BOUND_RULE_IDS = [
+  "pp.sharepoint.internalnames.confirmation",
+  "pp.canvas.screentargets.confirmation",
+  "pp.canvas.controltargets.confirmation",
+  "pp.canvas.components.confirmation",
+  "pp.canvas.yamlplanning.confirmation",
+  "pp.canvas.delegation.confirmation",
+  "pp.security.permissions.confirmation",
+  "pp.testing.outcomes.confirmation",
+  "pp.alm.rollback.confirmation",
+  "pp.release.approval.confirmation"
+] as const;
 
 function textValue(value = "User supplied answer."): PlanningProposalValue {
   return { kind: "text", value };
 }
 
-function booleanValue(): PlanningProposalValue {
-  return { kind: "boolean", value: true };
-}
-
-function enumValue(): PlanningProposalValue {
-  return { kind: "enum", value: "confirmed-option" };
-}
-
-function stringListValue(): PlanningProposalValue {
-  return { kind: "stringList", value: ["First", "Second"] };
-}
-
-function structuredValue(): PlanningProposalValue {
+function yamlAnswer(valuePrefix = "Approved"): PlanningProposalValue {
   return {
     kind: "structuredRecord",
     value: {
-      owner: { kind: "text", value: "Business owner" },
-      approved: { kind: "boolean", value: true }
+      installationResponsibility: textValue(`${valuePrefix} installation owner`),
+      validationResponsibility: textValue(`${valuePrefix} validation owner`),
+      yamlInstallationLocation: textValue(`${valuePrefix} installation location`),
+      yamlParentRelationship: textValue(`${valuePrefix} parent relationship`)
     }
   };
 }
 
-function nestedStructuredValue(): PlanningProposalValue {
+function internalNamesAnswer(): PlanningProposalValue {
   return {
-    kind: "structuredRecord",
-    value: {
-      owner: { kind: "text", value: "Business owner" },
-      approved: { kind: "boolean", value: true },
-      environment: { kind: "enum", value: "Production" },
-      responsibilities: { kind: "stringList", value: ["Review", "Confirm"] },
-      details: {
-        kind: "structuredRecord",
-        value: {
-          notes: { kind: "text", value: "Nested answer remains allowed." },
-          confirmed: { kind: "boolean", value: true }
-        }
-      }
-    }
+    kind: "structuredRecordList",
+    value: [{
+      parentType: { kind: "enum", value: "list" },
+      parentId: textValue("tti-software-titles"),
+      displayName: textValue("Software Title"),
+      internalName: textValue("SoftwareTitle"),
+      confirmationSource: textValue("Authoritative SharePoint list settings")
+    }]
   };
 }
 
-function structuredWithNested(value: PlanningProposalValue): PlanningProposalValue {
+function componentsAnswer(): PlanningProposalValue {
   return {
-    kind: "structuredRecord",
-    value: {
-      response: value
-    }
+    kind: "structuredRecordList",
+    value: [{
+      approvedComponentName: textValue("Licence summary"),
+      purpose: textValue("Show licence allocation totals"),
+      inputs: textValue("Licence records"),
+      outputs: textValue("Allocation summary"),
+      usageTargets: {
+        kind: "structuredRecordList",
+        value: [{ targetType: { kind: "enum", value: "screen" }, targetId: textValue("dashboard") }]
+      },
+      confirmationSource: textValue("Approved component review")
+    }]
   };
 }
 
-function structuredValueAtDepth(depth: number): PlanningProposalValue {
-  if (depth <= 1) return structuredWithNested(textValue("Depth leaf."));
-  return structuredWithNested(structuredValueAtDepth(depth - 1));
-}
-
-function structuredRecordListValue(): PlanningProposalValue {
-  return { kind: "structuredRecordList", value: [{ answer: textValue("Repeated answer.") }] };
-}
-
-function deeplyNestedProhibitedValue(): PlanningProposalValue {
-  return structuredWithNested(structuredWithNested(structuredWithNested({
-    kind: "notApplicable",
-    reason: "No longer applies."
-  } as PlanningProposalValue)));
+function securityAnswer(): PlanningProposalValue {
+  return {
+    kind: "structuredRecordList",
+    value: [{
+      userRole: textValue("Licence manager"),
+      viewPermission: textValue("Approved records"),
+      createPermission: textValue("Authorized assignments"),
+      editPermission: textValue("Authorized assignments"),
+      archivePermission: textValue("Authorized assignments"),
+      restorePermission: textValue("Authorized assignments"),
+      approvePermission: textValue("Approved exceptions"),
+      administerPermission: textValue("No administration"),
+      confirmationSource: textValue("Approved security review")
+    }]
+  };
 }
 
 function ruleFor(ruleId: string) {
@@ -124,7 +129,7 @@ function source(record: Partial<PlanningSourceReference> = {}): PlanningSourceRe
   };
 }
 
-function sourcesFor(ruleId = "pp.canvas.schema.confirmation"): PlanningSourceReference[] {
+function sourcesFor(ruleId = "pp.canvas.yamlplanning.confirmation"): PlanningSourceReference[] {
   const rule = ruleFor(ruleId);
   return [
     source({
@@ -145,7 +150,7 @@ function sourcesFor(ruleId = "pp.canvas.schema.confirmation"): PlanningSourceRef
 }
 
 function proposalFor(
-  ruleId = "pp.canvas.schema.confirmation",
+  ruleId = "pp.canvas.yamlplanning.confirmation",
   overrides: Partial<PlanningProposalRecord> = {}
 ): PlanningProposalRecord {
   const rule = ruleFor(ruleId);
@@ -242,14 +247,14 @@ function planning(overrides: Partial<ProjectPlanningState> = {}): ProjectPlannin
 }
 
 function revisedPlanning(
-  value: PlanningProposalValue = textValue(),
+  value: PlanningProposalValue = yamlAnswer(),
   overrides: Partial<ProjectPlanningState> = {},
   proposalOverrides: Partial<PlanningProposalRecord> = {}
 ): ProjectPlanningState {
   return planning({
     sources: [...sourcesFor(), userAnswerSource()],
     proposals: [
-      proposalFor("pp.canvas.schema.confirmation", {
+      proposalFor("pp.canvas.yamlplanning.confirmation", {
         status: "Revised",
         value,
         sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId],
@@ -306,14 +311,13 @@ function expectAllCapabilitiesUnavailable(result: PlanningClarificationDecisionC
 }
 
 describe("planning clarification human decision contract", () => {
-  it.each([
-    ["text", textValue()],
-    ["boolean", booleanValue()],
-    ["enum", enumValue()],
-    ["string-list", stringListValue()],
-    ["structured-record", structuredValue()]
-  ])("allows Needs Clarification -> Revised with a valid %s answer", (_label, value) => {
-    const result = analyze({ action: "revise", value });
+  it("allows a valid exact-schema root structured-record-list revision", () => {
+    const value = internalNamesAnswer();
+    const state = planning({
+      sources: sourcesFor("pp.sharepoint.internalnames.confirmation"),
+      proposals: [proposalFor("pp.sharepoint.internalnames.confirmation")]
+    });
+    const result = analyze({ action: "revise", value, state });
 
     expect(result).toMatchObject({
       outcome: "allowed",
@@ -335,29 +339,13 @@ describe("planning clarification human decision contract", () => {
     });
   });
 
-  it.each([
-    ["clarification", { kind: "clarification", question: "Still unanswered?" } as PlanningProposalValue],
-    ["deferred", { kind: "deferred", reason: "Later." } as PlanningProposalValue],
-    ["not-applicable", { kind: "notApplicable", reason: "No longer applies." } as PlanningProposalValue],
-    ["record-creation", { kind: "recordCreation", value: { name: textValue("Record") } } as PlanningProposalValue]
-  ])("rejects %s values as revision answers", (_label, value) => {
-    expectBlockedCode(analyze({ action: "revise", value }), "invalidAnswerValue");
-  });
-
-  it.each([
-    ["nested not-applicable", structuredWithNested({ kind: "notApplicable", reason: "No longer applies." } as PlanningProposalValue)],
-    ["nested deferred", structuredWithNested({ kind: "deferred", reason: "Later." } as PlanningProposalValue)],
-    ["nested clarification", structuredWithNested({ kind: "clarification", question: "Still unresolved?" } as PlanningProposalValue)],
-    ["nested record-creation", structuredWithNested({ kind: "recordCreation", value: { name: textValue("Record") } } as PlanningProposalValue)],
-    ["deeply nested not-applicable", deeplyNestedProhibitedValue()]
-  ])("rejects %s values inside structured revision answers", (_label, value) => {
-    expectBlockedCode(analyze({ action: "revise", value }), "invalidAnswerValue");
-  });
-
-  it("allows valid nested structured revision answers", () => {
-    const value = nestedStructuredValue();
-
-    const result = analyze({ action: "revise", value });
+  it("allows a nested structured-record-list only through its exact registered schema", () => {
+    const value = componentsAnswer();
+    const state = planning({
+      sources: sourcesFor("pp.canvas.components.confirmation"),
+      proposals: [proposalFor("pp.canvas.components.confirmation")]
+    });
+    const result = analyze({ action: "revise", value, state });
 
     expect(result).toMatchObject({
       outcome: "allowed",
@@ -369,27 +357,49 @@ describe("planning clarification human decision contract", () => {
         userAnswerSourceAction: "createInformational"
       }
     });
-    expect(normalizeProjectPlanningState(revisedPlanning(value), projectId).planning.proposals[0]?.value).toEqual(value);
+    expect(normalizeProjectPlanningState(state, projectId).issues).toEqual([]);
   });
 
-  it("uses the persisted structured depth model for revision-safe answers", () => {
-    for (const depth of [1, 2, 3, 4]) {
-      expect(analyze({ action: "revise", value: structuredValueAtDepth(depth) }), `depth ${depth}`).toMatchObject({
-        outcome: "allowed"
-      });
-    }
-    expectBlockedCode(analyze({ action: "revise", value: structuredValueAtDepth(5) }), "invalidAnswerValue");
+  it.each([
+    ["missingRequiredField", { kind: "structuredRecord", value: {} }, "missingRequiredField"],
+    ["wrong kind", textValue("Wrong kind"), "kindMismatch"],
+    ["unexpected field", {
+      ...yamlAnswer(),
+      value: { ...(yamlAnswer() as Extract<PlanningProposalValue, { kind: "structuredRecord" }>).value, SECRET_UNKNOWN_FIELD: textValue("SECRET CONTENT") }
+    }, "unexpectedField"]
+  ])("projects %s semantic failures as one private contract issue", (_label, value, underlyingIssueCode) => {
+    const result = analyze({ action: "revise", value: value as PlanningProposalValue });
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [{ code: "invalidAnswerValue", field: "value", underlyingIssueCode }]
+    });
+    expect(JSON.stringify(result)).not.toMatch(/SECRET_UNKNOWN_FIELD|SECRET CONTENT|Wrong kind/);
   });
 
-  it("rejects structured record lists as direct revision answers", () => {
-    expectBlockedCode(analyze({ action: "revise", value: structuredRecordListValue() }), "invalidAnswerValue");
-  });
-
-  it("rejects structured record lists nested inside structured revision answers", () => {
-    expectBlockedCode(
-      analyze({ action: "revise", value: structuredWithNested(structuredRecordListValue()) }),
-      "invalidAnswerValue"
-    );
+  it.each([
+    ["invalid enum", {
+      kind: "structuredRecordList",
+      value: [{
+        parentType: { kind: "enum", value: "SECRET INVALID ENUM" },
+        parentId: textValue("tti-software-titles"),
+        displayName: textValue("Software Title"),
+        internalName: textValue("SoftwareTitle"),
+        confirmationSource: textValue("Approved source")
+      }]
+    }, "enumOptionInvalid"],
+    ["minimum items", { kind: "structuredRecordList", value: [] }, "minItemsNotMet"],
+    ["aggregate bound", { kind: "structuredRecordList", value: Array.from({ length: 101 }, () => (internalNamesAnswer() as Extract<PlanningProposalValue, { kind: "structuredRecordList" }>).value[0]) }, "invalidAnswer"]
+  ])("fails closed for internal-name %s without echoing submitted content", (_label, value, underlyingIssueCode) => {
+    const state = planning({
+      sources: sourcesFor("pp.sharepoint.internalnames.confirmation"),
+      proposals: [proposalFor("pp.sharepoint.internalnames.confirmation")]
+    });
+    const result = analyze({ action: "revise", value: value as PlanningProposalValue, state });
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [{ code: "invalidAnswerValue", field: "value", underlyingIssueCode }]
+    });
+    expect(JSON.stringify(result)).not.toContain("SECRET INVALID ENUM");
   });
 
   it("blocks direct Needs Clarification -> Confirmed and allows Revised -> Confirmed with coherent revision history", () => {
@@ -403,7 +413,7 @@ describe("planning clarification human decision contract", () => {
         action: "confirm",
         previousStatus: "Revised",
         resultingStatus: "Confirmed",
-        nextValue: textValue(),
+        nextValue: yamlAnswer(),
         userAnswerSourceAction: "createConfirmedAndStalePriorInformational",
         futureDecisionOrigin: "userAction",
         readinessEligible: false,
@@ -411,6 +421,44 @@ describe("planning clarification human decision contract", () => {
       }
     });
     expect(result.outcome === "allowed" ? result.plan.decisionValue : "unexpected").toBeUndefined();
+  });
+
+  it("blocks capability and execution for a schema-invalid historical bound revision", () => {
+    const state = revisedPlanning(textValue("SECRET HISTORICAL ANSWER"));
+    expect(capability(analyzeCapabilities(state), "confirm")).toMatchObject({
+      state: "unavailable",
+      requiredInput: "none",
+      reasonCodes: ["invalidAnswerValue"]
+    });
+    const result = analyze({ action: "confirm", state });
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [{ code: "invalidAnswerValue", field: "value", underlyingIssueCode: "kindMismatch" }]
+    });
+    expect(JSON.stringify(result)).not.toContain("SECRET HISTORICAL ANSWER");
+  });
+
+  it("blocks capability and execution for an unbound historical backend revision", () => {
+    const value = textValue("Historical backend answer");
+    const state = planning({
+      sources: [...sourcesFor("pp.canvas.schema.confirmation"), userAnswerSource()],
+      proposals: [proposalFor("pp.canvas.schema.confirmation", {
+        status: "Revised",
+        value,
+        sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId],
+        lastDecisionId: reviseDecisionId
+      })],
+      decisions: [reviseDecision(value)]
+    });
+    expect(capability(analyzeCapabilities(state), "confirm")).toMatchObject({
+      state: "unavailable",
+      requiredInput: "none",
+      reasonCodes: ["answerSchemaRequired"]
+    });
+    expect(analyze({ action: "confirm", state })).toMatchObject({
+      outcome: "blocked",
+      issues: [{ code: "answerSchemaRequired", field: "value" }]
+    });
   });
 
   it("blocks confirmation when informational user-answer provenance is missing or malformed", () => {
@@ -476,7 +524,14 @@ describe("planning clarification human decision contract", () => {
     expect(component.outcome === "allowed" ? component.plan.decisionReason : "unexpected").toBeUndefined();
 
     expectBlockedCode(
-      analyze({ action: "markNotApplicable", reason: "Schema is not needed." }),
+      analyze({
+        action: "markNotApplicable",
+        reason: "Schema is not needed.",
+        state: planning({
+          sources: sourcesFor("pp.canvas.schema.confirmation"),
+          proposals: [proposalFor("pp.canvas.schema.confirmation")]
+        })
+      }),
       "notApplicableNotAllowed"
     );
     expectBlockedCode(
@@ -582,7 +637,7 @@ describe("planning clarification human decision contract", () => {
   });
 
   it("keeps revision fingerprints deterministic and outside human answer content", () => {
-    const result = analyze({ action: "revise", value: textValue("A revised answer.") });
+    const result = analyze({ action: "revise", value: yamlAnswer() });
 
     expect(result.outcome).toBe("allowed");
     expect(result.outcome === "allowed" ? result.plan.preserveFingerprint : false).toBe(true);
@@ -604,7 +659,7 @@ describe("planning clarification human decision contract", () => {
 
   it("returns defensive plan copies and does not mutate caller planning or values", () => {
     const state = planning();
-    const value = structuredValue();
+    const value = yamlAnswer();
     const beforeState = JSON.stringify(state);
     const beforeValue = JSON.stringify(value);
     const result = analyze({ action: "revise", value, state });
@@ -614,18 +669,34 @@ describe("planning clarification human decision contract", () => {
     if (result.outcome !== "allowed" || result.plan.nextValue.kind !== "structuredRecord") {
       throw new Error("Expected allowed structured revision plan.");
     }
-    result.plan.nextValue.value.owner = textValue("Mutated returned plan only.");
+    result.plan.nextValue.value.installationResponsibility = textValue("Mutated returned plan only.");
 
     expect(JSON.stringify(state)).toBe(beforeState);
     expect(JSON.stringify(value)).toBe(beforeValue);
-    expect(analyze({ action: "revise", value, state })).toMatchObject({ outcome: "allowed", plan: { nextValue: structuredValue() } });
+    expect(analyze({ action: "revise", value, state })).toMatchObject({ outcome: "allowed", plan: { nextValue: yamlAnswer() } });
+  });
+
+  it("uses the semantic validator's canonical answer instead of the caller object", () => {
+    const value = yamlAnswer() as Extract<PlanningProposalValue, { kind: "structuredRecord" }>;
+    value.value.installationResponsibility = textValue("  Approved installation owner  ");
+    const before = JSON.stringify(value);
+    const result = analyze({ action: "revise", value });
+
+    expect(result).toMatchObject({
+      outcome: "allowed",
+      plan: {
+        nextValue: { kind: "structuredRecord", value: { installationResponsibility: textValue("Approved installation owner") } },
+        decisionValue: { kind: "structuredRecord", value: { installationResponsibility: textValue("Approved installation owner") } }
+      }
+    });
+    expect(JSON.stringify(value)).toBe(before);
   });
 
   it("is independent of source and decision input order where identity, sourceIds, and history are unchanged", () => {
     const ordered = analyze({ action: "confirm", state: revisedPlanning() });
     const reversed = analyze({
       action: "confirm",
-      state: revisedPlanning(textValue(), {
+      state: revisedPlanning(yamlAnswer(), {
         sources: [...revisedPlanning().sources].reverse(),
         decisions: [...revisedPlanning().decisions].reverse()
       })
@@ -660,6 +731,21 @@ describe("planning clarification human decision contract", () => {
     expectBlockedCode(analyze({ action: "markStale", value: textValue() }), "unsupportedHumanAction");
   });
 
+  it.each(["answerSchema", "actor"])("rejects unsupported direct contract field %s without using its contents", (field) => {
+    const secret = "SECRET CALLER SCHEMA CONTENT";
+    const result = analyzePlanningClarificationHumanDecision({
+      projectId,
+      planning: planning(),
+      proposalId,
+      action: "revise",
+      value: yamlAnswer(),
+      [field]: { secret }
+    });
+
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "invalidInput", field }] });
+    expect(JSON.stringify(result)).not.toContain(secret);
+  });
+
   it("keeps TTI component and YAML Not Applicable allowed while schema and internal names remain blocked", () => {
     for (const ruleId of ["pp.canvas.components.confirmation", "pp.canvas.yamlplanning.confirmation"]) {
       expect(analyze({
@@ -684,7 +770,7 @@ describe("planning clarification human decision contract", () => {
   it("allows TTI security content revision without implying Architect approval, readiness, output, Power Fx, or YAML generation", () => {
     const result = analyze({
       action: "revise",
-      value: textValue("Security matrix requires role-by-role confirmation from the approved source."),
+      value: securityAnswer(),
       state: planning({
         sources: sourcesFor("pp.security.permissions.confirmation"),
         proposals: [proposalFor("pp.security.permissions.confirmation")]
@@ -718,11 +804,10 @@ describe("planning clarification human decision contract", () => {
         "markNotApplicable"
       ]);
       expect(new Set(first.capabilities.map((entry) => entry.state))).toEqual(new Set([
-        "answerSchemaRequired",
         "unavailable",
         "inputRequired"
       ]));
-      expect(first.capabilities.every((entry) => ["none", "reason", "answerSchema"].includes(entry.requiredInput))).toBe(true);
+      expect(first.capabilities.every((entry) => ["none", "reason", "answerSchema", "answer"].includes(entry.requiredInput))).toBe(true);
       expect(JSON.stringify(first)).not.toMatch(/text|boolean|enum|stringList|structuredRecord|editorType|valueKind/);
     });
 
@@ -731,9 +816,9 @@ describe("planning clarification human decision contract", () => {
 
       expect(capability(result, "revise")).toEqual({
         action: "revise",
-        state: "answerSchemaRequired",
-        requiredInput: "answerSchema",
-        reasonCodes: ["answerSchemaRequired"]
+        state: "inputRequired",
+        requiredInput: "answer",
+        reasonCodes: ["answerRequired"]
       });
       expect(capability(result, "confirm")).toMatchObject({ state: "unavailable", requiredInput: "none" });
       expect(capability(result, "reject")).toEqual({
@@ -749,9 +834,38 @@ describe("planning clarification human decision contract", () => {
         reasonCodes: ["reasonRequired"]
       });
       expect(capability(result, "markNotApplicable")).toMatchObject({
-        state: "unavailable",
-        requiredInput: "none",
-        reasonCodes: ["notApplicableNotAllowed"]
+        state: "inputRequired",
+        requiredInput: "reason",
+        reasonCodes: ["reasonRequired"]
+      });
+    });
+
+    it("reports schema-supported Revise capability for all ten exact bound identities", () => {
+      for (const ruleId of BOUND_RULE_IDS) {
+        const state = planning({ sources: sourcesFor(ruleId), proposals: [proposalFor(ruleId)] });
+        expect(capability(analyzeCapabilities(state), "revise"), ruleId).toEqual({
+          action: "revise",
+          state: "inputRequired",
+          requiredInput: "answer",
+          reasonCodes: ["answerRequired"]
+        });
+      }
+    });
+
+    it("keeps the unbound backend schema-blocked without accepting a generic fallback", () => {
+      const state = planning({
+        sources: sourcesFor("pp.canvas.schema.confirmation"),
+        proposals: [proposalFor("pp.canvas.schema.confirmation")]
+      });
+      expect(capability(analyzeCapabilities(state), "revise")).toEqual({
+        action: "revise",
+        state: "answerSchemaRequired",
+        requiredInput: "answerSchema",
+        reasonCodes: ["answerSchemaRequired"]
+      });
+      expect(analyze({ action: "revise", value: textValue("Generic fallback must not run."), state })).toMatchObject({
+        outcome: "blocked",
+        issues: [{ code: "answerSchemaRequired", field: "value" }]
       });
     });
 

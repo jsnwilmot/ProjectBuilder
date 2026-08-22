@@ -5967,3 +5967,47 @@
 ## Remaining work
 
 - Return the exact review commit to GPT Architect. Repository concurrency recheck, controlled ProjectRecord mutation, durable history persistence, atomic storage, and explicit Apply behavior remain unimplemented and require separate authorization.
+
+# 2026-08-22 - Phase 5C.3C.3G - Registered Answer-Schema Revise Decision Integration
+
+## Summary
+
+- Exact registered answer schemas now authorize semantic Revise capability for the ten bound current clarification rules as `inputRequired / answer`.
+- The unbound `pp.canvas.schema.confirmation@1.0.0` backend remains `answerSchemaRequired / answerSchema` and non-submittable, with no generic revision fallback.
+- Revise performs an exact internal `ruleId + ruleVersion` schema lookup, rejects caller-supplied schemas and other unsupported contract fields, validates through the existing semantic validator, and uses its canonical answer.
+- Confirm revalidates the current exact schema; schema-invalid and unbound historical Revised answers cannot Confirm.
+- Root and nested `structuredRecordList` answers are supported only through an exact registered schema. Generic revision kinds were not widened.
+- The existing answer-entry-unavailable notice now covers both bound and unbound Revise capabilities until a separately authorized editor phase. No Revise editor or submission path was added.
+
+## Files updated
+
+- `src/lib/planningClarificationDecisionContract.ts` - added exact registered-schema capability, Revise validation, Confirm revalidation, and strict direct-input keys.
+- `src/components/Planning/ClarificationDecisionControls.tsx` - preserved the pre-editor notice for bound and unbound answer requirements.
+- `src/tests/planningClarificationDecisionContract.test.ts` - covers all ten bindings, backend fail-close, semantic validation, canonical values, Confirm revalidation, safeguards, and privacy.
+- `src/tests/planningClarificationDecisionMaterialization.test.ts` - covers schema-bound lifecycle materialization and fail-closed invalid/unbound paths.
+- `src/tests/projectRepository.test.ts` - covers atomic repository persistence, explicit Confirm, no invalid/unbound writes, and no answer-schema metadata persistence.
+- `src/tests/ClarificationDecisionControls.test.tsx` - uses a valid bound YAML Confirm fixture and covers bound/unbound pre-editor behavior.
+- `CHANGE_LOG.md` and `TEST_PLAN.md` - record phase scope and validation.
+
+## Scope boundaries preserved
+
+- No readiness, destination mapping, controlled Apply, generation/output, answer-schema persistence, storage, or migration integration was added.
+- No production registry or answer-schema contract change was made; backend binding remains absent.
+- No Revise editor, answer draft state, or Revise UI submission control was added.
+- TTI package readiness remains Draft and all authoritative blockers remain unchanged.
+
+## Testing completed
+
+- Dependency install, lint, app TypeScript checking, six focused suites, 24-file regression matrix, full tests, coverage, production build, production audit, advisory full audit, and Git scope/diff checks completed.
+- Full tests passed with 72 files and 2,593 tests.
+- Coverage passed at 90.07% statements, 82.26% branches, 95.12% functions, and 93.75% lines.
+- Production audit passed with zero vulnerabilities.
+
+## Issues found
+
+- Low: the advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+## Remaining work
+
+- Independent GPT Architect review of the exact review commit is required. Integration, backend schema binding, Revise editor work, mappings, readiness, Apply, output, storage, and deployment remain blocked.

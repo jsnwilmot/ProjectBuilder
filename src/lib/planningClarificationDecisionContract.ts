@@ -12,6 +12,8 @@ import {
   type PlanningTargetReference,
   type ProjectPlanningState
 } from "./planningProposals";
+import { validatePlanningClarificationAnswer } from "./planningClarificationAnswerSchema";
+import { getProductionPlanningClarificationAnswerSchema } from "./planningClarificationAnswerSchemaRegistry";
 import { getPlanningRuleById, type PlanningClarificationRule } from "./planningRules";
 
 export type PlanningClarificationHumanDecisionAction =
@@ -45,7 +47,8 @@ export type PlanningClarificationDecisionCapabilityState =
 export type PlanningClarificationDecisionCapabilityRequiredInput =
   | "none"
   | "reason"
-  | "answerSchema";
+  | "answerSchema"
+  | "answer";
 
 export type PlanningClarificationDecisionContractOutcome =
   | "allowed"
@@ -88,6 +91,7 @@ export type PlanningClarificationDecisionContractIssueCode =
   | "unsupportedHumanAction"
   | "invalidStatusTransition"
   | "answerRequired"
+  | "answerSchemaRequired"
   | "invalidAnswerValue"
   | "reasonRequired"
   | "notApplicableNotAllowed"
@@ -109,8 +113,7 @@ export interface PlanningClarificationDecisionContractIssue {
 }
 
 export type PlanningClarificationDecisionCapabilityReasonCode =
-  | PlanningClarificationDecisionContractIssueCode
-  | "answerSchemaRequired";
+  PlanningClarificationDecisionContractIssueCode;
 
 export interface PlanningClarificationDecisionActionCapability {
   action: PlanningClarificationHumanDecisionAction;
@@ -146,28 +149,16 @@ const SUPPORTED_ACTIONS: readonly PlanningClarificationHumanDecisionAction[] = [
 ];
 
 const TERMINAL_STATUSES = new Set<PlanningProposalStatus>(["Rejected", "Superseded"]);
-const REVISION_VALUE_KINDS = new Set<PlanningProposalValue["kind"]>([
-  "text",
-  "boolean",
-  "enum",
-  "stringList",
-  "structuredRecord"
-]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const CAPABILITY_INPUT_KEYS = new Set(["projectId", "planning", "proposalId"]);
+const DECISION_INPUT_KEYS = new Set(["projectId", "planning", "proposalId", "action", "value", "reason"]);
 
 const LIMITS = {
   projectId: 200,
   recordId: 128,
   shortText: 500,
-  longText: 2000,
-  textValue: 4000,
-  listItems: 100,
-  listItem: 500,
-  structuredKeys: 50,
-  structuredDepth: 4,
-  structuredSize: 12000
+  longText: 2000
 } as const;
 
 export function buildPlanningUserAnswerLocator(
@@ -223,8 +214,9 @@ export function analyzePlanningClarificationDecisionCapabilities(
       switch (action) {
         case "revise": {
           const structuralIssue = validateReviseAvailability(proposal);
-          return structuralIssue
-            ? unavailableCapability(action, structuralIssue.code)
+          if (structuralIssue) return unavailableCapability(action, structuralIssue.code);
+          return getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion)
+            ? capability(action, "inputRequired", "answer", ["answerRequired"])
             : capability(action, "answerSchemaRequired", "answerSchema", ["answerSchemaRequired"]);
         }
         case "confirm": {
@@ -262,6 +254,11 @@ export function analyzePlanningClarificationHumanDecision(
 ): PlanningClarificationDecisionContractResult {
   if (!isPlainObject(input)) {
     return blocked(issue("invalidInput", "Clarification human decision input must be an object."));
+  }
+
+  const forbiddenKey = Object.keys(input).find((key) => !DECISION_INPUT_KEYS.has(key));
+  if (forbiddenKey) {
+    return blocked(issue("invalidInput", "Clarification human decision input contains an unsupported field.", undefined, forbiddenKey));
   }
 
   const projectId = normalizeProjectId(input.projectId);
@@ -304,14 +301,20 @@ function analyzeRevise(
   const structuralIssue = validateReviseAvailability(proposal);
   if (structuralIssue) return blocked(structuralIssue);
 
+  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
+  if (!schema) {
+    return blocked(issue("answerSchemaRequired", "Revision requires an exact registered answer schema.", proposal.proposalId, "value"));
+  }
+
   if (inputValue === undefined) {
     return blocked(issue("answerRequired", "Revision requires an answer value.", proposal.proposalId, "value"));
   }
 
-  const value = normalizeRevisionValue(inputValue);
-  if (!value) {
-    return blocked(issue("invalidAnswerValue", "Revision answer value kind is not permitted.", proposal.proposalId, "value"));
+  const validation = validatePlanningClarificationAnswer(schema, inputValue);
+  if (validation.outcome === "invalid") {
+    return blocked(invalidAnswerIssue(proposal, validation.issues[0]?.code));
   }
+  const value = validation.answer;
 
   return allowed({
     proposal,
@@ -487,7 +490,17 @@ function validateConfirmAvailability(
   if (hasOpenBlockingConflict(planning, proposal.proposalId)) {
     return issue("blockingConflict", "Open blocking conflicts must be resolved before confirmation.", proposal.proposalId, "conflicts");
   }
-  return validateRevisionHistory(planning, proposal);
+  const revisionIssue = validateRevisionHistory(planning, proposal);
+  if (revisionIssue) return revisionIssue;
+
+  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
+  if (!schema) {
+    return issue("answerSchemaRequired", "Confirmation requires an exact registered answer schema.", proposal.proposalId, "value");
+  }
+  const validation = validatePlanningClarificationAnswer(schema, proposal.value);
+  return validation.outcome === "invalid"
+    ? invalidAnswerIssue(proposal, validation.issues[0]?.code)
+    : null;
 }
 
 function validateRejectAvailability(
@@ -692,56 +705,21 @@ function issue(
   return dropUndefined({ code, message, proposalId, field, underlyingIssueCode });
 }
 
+function invalidAnswerIssue(
+  proposal: PlanningProposalRecord,
+  underlyingIssueCode?: string
+): PlanningClarificationDecisionContractIssue {
+  return issue(
+    "invalidAnswerValue",
+    "Clarification answer does not satisfy the exact registered schema.",
+    proposal.proposalId,
+    "value",
+    underlyingIssueCode
+  );
+}
+
 function isSupportedAction(input: unknown): input is PlanningClarificationHumanDecisionAction {
   return typeof input === "string" && (SUPPORTED_ACTIONS as readonly string[]).includes(input);
-}
-
-function normalizeRevisionValue(input: unknown): PlanningProposalValue | null {
-  return normalizeRevisionSafeValue(input, 0);
-}
-
-function normalizeRevisionSafeValue(input: unknown, structuredDepth: number): PlanningProposalValue | null {
-  if (!isPlainObject(input) || !REVISION_VALUE_KINDS.has(input.kind as PlanningProposalValue["kind"])) return null;
-  switch (input.kind) {
-    case "text": {
-      const value = normalizeMultiline(input.value, LIMITS.textValue);
-      return value ? { kind: "text", value } : null;
-    }
-    case "boolean":
-      return typeof input.value === "boolean" ? { kind: "boolean", value: input.value } : null;
-    case "enum": {
-      const value = normalizeSingleLine(input.value, LIMITS.shortText);
-      return value ? { kind: "enum", value } : null;
-    }
-    case "stringList": {
-      const value = normalizeStringList(input.value, LIMITS.listItems, LIMITS.listItem);
-      return value ? { kind: "stringList", value } : null;
-    }
-    case "structuredRecord": {
-      const nextDepth = structuredDepth + 1;
-      if (nextDepth > LIMITS.structuredDepth) return null;
-      const value = normalizeRevisionStructuredRecord(input.value, nextDepth);
-      return value && JSON.stringify(value).length <= LIMITS.structuredSize
-        ? { kind: "structuredRecord", value }
-        : null;
-    }
-    default:
-      return null;
-  }
-}
-
-function normalizeRevisionStructuredRecord(input: unknown, structuredDepth: number): Record<string, PlanningProposalValue> | null {
-  if (!isPlainObject(input)) return null;
-  const entries = Object.entries(input);
-  if (entries.length > LIMITS.structuredKeys) return null;
-  const normalized: Record<string, PlanningProposalValue> = {};
-  for (const [rawKey, rawValue] of entries) {
-    const key = normalizeSingleLine(rawKey, LIMITS.shortText);
-    const value = normalizeRevisionSafeValue(rawValue, structuredDepth);
-    if (!key || !value || key === "__proto__" || key === "constructor" || key === "prototype") return null;
-    normalized[key] = value;
-  }
-  return normalized;
 }
 
 function normalizeReason(input: unknown): string | null {
@@ -755,12 +733,6 @@ function normalizeProjectId(input: unknown): string | null {
 function normalizeUuid(input: unknown): string | null {
   const value = normalizeSingleLine(input, LIMITS.recordId);
   return value && value === value.toLowerCase() && UUID_PATTERN.test(value) ? value : null;
-}
-
-function normalizeStringList(input: unknown, cap: number, itemLimit: number): readonly string[] | null {
-  if (!Array.isArray(input) || input.length > cap || hasSparseArrayEntry(input)) return null;
-  const normalized = input.map((item) => normalizeSingleLine(item, itemLimit));
-  return normalized.every(Boolean) ? (normalized as string[]) : null;
 }
 
 function normalizeSingleLine(input: unknown, limit: number): string | null {
@@ -799,13 +771,6 @@ function isSafeText(value: string): boolean {
   if (/^\s*(screens?|controls?|properties?|items?|onselect):\s*$/im.test(value)) return false;
   if (/^\s*[\w.-]+\s*:\s*[\w[{]/m.test(value) && /(?:\n\s+[\w.-]+\s*:|\n\s*-\s+)/.test(value)) return false;
   return true;
-}
-
-function hasSparseArrayEntry(input: readonly unknown[]): boolean {
-  for (let index = 0; index < input.length; index += 1) {
-    if (!(index in input)) return true;
-  }
-  return false;
 }
 
 function sameTarget(first: PlanningTargetReference, second: PlanningTargetReference): boolean {

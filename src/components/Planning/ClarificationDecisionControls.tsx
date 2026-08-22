@@ -91,9 +91,11 @@ export function ClarificationDecisionControls({
   const availableReasonActions = REASON_ACTIONS.filter(({ action }) => capabilities.some(
     (entry) => entry.action === action && entry.state === "inputRequired" && entry.requiredInput === "reason"
   ));
-  const answerSchemaRequired = capabilities.some(
-    (entry) => entry.action === "revise" && entry.state === "answerSchemaRequired" &&
-      entry.requiredInput === "answerSchema"
+  const answerEntryUnavailable = capabilities.some(
+    (entry) => entry.action === "revise" && (
+      (entry.state === "answerSchemaRequired" && entry.requiredInput === "answerSchema") ||
+      (entry.state === "inputRequired" && entry.requiredInput === "answer")
+    )
   );
   const activeReasonConfig = availableReasonActions.find(({ action }) => action === activeReasonAction);
 
@@ -110,7 +112,7 @@ export function ClarificationDecisionControls({
     }
   }, [activeReasonAction]);
 
-  if (!confirmAvailable && availableReasonActions.length === 0 && !answerSchemaRequired) {
+  if (!confirmAvailable && availableReasonActions.length === 0 && !answerEntryUnavailable) {
     return null;
   }
 
@@ -153,7 +155,7 @@ export function ClarificationDecisionControls({
       aria-label={`Clarification decision actions for ${proposalTitle}`}
       aria-busy={submitting}
     >
-      {answerSchemaRequired ? (
+      {answerEntryUnavailable ? (
         <p className="planning-decision-answer-note">
           An answer is required before this planning question can be confirmed. Answer entry is not available yet.
         </p>

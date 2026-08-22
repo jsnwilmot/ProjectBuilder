@@ -573,8 +573,11 @@ const humanUserAnswerSourceId = "83000000-0000-4000-8000-000000000003";
 const humanReviseDecisionId = "84000000-0000-4000-8000-000000000001";
 const humanDecisionId = "85000000-0000-4000-8000-000000000001";
 const humanSourceId = "86000000-0000-4000-8000-000000000001";
+const humanConfirmDecisionId = "85000000-0000-4000-8000-000000000002";
+const humanConfirmedSourceId = "86000000-0000-4000-8000-000000000002";
 const humanTimestamp = "2026-07-22T12:15:00.000Z";
 const humanMaterializedAt = "2026-07-22T13:15:00.000Z";
+const humanConfirmedAt = "2026-07-22T14:15:00.000Z";
 const humanFingerprint = "d".repeat(64);
 
 function humanTextValue(value = "Confirmed TTI planning answer."): PlanningProposalValue {
@@ -599,13 +602,18 @@ function humanStructuredRecordListValue(): PlanningProposalValue {
 
 function humanStructuredValue(): PlanningProposalValue {
   return {
-    kind: "structuredRecord",
-    value: {
-      owner: humanTextValue("IT operations"),
-      approved: { kind: "boolean", value: true },
-      environment: { kind: "enum", value: "Production" },
-      responsibilities: { kind: "stringList", value: ["Review blockers", "Confirm scope"] }
-    }
+    kind: "structuredRecordList",
+    value: [{
+      approvedComponentName: humanTextValue("Licence summary"),
+      purpose: humanTextValue("Show licence allocation totals"),
+      inputs: humanTextValue("Licence records"),
+      outputs: humanTextValue("Allocation summary"),
+      usageTargets: {
+        kind: "structuredRecordList",
+        value: [{ targetType: { kind: "enum", value: "screen" }, targetId: humanTextValue("dashboard") }]
+      },
+      confirmationSource: humanTextValue("Approved component review")
+    }]
   };
 }
 
@@ -688,7 +696,7 @@ function humanUserAnswerSource(overrides: Partial<PlanningSourceReference> = {})
 
 function humanReviseDecision(
   projectId = humanProjectId,
-  value: PlanningProposalValue = humanTextValue(),
+  value: PlanningProposalValue = humanStructuredValue(),
   sourceIds: readonly string[] = [humanProjectRuleSourceId, humanReadinessSourceId, humanUserAnswerSourceId]
 ): PlanningDecisionRecord {
   return {
@@ -720,13 +728,22 @@ function humanPlanning(
 
 function humanRevisedPlanning(
   projectId = humanProjectId,
-  value: PlanningProposalValue = humanTextValue(),
+  value: PlanningProposalValue = humanStructuredValue(),
+  overrides: Partial<ProjectPlanningState> = {}
+): ProjectPlanningState {
+  return humanRevisedPlanningForRule(projectId, "pp.canvas.components.confirmation", value, overrides);
+}
+
+function humanRevisedPlanningForRule(
+  projectId: string,
+  ruleId: string,
+  value: PlanningProposalValue,
   overrides: Partial<ProjectPlanningState> = {}
 ): ProjectPlanningState {
   return humanPlanning(projectId, {
-    sources: [...humanSources(), humanUserAnswerSource()],
+    sources: [...humanSources(ruleId), humanUserAnswerSource()],
     proposals: [
-      humanProposal(projectId, "pp.canvas.components.confirmation", {
+      humanProposal(projectId, ruleId, {
         status: "Revised",
         value,
         sourceIds: [humanProjectRuleSourceId, humanReadinessSourceId, humanUserAnswerSourceId],
@@ -1085,7 +1102,7 @@ describe("projectRepository", () => {
     expect(storage.getItem(STORAGE_KEY)).toBe(before);
   });
 
-  it("persists a human revise decision atomically while preserving project fields and unresolved readiness/output state", async () => {
+  it("persists a bound Revise then explicit Confirm atomically without readiness, output, or schema-metadata integration", async () => {
     const storage = new CountingStorage();
     const project = humanProject(humanPlanning());
     saveStorageState({ version: 4, activeProjectId: humanProjectId, projects: [project] }, storage);
@@ -1149,6 +1166,104 @@ describe("projectRepository", () => {
       sourceIds: [humanProjectRuleSourceId, humanReadinessSourceId, humanSourceId],
       ruleSetVersion: PLANNING_RULE_SET_VERSION
     });
+
+    const confirmResult = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "confirm"
+    }, storage, {
+      now: () => humanConfirmedAt,
+      uuid: (() => {
+        const ids = [humanConfirmDecisionId, humanConfirmedSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    });
+
+    expect(confirmResult).toMatchObject({
+      outcome: "persisted",
+      action: "confirm",
+      decisionId: humanConfirmDecisionId,
+      createdSourceId: humanConfirmedSourceId,
+      staleSourceId: humanSourceId,
+      issues: []
+    });
+    expect(storage.writes).toBe(writesBefore + 2);
+    const confirmed = loadStorageState(storage).projects[0];
+    expect(confirmed.generatedDocuments).toEqual(project.generatedDocuments);
+    expect(confirmed.readinessConfirmations).toEqual({ scopeReviewed: true });
+    expect(confirmed.planning?.proposals[0]).toMatchObject({
+      status: "Confirmed",
+      value: answer,
+      sourceIds: [humanProjectRuleSourceId, humanReadinessSourceId, humanConfirmedSourceId],
+      lastDecisionId: humanConfirmDecisionId
+    });
+    const serializedPlanning = JSON.stringify(confirmed.planning);
+    expect(serializedPlanning).not.toContain("answerSchema");
+    expect(serializedPlanning).not.toContain("phase-5c.3c.3c");
+    expect(serializedPlanning).not.toContain("registryEntry");
+  });
+
+  it.each([
+    [
+      "schema-invalid bound Revise",
+      humanPlanning(),
+      { proposalId: humanProposalId, action: "revise", value: humanTextValue("Private invalid answer") },
+      "invalidAnswerValue"
+    ],
+    [
+      "unbound backend Revise",
+      humanPlanning(humanProjectId, {
+        sources: humanSources("pp.canvas.schema.confirmation"),
+        proposals: [humanProposal(humanProjectId, "pp.canvas.schema.confirmation")]
+      }),
+      { proposalId: humanProposalId, action: "revise", value: humanTextValue("Private backend answer") },
+      "answerSchemaRequired"
+    ],
+    [
+      "schema-invalid historical Confirm",
+      humanRevisedPlanning(humanProjectId, humanTextValue("Private historical answer")),
+      { proposalId: humanProposalId, action: "confirm" },
+      "invalidAnswerValue"
+    ],
+    [
+      "unbound historical backend Confirm",
+      humanRevisedPlanningForRule(
+        humanProjectId,
+        "pp.canvas.schema.confirmation",
+        humanTextValue("Private historical backend answer")
+      ),
+      { proposalId: humanProposalId, action: "confirm" },
+      "answerSchemaRequired"
+    ]
+  ] as const)("does not persist %s", async (_label, planning, input, issueCode) => {
+    const storage = new CountingStorage();
+    const project = humanProject(planning);
+    saveStorageState({ version: 6, activeProjectId: humanProjectId, projects: [project] }, storage);
+    const before = storage.getItem(STORAGE_KEY);
+    const writesBefore = storage.writes;
+    const runtimeCalls = { now: 0, uuid: 0 };
+
+    const result = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, input, storage, {
+      now: () => {
+        runtimeCalls.now += 1;
+        return humanMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return humanDecisionId;
+      }
+    });
+
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: issueCode })]
+    });
+    expect(JSON.stringify(result)).not.toMatch(
+      /Private invalid answer|Private backend answer|Private historical answer|Private historical backend answer/i
+    );
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
+    expect(storage.writes).toBe(writesBefore);
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
   });
 
   it("blocks human-decision repository persistence when bound proposal evidence is non-current", async () => {
@@ -1167,7 +1282,7 @@ describe("projectRepository", () => {
     const result = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
       proposalId: humanProposalId,
       action: "revise",
-      value: humanTextValue()
+      value: humanStructuredValue()
     }, storage, {
       now: () => {
         runtimeCalls.now += 1;
@@ -1327,7 +1442,7 @@ describe("projectRepository", () => {
     const result = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
       proposalId: humanProposalId,
       action: "revise",
-      value: humanTextValue()
+      value: humanStructuredValue()
     }, storage, {
       now: () => {
         runtimeCalls.now += 1;
@@ -1362,7 +1477,7 @@ describe("projectRepository", () => {
       const result = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
         proposalId: humanProposalId,
         action: "revise",
-        value: humanTextValue()
+        value: humanStructuredValue()
       }, storage, {
         now: () => humanMaterializedAt,
         uuid: (() => {
@@ -1392,7 +1507,7 @@ describe("projectRepository", () => {
     await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
       proposalId: humanProposalId,
       action: "revise",
-      value: humanTextValue("First answer.")
+      value: humanStructuredValue()
     }, storage, {
       now: () => humanMaterializedAt,
       uuid: (() => {

@@ -42,13 +42,18 @@ function textValue(value = "User supplied answer."): PlanningProposalValue {
 
 function structuredValue(): PlanningProposalValue {
   return {
-    kind: "structuredRecord",
-    value: {
-      owner: textValue("Business owner"),
-      approved: { kind: "boolean", value: true },
-      environment: { kind: "enum", value: "Production" },
-      responsibilities: { kind: "stringList", value: ["Review", "Confirm"] }
-    }
+    kind: "structuredRecordList",
+    value: [{
+      approvedComponentName: textValue("Licence summary"),
+      purpose: textValue("Show licence allocation totals"),
+      inputs: textValue("Licence records"),
+      outputs: textValue("Allocation summary"),
+      usageTargets: {
+        kind: "structuredRecordList",
+        value: [{ targetType: { kind: "enum", value: "screen" }, targetId: textValue("dashboard") }]
+      },
+      confirmationSource: textValue("Approved component review")
+    }]
   };
 }
 
@@ -58,7 +63,7 @@ function ruleFor(ruleId: string) {
   return rule;
 }
 
-function sourcesFor(ruleId = "pp.canvas.schema.confirmation"): PlanningSourceReference[] {
+function sourcesFor(ruleId = "pp.canvas.components.confirmation"): PlanningSourceReference[] {
   const rule = ruleFor(ruleId);
   return [
     {
@@ -82,7 +87,7 @@ function sourcesFor(ruleId = "pp.canvas.schema.confirmation"): PlanningSourceRef
 }
 
 function proposalFor(
-  ruleId = "pp.canvas.schema.confirmation",
+  ruleId = "pp.canvas.components.confirmation",
   overrides: Partial<PlanningProposalRecord> = {}
 ): PlanningProposalRecord {
   const rule = ruleFor(ruleId);
@@ -176,14 +181,23 @@ function planning(overrides: Partial<ProjectPlanningState> = {}): ProjectPlannin
 }
 
 function revisedPlanning(
-  value: PlanningProposalValue = textValue(),
+  value: PlanningProposalValue = structuredValue(),
+  overrides: Partial<ProjectPlanningState> = {},
+  proposalOverrides: Partial<PlanningProposalRecord> = {}
+): ProjectPlanningState {
+  return revisedPlanningForRule("pp.canvas.components.confirmation", value, overrides, proposalOverrides);
+}
+
+function revisedPlanningForRule(
+  ruleId: string,
+  value: PlanningProposalValue,
   overrides: Partial<ProjectPlanningState> = {},
   proposalOverrides: Partial<PlanningProposalRecord> = {}
 ): ProjectPlanningState {
   return planning({
-    sources: [...sourcesFor(), userAnswerSource()],
+    sources: [...sourcesFor(ruleId), userAnswerSource()],
     proposals: [
-      proposalFor("pp.canvas.schema.confirmation", {
+      proposalFor(ruleId, {
         status: "Revised",
         value,
         sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId],
@@ -403,7 +417,7 @@ describe("planning clarification human decision materialization", () => {
     expect(candidate.sources).toHaveLength(2);
     expect(proposal).toMatchObject({
       status: resultingStatus,
-      value: { kind: "clarification", question: ruleFor("pp.canvas.schema.confirmation").question },
+      value: { kind: "clarification", question: ruleFor("pp.canvas.components.confirmation").question },
       sourceIds: [projectRuleSourceId, readinessSourceId],
       lastDecisionId: decisionId,
       updatedAt: nextTimestamp
@@ -475,7 +489,7 @@ describe("planning clarification human decision materialization", () => {
   ] as const)("blocks revise before runtime allocation when bound evidence is %s", (availability) => {
     expectNonCurrentEvidenceBlocked(
       withSourceAvailability(planning(), readinessSourceId, availability),
-      { proposalId, action: "revise", value: textValue() },
+      { proposalId, action: "revise", value: structuredValue() },
       readinessSourceId,
       availability
     );
@@ -527,8 +541,8 @@ describe("planning clarification human decision materialization", () => {
 
   it.each([
     ["direct confirm", planning(), { proposalId, action: "confirm" }, "invalidStatusTransition"],
-    ["blocking conflict", revisedPlanning(textValue(), { conflicts: [blockingConflict()] }), { proposalId, action: "confirm" }, "blockingConflict"],
-    ["alternative group", revisedPlanning(textValue(), {}, { alternativeGroupId: "22222222-2222-4222-8222-000000000002" }), { proposalId, action: "confirm" }, "alternativeDecisionRequiresControlledResolution"],
+    ["blocking conflict", revisedPlanning(structuredValue(), { conflicts: [blockingConflict()] }), { proposalId, action: "confirm" }, "blockingConflict"],
+    ["alternative group", revisedPlanning(structuredValue(), {}, { alternativeGroupId: "22222222-2222-4222-8222-000000000002" }), { proposalId, action: "confirm" }, "alternativeDecisionRequiresControlledResolution"],
     ["stale confirm", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Stale", staleReason: "sourceChanged", staleAt: timestamp })] }), { proposalId, action: "confirm" }, "staleClarificationRequiresReplacement"],
     ["terminal reject", planning({ proposals: [proposalFor("pp.canvas.schema.confirmation", { status: "Rejected" })] }), { proposalId, action: "revise", value: textValue() }, "terminalProposal"]
   ])("blocks %s before runtime allocation", (_label, state, input, code) => {
@@ -546,7 +560,7 @@ describe("planning clarification human decision materialization", () => {
     const preparation = preparePlanningClarificationDecisionMaterialization(projectId, planning(), {
       proposalId,
       action: "revise",
-      value: textValue()
+      value: structuredValue()
     });
     expect(preparation.kind).toBe("ready");
     let index = 0;
@@ -565,10 +579,8 @@ describe("planning clarification human decision materialization", () => {
     expect(finalized?.result.outcome).toBe("persisted");
     if (!finalized?.planning) throw new Error("Expected persisted planning.");
     const candidate = finalized.planning;
-    if (candidate.proposals[0].value.kind !== "structuredRecord") {
-      throw new Error("Expected structured value.");
-    }
-    candidate.proposals[0].value.value.owner = textValue("Mutated copy");
+    if (candidate.proposals[0].value.kind !== "structuredRecordList") throw new Error("Expected structured-record-list answer.");
+    candidate.proposals[0].value.value[0].approvedComponentName = textValue("Mutated copy");
     expect(answer).toEqual(structuredValue());
 
     const repeat = preparePlanningClarificationDecisionMaterialization(projectId, finalized?.planning, {
@@ -577,6 +589,53 @@ describe("planning clarification human decision materialization", () => {
       value: textValue("Second answer")
     });
     expectBlockedCode(repeat, "invalidStatusTransition");
+  });
+
+  it("blocks an unbound backend Revise before timestamp or UUID allocation", () => {
+    let nowCalls = 0;
+    let uuidCalls = 0;
+    const backend = planning({
+      sources: sourcesFor("pp.canvas.schema.confirmation"),
+      proposals: [proposalFor("pp.canvas.schema.confirmation")]
+    });
+    const preparation = preparePlanningClarificationDecisionMaterialization(projectId, backend, {
+      proposalId,
+      action: "revise",
+      value: textValue("Backend choice")
+    });
+
+    expectBlockedCode(preparation, "answerSchemaRequired");
+    if (preparation.kind === "ready") {
+      finalizePlanningClarificationDecisionMaterialization(preparation, {
+        now: () => {
+          nowCalls += 1;
+          return nextTimestamp;
+        },
+        uuid: () => {
+          uuidCalls += 1;
+          return decisionId;
+        }
+      });
+    }
+    expect(nowCalls).toBe(0);
+    expect(uuidCalls).toBe(0);
+  });
+
+  it.each([
+    ["schema-invalid bound", revisedPlanning(textValue("Persistable but invalid")), "invalidAnswerValue"],
+    [
+      "unbound backend",
+      revisedPlanningForRule("pp.canvas.schema.confirmation", textValue("Historical backend answer")),
+      "answerSchemaRequired"
+    ]
+  ])("does not materialize %s historical Confirm", (_label, state, issueCode) => {
+    const preparation = preparePlanningClarificationDecisionMaterialization(projectId, state, {
+      proposalId,
+      action: "confirm"
+    });
+
+    expectBlockedCode(preparation, issueCode);
+    expect(preparation.kind).toBe("blocked");
   });
 
   it("exposes precise project-changed result and preserves readiness, output, dependencies, conflicts, and TTI gates as external state", () => {
@@ -592,7 +651,7 @@ describe("planning clarification human decision materialization", () => {
     expect(result?.planning?.conflicts).toEqual([]);
     expect(isPlanningStatusReadinessEligible("Confirmed")).toBe(false);
     expect(isPlanningStatusOutputEligible("Confirmed")).toBe(false);
-    expect(JSON.stringify(result)).not.toMatch(/Power Fx|YAML|generatedDocuments|readinessConfirmations|actor|email|username|approver/i);
+    expect(JSON.stringify(result)).not.toMatch(/Power Fx|generatedDocuments|readinessConfirmations|actor|email|username|approver/i);
   });
 
   it("does not import output, UI, readiness apply, remote, external AI, or Cloudflare concerns", () => {
