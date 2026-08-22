@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-08-21 - Phase 5C.3C.3E Clarification Answer-Schema Registry Bindings
+
+### Summary
+
+- Added exactly ten Architect-approved current-rule clarification answer-schema bindings in rule-priority order.
+- Intentionally left `pp.canvas.schema.confirmation@1.0.0` unbound because the generic backend answer remains polymorphic.
+- Kept all clarification rule versions at `1.0.0`, the answer-schema contract at `phase-5c.3c.3c`, Planning and rule-set schemas at `phase-5c.1.1`, and storage at version 6.
+- Added no Revise integration or UI, destination mapping, readiness integration, controlled Apply integration, output/generation integration, persistence change, or TTI blocker reclassification.
+- Preserved TTI package readiness as Draft.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationAnswerSchemaRegistry.ts` - registers the ten exact approved schemas while leaving the backend rule absent.
+- `src/tests/planningClarificationAnswerSchemaRegistry.test.ts` - validates exact contracts, answer behavior, absence, version mismatch, bounds, immutability, and isolation.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the binding and regression validation matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed 432 packages and reported 6 development/tooling vulnerabilities (2 moderate, 4 high).
+- `npm.cmd run lint`: passed.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused schema, registry, decision-contract, and Planning-value validation passed (4 files, 121 tests).
+- Clarification materialization/repository, reconciliation/replacement, controlled Apply, readiness/client-review, document, and export regressions passed (17 files, 479 tests).
+- `npm.cmd test`: passed (65 unit/integration files, 2523 tests; 7 UI files, 64 tests; 72 combined files, 2587 tests).
+- `npm.cmd run test:coverage`: passed (72 combined files, 2587 tests) with 90.05% statements, 82.22% branches, 95.13% functions, and 93.75% lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high) in the known `brace-expansion`, `js-yaml`, `nanoid`, and `undici` chains; no dependency remediation was performed.
+- `git diff --check`: passed before and after implementation validation.
+
+### Issues found
+
+- Low: existing development/tooling dependency advisories remain outside this phase.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent Architect review of the exact review commit is required before integration.
+
 ## 2026-08-21 - Phase 5C.3C.3C Semantic Clarification Answer-Schema Foundation
 
 ### Summary

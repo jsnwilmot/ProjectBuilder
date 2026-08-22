@@ -1,5 +1,31 @@
 # Test Plan
 
+## 2026-08-21 Phase 5C.3C.3E clarification answer-schema registry bindings
+
+- Production registry coverage requires exactly these ten `@1.0.0` identities in rule-priority order: SharePoint internal names, Canvas screens, Canvas controls, Canvas components, YAML planning, delegation, security permissions, testing outcomes, ALM/rollback, and release approval.
+- Backend coverage requires `pp.canvas.schema.confirmation@1.0.0` and unknown backend versions to return `undefined`; no fallback or TTI-specific backend schema is allowed.
+- Exact-version coverage requires mismatched versions of every bound rule to return `undefined`.
+- Registry coverage validates a ten-entry normalized production registry, unique identities, independent schema normalization, defensive copies, deep-frozen canonical metadata, and exact lookup.
+- Exact-contract coverage asserts every root kind, field key, field order, label, required flag, nested kind, list bound, item limit, and enum option order.
+- Status-subset coverage accepts `notStarted`, `missingInformation`, `reviewNeeded`, `confirmed`, and `blocked` for screen and release answers while rejecting `notApplicable`.
+- Internal-name coverage accepts only the `list` and `library` parent-type enum values and requires parent ID, display name, internal name, and confirmation source.
+- Component coverage accepts only `screen` and `control` usage-target types, requires at least one usage target, and excludes lifecycle and YAML data.
+- Security coverage requires all seven permission values to be scoped text, rejects boolean permission answers, and requires the authoritative source.
+- YAML coverage requires installation responsibility, validation responsibility, application location, and bounded parent-relationship text while rejecting `yamlParentType` and `yamlParentId` substitutes.
+- Release coverage requires separate responsibility and approver values, nonempty bounded review evidence, and the controlled non-N/A status subset.
+- Minimum-answer tests cover all ten schemas; negative tests cover missing required fields, unexpected fields, wrong kinds, invalid enums, and nested/list minimums.
+- Limit coverage preserves the existing depth-4, 50-field, 100-item, and 12000 aggregate fail-closed boundaries.
+- Static isolation excludes repository, storage, readiness, controlled Apply, generation/export, React, browser storage, network, runtime clocks, UUID allocation, and runtime side effects.
+- Decision-contract regression must preserve `answerSchemaRequired`, leave `REVISION_VALUE_KINDS` unchanged, and keep direct and nested structured-record-list Revise blocked.
+- Readiness, controlled Apply, destination mapping, output/generation, and persistence regressions must remain unchanged.
+- Required validation includes install, lint, app typecheck, focused schema/registry/decision/Planning tests, materialization/repository/reconciliation/replacement regressions, controlled Apply/readiness/generation/export regressions, full tests, coverage, build, both audits, diff, status, and exact four-file scope checks.
+- Install, lint, app typecheck, focused validation (4 files, 121 tests), and relevant regressions (17 files, 479 tests) passed.
+- Full validation passed across 65 unit/integration files with 2523 tests and 7 UI files with 64 tests, for 72 files and 2587 tests total.
+- Coverage passed across the same 2587 tests with 90.05% statements, 82.22% branches, 95.13% functions, and 93.75% lines.
+- Build passed with the existing Vite large-chunk warning.
+- Production audit passed with 0 vulnerabilities; the advisory full audit exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high), with no remediation.
+- Final diff, status, exact four-file scope, branch, commit-parent, remote-SHA, main, stash, and TTI checks remain required before completion reporting.
+
 ## 2026-08-21 Phase 5C.3C.3C semantic clarification answer-schema foundation
 
 - Schema normalization covers all six semantic kinds: text, boolean, enum, string list, structured record, and structured record list.

@@ -50,7 +50,207 @@ const RULE_VERSION_LIMIT = 64;
 
 const PRODUCTION_REGISTRY = deepFreeze({
   contractVersion: PLANNING_CLARIFICATION_ANSWER_SCHEMA_VERSION,
-  entries: []
+  entries: [
+    {
+      ruleId: "pp.sharepoint.internalnames.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecordList",
+        minItems: 1,
+        maxItems: 100,
+        fields: [
+          { key: "parentType", label: "Parent type", required: true, schema: { kind: "enum", options: ["list", "library"] } },
+          { key: "parentId", label: "Parent ID", required: true, schema: { kind: "text" } },
+          { key: "displayName", label: "Display name", required: true, schema: { kind: "text" } },
+          { key: "internalName", label: "Internal name", required: true, schema: { kind: "text" } },
+          { key: "confirmationSource", label: "Confirmation source", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.canvas.screentargets.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecordList",
+        minItems: 1,
+        maxItems: 100,
+        fields: [
+          { key: "id", label: "Screen ID", required: true, schema: { kind: "text" } },
+          { key: "approvedScreenName", label: "Approved screen name", required: true, schema: { kind: "text" } },
+          { key: "purpose", label: "Purpose", required: true, schema: { kind: "text" } },
+          {
+            key: "confirmationStatus",
+            label: "Confirmation status",
+            required: true,
+            schema: { kind: "enum", options: ["notStarted", "missingInformation", "reviewNeeded", "confirmed", "blocked"] }
+          },
+          { key: "confirmationSource", label: "Confirmation source", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.canvas.controltargets.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecordList",
+        minItems: 1,
+        maxItems: 100,
+        fields: [
+          { key: "id", label: "Control ID", required: true, schema: { kind: "text" } },
+          { key: "screenId", label: "Parent screen ID", required: true, schema: { kind: "text" } },
+          { key: "approvedControlName", label: "Approved control name", required: true, schema: { kind: "text" } },
+          { key: "controlType", label: "Control type", required: true, schema: { kind: "text" } },
+          { key: "purpose", label: "Purpose", required: true, schema: { kind: "text" } },
+          { key: "formulaProperties", label: "Formula properties", required: true, schema: { kind: "text" } },
+          { key: "confirmationSource", label: "Confirmation source", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.canvas.components.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecordList",
+        minItems: 1,
+        maxItems: 100,
+        fields: [
+          { key: "approvedComponentName", label: "Approved component name", required: true, schema: { kind: "text" } },
+          { key: "purpose", label: "Purpose", required: true, schema: { kind: "text" } },
+          { key: "inputs", label: "Inputs", required: true, schema: { kind: "text" } },
+          { key: "outputs", label: "Outputs", required: true, schema: { kind: "text" } },
+          {
+            key: "usageTargets",
+            label: "Usage locations",
+            required: true,
+            schema: {
+              kind: "structuredRecordList",
+              minItems: 1,
+              maxItems: 100,
+              fields: [
+                { key: "targetType", label: "Target type", required: true, schema: { kind: "enum", options: ["screen", "control"] } },
+                { key: "targetId", label: "Target ID", required: true, schema: { kind: "text" } }
+              ]
+            }
+          },
+          { key: "confirmationSource", label: "Confirmation source", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.canvas.yamlplanning.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecord",
+        fields: [
+          { key: "installationResponsibility", label: "Installation responsibility", required: true, schema: { kind: "text" } },
+          { key: "validationResponsibility", label: "Validation responsibility", required: true, schema: { kind: "text" } },
+          { key: "yamlInstallationLocation", label: "Application location", required: true, schema: { kind: "text" } },
+          { key: "yamlParentRelationship", label: "Parent relationship", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.canvas.delegation.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecord",
+        fields: [
+          { key: "expectedRecordCounts", label: "Expected record volumes", required: true, schema: { kind: "text" } },
+          { key: "searchRequirements", label: "Search patterns", required: true, schema: { kind: "text" } },
+          { key: "filteringRequirements", label: "Filter operations", required: true, schema: { kind: "text" } },
+          { key: "sortingRequirements", label: "Sort operations", required: true, schema: { kind: "text" } },
+          {
+            key: "connectorLimitations",
+            label: "Connector limitations",
+            required: true,
+            schema: {
+              kind: "structuredRecordList",
+              minItems: 1,
+              maxItems: 100,
+              fields: [
+                { key: "connectorId", label: "Connector ID", required: true, schema: { kind: "text" } },
+                { key: "limitations", label: "Limitations", required: true, schema: { kind: "text" } }
+              ]
+            }
+          },
+          { key: "delegationRequirements", label: "Mitigation requirements", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.security.permissions.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecordList",
+        minItems: 1,
+        maxItems: 100,
+        fields: [
+          { key: "userRole", label: "User role", required: true, schema: { kind: "text" } },
+          { key: "viewPermission", label: "View permission", required: true, schema: { kind: "text" } },
+          { key: "createPermission", label: "Create permission", required: true, schema: { kind: "text" } },
+          { key: "editPermission", label: "Edit permission", required: true, schema: { kind: "text" } },
+          { key: "archivePermission", label: "Archive permission", required: true, schema: { kind: "text" } },
+          { key: "restorePermission", label: "Restore permission", required: true, schema: { kind: "text" } },
+          { key: "approvePermission", label: "Approve permission", required: true, schema: { kind: "text" } },
+          { key: "administerPermission", label: "Administer permission", required: true, schema: { kind: "text" } },
+          { key: "confirmationSource", label: "Authoritative permission source", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.testing.outcomes.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecordList",
+        minItems: 1,
+        maxItems: 100,
+        fields: [
+          { key: "observableOutcome", label: "Observable outcome", required: true, schema: { kind: "text" } },
+          { key: "testPerformer", label: "Test performer", required: true, schema: { kind: "text" } },
+          { key: "approvedEnvironment", label: "Approved environment", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.alm.rollback.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecord",
+        fields: [
+          { key: "sourceControlOwner", label: "Source-control owner", required: true, schema: { kind: "text" } },
+          { key: "solutionPackagingOwner", label: "Solution-packaging owner", required: true, schema: { kind: "text" } },
+          { key: "connectionReferencesOwner", label: "Connection-references owner", required: true, schema: { kind: "text" } },
+          { key: "environmentVariablesOwner", label: "Environment-variables owner", required: true, schema: { kind: "text" } },
+          { key: "deploymentOwner", label: "Deployment owner", required: true, schema: { kind: "text" } },
+          { key: "rollbackOwner", label: "Rollback owner", required: true, schema: { kind: "text" } },
+          { key: "recoveryOwner", label: "Recovery owner", required: true, schema: { kind: "text" } }
+        ]
+      }
+    },
+    {
+      ruleId: "pp.release.approval.confirmation",
+      ruleVersion: "1.0.0",
+      schema: {
+        kind: "structuredRecord",
+        fields: [
+          { key: "releaseApprovalResponsibility", label: "Release approval responsibility", required: true, schema: { kind: "text" } },
+          { key: "releaseApprover", label: "Authorized release approver", required: true, schema: { kind: "text" } },
+          {
+            key: "requiredEvidence",
+            label: "Required review evidence",
+            required: true,
+            schema: { kind: "stringList", minItems: 1, maxItems: 100, itemMaxLength: 500 }
+          },
+          {
+            key: "releaseApprovalStatus",
+            label: "Approval status",
+            required: true,
+            schema: { kind: "enum", options: ["notStarted", "missingInformation", "reviewNeeded", "confirmed", "blocked"] }
+          }
+        ]
+      }
+    }
+  ]
 } as const satisfies PlanningClarificationAnswerSchemaRegistry);
 
 export function normalizePlanningClarificationAnswerSchemaRegistry(
