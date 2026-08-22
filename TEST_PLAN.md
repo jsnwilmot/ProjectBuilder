@@ -2787,3 +2787,26 @@ The production ZIP download passed direct archive inspection and a visual Window
 18. Verify static isolation: both modules have no React, React DOM, browser/storage/network, repository, readiness, controlled Apply, generation/export, analytics, random UUID, mutable global counter, or runtime-clock dependency; registry access exists only in the answer-entry view-model module.
 19. Regress clarification answer schema/registry, decision contract/materialization, repository, current decision controls/Planning UI, client review, controlled Apply, generation, and export behavior.
 20. Verify no persistence, Storage Version, planning/answer schema version, UI, navigation guard, readiness, mapping, Apply, output, dependency, Node/CI, or TTI Draft state changes occur.
+
+## Phase 5C.3C.3H.2 primitive clarification answer editor validation
+
+1. Verify the isolated component accepts only matching `text`, `boolean`, `enum`, and `stringList` schema/draft pairs and fails closed for mismatches or unsupported structured kinds.
+2. Verify text always renders as a controlled textarea, preserves exact spaces, multiline input, and line endings, honors `maxLength`, and shows a neutral bounded character count.
+3. Verify text editing performs no trimming, line-ending normalization, candidate conversion, or semantic validation on change.
+4. Verify boolean uses a fieldset, legend, and Yes/No radios; `undefined` selects neither, `true` selects Yes, and explicit `false` selects No.
+5. Verify enum uses a controlled select with a disabled unanswered placeholder, exact schema option order, display-only humanization, and unchanged canonical values.
+6. Verify untouched string lists render zero rows regardless of `minItems`, and temporary blank draft items remain visible.
+7. Verify string-list Add appears after all rows, appends exactly one blank item, sets `engaged: true`, preserves order, and uses deterministic component-local identities without random or clock dependencies.
+8. Verify each string-list Remove action is associated with its `Item N` row and occurs before editable content; removing one item preserves remaining order.
+9. Verify removing the final string-list item keeps `engaged: true`, preserving the distinction between untouched and explicitly engaged empty lists.
+10. Verify string-list inputs are single-line, honor `itemMaxLength`, do not split commas or delimiters, and preserve blank draft values.
+11. Verify `maxItems` disables Add before another row can be created and `minItems` never fabricates initial rows.
+12. Verify associated textarea, select, and list-item labels; boolean fieldset/legend; visible and accessible required state; keyboard buttons; and row-specific Remove names.
+13. Verify disabled state disables every editable control and Add/Remove action while leaving controlled draft content readable.
+14. Verify DOM IDs are generated independently of answer content and no hidden answer serialization, console logging, analytics, registry, source, readiness, or security projection exists.
+15. Verify component source has no repository, decision materialization, production registry, project hook, readiness, controlled Apply, generation/export, browser storage, network, random UUID, runtime clock, semantic validation, or Revise-submission dependency.
+16. Verify the component has zero production consumers in `ClarificationDecisionControls`, `PlanningView`, `App`, and `useProjectBuilder`; tests are its only consumer.
+17. Regress the answer-entry selector, draft foundation, semantic answer-schema contract, production registry, and clarification decision contract without modifying them.
+18. Regress current clarification controls, Planning view/view-model, Planning decision hook, navigation, repository, client review, controlled Apply, generation, and export behavior.
+19. Verify no ProjectRecord, ProjectPlanningState, repository, local storage, migration, mapping, readiness, Apply, generation, output, dependency, Node/CI, or TTI Draft behavior changes.
+20. Run dependency install, lint, app TypeScript checking, focused and regression matrices, full tests, coverage, production build, production audit, advisory full audit, exact scope checks, and Git diff checks.

@@ -6063,3 +6063,55 @@
 ### Remaining work
 
 - Independent GPT Architect review of the exact review commit is required. React editors, live Revise integration, the mandatory read-only answer renderer, unsaved-draft navigation protection, backend binding, mappings, readiness, Apply, output, persistence, and deployment remain blocked.
+
+## 2026-08-22 - Phase 5C.3C.3H.2 - Primitive Clarification Answer Editors
+
+### Summary
+
+- Added one isolated controlled React editor for exactly `text`, `boolean`, `enum`, and `stringList` clarification answer drafts.
+- Text answers use a multiline textarea that preserves exact draft input, applies approved maximum length, and presents a neutral bounded character count.
+- Boolean answers use an explicit unanswered state with Yes/No radios; `false` remains an intentional draft value.
+- Enum answers retain exact approved option values and order while using display-only humanization.
+- String-list answers use associated per-item Remove actions before editable content and one Add action after all rows.
+- String-list Add and Remove operations preserve order and engagement semantics, with deterministic component-local ephemeral identities.
+- The component consumes and returns draft state only; it performs no semantic conversion, validation, persistence, or submission.
+
+### Files created
+
+- `src/components/Planning/ClarificationAnswerPrimitiveEditor.tsx` - isolated four-kind controlled primitive editor.
+- `src/tests/ClarificationAnswerPrimitiveEditor.test.tsx` - behavior, accessibility, privacy, ordering, and isolation coverage.
+
+### Files updated
+
+- `src/styles/global.css` - Planning-prefixed primitive-editor and responsive styles only.
+- `CHANGE_LOG.md` - records Phase 5C.3C.3H.2 scope and boundaries.
+- `TEST_PLAN.md` - records the primitive-editor validation matrix.
+
+### Scope boundaries preserved
+
+- No structured or nested editor, read-only answer renderer, live Planning consumer, Revise submission, or navigation guard was added.
+- No persistence, storage migration, destination mapping, readiness, controlled Apply, generation, Power Fx, YAML, manifest, export, dependency, Node/CI, or deployment behavior changed.
+- Planning schema `phase-5c.1.1`, rule-set version `phase-5c.1.1`, answer-schema version `phase-5c.3c.3c`, clarification rule versions `1.0.0`, and Storage Version 6 remain unchanged.
+- TTI package readiness remains Draft and no authoritative blocker was resolved, inferred, weakened, or reclassified.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed 432 packages and reported the known development/tooling advisories.
+- `npm.cmd run lint` and `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Component-focused tests passed (`1` file, `22` tests); the exact foundation matrix passed (`6` files, `127` tests).
+- Relevant Planning UI/navigation, repository, client-review, controlled-Apply, generation, and export regressions passed (`19` files, `754` tests).
+- `npm.cmd test`: passed (`68` unit/integration files, `2,574` tests; `7` UI files, `64` tests; `75` combined files, `2,638` tests).
+- `npm.cmd run test:coverage`: passed (`75` combined files, `2,638` tests) with `90.03%` statements, `82.24%` branches, `95.14%` functions, and `93.75%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with `25` development/tooling vulnerabilities (`2` moderate, `23` high); no dependency remediation was performed.
+- Exact five-file scope, static isolation, version invariants, diff, primary/review worktree, TTI, and stash checks passed.
+
+### Issues found
+
+- Low: the advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent GPT Architect review is required before integration or any structured editor, answer renderer, navigation guard, live Planning, Revise, readiness, mapping, Apply, output, persistence, or deployment work.
