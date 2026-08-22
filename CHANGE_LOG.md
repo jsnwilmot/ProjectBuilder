@@ -6011,3 +6011,55 @@
 ## Remaining work
 
 - Independent GPT Architect review of the exact review commit is required. Integration, backend schema binding, Revise editor work, mappings, readiness, Apply, output, storage, and deployment remain blocked.
+
+## 2026-08-22 - Phase 5C.3C.3H.1 - Pure Clarification Answer-Entry Foundation
+
+### Summary
+
+- Added a pure answer-entry eligibility selector that requires the existing Revise capability to be exactly `inputRequired / answer` before performing an exact persisted `ruleId + ruleVersion` production-schema lookup.
+- Preserved `pp.canvas.schema.confirmation@1.0.0` as `schemaUnavailable`, with no fallback, inferred schema, or caller-supplied schema path.
+- Added a pure in-memory draft contract for exactly the six current semantic kinds: text, boolean, enum, string list, structured record, and structured-record list.
+- Added empty draft initialization, explicit list engagement, caller-supplied ephemeral row/item IDs, nested-list support, and meaningful-draft detection for future discard protection.
+- Added fail-closed draft-to-candidate conversion, canonical semantic validation through the existing validator, and safe schema-label/error-path projection.
+- Kept enum humanization and generic `Item N` labels presentation-only; canonical enum values and persisted answer data remain unchanged.
+
+### Files created
+
+- `src/lib/planningClarificationAnswerEntryViewModel.ts` - exact pure eligibility/schema boundary and deterministic presentation helpers.
+- `src/lib/planningClarificationAnswerDraft.ts` - six-kind draft, conversion, validation-wrapper, meaningful-state, and safe issue-projection foundation.
+- `src/tests/planningClarificationAnswerEntryViewModel.test.ts` - selector authorization, fail-close, cloning, privacy, and isolation coverage.
+- `src/tests/planningClarificationAnswerDraft.test.ts` - six-kind, nested conversion, canonical validation, privacy, and isolation coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records the Phase 5C.3C.3H.1 scope and boundaries.
+- `TEST_PLAN.md` - records the answer-entry foundation validation matrix.
+
+### Scope boundaries preserved
+
+- No React answer editor, Revise UI submission path, read-only answer renderer, or navigation guard was added.
+- No draft persistence, storage migration, destination mapping, readiness integration, controlled Apply, generation, Power Fx, YAML, manifest, export, or deployment behavior was added.
+- The existing semantic validator remains authoritative; decision capability and registry logic were reused rather than duplicated.
+- Planning schema `phase-5c.1.1`, rule-set version `phase-5c.1.1`, answer-schema version `phase-5c.3c.3c`, rule versions `1.0.0`, and Storage Version 6 remain unchanged.
+- TTI package readiness remains Draft and no authoritative blocker was resolved, inferred, weakened, or reclassified.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; install output reported the known development/tooling advisories.
+- `npm.cmd run lint` and `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused answer-entry/schema/contract tests passed (`6` files, `141` tests); relevant repository/UI/client-review/controlled-Apply/generation/export regressions passed (`17` files, `490` tests).
+- `npm.cmd test`: passed (`74` files, `2,616` tests).
+- `npm.cmd run test:coverage`: passed (`74` files, `2,616` tests) with `90.00%` statements, `82.22%` branches, `95.11%` functions, and `93.73%` lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited `1` with current development/tooling advisories (`25` vulnerabilities: `2` moderate, `23` high); dependency remediation remains outside this phase.
+- Git diff, exact six-file scope, primary/review worktree cleanliness, version invariants, and stash preservation checks completed before commit.
+
+### Issues found
+
+- Low: the advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent GPT Architect review of the exact review commit is required. React editors, live Revise integration, the mandatory read-only answer renderer, unsaved-draft navigation protection, backend binding, mappings, readiness, Apply, output, persistence, and deployment remain blocked.

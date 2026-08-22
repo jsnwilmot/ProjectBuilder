@@ -2764,3 +2764,26 @@ The production ZIP download passed direct archive inspection and a visual Window
 18. Verify a semantically valid bound YAML Revised fixture shows Confirm, while an unbound historical backend Revised fixture does not.
 19. Verify Revised and Confirmed clarification answers do not complete readiness, map to project destinations, become controlled Apply candidates, or become generation/export eligible.
 20. Run lint, app TypeScript checking, focused contract/materialization/repository/UI/schema tests, relevant lifecycle/readiness/Apply/output regressions, the full suite, coverage, build, production audit, advisory full audit, and Git scope checks.
+
+## Phase 5C.3C.3H.1 pure answer-entry eligibility and draft foundation
+
+1. Verify all ten exact current bound Needs Clarification rules select `eligible` only through the existing `revise / inputRequired / answer` capability and exact persisted rule/version schema lookup.
+2. Verify `pp.canvas.schema.confirmation@1.0.0` selects `schemaUnavailable` with no fallback, generic answer, or caller-supplied schema authorization.
+3. Verify rule/version mismatch, non-Revise lifecycle state, malformed context, and schema presence without capability authorization fail closed as `unavailable`.
+4. Verify an unexpected missing exact schema after capability authorization fails closed as `schemaUnavailable` without throwing.
+5. Verify returned schemas are defensive copies and selector results exclude answer values, source contents, readiness data, security contents, decision history, and repository metadata.
+6. Verify deterministic enum display humanization does not alter canonical values and zero-based repeated-row indexes produce deterministic `Item N` labels.
+7. Verify empty initialization for exactly text, boolean, enum, string list, structured record, and structured-record-list drafts, with no initial answer value or fabricated repeated row.
+8. Verify text drafts preserve blank and multiline typing while canonical semantic validation performs trimming and line-ending normalization only at the conversion/validation boundary.
+9. Verify boolean `undefined` remains unanswered, explicit `false` remains meaningful and canonical, enum `undefined` remains unanswered, and enum drafts retain exact canonical options rather than display labels.
+10. Verify untouched string lists differ from explicitly engaged empty lists, item order is preserved, ephemeral IDs are stripped, blank created items fail closed, and `minItems` remains semantic-validator authority.
+11. Verify structured-record conversion preserves schema field order, omits untouched optional blanks, and omits required blanks so the semantic validator reports `missingRequiredField`.
+12. Verify structured-record-list initialization creates zero rows regardless of `minItems`, user-added blank rows fail closed, and no row is silently fabricated or discarded.
+13. Verify nested structured-record lists equivalent to approved component usage-target schemas preserve nested row order, strip all draft IDs, reject blank nested rows, and produce a validator-approved canonical answer when complete.
+14. Verify normal draft helpers create only schema-declared fields and forged unknown draft fields fail closed without exposing their keys or values.
+15. Verify meaningful-draft detection distinguishes untouched drafts from nonblank text, explicit true/false, selected enum, engaged list, added empty row, and nested meaningful input.
+16. Verify safe issue projection uses schema field labels and `Item N`, preserves deterministic issue order, truncates association at unknown fields, and never echoes answer values, unknown keys, or security permission content.
+17. Verify `validatePlanningClarificationAnswer` remains the semantic authority for required fields, enums, list bounds, text limits, structured depth, and canonical answer output.
+18. Verify static isolation: both modules have no React, React DOM, browser/storage/network, repository, readiness, controlled Apply, generation/export, analytics, random UUID, mutable global counter, or runtime-clock dependency; registry access exists only in the answer-entry view-model module.
+19. Regress clarification answer schema/registry, decision contract/materialization, repository, current decision controls/Planning UI, client review, controlled Apply, generation, and export behavior.
+20. Verify no persistence, Storage Version, planning/answer schema version, UI, navigation guard, readiness, mapping, Apply, output, dependency, Node/CI, or TTI Draft state changes occur.
