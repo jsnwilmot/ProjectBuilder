@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   humanizePlanningClarificationEnumOption,
   planningClarificationItemLabel,
-  selectPlanningClarificationAnswerEntry
+  selectPlanningClarificationAnswerEntry,
+  selectPlanningClarificationAnswerReview
 } from "../lib/planningClarificationAnswerEntryViewModel";
 import * as answerSchemaRegistry from "../lib/planningClarificationAnswerSchemaRegistry";
 import {
@@ -113,6 +114,25 @@ function select(ruleId: string, index = 1, proposalOverrides: Partial<PlanningPr
   });
 }
 
+function review(ruleId: string, proposalOverrides: Partial<PlanningProposalRecord> = {}) {
+  const planning = planningFor(ruleId, 1, proposalOverrides);
+  return selectPlanningClarificationAnswerReview({
+    projectId,
+    planning,
+    proposalId: planning.proposals[0].proposalId
+  });
+}
+
+const yamlAnswer = {
+  kind: "structuredRecord" as const,
+  value: {
+    installationResponsibility: { kind: "text" as const, value: "Solution owner" },
+    validationResponsibility: { kind: "text" as const, value: "Technical reviewer" },
+    yamlInstallationLocation: { kind: "text" as const, value: "Approved Canvas app" },
+    yamlParentRelationship: { kind: "text" as const, value: "Approved parent" }
+  }
+};
+
 describe("planning clarification answer-entry view model", () => {
   it("authorizes all ten bound current Needs Clarification rules through exact capability and schema identity", () => {
     expect(BOUND_RULE_IDS).toHaveLength(10);
@@ -172,6 +192,49 @@ describe("planning clarification answer-entry view model", () => {
     const second = select("pp.canvas.yamlplanning.confirmation");
     expect(second).toMatchObject({ state: "eligible", schema: { kind: "structuredRecord" } });
     expect(JSON.stringify(second)).not.toMatch(/SECRET|sourceIds|readinessRequirementIds|decisions|repository/i);
+  });
+
+  it.each(["Revised", "Confirmed"] as const)(
+    "selects the exact-bound normalized saved answer for %s review",
+    (status) => {
+      const result = review("pp.canvas.yamlplanning.confirmation", { status, value: yamlAnswer });
+      expect(result).toEqual({
+        state: "available",
+        proposalId: uuid(1),
+        status,
+        ruleId: "pp.canvas.yamlplanning.confirmation",
+        ruleVersion: "1.0.0",
+        schema: answerSchemaRegistry.getProductionPlanningClarificationAnswerSchema(
+          "pp.canvas.yamlplanning.confirmation",
+          "1.0.0"
+        ),
+        answer: yamlAnswer
+      });
+      expect(Object.keys(result).sort()).toEqual([
+        "answer", "proposalId", "ruleId", "ruleVersion", "schema", "state", "status"
+      ]);
+      expect(JSON.stringify(result)).not.toMatch(/SECRET|sourceIds|readinessRequirementIds|decisions|repository/i);
+    }
+  );
+
+  it("fails saved-answer review closed outside its lifecycle and for every absent exact schema", () => {
+    expect(review("pp.canvas.yamlplanning.confirmation")).toEqual({
+      state: "unavailable",
+      proposalId: uuid(1)
+    });
+    expect(review("pp.canvas.yamlplanning.confirmation", {
+      status: "Revised",
+      value: yamlAnswer,
+      ruleVersion: "1.0.1"
+    })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
+    expect(review("pp.canvas.schema.confirmation", {
+      status: "Revised",
+      value: { kind: "text", value: "SECRET HISTORICAL ANSWER" }
+    })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
+    expect(review("pp.canvas.schema.confirmation", {
+      status: "Confirmed",
+      value: { kind: "text", value: "SECRET HISTORICAL ANSWER" }
+    })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
   });
 
   it("humanizes enum display values deterministically without replacing canonical values", () => {

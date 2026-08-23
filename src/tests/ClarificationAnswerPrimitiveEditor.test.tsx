@@ -432,14 +432,24 @@ describe("ClarificationAnswerPrimitiveEditor", () => {
     expect(source).not.toMatch(/action\s*:\s*["']revise["']/i);
   });
 
-  it("has no production consumer in the authorized Planning integration surfaces", () => {
-    const productionConsumers = [
+  it("has exactly the authorized direct Planning consumers", () => {
+    const structuredEditor = readFileSync(
+      "src/components/Planning/ClarificationAnswerStructuredEditor.tsx",
+      "utf8"
+    );
+    const decisionControls = readFileSync(
       "src/components/Planning/ClarificationDecisionControls.tsx",
+      "utf8"
+    );
+    expect(structuredEditor).toContain("ClarificationAnswerPrimitiveEditor");
+    expect(decisionControls).toContain("ClarificationAnswerPrimitiveEditor");
+
+    const prohibitedDirectConsumers = [
       "src/components/Planning/PlanningView.tsx",
       "src/app/useProjectBuilder.ts",
       "src/app/App.tsx"
     ];
-    productionConsumers.forEach((path) => {
+    prohibitedDirectConsumers.forEach((path) => {
       expect(readFileSync(path, "utf8")).not.toContain("ClarificationAnswerPrimitiveEditor");
     });
   });

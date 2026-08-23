@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   buildPlanningUiViewModel,
   type PlanningUiApplyState,
@@ -8,19 +8,26 @@ import {
   type PlanningUiProposal,
   type PlanningUiSource
 } from "../../lib/planningUiViewModel";
+import { selectPlanningClarificationAnswerReview } from "../../lib/planningClarificationAnswerEntryViewModel";
 import type { ProjectRecord } from "../../types/project";
 import {
   ClarificationDecisionControls,
   type PlanningDecisionUiFeedback,
   type SubmitPlanningClarificationDecision
 } from "./ClarificationDecisionControls";
+import { ClarificationAnswerValueRenderer } from "./ClarificationAnswerValueRenderer";
 
 interface PlanningViewProps {
   project: ProjectRecord;
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
+  onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void;
 }
 
-export function PlanningView({ project, onSubmitClarificationDecision }: PlanningViewProps) {
+export function PlanningView({
+  project,
+  onSubmitClarificationDecision,
+  onAnswerDraftMeaningfulChange
+}: PlanningViewProps) {
   const mainRef = useRef<HTMLElement>(null);
   const decisionFeedbackRef = useRef<HTMLDivElement>(null);
   const [decisionFeedback, setDecisionFeedback] = useState<PlanningDecisionUiFeedback | null>(null);
@@ -92,6 +99,7 @@ export function PlanningView({ project, onSubmitClarificationDecision }: Plannin
                     proposal={proposal}
                     onSubmitClarificationDecision={onSubmitClarificationDecision}
                     onDecisionFeedback={setDecisionFeedback}
+                    onAnswerDraftMeaningfulChange={onAnswerDraftMeaningfulChange}
                     key={proposal.key}
                   />
                 ))}
@@ -110,13 +118,24 @@ function PlanningProposalCard({
   project,
   proposal,
   onSubmitClarificationDecision,
-  onDecisionFeedback
+  onDecisionFeedback,
+  onAnswerDraftMeaningfulChange
 }: {
   project: ProjectRecord;
   proposal: PlanningUiProposal;
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
   onDecisionFeedback: (feedback: PlanningDecisionUiFeedback | null) => void;
+  onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void;
 }) {
+  const answerReviewHeadingId = useId();
+  const answerReview = project.planning
+    ? selectPlanningClarificationAnswerReview({
+        projectId: project.identity.id,
+        planning: project.planning,
+        proposalId: proposal.key
+      })
+    : { state: "unavailable" as const };
+
   return (
     <article className={`planning-proposal status-${proposal.status.toLowerCase().replace(/\s+/g, "-")}`}>
       <header className="planning-proposal-header">
@@ -157,6 +176,24 @@ function PlanningProposalCard({
 
       {proposal.applyState ? <PlanningApplyState applyState={proposal.applyState} /> : null}
 
+      {answerReview.state === "available" ? (
+        <section className="planning-answer-review" aria-labelledby={answerReviewHeadingId}>
+          <h4 id={answerReviewHeadingId}>
+            {answerReview.status === "Revised" ? "Answer for review" : "Confirmed answer"}
+          </h4>
+          <ClarificationAnswerValueRenderer
+            answer={answerReview.answer}
+            schema={answerReview.schema}
+          />
+        </section>
+      ) : null}
+
+      {answerReview.state === "schemaUnavailable" ? (
+        <p className="planning-answer-review-unavailable" role="status">
+          This saved answer cannot be displayed because its approved answer structure is unavailable.
+        </p>
+      ) : null}
+
       {project.planning ? (
         <ClarificationDecisionControls
           projectId={project.identity.id}
@@ -165,6 +202,7 @@ function PlanningProposalCard({
           proposalTitle={proposal.title}
           onSubmitClarificationDecision={onSubmitClarificationDecision}
           onFeedback={onDecisionFeedback}
+          onAnswerDraftMeaningfulChange={onAnswerDraftMeaningfulChange}
         />
       ) : null}
     </article>

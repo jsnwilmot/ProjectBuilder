@@ -3317,6 +3317,68 @@ tbody tr:hover {
   max-width: 720px;
 }
 
+.planning-decision-answer-start {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.planning-decision-answer-form {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  max-width: 720px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.planning-decision-answer-form h4,
+.planning-answer-review h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.planning-decision-answer-errors,
+.planning-decision-answer-stale,
+.planning-answer-review-unavailable {
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid #b24a50;
+  color: #8b2f34;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.planning-decision-answer-errors strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.planning-decision-answer-errors ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.planning-answer-review {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 720px;
+  margin-top: 15px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
 .planning-decision-reason-form label {
   color: var(--ink);
   font-size: 0.74rem;

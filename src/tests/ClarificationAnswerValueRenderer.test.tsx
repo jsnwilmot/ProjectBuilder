@@ -215,7 +215,7 @@ describe("ClarificationAnswerValueRenderer", () => {
     consoleSpy.mockRestore();
   });
 
-  it("contains no raw rendering, editable controls, submission, persistence, or live consumer integration", () => {
+  it("contains no raw rendering, editing, or orchestration and has only its authorized direct consumer", () => {
     renderAnswer(nestedSchema, nestedAnswer);
     expect(document.querySelectorAll("input, textarea, select, button")).toHaveLength(0);
     expect(document.body.textContent).not.toContain(JSON.stringify(nestedAnswer));
@@ -224,13 +224,15 @@ describe("ClarificationAnswerValueRenderer", () => {
     expect(source).toContain("validatePlanningClarificationAnswer");
     expect(source).not.toMatch(/dangerouslySetInnerHTML|JSON\.stringify|projectRepository|planningClarificationDecisionMaterialization|useProjectBuilder|readiness|controlledApply|localStorage|sessionStorage|indexedDB|fetch\(|XMLHttpRequest|sendBeacon|analytics|console\.|action\s*:\s*["']revise["']|Confirm decision|Save Answer/i);
 
-    const liveConsumers = [
+    const planningView = readFileSync("src/components/Planning/PlanningView.tsx", "utf8");
+    expect(planningView).toContain("ClarificationAnswerValueRenderer");
+
+    const prohibitedDirectConsumers = [
       "src/components/Planning/ClarificationDecisionControls.tsx",
-      "src/components/Planning/PlanningView.tsx",
       "src/app/useProjectBuilder.ts",
       "src/app/App.tsx"
     ];
-    liveConsumers.forEach((path) => {
+    prohibitedDirectConsumers.forEach((path) => {
       expect(readFileSync(path, "utf8")).not.toContain("ClarificationAnswerValueRenderer");
     });
   });

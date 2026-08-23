@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "../components/AppShell/AppHeader";
 import { AppNavigation, type AppView } from "../components/AppShell/AppNavigation";
 import { DocumentViewer } from "../components/DocumentViewer/DocumentViewer";
@@ -12,6 +12,9 @@ import { useProjectBuilder } from "./useProjectBuilder";
 export function App() {
   const [view, setView] = useState<AppView>("dashboard");
   const [intakeStep, setIntakeStep] = useState(0);
+  const [meaningfulPlanningAnswerDrafts, setMeaningfulPlanningAnswerDrafts] = useState<Set<string>>(
+    () => new Set()
+  );
   const {
     project,
     projects,
@@ -33,6 +36,35 @@ export function App() {
     persistenceWarning
   } = useProjectBuilder();
 
+  const handlePlanningAnswerDraftMeaningfulChange = useCallback((proposalId: string, meaningful: boolean) => {
+    setMeaningfulPlanningAnswerDrafts((current) => {
+      const next = new Set(current);
+      if (meaningful) next.add(proposalId);
+      else next.delete(proposalId);
+      if (next.size === current.size && [...next].every((entry) => current.has(entry))) return current;
+      return next;
+    });
+  }, []);
+
+  const confirmPlanningAnswerDiscard = () => {
+    if (meaningfulPlanningAnswerDrafts.size === 0) return true;
+    const confirmed = window.confirm(
+      "Discard unsaved planning answer and continue? Select Cancel to keep editing."
+    );
+    if (confirmed) setMeaningfulPlanningAnswerDrafts(new Set());
+    return confirmed;
+  };
+
+  useEffect(() => {
+    if (meaningfulPlanningAnswerDrafts.size === 0) return undefined;
+    const preventUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventUnload);
+    return () => window.removeEventListener("beforeunload", preventUnload);
+  }, [meaningfulPlanningAnswerDrafts.size]);
+
   const openIntake = (step = 0) => {
     setIntakeStep(step);
     setView("intake");
@@ -42,12 +74,14 @@ export function App() {
   };
 
   const startNewProject = () => {
+    if (!confirmPlanningAnswerDiscard()) return;
     createNewProject();
     setIntakeStep(0);
     setView("intake");
   };
 
   const handleNavigation = (nextView: AppView) => {
+    if (view === "planning" && nextView !== "planning" && !confirmPlanningAnswerDiscard()) return;
     if (!project && nextView !== "dashboard") {
       setView("dashboard");
       return;
@@ -144,6 +178,7 @@ export function App() {
           <PlanningView
             project={project}
             onSubmitClarificationDecision={submitPlanningClarificationDecision}
+            onAnswerDraftMeaningfulChange={handlePlanningAnswerDraftMeaningfulChange}
           />
         ) : null}
         {view === "export" ? (

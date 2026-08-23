@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- shared App UI test import block keeps split suites mechanically aligned */
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 // @ts-expect-error -- Vitest runs this metadata assertion in Node; the app tsconfig intentionally excludes Node ambient types.
 import { existsSync, readFileSync } from "node:fs";
 // @ts-expect-error -- Vitest runs this metadata assertion in Node; the app tsconfig intentionally excludes Node ambient types.
 import { resolve } from "node:path";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 import { App } from "../app/App";
 import { createSeedProject } from "../data/seedProject";
 import { PowerPlatformIntake } from "../components/IntakeBuilder/PowerPlatformIntake";
@@ -20,7 +21,17 @@ import {
   createDefaultSharePointLibrary,
   createDefaultSharePointList
 } from "../lib/powerPlatform";
-import { STORAGE_KEY, clearPersistenceWarning } from "../lib/projectRepository";
+import { STORAGE_KEY, clearPersistenceWarning, loadStorageState, saveStorageState } from "../lib/projectRepository";
+import {
+  PLANNING_RULE_SET_ID,
+  PLANNING_RULE_SET_VERSION,
+  PLANNING_SCHEMA_VERSION,
+  type PlanningProposalRecord,
+  type PlanningSourceReference,
+  type ProjectPlanningState
+} from "../lib/planningProposals";
+import { getPlanningRuleById } from "../lib/planningRules";
+import { CURRENT_STORAGE_VERSION } from "../lib/storageVersion";
 import {
   calculateModelDrivenExternalConnectorSelectionGate,
   calculateModelDrivenSecurityArchitectureGate
@@ -31,6 +42,86 @@ import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/g
 import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
 
 declare const process: { cwd(): string };
+
+function planningAnswerProject(): ProjectRecord {
+  const projectId = "app-navigation-answer-project";
+  const rule = getPlanningRuleById("pp.canvas.yamlplanning.confirmation");
+  if (!rule) throw new Error("Missing YAML planning rule fixture.");
+  const projectRuleSourceId = "11111111-1111-4111-8111-000000000101";
+  const readinessSourceId = "11111111-1111-4111-8111-000000000102";
+  const sources: PlanningSourceReference[] = [
+    {
+      sourceId: projectRuleSourceId,
+      sourceType: "projectRule",
+      locator: `planning-rule:${rule.ruleId}`,
+      label: rule.title,
+      authority: "approved",
+      availability: "current",
+      version: rule.ruleVersion
+    },
+    {
+      sourceId: readinessSourceId,
+      sourceType: "readinessPrerequisite",
+      locator: `phase-gate:${rule.target.targetKey}`,
+      label: rule.title,
+      authority: "approved",
+      availability: "current"
+    }
+  ];
+  const proposal: PlanningProposalRecord = {
+    proposalId: "22222222-2222-4222-8222-000000000101",
+    proposalSchemaVersion: PLANNING_SCHEMA_VERSION,
+    projectId,
+    ruleSetId: PLANNING_RULE_SET_ID,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION,
+    ruleId: rule.ruleId,
+    ruleVersion: rule.ruleVersion,
+    fingerprint: "d".repeat(64),
+    target: { ...rule.target },
+    category: "clarification",
+    status: "Needs Clarification",
+    value: { kind: "clarification", question: rule.question },
+    title: rule.title,
+    recommendation: "Capture the approved YAML planning responsibilities.",
+    rationale: rule.rationale,
+    consequence: rule.consequence,
+    sourceIds: [projectRuleSourceId, readinessSourceId],
+    uncertainty: rule.uncertainty,
+    restriction: rule.restriction,
+    createdAt: "2026-08-22T12:00:00.000Z",
+    updatedAt: "2026-08-22T12:00:00.000Z",
+    readinessRequirementIds: [rule.target.targetKey],
+    applicableProjectTypes: ["powerAppsCanvas"],
+    applicableDomains: [rule.target.domain]
+  };
+  const planning: ProjectPlanningState = {
+    schemaVersion: PLANNING_SCHEMA_VERSION,
+    ruleSetId: PLANNING_RULE_SET_ID,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION,
+    sources,
+    proposals: [proposal],
+    decisions: [],
+    dependencies: [],
+    conflicts: []
+  };
+  return {
+    ...createProject({
+      identity: { id: projectId, projectName: "Navigation Answer Project" },
+      intake: { appType: "powerAppsCanvas", appPurpose: "Validate guarded planning navigation." },
+      now: "2026-08-22T12:00:00.000Z"
+    }),
+    planning
+  };
+}
+
+function seedPlanningAnswerApp() {
+  const project = planningAnswerProject();
+  saveStorageState({
+    version: CURRENT_STORAGE_VERSION,
+    activeProjectId: project.identity.id,
+    projects: [project]
+  });
+}
 
 describe("App - navigation", () => {
   it("renders the Project Builder Ai navigation logo without the obsolete text brand or mark", () => {
@@ -107,6 +198,85 @@ describe("App - navigation", () => {
 
     expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveFocus();
+  });
+
+  it("guards Planning-to-Dashboard navigation and preserves the draft when discard is declined", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    seedPlanningAnswerApp();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Preserve navigation draft");
+
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Discard unsaved planning answer"));
+    expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("Preserve navigation draft");
+    confirm.mockRestore();
+  });
+
+  it("discards once after confirmation and guards a separate Planning-to-Intake path", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    seedPlanningAnswerApp();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Discard navigation draft");
+
+    await user.click(screen.getByRole("button", { name: "Guided Intake" }));
+    expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Guided Intake" }));
+
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
+    expect(screen.queryByText("Discard navigation draft")).not.toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it("guards New project and creates it only after confirmed discard", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    seedPlanningAnswerApp();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Guard new project draft");
+
+    await user.click(screen.getAllByRole("button", { name: "New project" })[0]);
+    expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
+    expect(loadStorageState().projects).toHaveLength(1);
+
+    await user.click(screen.getAllByRole("button", { name: "New project" })[0]);
+    expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
+    expect(loadStorageState().projects).toHaveLength(2);
+    confirm.mockRestore();
+  });
+
+  it("registers beforeunload only for a meaningful draft and removes it after discard", async () => {
+    const user = userEvent.setup();
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    seedPlanningAnswerApp();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    expect(add.mock.calls.filter(([type]) => type === "beforeunload")).toHaveLength(0);
+
+    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Unload guard draft");
+    await waitFor(() => expect(add.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(remove.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
+    confirm.mockRestore();
+    add.mockRestore();
+    remove.mockRestore();
   });
 
   it("keeps no-project Planning navigation on Mission Control without persisting a project", async () => {

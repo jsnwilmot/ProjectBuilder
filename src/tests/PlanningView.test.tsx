@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { PlanningView } from "../components/Planning/PlanningView";
 import type { SubmitPlanningClarificationDecision } from "../components/Planning/ClarificationDecisionControls";
 import { createProject } from "../lib/createProject";
+import { buildPlanningUserAnswerLocator } from "../lib/planningClarificationDecisionContract";
 import { CONTROLLED_APPLY_HISTORY_SCHEMA_VERSION } from "../lib/planningControlledApplyHistory";
 import {
   PLANNING_RULE_SET_ID,
@@ -24,6 +25,8 @@ const sourceId = "11111111-1111-4111-8111-111111111111";
 const proposalId = "22222222-2222-4222-8222-222222222222";
 const decisionId = "33333333-3333-4333-8333-333333333333";
 const applyId = "44444444-4444-4444-8444-444444444444";
+const userAnswerSourceId = "11111111-1111-4111-8111-111111111112";
+const reviseDecisionId = "33333333-3333-4333-8333-333333333334";
 
 function source(overrides: Partial<PlanningSourceReference> = {}): PlanningSourceReference {
   return {
@@ -146,14 +149,83 @@ const defaultSubmitClarificationDecision: SubmitPlanningClarificationDecision = 
 
 function renderPlanningView(
   input: ProjectRecord,
-  onSubmitClarificationDecision: SubmitPlanningClarificationDecision = defaultSubmitClarificationDecision
+  onSubmitClarificationDecision: SubmitPlanningClarificationDecision = defaultSubmitClarificationDecision,
+  onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void = () => undefined
 ) {
   return render(
     <PlanningView
       project={input}
       onSubmitClarificationDecision={onSubmitClarificationDecision}
+      onAnswerDraftMeaningfulChange={onAnswerDraftMeaningfulChange}
     />
   );
+}
+
+function yamlProposal(
+  status: "Revised" | "Confirmed",
+  value: PlanningProposalRecord["value"] = {
+    kind: "structuredRecord",
+    value: {
+      installationResponsibility: { kind: "text", value: "Solution owner" },
+      validationResponsibility: { kind: "text", value: "Technical reviewer" },
+      yamlInstallationLocation: { kind: "text", value: "Approved Canvas app" },
+      yamlParentRelationship: { kind: "text", value: "Approved parent" }
+    }
+  }
+): PlanningProposalRecord {
+  const rule = getPlanningRuleById("pp.canvas.yamlplanning.confirmation");
+  if (!rule) throw new Error("Missing YAML planning rule.");
+  return clarificationProposal({
+    ruleId: rule.ruleId,
+    ruleVersion: rule.ruleVersion,
+    target: { ...rule.target },
+    status,
+    value,
+    title: rule.title,
+    recommendation: "Review the saved YAML planning answer.",
+    rationale: rule.rationale,
+    consequence: rule.consequence,
+    uncertainty: rule.uncertainty,
+    restriction: rule.restriction
+  });
+}
+
+function revisedYamlPlanning(): ProjectPlanningState {
+  const proposal = yamlProposal("Revised");
+  const answer = proposal.value;
+  const userAnswer = source({
+    sourceId: userAnswerSourceId,
+    sourceType: "userAnswer",
+    locator: buildPlanningUserAnswerLocator(proposalId, reviseDecisionId)!,
+    label: "User answer",
+    authority: "informational",
+    availability: "current",
+    version: undefined,
+    excerpt: undefined,
+    observedAt: undefined
+  });
+  const reviseDecision: PlanningDecisionRecord = {
+    decisionId: reviseDecisionId,
+    proposalId,
+    projectId,
+    action: "revise",
+    previousStatus: "Needs Clarification",
+    resultingStatus: "Revised",
+    origin: "userAction",
+    recordedAt: timestamp,
+    value: answer,
+    sourceIds: [sourceId, userAnswerSourceId],
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return planning({
+    sources: [source(), userAnswer],
+    proposals: [{
+      ...proposal,
+      sourceIds: [sourceId, userAnswerSourceId],
+      lastDecisionId: reviseDecisionId
+    }],
+    decisions: [reviseDecision]
+  });
 }
 
 describe("PlanningView", () => {
@@ -244,6 +316,56 @@ describe("PlanningView", () => {
     expect(container).not.toHaveTextContent(proposalId);
     expect(container).not.toHaveTextContent(componentProposalId);
     expect(container.innerHTML).not.toContain(componentRule.ruleId);
+  });
+
+  it("renders a valid Revised saved answer before the separate Confirm decision action", () => {
+    renderPlanningView(project(revisedYamlPlanning()));
+
+    const reviewHeading = screen.getByRole("heading", { name: "Answer for review" });
+    const confirm = screen.getByRole("button", { name: "Confirm decision" });
+    expect(reviewHeading.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Solution owner")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Answer question|Save answer/ })).not.toBeInTheDocument();
+  });
+
+  it("renders a valid Confirmed answer read-only without decision controls", () => {
+    renderPlanningView(project(planning({ proposals: [yamlProposal("Confirmed")] })));
+
+    expect(screen.getByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
+    expect(screen.getByText("Approved Canvas app")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Confirm decision|Answer question|Save answer/ })).not.toBeInTheDocument();
+  });
+
+  it("fails a semantically invalid bound historical answer closed and leaves Confirm unavailable", () => {
+    renderPlanningView(project(planning({
+      proposals: [yamlProposal("Revised", {
+        kind: "structuredRecord",
+        value: { installationResponsibility: { kind: "text", value: "SECRET PARTIAL ANSWER" } }
+      })]
+    })));
+
+    expect(screen.getByText(/no longer matches the approved answer structure/)).toBeInTheDocument();
+    expect(screen.queryByText("SECRET PARTIAL ANSWER")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
+  });
+
+  it.each(["Revised", "Confirmed"] as const)(
+    "does not expose an unbound %s historical answer",
+    (status) => {
+      renderPlanningView(project(planning({ proposals: [clarificationProposal({
+        status,
+        value: { kind: "text", value: "SECRET UNBOUND ANSWER" }
+      })] })));
+
+      expect(screen.getByText(/approved answer structure is unavailable/)).toBeInTheDocument();
+      expect(screen.queryByText("SECRET UNBOUND ANSWER")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
+    }
+  );
+
+  it("does not render saved-answer review for Needs Clarification", () => {
+    renderPlanningView(project(planning({ proposals: [clarificationProposal()] })));
+    expect(screen.queryByRole("heading", { name: /Answer for review|Confirmed answer/ })).not.toBeInTheDocument();
   });
 
   it("renders safe source summaries and keeps optional details collapsed", async () => {
@@ -380,7 +502,7 @@ describe("PlanningView", () => {
     expect(screen.getByText("Answer required")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Ready for Codex/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Answer entry is not available yet/)).toBeInTheDocument();
+    expect(screen.getByText(/required answer structure is not registered/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Defer" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /revise|provide answer|edit answer/i })).not.toBeInTheDocument();
@@ -441,6 +563,7 @@ describe("PlanningView", () => {
       <PlanningView
         project={persistedProject}
         onSubmitClarificationDecision={submit}
+        onAnswerDraftMeaningfulChange={() => undefined}
       />
     );
 

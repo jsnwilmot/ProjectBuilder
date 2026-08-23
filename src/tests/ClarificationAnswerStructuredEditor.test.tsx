@@ -359,7 +359,7 @@ describe("ClarificationAnswerStructuredEditor", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("is isolated from validation, persistence, submission, network, clocks, and live Planning consumers", () => {
+  it("is isolated from orchestration while retaining its authorized controlled consumer", () => {
     const source = readFileSync("src/components/Planning/ClarificationAnswerStructuredEditor.tsx", "utf8");
     expect(source).toContain("ClarificationAnswerPrimitiveEditor");
     expect(source).toContain("createPlanningClarificationStructuredRecordListDraftRow");
@@ -367,16 +367,20 @@ describe("ClarificationAnswerStructuredEditor", () => {
     expect(source).not.toMatch(/projectRepository|planningClarificationDecisionMaterialization|planningClarificationAnswerSchemaRegistry|selectPlanningClarificationAnswerEntry|useProjectBuilder|readiness|controlledApply|generation|exportProjectPackage|localStorage|sessionStorage|indexedDB|fetch\(|XMLHttpRequest|Math\.random|randomUUID|Date\.now|new Date|analytics|console\.|convertPlanningClarificationAnswerDraft|validatePlanningClarificationAnswerDraft|validatePlanningClarificationAnswer/i);
     expect(source).not.toMatch(/action\s*:\s*["']revise["']|Save Answer|Submit Answer/i);
 
-    const liveConsumers = [
+    const decisionControls = readFileSync(
       "src/components/Planning/ClarificationDecisionControls.tsx",
+      "utf8"
+    );
+    expect(decisionControls).toContain("ClarificationAnswerStructuredEditor");
+
+    const prohibitedDirectConsumers = [
       "src/components/Planning/PlanningView.tsx",
       "src/app/useProjectBuilder.ts",
       "src/app/App.tsx"
     ];
-    liveConsumers.forEach((path) => {
+    prohibitedDirectConsumers.forEach((path) => {
       const liveSource = readFileSync(path, "utf8");
       expect(liveSource).not.toContain("ClarificationAnswerStructuredEditor");
-      expect(liveSource).not.toContain("ClarificationAnswerPrimitiveEditor");
     });
   });
 

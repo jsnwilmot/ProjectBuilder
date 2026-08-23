@@ -1,5 +1,66 @@
 # Change Log
 
+## 2026-08-22 - Phase 5C.3C.3H.4 - Live Clarification Answer Entry and Draft Protection
+
+### Summary
+
+- Enabled live schema-authorized clarification answer entry for bound Needs Clarification proposals; `Answer question` starts an empty in-memory draft with no prefill.
+- Routed all six semantic root kinds through the existing primitive and structured editor components.
+- Added `Save answer for review`, which validates the local draft, projects safe issues, and sends only the canonical answer through the existing repository `revise` path without caller schema metadata.
+- Preserved answer drafts after blocked, state-changed, and unexpected failed saves; successful saves clear the draft and transition to Revised through the existing backend lifecycle.
+- Added exact-schema read-only review for bound Revised and Confirmed answers; Confirm remains a separate explicit action and no editor is available after Revise.
+- Added proposal-ID-only meaningful-draft propagation, guarded internal navigation and New project actions, and temporary `beforeunload` protection without durable draft persistence.
+- Kept the unbound backend rule unavailable, retained the ten-entry registry and absent backend binding, and made no readiness, destination-mapping, controlled Apply, generation, export, or output changes.
+- Preserved Planning schema `phase-5c.1.1`, answer schema `phase-5c.3c.3c`, Storage 6 with zero migrations, and all 15 authoritative TTI Draft blockers.
+- Applied the Architect-confirmed scope correction that replaced three obsolete zero-live-consumer assertions with positive and negative controlled-consumer topology checks; all intrinsic editor and renderer isolation assertions remain unchanged.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationAnswerEntryViewModel.ts` - adds the pure exact-schema saved-answer review selector.
+- `src/components/Planning/ClarificationDecisionControls.tsx` - integrates local answer sessions, six-kind editor dispatch, canonical Revise submission, failure preservation, and stale-session protection.
+- `src/components/Planning/PlanningView.tsx` - propagates meaningful-draft state and renders Revised or Confirmed answers read-only.
+- `src/app/App.tsx` - centralizes internal navigation, New project, and browser unload protection for meaningful answer drafts.
+- `src/styles/global.css` - adds Planning-scoped live answer form, validation, stale-state, and review presentation.
+- `src/tests/planningClarificationAnswerEntryViewModel.test.ts` - covers exact saved-answer review selection and fail-closed states.
+- `src/tests/ClarificationDecisionControls.test.tsx` - covers entry, draft, validation, submission, pending, failure, stale-session, editor-dispatch, and reason-action behavior.
+- `src/tests/PlanningView.test.tsx` - covers exact-schema Revised and Confirmed rendering and historical fail-closed behavior.
+- `src/tests/App.navigation.test.tsx` - covers guarded navigation, New project, and `beforeunload` lifecycle behavior.
+- `src/tests/App.planningDecisions.test.tsx` - covers the complete durable Revise, Revised review, separate Confirm, and Confirmed review flow.
+- `src/tests/ClarificationAnswerPrimitiveEditor.test.tsx` - permits only structured-editor and decision-controls consumption while prohibiting direct PlanningView, hook, and App consumption.
+- `src/tests/ClarificationAnswerStructuredEditor.test.tsx` - permits only decision-controls consumption while preserving orchestration and persistence exclusions.
+- `src/tests/ClarificationAnswerValueRenderer.test.tsx` - permits only PlanningView consumption while preserving read-only, validation, privacy, and submission exclusions.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records its validation matrix and exclusions.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed 432 packages and initially reported 6 development/tooling vulnerabilities (2 moderate, 4 high).
+- `npm.cmd run lint` and `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Corrected focused validation passed across 13 files and 262 tests; isolated App navigation validation passed across 1 file and 19 tests.
+- Product regressions passed across 14 non-App files and 423 tests plus 6 App UI files and 49 tests.
+- `npm.cmd test`: passed across 70 unit/integration files and 2,625 tests plus 7 UI files and 68 tests, for 77 files and 2,693 tests total.
+- `npm.cmd run test:coverage`: passed across the same 77 files and 2,693 tests with 90.09% statements, 82.36% branches, 95.19% functions, and 93.83% lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high); no dependency remediation was performed.
+
+### Issues found
+
+- None in the implemented production behavior.
+- Low: the advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+
+### Remaining work
+
+- Independent Architect review of the exact review commit is required before integration.
+
 ## 2026-08-22 - Phase 5C.3C.3H.3 - Structured Clarification Answer Editors and Renderer
 
 ### Summary

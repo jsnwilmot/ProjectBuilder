@@ -1,5 +1,33 @@
 # Test Plan
 
+## 2026-08-22 Phase 5C.3C.3H.4 live clarification answer entry and draft protection
+
+- Entry-eligibility coverage verifies only exact capability `revise` plus `inputRequired` plus `answer` with an exact registered rule ID/version exposes `Answer question`; the unbound backend remains fail closed.
+- Six-kind dispatch coverage verifies text, boolean, enum, string list, structured record, and structured-record list roots use only the existing approved editor components.
+- Draft coverage verifies empty sessions are untouched, text and explicit `false` are meaningful, engaged empty lists and added blank rows are meaningful, and only proposal ID plus meaningful state propagates to App.
+- Cancel coverage verifies untouched cancellation is immediate, meaningful cancellation requires explicit discard, decline preserves the exact draft, confirmed discard clears local issues/state without a repository call, and focus returns to `Answer question` when still eligible.
+- Validation coverage verifies the captured schema and `validatePlanningClarificationAnswerDraft` are authoritative, invalid drafts make zero repository calls, projected safe location/message summaries receive focus, and answer contents are excluded from error metadata.
+- Submission coverage verifies primitive, structured, and nested-list answers submit only canonical `validation.answer` in `{ proposalId, action: "revise", value }`, with no caller schema or rule metadata and backend revalidation unchanged.
+- Pending/failure coverage verifies one repository call under duplicate Save, all editors and decision actions disable while busy, `Saving answer...` is announced politely, and blocked, state-changed, and thrown failures preserve draft values for review/retry.
+- Stale-session coverage verifies unrelated Planning references preserve a meaningful draft while a changed proposal/rule/version disables edit and Save, keeps discard available, retains the dirty guard, and never auto-submits.
+- Saved-review coverage verifies exact-bound Revised answers render under `Answer for review` before Confirm, exact-bound Confirmed answers render under `Confirmed answer`, invalid bound history uses the generic renderer fail-close, and unbound history exposes no raw value.
+- Lifecycle coverage verifies Save performs only Revise, Confirm requires a separate later click, successful Revise clears the editor, Revised exposes no answer-edit action, and the complete App flow persists Revise to Revised then Confirm to Confirmed while keeping the answer read-only.
+- Navigation coverage verifies meaningful drafts guard Dashboard and Guided Intake navigation plus New project; decline stays in Planning with the exact draft, while confirmed discard continues the requested action once without persisting the draft.
+- Browser coverage verifies untouched editors register no `beforeunload`, meaningful drafts register normal unload protection, and cancel/discard or successful Revise removes it without custom unload text.
+- Accessibility coverage verifies a semantic labelled form, required field metadata, associated projected issues, focused error summary, busy state, polite status, disabled controls, keyboard-operable actions, focus after open, and focus after cancel.
+- Responsive coverage verifies Planning-prefixed shrink-safe wrappers reuse the existing editor/renderer behavior at 860px, 640px, and 480px without fixed widths.
+- Regression coverage preserves Reject, Defer, Not applicable, the unbound backend, draft/schema/registry/decision foundations, Planning view model, repository/hook behavior, App project and generation paths, client review, controlled Apply, and generation/export.
+- Exclusion coverage verifies no durable draft persistence, Storage/migration, answer-schema, registry, backend binding, readiness, destination mapping, Apply, generation/output, dependency, Node, CI, or TTI blocker changes.
+- Corrected topology coverage verifies the primitive editor is consumed only by the structured editor and decision controls, the structured editor only by decision controls, and the renderer only by PlanningView; direct App/hook consumption and all editor/renderer orchestration coupling remain prohibited.
+- Required validation includes clean install, lint, app typecheck, focused and specified regressions, full tests, coverage, build, production and advisory audits, diff, exact fifteen-file corrected scope, worktree cleanliness after commit, stash preservation, and unchanged main.
+- `npm.cmd ci`, lint, and app typecheck passed.
+- Corrected focused validation passed across 13 files and 262 tests; isolated App navigation validation passed across 1 file and 19 tests.
+- Product regressions passed across 14 non-App files and 423 tests plus 6 App UI files and 49 tests.
+- Full validation and coverage passed across 70 unit/integration files with 2,625 tests and 7 UI files with 68 tests, for 77 files and 2,693 tests total.
+- Coverage was 90.09% statements, 82.36% branches, 95.19% functions, and 93.83% lines.
+- Build passed with the existing Vite large-chunk warning.
+- Production audit passed with 0 vulnerabilities; the advisory full audit exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high), with no dependency remediation.
+
 ## 2026-08-22 Phase 5C.3C.3H.3 structured answer editors and read-only renderer
 
 - Structured-record coverage verifies recursive field rendering in exact schema order, visible schema labels, required and optional metadata, primitive-child delegation, sibling preservation, undeclared-draft-field exclusion, and no root Add or Remove actions.

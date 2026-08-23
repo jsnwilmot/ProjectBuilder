@@ -1,6 +1,6 @@
 // @ts-expect-error -- Vitest runs static App wiring assertions in Node; app tsconfig intentionally excludes Node ambient types.
 import { readFileSync } from "node:fs";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -43,8 +43,8 @@ const readinessSourceId = "11111111-1111-4111-8111-000000000002";
 const timestamp = "2026-08-14T12:00:00.000Z";
 
 function planningProject(): ProjectRecord {
-  const rule = getPlanningRuleById("pp.canvas.schema.confirmation");
-  if (!rule) throw new Error("Missing schema clarification rule fixture.");
+  const rule = getPlanningRuleById("pp.canvas.yamlplanning.confirmation");
+  if (!rule) throw new Error("Missing YAML planning rule fixture.");
   const sources: PlanningSourceReference[] = [
     {
       sourceId: projectRuleSourceId,
@@ -78,7 +78,7 @@ function planningProject(): ProjectRecord {
     status: "Needs Clarification",
     value: { kind: "clarification", question: rule.question },
     title: rule.title,
-    recommendation: "Ask for authoritative schema clarification.",
+    recommendation: "Capture the approved YAML planning responsibilities.",
     rationale: rule.rationale,
     consequence: rule.consequence,
     sourceIds: [projectRuleSourceId, readinessSourceId],
@@ -111,8 +111,10 @@ function planningProject(): ProjectRecord {
 }
 
 describe("App - planning decisions", () => {
-  it("wires a rendered clarification decision through the integrated hook and durable repository", async () => {
+  it("runs the live Revise, read-only review, separate Confirm, and durable repository flow", async () => {
     const user = userEvent.setup();
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
     const inputProject = planningProject();
     saveStorageState({
       version: CURRENT_STORAGE_VERSION,
@@ -125,16 +127,40 @@ describe("App - planning decisions", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
     expect(screen.queryByText(/Saving is currently unavailable/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Defer" }));
-    await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Awaiting the authoritative schema.");
-    await user.click(screen.getByRole("button", { name: "Defer decision" }));
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Solution owner");
+    await user.type(screen.getByRole("textbox", { name: /Validation responsibility/ }), "Technical reviewer");
+    await user.type(screen.getByRole("textbox", { name: /Application location/ }), "Approved Canvas app");
+    await user.type(screen.getByRole("textbox", { name: /Parent relationship/ }), "Approved parent relationship");
+    await waitFor(() => expect(add.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
+    await user.click(screen.getByRole("button", { name: "Save answer for review" }));
 
-    expect(await screen.findByText("Planning item deferred.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Deferred or not needed" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Questions to answer" })).not.toBeInTheDocument();
-    const storedProposal = loadStorageState().projects[0]?.planning?.proposals[0];
-    expect(storedProposal).toMatchObject({ proposalId, status: "Deferred" });
+    expect(await screen.findByText("Planning answer saved for review.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Answer for review" })).toBeInTheDocument();
+    expect(screen.getByText("Solution owner")).toBeInTheDocument();
+    await waitFor(() => expect(remove.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
+    expect(loadStorageState().projects[0]?.planning?.proposals[0]).toMatchObject({
+      proposalId,
+      status: "Revised",
+      value: {
+        kind: "structuredRecord",
+        value: { installationResponsibility: { kind: "text", value: "Solution owner" } }
+      }
+    });
+    expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Confirm decision" }));
+
+    expect(await screen.findByText("Planning decision confirmed.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
+    expect(screen.getByText("Solution owner")).toBeInTheDocument();
+    expect(loadStorageState().projects[0]?.planning?.proposals[0]).toMatchObject({
+      proposalId,
+      status: "Confirmed"
+    });
     expect(screen.queryByRole("button", { name: /apply/i })).not.toBeInTheDocument();
+    add.mockRestore();
+    remove.mockRestore();
   }, 30000);
 
   it("keeps App limited to hook-to-PlanningView wiring with separate persistence warning presentation", () => {
@@ -142,6 +168,7 @@ describe("App - planning decisions", () => {
 
     expect(sourceText).toContain("submitPlanningClarificationDecision,");
     expect(sourceText).toContain("onSubmitClarificationDecision={submitPlanningClarificationDecision}");
+    expect(sourceText).toContain("onAnswerDraftMeaningfulChange={handlePlanningAnswerDraftMeaningfulChange}");
     expect(sourceText).toMatch(/persistenceWarning[\s\S]*className="persistence-warning"/);
     expect(sourceText).not.toMatch(/useState[^\n]*(answerDraft|reasonDraft|submittingProposal|decisionFeedback)/);
   });
