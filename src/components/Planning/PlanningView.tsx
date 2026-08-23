@@ -9,6 +9,7 @@ import {
   type PlanningUiSource
 } from "../../lib/planningUiViewModel";
 import { selectPlanningClarificationAnswerReview } from "../../lib/planningClarificationAnswerEntryViewModel";
+import type { PlanningClarificationOrchestrationResult } from "../../lib/planningClarificationOrchestration";
 import type { ProjectRecord } from "../../types/project";
 import {
   ClarificationDecisionControls,
@@ -19,18 +20,26 @@ import { ClarificationAnswerValueRenderer } from "./ClarificationAnswerValueRend
 
 interface PlanningViewProps {
   project: ProjectRecord;
+  hasMeaningfulPlanningAnswerDrafts: boolean;
+  onGenerateOrRefreshPlanning: (projectId: string) => Promise<PlanningClarificationOrchestrationResult>;
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
   onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void;
 }
 
 export function PlanningView({
   project,
+  hasMeaningfulPlanningAnswerDrafts,
+  onGenerateOrRefreshPlanning,
   onSubmitClarificationDecision,
   onAnswerDraftMeaningfulChange
 }: PlanningViewProps) {
   const mainRef = useRef<HTMLElement>(null);
   const decisionFeedbackRef = useRef<HTMLDivElement>(null);
+  const planningOperationFeedbackRef = useRef<HTMLDivElement>(null);
+  const operationPendingRef = useRef(false);
   const [decisionFeedback, setDecisionFeedback] = useState<PlanningDecisionUiFeedback | null>(null);
+  const [planningOperationFeedback, setPlanningOperationFeedback] = useState<PlanningClarificationOrchestrationResult | null>(null);
+  const [planningOperationPending, setPlanningOperationPending] = useState(false);
   const model = useMemo(() => buildPlanningUiViewModel(project), [project]);
 
   useEffect(() => {
@@ -43,6 +52,31 @@ export function PlanningView({
     }
   }, [decisionFeedback]);
 
+  useEffect(() => {
+    if (planningOperationFeedback) planningOperationFeedbackRef.current?.focus();
+  }, [planningOperationFeedback]);
+
+  const supportedProject = project.intake.appType === "powerAppsCanvas";
+  const runPlanningOperation = async () => {
+    if (operationPendingRef.current || !supportedProject || model.state === "invalid") return;
+    if (model.state === "ready" && hasMeaningfulPlanningAnswerDrafts) return;
+    operationPendingRef.current = true;
+    setPlanningOperationPending(true);
+    setPlanningOperationFeedback(null);
+    try {
+      setPlanningOperationFeedback(await onGenerateOrRefreshPlanning(project.identity.id));
+    } catch {
+      setPlanningOperationFeedback({
+        outcome: "persistenceFailed",
+        successful: false,
+        message: "Planning could not be saved safely. Review the latest project state and try again."
+      });
+    } finally {
+      operationPendingRef.current = false;
+      setPlanningOperationPending(false);
+    }
+  };
+
   return (
     <main className="page planning-page" id="main-content" tabIndex={-1} ref={mainRef}>
       <div className="page-heading planning-page-heading">
@@ -51,11 +85,50 @@ export function PlanningView({
           <p>Review persisted planning recommendations, questions, evidence, conflicts, and application history.</p>
         </div>
         {model.state !== "invalid" ? (
-          <span className="planning-item-count">
-            {model.proposalCount} planning item{model.proposalCount === 1 ? "" : "s"}
-          </span>
+          <div className="planning-heading-actions">
+            <span className="planning-item-count">
+              {model.proposalCount} planning item{model.proposalCount === 1 ? "" : "s"}
+            </span>
+            {supportedProject && model.state === "ready" ? (
+              <button
+                aria-busy={planningOperationPending}
+                aria-describedby={hasMeaningfulPlanningAnswerDrafts ? "planning-refresh-disabled-reason" : undefined}
+                className="button button-secondary"
+                disabled={planningOperationPending || hasMeaningfulPlanningAnswerDrafts}
+                type="button"
+                onClick={() => void runPlanningOperation()}
+              >
+                Refresh planning
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
+
+      {supportedProject && model.state === "ready" && hasMeaningfulPlanningAnswerDrafts ? (
+        <p className="planning-refresh-disabled-reason" id="planning-refresh-disabled-reason">
+          Finish or discard unsaved planning answers before refreshing planning.
+        </p>
+      ) : null}
+
+      {planningOperationPending ? (
+        <p className="planning-operation-progress" role="status" aria-live="polite" aria-atomic="true">
+          {model.state === "empty" ? "Generating planning..." : "Refreshing planning..."}
+        </p>
+      ) : null}
+
+      {planningOperationFeedback ? (
+        <div
+          className={`planning-operation-feedback ${planningOperationFeedback.successful ? "is-success" : "is-unsuccessful"}`}
+          ref={planningOperationFeedbackRef}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          tabIndex={-1}
+        >
+          {planningOperationFeedback.message}
+        </div>
+      ) : null}
 
       {model.issues.length > 0 ? (
         <div className="planning-issue" role="alert">
@@ -79,8 +152,26 @@ export function PlanningView({
 
       {model.state === "empty" ? (
         <section className="planning-empty" aria-labelledby="planning-empty-title">
-          <h2 id="planning-empty-title">Planning is not available yet</h2>
-          <p>{model.emptyMessage}</p>
+          {supportedProject ? (
+            <>
+              <h2 id="planning-empty-title">Planning has not been generated yet</h2>
+              <p>Generate deterministic architecture clarification questions from the project's current intake and readiness state.</p>
+              <button
+                aria-busy={planningOperationPending}
+                className="button button-primary"
+                disabled={planningOperationPending}
+                type="button"
+                onClick={() => void runPlanningOperation()}
+              >
+                Generate planning
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 id="planning-empty-title">Planning is not available for this project type</h2>
+              <p>Deterministic clarification planning is currently available only for supported Canvas projects.</p>
+            </>
+          )}
         </section>
       ) : null}
 

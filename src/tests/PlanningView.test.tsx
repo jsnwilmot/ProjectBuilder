@@ -1,9 +1,11 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { vi } from "vitest";
 import { PlanningView } from "../components/Planning/PlanningView";
 import type { SubmitPlanningClarificationDecision } from "../components/Planning/ClarificationDecisionControls";
 import { createProject } from "../lib/createProject";
 import { buildPlanningUserAnswerLocator } from "../lib/planningClarificationDecisionContract";
+import type { PlanningClarificationOrchestrationResult } from "../lib/planningClarificationOrchestration";
 import { CONTROLLED_APPLY_HISTORY_SCHEMA_VERSION } from "../lib/planningControlledApplyHistory";
 import {
   PLANNING_RULE_SET_ID,
@@ -147,14 +149,26 @@ const defaultSubmitClarificationDecision: SubmitPlanningClarificationDecision = 
   }
 });
 
+const defaultGenerateOrRefreshPlanning = async (): Promise<PlanningClarificationOrchestrationResult> => ({
+  outcome: "unchanged" as const,
+  successful: true,
+  message: "Planning is already current."
+});
+
 function renderPlanningView(
   input: ProjectRecord,
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision = defaultSubmitClarificationDecision,
-  onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void = () => undefined
+  onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void = () => undefined,
+  options: {
+    hasMeaningfulPlanningAnswerDrafts?: boolean;
+    onGenerateOrRefreshPlanning?: (projectId: string) => Promise<PlanningClarificationOrchestrationResult>;
+  } = {}
 ) {
   return render(
     <PlanningView
       project={input}
+      hasMeaningfulPlanningAnswerDrafts={options.hasMeaningfulPlanningAnswerDrafts ?? false}
+      onGenerateOrRefreshPlanning={options.onGenerateOrRefreshPlanning ?? defaultGenerateOrRefreshPlanning}
       onSubmitClarificationDecision={onSubmitClarificationDecision}
       onAnswerDraftMeaningfulChange={onAnswerDraftMeaningfulChange}
     />
@@ -229,14 +243,25 @@ function revisedYamlPlanning(): ProjectPlanningState {
 }
 
 describe("PlanningView", () => {
-  it("renders the Architecture Planning landmark and deliberate zero-planning state", () => {
+  it("renders an explicit Generate planning action for an empty Canvas project", () => {
     renderPlanningView(project());
 
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     expect(screen.getByRole("main")).toHaveFocus();
     expect(screen.getByRole("heading", { level: 1, name: "Architecture Planning" })).toBeInTheDocument();
-    expect(screen.getByText("No planning items are available for this project yet.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Planning has not been generated yet" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate planning" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
+  });
+
+  it("does not offer deterministic generation for an unsupported empty project", () => {
+    const unsupported = project();
+    unsupported.intake.appType = "webApplication";
+
+    renderPlanningView(unsupported);
+
+    expect(screen.getByRole("heading", { name: "Planning is not available for this project type" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate planning" })).not.toBeInTheDocument();
   });
 
   it("shows only the safe issue presentation for partially invalid planning", () => {
@@ -264,6 +289,74 @@ describe("PlanningView", () => {
     expect(screen.queryByText("Planning decision only - no project field change available")).not.toBeInTheDocument();
     expect(screen.queryByText(/^\d+ planning items?$/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("offers Refresh planning for valid Canvas planning and blocks it for meaningful unsaved answers", () => {
+    const { rerender } = renderPlanningView(project(planning()));
+    expect(screen.getByRole("button", { name: "Refresh planning" })).toBeEnabled();
+
+    rerender(
+      <PlanningView
+        project={project(planning())}
+        hasMeaningfulPlanningAnswerDrafts
+        onGenerateOrRefreshPlanning={defaultGenerateOrRefreshPlanning}
+        onSubmitClarificationDecision={defaultSubmitClarificationDecision}
+        onAnswerDraftMeaningfulChange={() => undefined}
+      />
+    );
+
+    const refresh = screen.getByRole("button", { name: "Refresh planning" });
+    expect(refresh).toBeDisabled();
+    expect(refresh).toHaveAccessibleDescription("Finish or discard unsaved planning answers before refreshing planning.");
+    expect(screen.getByText("Finish or discard unsaved planning answers before refreshing planning.")).not.toHaveTextContent(/answer value|secret/i);
+  });
+
+  it("runs Generate once, exposes a polite pending state, and focuses safe feedback", async () => {
+    const user = userEvent.setup();
+    let resolveOperation!: (value: PlanningClarificationOrchestrationResult) => void;
+    const operation = vi.fn(() => new Promise<PlanningClarificationOrchestrationResult>((resolve) => {
+      resolveOperation = resolve;
+    }));
+    renderPlanningView(project(), defaultSubmitClarificationDecision, () => undefined, {
+      onGenerateOrRefreshPlanning: operation
+    });
+
+    const generate = screen.getByRole("button", { name: "Generate planning" });
+    await user.dblClick(generate);
+
+    expect(operation).toHaveBeenCalledOnce();
+    expect(generate).toBeDisabled();
+    expect(generate).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Generating planning...");
+
+    resolveOperation({
+      outcome: "generated",
+      successful: true,
+      message: "Planning generated from the current project state."
+    });
+
+    const feedback = await screen.findByText("Planning generated from the current project state.");
+    await waitFor(() => expect(feedback).toHaveFocus());
+    expect(feedback).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("does not invoke generation during render or persisted-project rerender", () => {
+    const operation = vi.fn(defaultGenerateOrRefreshPlanning);
+    const { rerender } = renderPlanningView(project(), defaultSubmitClarificationDecision, () => undefined, {
+      onGenerateOrRefreshPlanning: operation
+    });
+
+    rerender(
+      <PlanningView
+        project={project(planning())}
+        hasMeaningfulPlanningAnswerDrafts={false}
+        onGenerateOrRefreshPlanning={operation}
+        onSubmitClarificationDecision={defaultSubmitClarificationDecision}
+        onAnswerDraftMeaningfulChange={() => undefined}
+      />
+    );
+
+    expect(operation).not.toHaveBeenCalled();
   });
 
   it("renders exact groups, status, uncertainty, recommendation, rationale, and consequence", () => {
@@ -562,6 +655,8 @@ describe("PlanningView", () => {
     rerender(
       <PlanningView
         project={persistedProject}
+        hasMeaningfulPlanningAnswerDrafts={false}
+        onGenerateOrRefreshPlanning={defaultGenerateOrRefreshPlanning}
         onSubmitClarificationDecision={submit}
         onAnswerDraftMeaningfulChange={() => undefined}
       />

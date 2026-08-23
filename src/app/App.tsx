@@ -29,6 +29,7 @@ export function App() {
     archiveSavedProject,
     restoreSavedProject,
     deleteSavedProject,
+    generateOrRefreshPlanning,
     submitPlanningClarificationDecision,
     validationIssues,
     validationResult,
@@ -177,6 +178,8 @@ export function App() {
         {view === "planning" && project ? (
           <PlanningView
             project={project}
+            hasMeaningfulPlanningAnswerDrafts={meaningfulPlanningAnswerDrafts.size > 0}
+            onGenerateOrRefreshPlanning={generateOrRefreshPlanning}
             onSubmitClarificationDecision={submitPlanningClarificationDecision}
             onAnswerDraftMeaningfulChange={handlePlanningAnswerDraftMeaningfulChange}
           />

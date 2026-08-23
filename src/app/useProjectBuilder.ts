@@ -3,6 +3,10 @@ import { PROJECT_FOLDERS } from "../data/folderStructure";
 import { sanitizeProjectFolderName } from "../lib/documentHelpers";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
 import {
+  runPlanningClarificationGeneration,
+  type PlanningClarificationOrchestrationResult
+} from "../lib/planningClarificationOrchestration";
+import {
   archiveProject,
   createProject,
   deleteProject,
@@ -177,6 +181,23 @@ export function useProjectBuilder() {
     return submissionResult;
   };
 
+  const generateOrRefreshPlanning = async (projectId: string): Promise<PlanningClarificationOrchestrationResult> => {
+    let result: PlanningClarificationOrchestrationResult;
+    try {
+      result = await runPlanningClarificationGeneration(projectId);
+    } catch (primaryError) {
+      try {
+        refresh();
+      } catch {
+        // Preserve the primary orchestration error after the mandatory refresh attempt.
+      }
+      throw primaryError;
+    }
+
+    refresh();
+    return result;
+  };
+
   return {
     storageState,
     project,
@@ -192,6 +213,7 @@ export function useProjectBuilder() {
     archiveSavedProject,
     restoreSavedProject,
     deleteSavedProject,
+    generateOrRefreshPlanning,
     submitPlanningClarificationDecision,
     validationResult,
     validationIssues: validationResult.missingFields,

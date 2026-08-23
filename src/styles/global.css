@@ -3112,6 +3112,14 @@ tbody tr:hover {
   align-items: center;
 }
 
+.planning-heading-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .planning-item-count,
 .planning-group-heading > span {
   flex: 0 0 auto;
@@ -3151,6 +3159,48 @@ tbody tr:hover {
 .planning-empty p {
   margin: 0;
   font-size: 0.78rem;
+}
+
+.planning-empty .button {
+  margin-top: 14px;
+}
+
+.planning-refresh-disabled-reason,
+.planning-operation-progress,
+.planning-operation-feedback {
+  min-width: 0;
+  margin: 0 0 16px;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.planning-refresh-disabled-reason {
+  color: #734407;
+}
+
+.planning-operation-progress {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.planning-operation-feedback {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.planning-operation-feedback.is-success {
+  border-color: #9cd5bd;
+  background: var(--green-soft);
+  color: #086644;
+}
+
+.planning-operation-feedback.is-unsuccessful {
+  border-color: #e9aeb1;
+  background: var(--red-soft);
+  color: #8b2f34;
 }
 
 .planning-groups {
@@ -4170,6 +4220,18 @@ tbody tr:hover {
 }
 
 @media (max-width: 640px) {
+  .planning-heading-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .planning-heading-actions .button,
+  .planning-empty .button {
+    width: 100%;
+    min-width: 0;
+  }
+
   .planning-decision-actions,
   .planning-decision-form-actions {
     display: grid;

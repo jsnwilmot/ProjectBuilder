@@ -1,5 +1,64 @@
 # Change Log
 
+## 2026-08-23 - Phase 5C.3C.3H.4A - Explicit Planning Generation and Refresh
+
+### Summary
+
+- Added explicit `Generate planning` for supported Canvas projects with no persisted planning and explicit `Refresh planning` for supported Canvas projects with valid persisted planning.
+- Kept generation and refresh strictly user initiated; application mount, Planning mount, project load, navigation, intake changes, readiness changes, document generation, and export perform zero automatic planning runs.
+- Added one application-service boundary that resolves the latest canonical project, derives deduplicated gates from the current active rule registry, and reuses the existing draft, blueprint, and fingerprint pipeline.
+- Executes refresh through the existing stale-transition, replacement, and ordinary materializers in that exact order against one shared deterministic snapshot, preserving historical proposals, sources, decisions, links, and controlled Apply history.
+- Blocks Refresh while meaningful unsaved Planning answers exist, without reading, transmitting, persisting, or discarding answer contents.
+- Returns and displays only bounded safe operation outcomes and messages; raw generator and repository issues remain outside the UI contract.
+- Leaves unsupported project types unavailable and invalid persisted Planning fail closed without generation or repair actions.
+- Preserved the ten answer-schema bindings and absent backend binding; the unbound backend proposal remains `schemaUnavailable` when generated.
+- Made no answer-schema, registry, Storage 6, migration, readiness, destination-mapping, controlled Apply, document/package/output, dependency, Node, or CI changes. TTI remains Draft with all 15 blockers unchanged.
+- Preserved the separate H.5 review commit for later re-baselining after H.4A review and integration authorization.
+
+### Files created
+
+- `src/lib/planningClarificationOrchestration.ts` - coordinates the existing deterministic generation and repository lifecycle stages behind one safe application contract.
+- `src/tests/planningClarificationOrchestration.test.ts` - covers real generation, idempotence, lifecycle refresh, blocked refresh, resolved gates, and unsupported projects.
+- `src/tests/useProjectBuilderPlanningGeneration.test.tsx` - covers the single hook action, canonical reload, failures, and zero automatic calls.
+- `src/tests/App.planningGeneration.test.tsx` - covers the live zero-state generation, refresh, unsaved-answer exclusion, no-auto behavior, persistence, and feedback privacy.
+
+### Files updated
+
+- `src/app/useProjectBuilder.ts` - exposes one Generate/Refresh action and reloads canonical storage after every completed or exceptional attempt.
+- `src/app/App.tsx` - wires the action and only the meaningful-answer-draft boolean into Planning.
+- `src/components/Planning/PlanningView.tsx` - adds supported zero-state generation, explicit refresh, pending protection, safe focused feedback, and unsaved-answer blocking.
+- `src/styles/global.css` - adds Planning-prefixed responsive action and operation-feedback styles.
+- `src/tests/PlanningView.test.tsx` - covers supported, unsupported, invalid, pending, deduplicated, focused-feedback, refresh, and no-auto UI behavior.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the orchestration, lifecycle, UI, privacy, accessibility, and regression matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed 432 packages and initially reported 6 development/tooling vulnerabilities (2 moderate, 4 high).
+- `npm.cmd run lint`, `npx.cmd tsc --noEmit -p tsconfig.app.json`, and `git diff --check`: passed.
+- Focused H.4A validation passed across 4 files and 41 tests.
+- Lifecycle and repository regressions passed across 12 files and 275 tests.
+- H.4 answer-workflow regressions passed across 6 unit/integration files and 98 tests; the navigation UI regression passed in the product UI group.
+- Product foundation regressions passed across 12 files and 304 tests; 7 App UI regression files passed 68 tests.
+- `npm.cmd test`: passed across 73 unit/integration files and 2,645 tests plus 7 UI files and 68 tests, for 80 files and 2,713 tests total.
+- `npm.cmd run test:coverage`: passed across the same 80 files and 2,713 tests with 90.14% statements, 82.43% branches, 95.37% functions, and 93.93% lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited 1 with 25 advisory development/tooling vulnerabilities (2 moderate, 23 high); no dependency remediation was performed.
+
+### Issues found
+
+- None in the implemented production behavior.
+- Low: the advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+
+### Remaining work
+
+- Independent Architect review of the exact review commit is required before integration; H.5 remains preserved and blocked pending later re-baselining.
+
 ## 2026-08-22 - Phase 5C.3C.3H.4 - Live Clarification Answer Entry and Draft Protection
 
 ### Summary

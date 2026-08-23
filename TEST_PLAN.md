@@ -1,5 +1,37 @@
 # Test Plan
 
+## 2026-08-23 Phase 5C.3C.3H.4A explicit planning generation and refresh
+
+- Initial-generation coverage uses a persisted supported Canvas project with unresolved applicable gates and the real active-rule, phase-gate, draft, blueprint, fingerprint, and repository pipeline; only `Needs Clarification` proposals and their approved sources are created, with no decisions, readiness, or controlled Apply mutation.
+- Idempotence coverage runs the same orchestration twice and verifies the second result is unchanged with identical source, proposal, and decision IDs and no duplicates.
+- Refresh lifecycle coverage starts from current persisted planning, introduces an existing-engine applicability change, and verifies stale history, deterministic `markStale` and `supersede` decisions, preserved predecessor identity, valid successor linkage, and a new `Needs Clarification` replacement.
+- Blocked-refresh coverage uses the existing C-blocked source-plus-applicability condition and verifies generic safe failure, no raw secret fixture detail, no overwrite, and no fabricated replacement.
+- No-question coverage resolves every active-rule gate and verifies no proposal is fabricated and the safe result reports no unresolved questions.
+- Unsupported and missing-project coverage verifies no Canvas-rule fallback, no proposal write, and distinct safe boundary outcomes.
+- Canonical-input coverage verifies the exact requested persisted project is used even when another project is active.
+- Hook coverage verifies one public Generate/Refresh action, explicit project-ID forwarding, safe-result return, mandatory canonical reload after success/failure/exception, newly persisted Planning visibility, and unchanged clarification-decision submission.
+- Zero-auto coverage verifies hook mount, App mount, project load, navigation, intake update, and readiness update produce zero orchestration calls.
+- Canvas zero-state coverage verifies the exact `Generate planning` button; unsupported zero state omits it, while invalid persisted Planning omits both Generate and Refresh.
+- Refresh UI coverage verifies valid Canvas planning always offers `Refresh planning`, unchanged refresh runs once without duplicates, and no refresh occurs merely by opening Planning.
+- Pending coverage verifies disabled action, `aria-busy`, polite status, and ref-backed duplicate-click prevention for one orchestration call.
+- Unsaved-answer coverage verifies meaningful H.4 drafts disable Refresh with associated content-free explanation, preserve the exact local draft, make zero calls, and re-enable only after explicit Cancel/discard; untouched sessions remain outside the meaningful-draft boundary.
+- Feedback privacy coverage injects secret internal details through blocked lifecycle state and an unexpected UI exception and verifies only generic safe focused status text, with no issue, proposal, source, rule, fingerprint, or answer content exposure.
+- App end-to-end coverage verifies zero planning to explicit generation to canonical repository reload to visible groups/cards; a bound YAML clarification exposes `Answer question`, while the backend proposal remains `schemaUnavailable` with no generic binding.
+- Accessibility coverage verifies ordinary keyboard-operable buttons, clear accessible names, disabled state, `aria-busy`, polite progress and feedback statuses, associated disabled explanation, and focused completion feedback without first-answer focus or modal UI.
+- Responsive coverage verifies Planning-prefixed shrink-safe heading and empty-state actions at 860px, 640px, and 480px, including existing 44px button minimums and no fixed-width overflow.
+- H.4 regressions cover decision controls, primitive and structured editors, the read-only renderer, answer-entry selection, Planning decisions, and navigation without answer lifecycle changes.
+- Lifecycle regressions cover drafts, blueprints, fingerprints, lifecycle analysis, stale propagation/materialization, replacement analysis/materialization, ordinary materialization, reconciliation, source reconciliation, and repository behavior without foundation changes.
+- Product regressions cover the Planning view model, client review, controlled Apply, generation/export, project management, review generation, both Power Platform project types, document export, and persistence recovery.
+- Exclusion coverage verifies no automatic confirm, readiness mutation, writable mapping, Apply behavior, output/package generation, answer-schema/registry/backend binding, Planning/rule/answer-schema version, Storage 6/migration, dependency, Node, CI, remote persistence, external AI, deployment, or TTI blocker changes.
+- Required validation includes clean install, lint, app typecheck, focused H.4A tests, lifecycle/H.4/product regressions, full tests, coverage, build, production and advisory audits, diff, exact eleven-file scope, three worktree status checks, stash preservation, branch parent, and remote review SHA.
+- `npm.cmd ci`, lint, app TypeScript validation, and diff checking passed.
+- Focused H.4A validation passed across 4 files and 41 tests; lifecycle/repository regressions passed across 12 files and 275 tests.
+- H.4 answer-workflow regressions passed across 6 unit/integration files and 98 tests; product foundation regressions passed across 12 files and 304 tests; 7 App UI regressions passed 68 tests.
+- Full tests and coverage passed across 73 unit/integration files with 2,645 tests and 7 UI files with 68 tests, for 80 files and 2,713 tests total.
+- Coverage was 90.14% statements, 82.43% branches, 95.37% functions, and 93.93% lines.
+- Build passed with the existing Vite large-chunk warning.
+- Production audit passed with 0 vulnerabilities; the separate advisory audit exited 1 with 25 development/tooling findings (2 moderate, 23 high), with no dependency remediation.
+
 ## 2026-08-22 Phase 5C.3C.3H.4 live clarification answer entry and draft protection
 
 - Entry-eligibility coverage verifies only exact capability `revise` plus `inputRequired` plus `answer` with an exact registered rule ID/version exposes `Answer question`; the unbound backend remains fail closed.
