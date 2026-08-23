@@ -575,9 +575,15 @@ const humanDecisionId = "85000000-0000-4000-8000-000000000001";
 const humanSourceId = "86000000-0000-4000-8000-000000000001";
 const humanConfirmDecisionId = "85000000-0000-4000-8000-000000000002";
 const humanConfirmedSourceId = "86000000-0000-4000-8000-000000000002";
+const humanThirdDecisionId = "85000000-0000-4000-8000-000000000003";
+const humanThirdSourceId = "86000000-0000-4000-8000-000000000003";
+const humanFourthDecisionId = "85000000-0000-4000-8000-000000000004";
+const humanFourthSourceId = "86000000-0000-4000-8000-000000000004";
 const humanTimestamp = "2026-07-22T12:15:00.000Z";
 const humanMaterializedAt = "2026-07-22T13:15:00.000Z";
 const humanConfirmedAt = "2026-07-22T14:15:00.000Z";
+const humanThirdAt = "2026-07-22T15:15:00.000Z";
+const humanFourthAt = "2026-07-22T16:15:00.000Z";
 const humanFingerprint = "d".repeat(64);
 
 function humanTextValue(value = "Confirmed TTI planning answer."): PlanningProposalValue {
@@ -600,13 +606,13 @@ function humanStructuredRecordListValue(): PlanningProposalValue {
   };
 }
 
-function humanStructuredValue(): PlanningProposalValue {
+function humanStructuredValue(overrides: { purpose?: string; inputs?: string } = {}): PlanningProposalValue {
   return {
     kind: "structuredRecordList",
     value: [{
       approvedComponentName: humanTextValue("Licence summary"),
-      purpose: humanTextValue("Show licence allocation totals"),
-      inputs: humanTextValue("Licence records"),
+      purpose: humanTextValue(overrides.purpose ?? "Show licence allocation totals"),
+      inputs: humanTextValue(overrides.inputs ?? "Licence records"),
       outputs: humanTextValue("Allocation summary"),
       usageTargets: {
         kind: "structuredRecordList",
@@ -1376,6 +1382,187 @@ describe("projectRepository", () => {
     });
     expect(planning.decisions.at(-1)?.value).toBeUndefined();
     expect(planning.decisions.at(-1)?.reason).toBeUndefined();
+  });
+
+  it("persists reopen, replacement revision, confirmation, and Confirmed correction through the real repository", async () => {
+    const storage = new CountingStorage();
+    const answerA = humanStructuredValue();
+    const answerB = humanStructuredValue({ purpose: "Corrected purpose" });
+    const answerC = humanStructuredValue({ inputs: "Corrected inputs" });
+    saveStorageState({
+      version: 6,
+      activeProjectId: humanProjectId,
+      projects: [humanProject(humanRevisedPlanning(humanProjectId, answerA))]
+    }, storage);
+
+    await expect(materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "reopen"
+    }, storage, {
+      now: () => humanMaterializedAt,
+      uuid: () => humanDecisionId
+    })).resolves.toMatchObject({ outcome: "persisted", action: "reopen", decisionId: humanDecisionId });
+
+    await expect(materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "revise",
+      value: answerB
+    }, storage, {
+      now: () => humanConfirmedAt,
+      uuid: (() => {
+        const ids = [humanConfirmDecisionId, humanSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    })).resolves.toMatchObject({
+      outcome: "persisted",
+      action: "revise",
+      staleSourceId: humanUserAnswerSourceId,
+      createdSourceId: humanSourceId
+    });
+
+    await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "confirm"
+    }, storage, {
+      now: () => humanThirdAt,
+      uuid: (() => {
+        const ids = [humanThirdDecisionId, humanThirdSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    });
+    await expect(materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "revise",
+      value: answerC
+    }, storage, {
+      now: () => humanFourthAt,
+      uuid: (() => {
+        const ids = [humanFourthDecisionId, humanFourthSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    })).resolves.toMatchObject({
+      outcome: "persisted",
+      action: "revise",
+      staleSourceId: humanThirdSourceId,
+      createdSourceId: humanFourthSourceId
+    });
+
+    const reloaded = loadStorageState(storage).projects[0].planning!;
+    expect(reloaded.proposals[0]).toMatchObject({
+      status: "Revised",
+      value: answerC,
+      sourceIds: [humanProjectRuleSourceId, humanReadinessSourceId, humanFourthSourceId],
+      lastDecisionId: humanFourthDecisionId
+    });
+    expect(reloaded.sources.find((source) => source.sourceId === humanUserAnswerSourceId)?.availability).toBe("stale");
+    expect(reloaded.sources.find((source) => source.sourceId === humanSourceId)?.availability).toBe("stale");
+    expect(reloaded.sources.find((source) => source.sourceId === humanThirdSourceId)).toMatchObject({
+      authority: "confirmed",
+      availability: "stale"
+    });
+    expect(reloaded.sources.find((source) => source.sourceId === humanFourthSourceId)).toMatchObject({
+      authority: "informational",
+      availability: "current"
+    });
+    expect(reloaded.decisions.map((decision) => decision.action)).toEqual([
+      "revise", "reopen", "revise", "confirm", "revise"
+    ]);
+    expect(reloaded.decisions.filter((decision) => decision.action === "confirm")).toHaveLength(1);
+  });
+
+  it("persists answered and unanswered Deferred resume and explicit Confirm after answered resume", async () => {
+    const answeredStorage = new CountingStorage();
+    const answer = humanStructuredValue();
+    saveStorageState({
+      version: 6,
+      activeProjectId: humanProjectId,
+      projects: [humanProject(humanRevisedPlanning(humanProjectId, answer))]
+    }, answeredStorage);
+
+    await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "defer",
+      reason: "Waiting for stakeholder review."
+    }, answeredStorage, { now: () => humanMaterializedAt, uuid: () => humanDecisionId });
+    await expect(materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "reopen"
+    }, answeredStorage, { now: () => humanConfirmedAt, uuid: () => humanConfirmDecisionId })).resolves.toMatchObject({
+      outcome: "persisted",
+      action: "reopen"
+    });
+    await expect(materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "confirm"
+    }, answeredStorage, {
+      now: () => humanThirdAt,
+      uuid: (() => {
+        const ids = [humanThirdDecisionId, humanThirdSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    })).resolves.toMatchObject({ outcome: "persisted", action: "confirm" });
+    const answered = loadStorageState(answeredStorage).projects[0].planning!;
+    expect(answered.proposals[0]).toMatchObject({ status: "Confirmed", value: answer });
+    expect(answered.decisions[1]).toMatchObject({ action: "defer", reason: "Waiting for stakeholder review." });
+    expect(answered.decisions.map((decision) => decision.action)).toEqual(["revise", "defer", "reopen", "confirm"]);
+
+    const unansweredStorage = new CountingStorage();
+    saveStorageState({
+      version: 6,
+      activeProjectId: humanProjectId,
+      projects: [humanProject(humanPlanning())]
+    }, unansweredStorage);
+    await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "defer",
+      reason: "Waiting for the first answer."
+    }, unansweredStorage, { now: () => humanMaterializedAt, uuid: () => humanDecisionId });
+    await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "reopen"
+    }, unansweredStorage, { now: () => humanConfirmedAt, uuid: () => humanConfirmDecisionId });
+    const unanswered = loadStorageState(unansweredStorage).projects[0].planning!;
+    expect(unanswered.proposals[0]).toMatchObject({
+      status: "Needs Clarification",
+      sourceIds: [humanProjectRuleSourceId, humanReadinessSourceId]
+    });
+    expect(unanswered.sources).toHaveLength(2);
+    expect(unanswered.decisions.map((decision) => decision.action)).toEqual(["defer", "reopen"]);
+    expect(unanswered.decisions[0].reason).toBe("Waiting for the first answer.");
+  });
+
+  it("fails reopen closed when the project changes before the repository write", async () => {
+    const storage = new ChangingReadStorage();
+    saveStorageState({
+      version: 6,
+      activeProjectId: humanProjectId,
+      projects: [humanProject(humanRevisedPlanning())]
+    }, storage);
+    const runtimeCalls = { now: 0, uuid: 0 };
+
+    const result = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "reopen"
+    }, storage, {
+      now: () => {
+        runtimeCalls.now += 1;
+        return humanMaterializedAt;
+      },
+      uuid: () => {
+        runtimeCalls.uuid += 1;
+        return humanDecisionId;
+      }
+    });
+
+    expect(result).toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "projectChangedDuringDecisionMaterialization" })]
+    });
+    expect(runtimeCalls).toEqual({ now: 0, uuid: 0 });
   });
 
   it.each([

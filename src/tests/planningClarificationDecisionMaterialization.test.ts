@@ -30,23 +30,29 @@ const userAnswerSourceId = "11111111-1111-4111-8111-000000000003";
 const reviseDecisionId = "44444444-4444-4444-8444-000000000001";
 const decisionId = "55555555-5555-4555-8555-000000000001";
 const sourceId = "66666666-6666-4666-8666-000000000001";
+const secondDecisionId = "55555555-5555-4555-8555-000000000002";
+const secondSourceId = "66666666-6666-4666-8666-000000000002";
+const thirdDecisionId = "55555555-5555-4555-8555-000000000003";
+const thirdSourceId = "66666666-6666-4666-8666-000000000003";
 const duplicateId = "11111111-1111-4111-8111-000000000001";
 const conflictId = "77777777-7777-4777-8777-000000000001";
 const timestamp = "2026-08-01T10:30:00.000Z";
 const nextTimestamp = "2026-08-01T10:45:00.000Z";
+const secondTimestamp = "2026-08-01T11:00:00.000Z";
+const thirdTimestamp = "2026-08-01T11:15:00.000Z";
 const fingerprint = "c".repeat(64);
 
 function textValue(value = "User supplied answer."): PlanningProposalValue {
   return { kind: "text", value };
 }
 
-function structuredValue(): PlanningProposalValue {
+function structuredValue(overrides: { purpose?: string; inputs?: string } = {}): PlanningProposalValue {
   return {
     kind: "structuredRecordList",
     value: [{
       approvedComponentName: textValue("Licence summary"),
-      purpose: textValue("Show licence allocation totals"),
-      inputs: textValue("Licence records"),
+      purpose: textValue(overrides.purpose ?? "Show licence allocation totals"),
+      inputs: textValue(overrides.inputs ?? "Licence records"),
       outputs: textValue("Allocation summary"),
       usageTargets: {
         kind: "structuredRecordList",
@@ -228,6 +234,11 @@ function materialize(
   return { preparation, finalized };
 }
 
+function requireFinalized(run: ReturnType<typeof materialize>) {
+  if (!run.finalized?.planning) throw new Error("Expected persisted planning fixture");
+  return { ...run.finalized, planning: run.finalized.planning };
+}
+
 function expectBlockedCode(result: unknown, code: string): void {
   expect(result).toHaveProperty("result");
   const issues = (result as { result: { issues: readonly { code: string }[] } }).result.issues;
@@ -402,6 +413,200 @@ describe("planning clarification human decision materialization", () => {
     });
     expect(confirmDecision.value).toBeUndefined();
     expect(confirmDecision.reason).toBeUndefined();
+  });
+
+  it("persists Revised reopen with one decision and zero source creation or mutation", () => {
+    const state = revisedPlanning();
+    const beforeSources = JSON.stringify(state.sources);
+    const beforeProposal = state.proposals[0];
+    const finalized = requireFinalized(materialize(state, { proposalId, action: "reopen" }, [decisionId]));
+
+    expect(finalized.result).toMatchObject({
+      outcome: "persisted",
+      action: "reopen",
+      decisionId,
+      issues: []
+    });
+    expect(finalized.result.createdSourceId).toBeUndefined();
+    expect(finalized.result.staleSourceId).toBeUndefined();
+    const candidate = finalized.planning;
+    expect(JSON.stringify(candidate.sources)).toBe(beforeSources);
+    expect(candidate.proposals[0]).toMatchObject({
+      proposalId,
+      status: "Needs Clarification",
+      value: beforeProposal.value,
+      sourceIds: beforeProposal.sourceIds,
+      fingerprint: beforeProposal.fingerprint,
+      createdAt: beforeProposal.createdAt,
+      updatedAt: nextTimestamp,
+      lastDecisionId: decisionId
+    });
+    expect(candidate.decisions.at(-1)).toMatchObject({
+      action: "reopen",
+      previousStatus: "Revised",
+      resultingStatus: "Needs Clarification",
+      origin: "userAction",
+      sourceIds: beforeProposal.sourceIds
+    });
+    expect(candidate.decisions.at(-1)?.value).toBeUndefined();
+    expect(candidate.decisions.at(-1)?.reason).toBeUndefined();
+  });
+
+  it("persists the edit cycle by staling answer A and replacing it with informational answer B", () => {
+    const answerA = structuredValue();
+    const answerB = structuredValue({ purpose: "Corrected purpose" });
+    const reopened = requireFinalized(materialize(
+      revisedPlanning(answerA),
+      { proposalId, action: "reopen" },
+      [decisionId],
+      nextTimestamp
+    )).planning;
+    const revised = requireFinalized(materialize(
+      reopened,
+      { proposalId, action: "revise", value: answerB },
+      [secondDecisionId, secondSourceId],
+      secondTimestamp
+    ));
+
+    expect(revised.result).toMatchObject({
+      outcome: "persisted",
+      action: "revise",
+      decisionId: secondDecisionId,
+      createdSourceId: secondSourceId,
+      staleSourceId: userAnswerSourceId
+    });
+    expect(revised.planning?.proposals[0]).toMatchObject({
+      status: "Revised",
+      value: answerB,
+      sourceIds: [projectRuleSourceId, readinessSourceId, secondSourceId],
+      lastDecisionId: secondDecisionId
+    });
+    expect(revised.planning?.sources.find((source) => source.sourceId === userAnswerSourceId)).toMatchObject({
+      authority: "informational",
+      availability: "stale"
+    });
+    expect(revised.planning?.sources.find((source) => source.sourceId === secondSourceId)).toMatchObject({
+      authority: "informational",
+      availability: "current",
+      locator: buildPlanningUserAnswerLocator(proposalId, secondDecisionId)
+    });
+    expect(revised.planning?.decisions.map((decision) => decision.action)).toEqual(["revise", "reopen", "revise"]);
+    expect(revised.planning?.sources).toHaveLength(4);
+  });
+
+  it("persists Confirmed correction as Revised informational history and requires explicit reconfirmation", () => {
+    const answerA = structuredValue();
+    const answerB = structuredValue({ inputs: "Corrected inputs" });
+    const confirmedA = requireFinalized(materialize(
+      revisedPlanning(answerA),
+      { proposalId, action: "confirm" },
+      [decisionId, sourceId],
+      nextTimestamp
+    )).planning;
+    const corrected = requireFinalized(materialize(
+      confirmedA,
+      { proposalId, action: "revise", value: answerB },
+      [secondDecisionId, secondSourceId],
+      secondTimestamp
+    ));
+
+    expect(corrected.result).toMatchObject({
+      outcome: "persisted",
+      action: "revise",
+      staleSourceId: sourceId,
+      createdSourceId: secondSourceId
+    });
+    expect(corrected.planning?.proposals[0]).toMatchObject({
+      status: "Revised",
+      value: answerB,
+      sourceIds: [projectRuleSourceId, readinessSourceId, secondSourceId]
+    });
+    expect(corrected.planning?.sources.find((source) => source.sourceId === sourceId)).toMatchObject({
+      authority: "confirmed",
+      availability: "stale"
+    });
+    expect(corrected.planning?.sources.find((source) => source.sourceId === secondSourceId)).toMatchObject({
+      authority: "informational",
+      availability: "current"
+    });
+    expect(corrected.planning?.decisions.filter((decision) => decision.action === "confirm")).toHaveLength(1);
+
+    const reconfirmed = requireFinalized(materialize(
+      corrected.planning,
+      { proposalId, action: "confirm" },
+      [thirdDecisionId, thirdSourceId],
+      thirdTimestamp
+    ));
+    expect(reconfirmed.planning?.proposals[0]).toMatchObject({
+      status: "Confirmed",
+      value: answerB,
+      sourceIds: [projectRuleSourceId, readinessSourceId, thirdSourceId]
+    });
+    expect(reconfirmed.planning?.sources.find((source) => source.sourceId === secondSourceId)).toMatchObject({
+      authority: "informational",
+      availability: "stale"
+    });
+    expect(reconfirmed.planning?.sources.find((source) => source.sourceId === thirdSourceId)).toMatchObject({
+      authority: "confirmed",
+      availability: "current"
+    });
+    expect(reconfirmed.planning?.decisions.map((decision) => decision.action)).toEqual([
+      "revise", "confirm", "revise", "confirm"
+    ]);
+  });
+
+  it("resumes Deferred history with and without an answer and confirms answered history through its originating revision", () => {
+    const answer = structuredValue();
+    const deferredAnswered = requireFinalized(materialize(
+      revisedPlanning(answer),
+      { proposalId, action: "defer", reason: "Waiting for stakeholder review." },
+      [decisionId],
+      nextTimestamp
+    )).planning;
+    const resumedAnswered = requireFinalized(materialize(
+      deferredAnswered,
+      { proposalId, action: "reopen" },
+      [secondDecisionId],
+      secondTimestamp
+    ));
+    expect(resumedAnswered.result.createdSourceId).toBeUndefined();
+    expect(resumedAnswered.result.staleSourceId).toBeUndefined();
+    expect(resumedAnswered.planning?.proposals[0]).toMatchObject({
+      status: "Revised",
+      value: answer,
+      sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId]
+    });
+    expect(resumedAnswered.planning?.decisions[1]).toMatchObject({
+      action: "defer",
+      reason: "Waiting for stakeholder review."
+    });
+    const confirmed = materialize(
+      resumedAnswered.planning,
+      { proposalId, action: "confirm" },
+      [thirdDecisionId, thirdSourceId],
+      thirdTimestamp
+    ).finalized;
+    expect(confirmed?.result.outcome).toBe("persisted");
+    expect(confirmed?.planning?.proposals[0].status).toBe("Confirmed");
+
+    const deferredUnanswered = requireFinalized(materialize(
+      planning(),
+      { proposalId, action: "defer", reason: "Waiting for first answer." },
+      [decisionId],
+      nextTimestamp
+    )).planning;
+    const resumedUnanswered = requireFinalized(materialize(
+      deferredUnanswered,
+      { proposalId, action: "reopen" },
+      [secondDecisionId],
+      secondTimestamp
+    ));
+    expect(resumedUnanswered.planning?.proposals[0]).toMatchObject({
+      status: "Needs Clarification",
+      sourceIds: [projectRuleSourceId, readinessSourceId]
+    });
+    expect(resumedUnanswered.planning?.sources).toHaveLength(2);
+    expect(resumedUnanswered.planning?.decisions.map((decision) => decision.action)).toEqual(["defer", "reopen"]);
   });
 
   it.each([

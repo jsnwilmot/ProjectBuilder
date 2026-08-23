@@ -15,9 +15,14 @@ import {
   type ProjectPlanningState
 } from "./planningProposals";
 
-export interface PlanningClarificationDecisionRepositoryInput {
+export interface PlanningClarificationDecisionRepositoryInput<
+  TAction extends PlanningClarificationHumanDecisionAction = Exclude<
+    PlanningClarificationHumanDecisionAction,
+    "reopen"
+  >
+> {
   proposalId: string;
-  action: PlanningClarificationHumanDecisionAction;
+  action: TAction;
   value?: PlanningProposalValue;
   reason?: string;
 }
@@ -196,21 +201,32 @@ export function finalizePlanningClarificationDecisionMaterialization(
     };
   }
 
-  const priorInformationalSourceId = sourceAction === "createConfirmedAndStalePriorInformational"
+  const priorHumanSourceId = sourceAction === "createConfirmedAndStalePriorInformational"
     ? findCurrentInformationalUserAnswerSourceId(preparation.existingPlanning, preparation.proposal)
-    : null;
-  if (sourceAction === "createConfirmedAndStalePriorInformational" && !priorInformationalSourceId) {
+    : sourceAction === "replaceCurrentHumanWithInformational"
+      ? findCurrentReplaceableUserAnswerSourceId(preparation.existingPlanning, preparation.proposal)
+      : null;
+  if (
+    (sourceAction === "createConfirmedAndStalePriorInformational" ||
+      sourceAction === "replaceCurrentHumanWithInformational") &&
+    !priorHumanSourceId
+  ) {
     return {
       result: blockedResult(preparation.projectId, [
-        issue("candidateTopologyInvalid", "Confirmed decision could not identify the prior informational user-answer source.", preparation.plan.proposalId, undefined, newDecisionId, "sourceIds")
+        issue("candidateTopologyInvalid", "Decision could not identify exactly one replaceable current human-answer source.", preparation.plan.proposalId, undefined, newDecisionId, "sourceIds")
       ])
     };
   }
 
-  const resultingSourceIds = resultingProposalSourceIds(preparation.proposal.sourceIds, sourceAction, newSourceId, priorInformationalSourceId);
+  const resultingSourceIds = resultingProposalSourceIds(preparation.proposal.sourceIds, sourceAction, newSourceId, priorHumanSourceId);
   const updatedProposal = proposalRecord(preparation.proposal, preparation.plan, resultingSourceIds, newDecisionId, materializedAt);
   const newSource = newSourceId && sourceLocator
-    ? userAnswerSourceRecord(newSourceId, sourceLocator, sourceAction === "createInformational" ? "informational" : "confirmed", materializedAt)
+    ? userAnswerSourceRecord(
+        newSourceId,
+        sourceLocator,
+        sourceAction === "createConfirmedAndStalePriorInformational" ? "confirmed" : "informational",
+        materializedAt
+      )
     : null;
   const newDecision = decisionRecord(preparation.plan, preparation.projectId, newDecisionId, materializedAt, resultingSourceIds);
 
@@ -218,7 +234,7 @@ export function finalizePlanningClarificationDecisionMaterialization(
     ...preparation.existingPlanning,
     sources: [
       ...preparation.existingPlanning.sources.map((source) =>
-        source.sourceId === priorInformationalSourceId ? { ...source, availability: "stale" as const } : { ...source }
+        source.sourceId === priorHumanSourceId ? { ...source, availability: "stale" as const } : { ...source }
       ),
       ...(newSource ? [newSource] : [])
     ],
@@ -246,7 +262,7 @@ export function finalizePlanningClarificationDecisionMaterialization(
     preparation,
     newDecisionId,
     newSourceId,
-    priorInformationalSourceId
+    priorHumanSourceId
   );
   if (topologyIssue) {
     return { result: blockedResult(preparation.projectId, [topologyIssue]) };
@@ -271,7 +287,7 @@ export function finalizePlanningClarificationDecisionMaterialization(
       action: preparation.plan.action,
       decisionId: newDecisionId,
       createdSourceId: newSourceId ?? undefined,
-      staleSourceId: priorInformationalSourceId ?? undefined
+      staleSourceId: priorHumanSourceId ?? undefined
     })
   };
 }
@@ -322,7 +338,10 @@ function resultingProposalSourceIds(
   if (sourceAction === "createInformational") {
     return [...currentSourceIds, newSourceId as string];
   }
-  if (sourceAction === "createConfirmedAndStalePriorInformational") {
+  if (
+    sourceAction === "createConfirmedAndStalePriorInformational" ||
+    sourceAction === "replaceCurrentHumanWithInformational"
+  ) {
     return currentSourceIds.map((sourceId) => sourceId === priorInformationalSourceId ? (newSourceId as string) : sourceId);
   }
   return [...currentSourceIds];
@@ -452,6 +471,20 @@ function findCurrentInformationalUserAnswerSourceId(
   return matches.length === 1 ? matches[0].sourceId : null;
 }
 
+function findCurrentReplaceableUserAnswerSourceId(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): string | null {
+  const sourceIds = new Set(proposal.sourceIds);
+  const matches = planning.sources.filter((source) =>
+    sourceIds.has(source.sourceId) &&
+    source.sourceType === "userAnswer" &&
+    (source.authority === "informational" || source.authority === "confirmed") &&
+    source.availability === "current"
+  );
+  return matches.length === 1 ? matches[0].sourceId : null;
+}
+
 function validateFinalTopology(
   planning: ProjectPlanningState,
   preparation: Extract<PlanningClarificationDecisionMaterializationPreparation, { kind: "ready" }>,
@@ -469,6 +502,7 @@ function validateFinalTopology(
     !proposal ||
     !decision ||
     proposal.proposalId !== preparation.proposal.proposalId ||
+    proposal.createdAt !== preparation.proposal.createdAt ||
     proposal.status !== preparation.plan.resultingStatus ||
     proposal.lastDecisionId !== decisionId ||
     proposal.fingerprint !== preparation.proposal.fingerprint ||
@@ -477,6 +511,18 @@ function validateFinalTopology(
     !sameStringArray(decision.sourceIds ?? [], proposal.sourceIds)
   ) {
     return issue("candidateTopologyInvalid", "Final human decision topology is not coherent.", preparation.plan.proposalId, undefined, decisionId, "planning");
+  }
+
+  if (preparation.plan.action === "reopen") {
+    if (
+      createdSourceId !== null ||
+      staleSourceId !== null ||
+      !sameStringArray(proposal.sourceIds, preparation.proposal.sourceIds) ||
+      !sameValue(proposal.value, preparation.proposal.value) ||
+      JSON.stringify(planning.sources) !== JSON.stringify(preparation.existingPlanning.sources)
+    ) {
+      return issue("candidateTopologyInvalid", "Reopen must preserve proposal value and sources without source mutation.", preparation.plan.proposalId, undefined, decisionId, "sources");
+    }
   }
 
   if (preparation.plan.action === "revise") {
@@ -492,12 +538,40 @@ function validateFinalTopology(
     ) {
       return issue("candidateTopologyInvalid", "Revised proposal user-answer provenance is not coherent.", preparation.plan.proposalId, createdSourceId ?? undefined, decisionId, "sources");
     }
+
+    if (preparation.plan.userAnswerSourceAction === "replaceCurrentHumanWithInformational") {
+      const staleSource = staleSourceId ? planning.sources.find((entry) => entry.sourceId === staleSourceId) : undefined;
+      const expectedSourceIds = resultingProposalSourceIds(
+        preparation.proposal.sourceIds,
+        preparation.plan.userAnswerSourceAction,
+        createdSourceId,
+        staleSourceId
+      );
+      if (
+        !staleSource ||
+        staleSource.sourceType !== "userAnswer" ||
+        (staleSource.authority !== "informational" && staleSource.authority !== "confirmed") ||
+        staleSource.availability !== "stale" ||
+        proposal.sourceIds.includes(staleSource.sourceId) ||
+        !sameStringArray(proposal.sourceIds, expectedSourceIds)
+      ) {
+        return issue("candidateTopologyInvalid", "Replacement revision did not preserve the prior human answer as stale history.", preparation.plan.proposalId, staleSourceId ?? undefined, decisionId, "sources");
+      }
+    } else if (staleSourceId !== null) {
+      return issue("candidateTopologyInvalid", "First revision cannot stale an existing source.", preparation.plan.proposalId, staleSourceId, decisionId, "sources");
+    }
   }
 
   if (preparation.plan.action === "confirm") {
     const staleSource = staleSourceId ? planning.sources.find((entry) => entry.sourceId === staleSourceId) : undefined;
     const confirmedSource = createdSourceId ? planning.sources.find((entry) => entry.sourceId === createdSourceId) : undefined;
-    const reviseDecision = preparation.existingPlanning.decisions.find((entry) => entry.decisionId === preparation.proposal.lastDecisionId);
+    const reviseDecisions = staleSource
+      ? preparation.existingPlanning.decisions.filter((entry) =>
+          entry.proposalId === preparation.plan.proposalId &&
+          buildPlanningUserAnswerLocator(preparation.plan.proposalId, entry.decisionId) === staleSource.locator
+        )
+      : [];
+    const reviseDecision = reviseDecisions.length === 1 ? reviseDecisions[0] : undefined;
     if (
       !staleSource ||
       staleSource.sourceType !== "userAnswer" ||
@@ -511,13 +585,20 @@ function validateFinalTopology(
       proposal.sourceIds.includes(staleSource.sourceId) ||
       !proposal.sourceIds.includes(confirmedSource.sourceId) ||
       !(decision.sourceIds ?? []).includes(confirmedSource.sourceId) ||
-      !reviseDecision?.sourceIds?.includes(staleSource.sourceId)
+      reviseDecision?.action !== "revise" ||
+      reviseDecision.origin !== "userAction" ||
+      reviseDecision.resultingStatus !== "Revised" ||
+      !reviseDecision.sourceIds?.includes(staleSource.sourceId)
     ) {
       return issue("candidateTopologyInvalid", "Confirmed proposal user-answer provenance is not coherent.", preparation.plan.proposalId, createdSourceId ?? undefined, decisionId, "sources");
     }
   }
 
   return null;
+}
+
+function sameValue(first: PlanningProposalValue, second: PlanningProposalValue): boolean {
+  return JSON.stringify(first) === JSON.stringify(second);
 }
 
 function collectExistingPlanningIds(planning: ProjectPlanningState): Set<string> {

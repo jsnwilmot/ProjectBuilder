@@ -30,7 +30,12 @@ const secondProposalId = "22222222-2222-4222-8222-000000000002";
 const projectRuleSourceId = "11111111-1111-4111-8111-000000000001";
 const readinessSourceId = "11111111-1111-4111-8111-000000000002";
 const userAnswerSourceId = "11111111-1111-4111-8111-000000000003";
+const secondUserAnswerSourceId = "11111111-1111-4111-8111-000000000004";
+const confirmedAnswerSourceId = "11111111-1111-4111-8111-000000000005";
 const reviseDecisionId = "44444444-4444-4444-8444-000000000001";
+const deferDecisionId = "44444444-4444-4444-8444-000000000002";
+const reopenDecisionId = "44444444-4444-4444-8444-000000000003";
+const confirmDecisionId = "44444444-4444-4444-8444-000000000004";
 const conflictId = "66666666-6666-4666-8666-000000000001";
 const timestamp = "2026-08-01T10:30:00.000Z";
 const fingerprint = "b".repeat(64);
@@ -217,6 +222,110 @@ function userAnswerSource(overrides: Partial<PlanningSourceReference> = {}): Pla
   });
 }
 
+function humanDecision(
+  decisionId: string,
+  action: PlanningDecisionRecord["action"],
+  previousStatus: PlanningDecisionRecord["previousStatus"],
+  resultingStatus: PlanningDecisionRecord["resultingStatus"],
+  sourceIds: readonly string[],
+  overrides: Partial<PlanningDecisionRecord> = {}
+): PlanningDecisionRecord {
+  return {
+    decisionId,
+    proposalId,
+    projectId,
+    action,
+    previousStatus,
+    resultingStatus,
+    origin: "userAction",
+    recordedAt: timestamp,
+    sourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION,
+    ...overrides
+  };
+}
+
+function deferredPlanning(hasAnswer: boolean): ProjectPlanningState {
+  const value = yamlAnswer();
+  const sourceIds = hasAnswer
+    ? [projectRuleSourceId, readinessSourceId, userAnswerSourceId]
+    : [projectRuleSourceId, readinessSourceId];
+  return planning({
+    sources: hasAnswer ? [...sourcesFor(), userAnswerSource()] : sourcesFor(),
+    proposals: [proposalFor("pp.canvas.yamlplanning.confirmation", {
+      status: "Deferred",
+      value: hasAnswer ? value : proposalFor().value,
+      sourceIds,
+      lastDecisionId: deferDecisionId
+    })],
+    decisions: [
+      ...(hasAnswer ? [reviseDecision(value)] : []),
+      humanDecision(
+        deferDecisionId,
+        "defer",
+        hasAnswer ? "Revised" : "Needs Clarification",
+        "Deferred",
+        sourceIds,
+        { reason: "Waiting for stakeholder review." }
+      )
+    ]
+  });
+}
+
+function reopenedPlanning(): ProjectPlanningState {
+  const value = yamlAnswer();
+  const sourceIds = [projectRuleSourceId, readinessSourceId, userAnswerSourceId];
+  return revisedPlanning(value, {
+    decisions: [
+      reviseDecision(value),
+      humanDecision(reopenDecisionId, "reopen", "Revised", "Needs Clarification", sourceIds)
+    ]
+  }, {
+    status: "Needs Clarification",
+    lastDecisionId: reopenDecisionId
+  });
+}
+
+function resumedPlanning(): ProjectPlanningState {
+  const value = yamlAnswer();
+  const sourceIds = [projectRuleSourceId, readinessSourceId, userAnswerSourceId];
+  return revisedPlanning(value, {
+    decisions: [
+      reviseDecision(value),
+      humanDecision(deferDecisionId, "defer", "Revised", "Deferred", sourceIds, {
+        reason: "Waiting for stakeholder review."
+      }),
+      humanDecision(reopenDecisionId, "reopen", "Deferred", "Revised", sourceIds)
+    ]
+  }, {
+    lastDecisionId: reopenDecisionId
+  });
+}
+
+function confirmedPlanning(): ProjectPlanningState {
+  const value = yamlAnswer();
+  const confirmedSourceIds = [projectRuleSourceId, readinessSourceId, confirmedAnswerSourceId];
+  return revisedPlanning(value, {
+    sources: [
+      ...sourcesFor(),
+      userAnswerSource({ availability: "stale" }),
+      userAnswerSource({
+        sourceId: confirmedAnswerSourceId,
+        locator: buildPlanningUserAnswerLocator(proposalId, confirmDecisionId)!,
+        authority: "confirmed"
+      })
+    ],
+    decisions: [
+      reviseDecision(value),
+      humanDecision(confirmDecisionId, "confirm", "Revised", "Confirmed", confirmedSourceIds)
+    ]
+  }, {
+    status: "Confirmed",
+    sourceIds: confirmedSourceIds,
+    lastDecisionId: confirmDecisionId
+  });
+}
+
 function blockingConflict(overrides: Partial<PlanningConflictRecord> = {}): PlanningConflictRecord {
   return {
     conflictId,
@@ -306,7 +415,7 @@ function capability(
 }
 
 function expectAllCapabilitiesUnavailable(result: PlanningClarificationDecisionCapabilitiesResult): void {
-  expect(result.capabilities).toHaveLength(5);
+  expect(result.capabilities).toHaveLength(6);
   expect(result.capabilities.every((entry) => entry.state === "unavailable" && entry.requiredInput === "none")).toBe(true);
 }
 
@@ -503,6 +612,178 @@ describe("planning clarification human decision contract", () => {
     );
   });
 
+  it("reopens valid Revised and Deferred histories without creating or mutating answer provenance", () => {
+    expect(analyze({ action: "reopen", state: revisedPlanning() })).toMatchObject({
+      outcome: "allowed",
+      plan: {
+        action: "reopen",
+        previousStatus: "Revised",
+        resultingStatus: "Needs Clarification",
+        nextValue: yamlAnswer(),
+        userAnswerSourceAction: "none"
+      }
+    });
+    expect(analyze({ action: "reopen", state: deferredPlanning(false) })).toMatchObject({
+      outcome: "allowed",
+      plan: { previousStatus: "Deferred", resultingStatus: "Needs Clarification", userAnswerSourceAction: "none" }
+    });
+    expect(analyze({ action: "reopen", state: deferredPlanning(true) })).toMatchObject({
+      outcome: "allowed",
+      plan: { previousStatus: "Deferred", resultingStatus: "Revised", nextValue: yamlAnswer(), userAnswerSourceAction: "none" }
+    });
+    for (const state of [revisedPlanning(), deferredPlanning(false), deferredPlanning(true)]) {
+      expect(capability(analyzeCapabilities(state), "reopen")).toEqual({
+        action: "reopen",
+        state: "available",
+        requiredInput: "none",
+        reasonCodes: []
+      });
+    }
+    for (const state of [
+      planning(),
+      confirmedPlanning(),
+      planning({ proposals: [proposalFor(undefined, { status: "Not Applicable", value: { kind: "notApplicable", reason: "N/A" } })] }),
+      planning({ proposals: [proposalFor(undefined, { status: "Stale", staleReason: "sourceChanged", staleAt: timestamp })] })
+    ]) {
+      expect(capability(analyzeCapabilities(state), "reopen")).toMatchObject({ state: "unavailable", requiredInput: "none" });
+    }
+  });
+
+  it("reopens unanswered Deferred backend history without fabricating a schema and blocks claimed unbound answers", () => {
+    const ruleId = "pp.canvas.schema.confirmation";
+    const rule = ruleFor(ruleId);
+    const sourceIds = [projectRuleSourceId, readinessSourceId];
+    const unanswered = planning({
+      sources: sourcesFor(ruleId),
+      proposals: [proposalFor(ruleId, {
+        status: "Deferred",
+        sourceIds,
+        lastDecisionId: deferDecisionId
+      })],
+      decisions: [humanDecision(
+        deferDecisionId,
+        "defer",
+        "Needs Clarification",
+        "Deferred",
+        sourceIds,
+        { reason: "Waiting for backend confirmation." }
+      )]
+    });
+    expect(analyze({ action: "reopen", state: unanswered })).toMatchObject({
+      outcome: "allowed",
+      plan: { resultingStatus: "Needs Clarification", userAnswerSourceAction: "none" }
+    });
+
+    const claimedAnswer = textValue("Historical backend answer.");
+    const claimedSourceIds = [...sourceIds, userAnswerSourceId];
+    const claimed = {
+      ...unanswered,
+      sources: [...sourcesFor(ruleId), userAnswerSource()],
+      proposals: [proposalFor(ruleId, {
+        status: "Deferred",
+        value: claimedAnswer,
+        sourceIds: claimedSourceIds,
+        lastDecisionId: deferDecisionId,
+        target: { ...rule.target }
+      })],
+      decisions: [
+        reviseDecision(claimedAnswer, claimedSourceIds),
+        humanDecision(deferDecisionId, "defer", "Revised", "Deferred", claimedSourceIds, {
+          reason: "Waiting for backend confirmation."
+        })
+      ]
+    } satisfies ProjectPlanningState;
+    expectBlockedCode(analyze({ action: "reopen", state: claimed }), "answerSchemaRequired");
+  });
+
+  it("fails Deferred saved-answer reopen closed for ambiguous, malformed, missing, or schema-invalid lineage", () => {
+    const base = deferredPlanning(true);
+    const duplicate = userAnswerSource({
+      sourceId: secondUserAnswerSourceId,
+      locator: buildPlanningUserAnswerLocator(proposalId, reviseDecisionId)!
+    });
+    expectBlockedCode(analyze({
+      action: "reopen",
+      state: {
+        ...base,
+        sources: [...base.sources, duplicate],
+        proposals: [{ ...base.proposals[0], sourceIds: [...base.proposals[0].sourceIds, secondUserAnswerSourceId] }],
+        decisions: base.decisions.map((decision) => decision.action === "defer"
+          ? { ...decision, sourceIds: [...(decision.sourceIds ?? []), secondUserAnswerSourceId] }
+          : decision)
+      }
+    }), "userAnswerSourceInvalid");
+
+    for (const sourceOverride of [
+      { authority: "confirmed" as const },
+      { locator: "planning:userAnswer:not-canonical" }
+    ]) {
+      expectBlockedCode(analyze({
+        action: "reopen",
+        state: { ...base, sources: base.sources.map((source) => source.sourceId === userAnswerSourceId
+          ? { ...source, ...sourceOverride }
+          : source) }
+      }), "userAnswerSourceInvalid");
+    }
+    expectBlockedCode(analyze({
+      action: "reopen",
+      state: { ...base, sources: base.sources.map((source) => source.sourceId === userAnswerSourceId
+        ? { ...source, sourceType: "projectRule" }
+        : source) }
+    }), "invalidPlanning");
+
+    expectBlockedCode(analyze({
+      action: "reopen",
+      state: { ...base, decisions: base.decisions.filter((decision) => decision.action !== "revise") }
+    }), "userAnswerSourceInvalid");
+    expectBlockedCode(analyze({
+      action: "reopen",
+      state: { ...base, sources: base.sources.filter((source) => source.sourceId !== userAnswerSourceId) }
+    }), "invalidPlanning");
+    expectBlockedCode(analyze({
+      action: "reopen",
+      state: {
+        ...base,
+        proposals: [{ ...base.proposals[0], value: textValue("Invalid for the registered structured schema.") }],
+        decisions: base.decisions.map((decision) => decision.action === "revise"
+          ? { ...decision, value: textValue("Invalid for the registered structured schema.") }
+          : decision)
+      }
+    }), "invalidAnswerValue");
+  });
+
+  it("supports controlled replacement revise for reopened and Confirmed answers without automatic confirmation", () => {
+    expect(analyze({ action: "revise", value: yamlAnswer("Replacement"), state: reopenedPlanning() })).toMatchObject({
+      outcome: "allowed",
+      plan: {
+        previousStatus: "Needs Clarification",
+        resultingStatus: "Revised",
+        userAnswerSourceAction: "replaceCurrentHumanWithInformational"
+      }
+    });
+    expect(analyze({ action: "revise", value: yamlAnswer("Corrected"), state: confirmedPlanning() })).toMatchObject({
+      outcome: "allowed",
+      plan: {
+        previousStatus: "Confirmed",
+        resultingStatus: "Revised",
+        userAnswerSourceAction: "replaceCurrentHumanWithInformational"
+      }
+    });
+    expectBlockedCode(analyze({ action: "revise", value: yamlAnswer("Direct"), state: revisedPlanning() }), "invalidStatusTransition");
+    expectBlockedCode(analyze({ action: "revise", value: yamlAnswer("Direct"), state: deferredPlanning(true) }), "invalidStatusTransition");
+  });
+
+  it("confirms after ordinary revision and Deferred resume through canonical originating revision provenance", () => {
+    expect(analyze({ action: "confirm", state: revisedPlanning() })).toMatchObject({ outcome: "allowed" });
+    expect(analyze({ action: "confirm", state: resumedPlanning() })).toMatchObject({ outcome: "allowed" });
+    expect(capability(analyzeCapabilities(resumedPlanning()), "confirm")).toEqual({
+      action: "confirm",
+      state: "available",
+      requiredInput: "none",
+      reasonCodes: []
+    });
+  });
+
   it("allows Needs Clarification -> Not Applicable only when the governing rule permits it", () => {
     const component = analyze({
       action: "markNotApplicable",
@@ -608,7 +889,7 @@ describe("planning clarification human decision contract", () => {
     );
 
     for (const status of ["Rejected", "Superseded"] as const) {
-      for (const action of ["revise", "confirm", "reject", "defer", "markNotApplicable"] as const) {
+      for (const action of ["revise", "confirm", "reject", "defer", "markNotApplicable", "reopen"] as const) {
         expectBlockedCode(
           analyze({
             action,
@@ -791,7 +1072,7 @@ describe("planning clarification human decision contract", () => {
   });
 
   describe("pre-input action capabilities", () => {
-    it("returns exactly five deterministic action capabilities and only approved input metadata", () => {
+    it("returns exactly six deterministic action capabilities and only approved input metadata", () => {
       const first = analyzeCapabilities();
       const second = analyzeCapabilities();
 
@@ -801,7 +1082,8 @@ describe("planning clarification human decision contract", () => {
         "confirm",
         "reject",
         "defer",
-        "markNotApplicable"
+        "markNotApplicable",
+        "reopen"
       ]);
       expect(new Set(first.capabilities.map((entry) => entry.state))).toEqual(new Set([
         "unavailable",

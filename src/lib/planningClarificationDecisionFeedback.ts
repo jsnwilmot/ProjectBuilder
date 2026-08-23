@@ -24,7 +24,8 @@ const PERSISTED_MESSAGES: Record<
   confirm: "Planning decision confirmed.",
   reject: "Planning item rejected.",
   defer: "Planning item deferred.",
-  markNotApplicable: "Planning item marked not applicable."
+  markNotApplicable: "Planning item marked not applicable.",
+  reopen: "Planning item reopened."
 };
 
 export function buildPlanningClarificationDecisionFeedback(

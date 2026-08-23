@@ -1,5 +1,38 @@
 # Test Plan
 
+## 2026-08-23 Phase 5C.3C.3I.1 human decision lifecycle foundation
+
+1. Verify clarification action capabilities expose exactly `revise`, `confirm`, `reject`, `defer`, `markNotApplicable`, and existing global `reopen`, with no new status or transition-table change.
+2. Verify valid Revised plus exact current informational answer lineage permits `reopen` to Needs Clarification while preserving value, source IDs, fingerprint, proposal identity, created time, answer source, and all prior decisions.
+3. Verify unanswered Deferred plus coherent deferral history permits `reopen` to Needs Clarification without requiring an answer schema, including the unbound backend rule.
+4. Verify answered Deferred plus one exact current informational source, canonical locator, originating revise decision, and valid registered answer permits `reopen` to Revised.
+5. Verify multiple current answers, wrong authority/type/locator, unresolved identity, missing revise decision, and schema-invalid saved answers block Deferred resume without erasing history.
+6. Verify reopen appends one `userAction` decision, allocates zero source IDs, performs zero source mutations, preserves the exact value/source array, and updates only controlled proposal decision metadata.
+7. Verify ordinary first Needs Clarification -> revise still appends one informational current `userAnswer`.
+8. Verify Revised -> reopen -> Needs Clarification -> revise replaces exactly one current informational source with one new informational source and preserves the old source as stale history.
+9. Verify Confirmed -> revise accepts only a valid new answer with coherent confirmed provenance, produces Revised plus one current informational source, and stales the prior confirmed source.
+10. Verify Confirmed correction performs zero automatic Confirm and requires a later explicit Confirm to stale the new informational source and create a current confirmed source.
+11. Verify replacement source IDs retain all deterministic source IDs in exact order, replace only the prior human source position, and create no duplicate source or decision IDs.
+12. Verify no source or decision history is deleted and `supersedesDecisionId` receives no new semantics.
+13. Verify Confirm resolves the exact attached current informational source through its canonical locator and originating revise decision instead of assuming `lastDecisionId` is the revision.
+14. Verify Confirm succeeds after ordinary Revise and after Revise -> Defer -> reopen -> Revised, and blocks missing, multiple, malformed, missing-decision, value-mismatched, or source-unbound revision lineage.
+15. Verify reopen capability is available only for valid Revised and Deferred history and remains unavailable for Confirmed, Needs Clarification, Not Applicable, Rejected, Superseded, Stale, and Blocked states.
+16. Verify direct revise is available for Needs Clarification and Confirmed only; Revised and Deferred require controlled reopen first.
+17. Verify the current generic answer-entry selector remains eligible only for Needs Clarification even when Confirmed revise capability is available; Deferred and Revised remain unavailable.
+18. Verify saved-answer review remains limited to Revised and Confirmed and Deferred saved-answer presentation remains absent.
+19. Verify persisted reopen feedback is exactly generic and excludes answer, reason, source, rule, schema, and security details.
+20. Verify real repository paths persist Revised reopen, answered/unanswered Deferred resume, Confirmed correction, replacement source history, explicit Confirm after resume, and exact canonical reload state.
+21. Verify repository concurrent-change protection blocks reopen before runtime allocation or stale overwrite.
+22. Verify current React production files expose no Edit answer, Change answer, or Resume decision control and Confirmed does not expose generic Answer question.
+23. Regress H.4A.1 Revised, Deferred-with-answer, Confirmed, and deterministic-change-after-answer Refresh behavior plus reopened Needs Clarification ownership preservation.
+24. Verify automatic Generate, Refresh, Confirm, and answer migration counts remain zero.
+25. Verify source precedence changes only after explicit Confirmed replacement revise; readiness/output eligibility, writable/destination mapping, Apply, backend binding, and generated outputs remain unchanged.
+26. Verify Planning schema `phase-5c.1.1`, rule set `phase-5c.1.1`, answer schema `phase-5c.3c.3c`, rule versions `1.0.0`, ten production bindings, Storage 6, and zero migrations remain exact.
+27. Verify TTI remains Draft with 15 blockers and no inferred, resolved, weakened, or reclassified project rule.
+28. Run clean install, lint, app typecheck, five focused foundation suites, six Refresh/lifecycle suites, four current UI suites, relevant product regressions, full tests, coverage, build, production/advisory audits, diff checking, exact eleven-file scope, clean worktrees, stash preservation, single commit, and remote review SHA verification.
+
+Validation result: passed. Clean install, lint, app TypeScript checking, and all required behavior gates passed. Five focused foundation suites passed 228 tests; six H.4A.1 Refresh/lifecycle suites passed 99 tests; four current UI suites passed 88 tests; fourteen relevant product suites passed 263 tests. Full and coverage validation passed 73 unit/integration files with 2,681 tests and 7 UI files with 73 tests, for 80 files and 2,754 tests total. Coverage was 90.13% statements, 82.49% branches, 95.39% functions, and 93.91% lines. Build and the zero-vulnerability production audit passed. The local advisory full audit reported 25 development/tooling findings (2 moderate, 23 high); no remediation was performed.
+
 ## 2026-08-23 Phase 5C.3C.3H.4A.1 Refresh Planning human-provenance correction
 
 1. Verify current informational, current confirmed, and stale historical `userAnswer` records referenced by clarification planning remain outside deterministic source reconciliation `current`, `existingOnly`, and `nonCurrent` results.

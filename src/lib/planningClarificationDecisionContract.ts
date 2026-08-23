@@ -4,6 +4,7 @@ import {
   isPlanningStatusReadinessEligible,
   isValidPlanningTransition,
   normalizeProjectPlanningState,
+  type PlanningDecisionRecord,
   type PlanningDecisionOrigin,
   type PlanningProposalRecord,
   type PlanningProposalStatus,
@@ -21,7 +22,8 @@ export type PlanningClarificationHumanDecisionAction =
   | "confirm"
   | "reject"
   | "defer"
-  | "markNotApplicable";
+  | "markNotApplicable"
+  | "reopen";
 
 export interface PlanningClarificationDecisionContractInput {
   projectId: string;
@@ -57,6 +59,7 @@ export type PlanningClarificationDecisionContractOutcome =
 export type PlanningClarificationUserAnswerSourceAction =
   | "none"
   | "createInformational"
+  | "replaceCurrentHumanWithInformational"
   | "createConfirmedAndStalePriorInformational";
 
 export interface PlanningClarificationDecisionPlan {
@@ -145,7 +148,8 @@ const SUPPORTED_ACTIONS: readonly PlanningClarificationHumanDecisionAction[] = [
   "confirm",
   "reject",
   "defer",
-  "markNotApplicable"
+  "markNotApplicable",
+  "reopen"
 ];
 
 const TERMINAL_STATUSES = new Set<PlanningProposalStatus>(["Rejected", "Superseded"]);
@@ -213,7 +217,7 @@ export function analyzePlanningClarificationDecisionCapabilities(
     capabilities: SUPPORTED_ACTIONS.map((action) => {
       switch (action) {
         case "revise": {
-          const structuralIssue = validateReviseAvailability(proposal);
+          const structuralIssue = validateReviseAvailability(planning, proposal);
           if (structuralIssue) return unavailableCapability(action, structuralIssue.code);
           return getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion)
             ? capability(action, "inputRequired", "answer", ["answerRequired"])
@@ -242,6 +246,12 @@ export function analyzePlanningClarificationDecisionCapabilities(
           return structuralIssue
             ? unavailableCapability(action, structuralIssue.code)
             : capability(action, "inputRequired", "reason", ["reasonRequired"]);
+        }
+        case "reopen": {
+          const resolution = resolveReopenTransition(planning, proposal);
+          return resolution.outcome === "blocked"
+            ? unavailableCapability(action, resolution.issue.code)
+            : capability(action, "available", "none");
         }
       }
     }),
@@ -282,7 +292,7 @@ export function analyzePlanningClarificationHumanDecision(
 
   switch (action) {
     case "revise":
-      return analyzeRevise(input.value, proposal);
+      return analyzeRevise(input.value, planning, proposal);
     case "confirm":
       return analyzeConfirm(planning, proposal);
     case "reject":
@@ -291,14 +301,17 @@ export function analyzePlanningClarificationHumanDecision(
       return analyzeDefer(input.reason, proposal, rule);
     case "markNotApplicable":
       return analyzeMarkNotApplicable(input.reason, proposal, rule);
+    case "reopen":
+      return analyzeReopen(planning, proposal);
   }
 }
 
 function analyzeRevise(
   inputValue: unknown,
+  planning: ProjectPlanningState,
   proposal: PlanningProposalRecord
 ): PlanningClarificationDecisionContractResult {
-  const structuralIssue = validateReviseAvailability(proposal);
+  const structuralIssue = validateReviseAvailability(planning, proposal);
   if (structuralIssue) return blocked(structuralIssue);
 
   const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
@@ -322,7 +335,25 @@ function analyzeRevise(
     resultingStatus: "Revised",
     nextValue: value,
     decisionValue: value,
-    userAnswerSourceAction: "createInformational"
+    userAnswerSourceAction: hasClaimedHumanAnswerSource(planning, proposal)
+      ? "replaceCurrentHumanWithInformational"
+      : "createInformational"
+  });
+}
+
+function analyzeReopen(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractResult {
+  const resolution = resolveReopenTransition(planning, proposal);
+  if (resolution.outcome === "blocked") return blocked(resolution.issue);
+
+  return allowed({
+    proposal,
+    action: "reopen",
+    resultingStatus: resolution.resultingStatus,
+    nextValue: proposal.value,
+    userAnswerSourceAction: "none"
   });
 }
 
@@ -467,10 +498,24 @@ function resolveClarificationDecisionContext(
 }
 
 function validateReviseAvailability(
+  planning: ProjectPlanningState,
   proposal: PlanningProposalRecord
 ): PlanningClarificationDecisionContractIssue | null {
-  return !isValidPlanningTransition(proposal.status, "Revised") || proposal.status !== "Needs Clarification"
-    ? issue("invalidStatusTransition", "Clarification revisions must start from Needs Clarification.", proposal.proposalId, "status")
+  const sourceResolutionIssue = validateProposalSourceResolution(planning, proposal);
+  if (sourceResolutionIssue) return sourceResolutionIssue;
+  if (
+    !isValidPlanningTransition(proposal.status, "Revised") ||
+    (proposal.status !== "Needs Clarification" && proposal.status !== "Confirmed")
+  ) {
+    return issue("invalidStatusTransition", "Clarification revisions must start from Needs Clarification or Confirmed.", proposal.proposalId, "status");
+  }
+
+  if (proposal.status === "Confirmed") {
+    return validateConfirmedHumanAnswerLineage(planning, proposal);
+  }
+
+  return hasClaimedHumanAnswerSource(planning, proposal)
+    ? validateReopenedNeedsClarificationLineage(planning, proposal)
     : null;
 }
 
@@ -478,6 +523,8 @@ function validateConfirmAvailability(
   planning: ProjectPlanningState,
   proposal: PlanningProposalRecord
 ): PlanningClarificationDecisionContractIssue | null {
+  const sourceResolutionIssue = validateProposalSourceResolution(planning, proposal);
+  if (sourceResolutionIssue) return sourceResolutionIssue;
   if (proposal.status === "Stale") {
     return issue("staleClarificationRequiresReplacement", "Stale clarification records require deterministic replacement before human confirmation.", proposal.proposalId, "status");
   }
@@ -567,53 +614,343 @@ function validateRevisionHistory(
   planning: ProjectPlanningState,
   proposal: PlanningProposalRecord
 ): PlanningClarificationDecisionContractIssue | null {
-  if (!proposal.lastDecisionId) {
-    return issue("revisionHistoryInvalid", "Revised proposal is missing lastDecisionId.", proposal.proposalId, "lastDecisionId");
+  const currentSource = resolveCurrentHumanAnswerSource(planning, proposal, "informational");
+  if (currentSource.outcome === "blocked") return currentSource.issue;
+
+  const lineageIssue = validateInformationalRevisionLineage(
+    planning,
+    proposal,
+    currentSource.source,
+    "current"
+  );
+  if (lineageIssue) return lineageIssue;
+
+  const proposalDecisions = planning.decisions.filter((decision) => decision.proposalId === proposal.proposalId);
+  const lastDecision = resolveLastProposalDecision(proposal, proposalDecisions);
+  if (!lastDecision) {
+    return issue("revisionHistoryInvalid", "Revised proposal does not reference the final persisted decision.", proposal.proposalId, "lastDecisionId");
   }
 
-  const decisions = planning.decisions.filter((decision) => decision.decisionId === proposal.lastDecisionId);
-  if (decisions.length !== 1) {
-    return issue("revisionHistoryInvalid", "Revised proposal must reference exactly one revision decision.", proposal.proposalId, "lastDecisionId");
+  if (lastDecision.action === "revise") {
+    return lastDecision.resultingStatus === "Revised" &&
+      lastDecision.origin === "userAction" &&
+      sameOptionalSourceIds(lastDecision.sourceIds, proposal.sourceIds) &&
+      sameValue(lastDecision.value as PlanningProposalValue, proposal.value)
+      ? null
+      : issue("revisionHistoryInvalid", "Revised proposal history does not prove the current user revision.", proposal.proposalId, "lastDecisionId");
   }
 
-  const decision = decisions[0];
-  if (
-    decision.proposalId !== proposal.proposalId ||
-    decision.action !== "revise" ||
-    decision.previousStatus !== "Needs Clarification" ||
-    decision.resultingStatus !== "Revised" ||
-    decision.origin !== "userAction" ||
-    !decision.value ||
-    !sameValue(decision.value, proposal.value) ||
-    !decision.sourceIds ||
-    !sameStringArray(decision.sourceIds, proposal.sourceIds)
+  const lastIndex = proposalDecisions.length - 1;
+  const deferDecision = proposalDecisions[lastIndex - 1];
+  return lastDecision.action === "reopen" &&
+    lastDecision.previousStatus === "Deferred" &&
+    lastDecision.resultingStatus === "Revised" &&
+    lastDecision.origin === "userAction" &&
+    lastDecision.value === undefined &&
+    lastDecision.reason === undefined &&
+    sameOptionalSourceIds(lastDecision.sourceIds, proposal.sourceIds) &&
+    deferDecision?.action === "defer" &&
+    deferDecision.previousStatus === "Revised" &&
+    deferDecision.resultingStatus === "Deferred" &&
+    deferDecision.origin === "userAction" &&
+    Boolean(deferDecision.reason) &&
+    sameOptionalSourceIds(deferDecision.sourceIds, proposal.sourceIds)
+    ? null
+    : issue("revisionHistoryInvalid", "Revised proposal history does not prove a valid Deferred resume.", proposal.proposalId, "lastDecisionId");
+}
+
+type ReopenTransitionResolution =
+  | { outcome: "allowed"; resultingStatus: Extract<PlanningProposalStatus, "Needs Clarification" | "Revised"> }
+  | { outcome: "blocked"; issue: PlanningClarificationDecisionContractIssue };
+
+function resolveReopenTransition(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): ReopenTransitionResolution {
+  const sourceResolutionIssue = validateProposalSourceResolution(planning, proposal);
+  if (sourceResolutionIssue) return { outcome: "blocked", issue: sourceResolutionIssue };
+  if (proposal.status === "Stale") {
+    return {
+      outcome: "blocked",
+      issue: issue("staleClarificationRequiresReplacement", "Stale clarification records require deterministic replacement.", proposal.proposalId, "status")
+    };
+  }
+
+  if (proposal.status === "Revised") {
+    const lineageIssue = validateRevisionHistory(planning, proposal);
+    return lineageIssue
+      ? { outcome: "blocked", issue: lineageIssue }
+      : { outcome: "allowed", resultingStatus: "Needs Clarification" };
+  }
+
+  if (proposal.status !== "Deferred" || !isValidPlanningTransition(proposal.status, "Needs Clarification")) {
+    return {
+      outcome: "blocked",
+      issue: issue("invalidStatusTransition", "Clarification reopen is available only for valid Revised or Deferred history.", proposal.proposalId, "status")
+    };
+  }
+
+  const claimedSources = claimedHumanAnswerSources(planning, proposal);
+  const deferIssue = validateDeferredLastDecision(planning, proposal, claimedSources.length > 0);
+  if (deferIssue) return { outcome: "blocked", issue: deferIssue };
+
+  if (claimedSources.length === 0) {
+    return { outcome: "allowed", resultingStatus: "Needs Clarification" };
+  }
+
+  const currentSource = resolveCurrentHumanAnswerSource(planning, proposal, "informational");
+  if (currentSource.outcome === "blocked") return currentSource;
+  const lineageIssue = validateInformationalRevisionLineage(planning, proposal, currentSource.source, "current");
+  if (lineageIssue) return { outcome: "blocked", issue: lineageIssue };
+
+  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
+  if (!schema) {
+    return {
+      outcome: "blocked",
+      issue: issue("answerSchemaRequired", "Deferred saved-answer resume requires an exact registered answer schema.", proposal.proposalId, "value")
+    };
+  }
+  const validation = validatePlanningClarificationAnswer(schema, proposal.value);
+  if (!isValidPlanningTransition(proposal.status, "Revised")) {
+    return {
+      outcome: "blocked",
+      issue: issue("invalidStatusTransition", "Deferred saved-answer history cannot transition to Revised.", proposal.proposalId, "status")
+    };
+  }
+  return validation.outcome === "invalid"
+    ? { outcome: "blocked", issue: invalidAnswerIssue(proposal, validation.issues[0]?.code) }
+    : { outcome: "allowed", resultingStatus: "Revised" };
+}
+
+function validateReopenedNeedsClarificationLineage(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractIssue | null {
+  const currentSource = resolveCurrentHumanAnswerSource(planning, proposal, "informational");
+  if (currentSource.outcome === "blocked") return currentSource.issue;
+  const lineageIssue = validateInformationalRevisionLineage(planning, proposal, currentSource.source, "current");
+  if (lineageIssue) return lineageIssue;
+
+  const decisions = planning.decisions.filter((decision) => decision.proposalId === proposal.proposalId);
+  const lastDecision = resolveLastProposalDecision(proposal, decisions);
+  return lastDecision?.action === "reopen" &&
+    lastDecision.previousStatus === "Revised" &&
+    lastDecision.resultingStatus === "Needs Clarification" &&
+    lastDecision.origin === "userAction" &&
+    lastDecision.value === undefined &&
+    lastDecision.reason === undefined &&
+    sameOptionalSourceIds(lastDecision.sourceIds, proposal.sourceIds)
+    ? null
+    : issue("revisionHistoryInvalid", "Needs Clarification human-answer history does not prove a controlled reopen.", proposal.proposalId, "lastDecisionId");
+}
+
+function validateConfirmedHumanAnswerLineage(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractIssue | null {
+  const currentSource = resolveCurrentHumanAnswerSource(planning, proposal, "confirmed");
+  if (currentSource.outcome === "blocked") return currentSource.issue;
+  const confirmDecision = resolveCanonicalUserAnswerDecision(planning, proposal, currentSource.source);
+  if (!confirmDecision ||
+    confirmDecision.action !== "confirm" ||
+    confirmDecision.previousStatus !== "Revised" ||
+    confirmDecision.resultingStatus !== "Confirmed" ||
+    confirmDecision.origin !== "userAction" ||
+    confirmDecision.value !== undefined ||
+    confirmDecision.reason !== undefined ||
+    !sameOptionalSourceIds(confirmDecision.sourceIds, proposal.sourceIds)
   ) {
-    return issue("revisionHistoryInvalid", "Revised proposal history does not prove a valid user revision.", proposal.proposalId, "lastDecisionId");
+    return issue("userAnswerSourceInvalid", "Confirmed proposal does not have coherent current human-answer provenance.", proposal.proposalId, "sourceIds");
   }
 
-  const expectedLocator = buildPlanningUserAnswerLocator(proposal.proposalId, decision.decisionId);
-  if (!expectedLocator) {
-    return issue("revisionHistoryInvalid", "Revision history cannot produce a canonical user-answer locator.", proposal.proposalId, "lastDecisionId");
+  const decisions = planning.decisions.filter((decision) => decision.proposalId === proposal.proposalId);
+  if (resolveLastProposalDecision(proposal, decisions)?.decisionId !== confirmDecision.decisionId) {
+    return issue("revisionHistoryInvalid", "Confirmed proposal does not reference its final confirmation decision.", proposal.proposalId, "lastDecisionId");
+  }
+  const priorRevisedDecision = decisions[decisions.length - 2];
+  if (!priorRevisedDecision || priorRevisedDecision.resultingStatus !== "Revised") {
+    return issue("revisionHistoryInvalid", "Confirmed proposal is missing the revision history that established its answer.", proposal.proposalId, "lastDecisionId");
   }
 
-  const currentSources = new Map(planning.sources.map((source) => [source.sourceId, source]));
-  const revisionSources = proposal.sourceIds
-    .map((sourceId) => currentSources.get(sourceId))
-    .filter((source): source is PlanningSourceReference => Boolean(source));
-  const userAnswerSources = revisionSources.filter((source) =>
+  const priorSources = resolveSourcesByIds(planning, priorRevisedDecision.sourceIds ?? []);
+  const informationalSources = priorSources.filter((source) =>
     source.sourceType === "userAnswer" &&
     source.authority === "informational" &&
-    source.availability === "current"
+    source.availability === "stale"
   );
-
-  if (userAnswerSources.length === 0) {
-    return issue("userAnswerSourceMissing", "Revised proposal is missing a current informational user-answer source.", proposal.proposalId, "sourceIds");
+  if (informationalSources.length !== 1) {
+    return issue("userAnswerSourceInvalid", "Confirmed proposal is missing one historical informational answer source.", proposal.proposalId, "sourceIds");
   }
-  if (userAnswerSources.length !== 1 || userAnswerSources[0].locator !== expectedLocator || userAnswerSources[0].label !== "User answer") {
-    return issue("userAnswerSourceInvalid", "Revised proposal user-answer source does not use the canonical informational source contract.", proposal.proposalId, "sourceIds");
+  const lineageIssue = validateInformationalRevisionLineage(planning, proposal, informationalSources[0], "stale");
+  if (lineageIssue) return lineageIssue;
+
+  if (priorRevisedDecision.action === "reopen") {
+    const deferDecision = decisions[decisions.length - 3];
+    if (
+      priorRevisedDecision.previousStatus !== "Deferred" ||
+      !priorRevisedDecision.sourceIds ||
+      deferDecision?.action !== "defer" ||
+      deferDecision.previousStatus !== "Revised" ||
+      deferDecision.resultingStatus !== "Deferred" ||
+      !sameOptionalSourceIds(deferDecision.sourceIds, priorRevisedDecision.sourceIds)
+    ) {
+      return issue("revisionHistoryInvalid", "Confirmed proposal resume history is not coherent.", proposal.proposalId, "lastDecisionId");
+    }
+  } else if (priorRevisedDecision.action !== "revise") {
+    return issue("revisionHistoryInvalid", "Confirmed proposal was not established by a valid revision.", proposal.proposalId, "lastDecisionId");
   }
 
   return null;
+}
+
+function validateDeferredLastDecision(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord,
+  hasSavedAnswer: boolean
+): PlanningClarificationDecisionContractIssue | null {
+  const decisions = planning.decisions.filter((decision) => decision.proposalId === proposal.proposalId);
+  const lastDecision = resolveLastProposalDecision(proposal, decisions);
+  return lastDecision?.action === "defer" &&
+    lastDecision.previousStatus === (hasSavedAnswer ? "Revised" : "Needs Clarification") &&
+    lastDecision.resultingStatus === "Deferred" &&
+    lastDecision.origin === "userAction" &&
+    Boolean(lastDecision.reason) &&
+    lastDecision.value === undefined &&
+    sameOptionalSourceIds(lastDecision.sourceIds, proposal.sourceIds)
+    ? null
+    : issue("revisionHistoryInvalid", "Deferred proposal does not have coherent deferral history.", proposal.proposalId, "lastDecisionId");
+}
+
+type CurrentHumanAnswerSourceResolution =
+  | { outcome: "resolved"; source: PlanningSourceReference }
+  | { outcome: "blocked"; issue: PlanningClarificationDecisionContractIssue };
+
+function resolveCurrentHumanAnswerSource(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord,
+  authority: Extract<PlanningSourceReference["authority"], "informational" | "confirmed">
+): CurrentHumanAnswerSourceResolution {
+  const claimedSources = claimedHumanAnswerSources(planning, proposal);
+  if (claimedSources.length === 0) {
+    return {
+      outcome: "blocked",
+      issue: issue("userAnswerSourceMissing", "Proposal is missing its current human-answer source.", proposal.proposalId, "sourceIds")
+    };
+  }
+  const source = claimedSources[0];
+  if (
+    claimedSources.length !== 1 ||
+    source.sourceType !== "userAnswer" ||
+    source.authority !== authority ||
+    source.availability !== "current" ||
+    source.label !== "User answer"
+  ) {
+    return {
+      outcome: "blocked",
+      issue: issue("userAnswerSourceInvalid", "Proposal human-answer provenance is ambiguous or malformed.", proposal.proposalId, "sourceIds")
+    };
+  }
+  return { outcome: "resolved", source };
+}
+
+function validateInformationalRevisionLineage(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord,
+  source: PlanningSourceReference,
+  availability: Extract<PlanningSourceReference["availability"], "current" | "stale">
+): PlanningClarificationDecisionContractIssue | null {
+  const decision = resolveCanonicalUserAnswerDecision(planning, proposal, source);
+  if (
+    source.sourceType !== "userAnswer" ||
+    source.authority !== "informational" ||
+    source.availability !== availability ||
+    source.label !== "User answer" ||
+    !decision
+  ) {
+    return issue("userAnswerSourceInvalid", "Human-answer source does not use the canonical informational source contract.", proposal.proposalId, "sourceIds");
+  }
+  return source.sourceType === "userAnswer" &&
+    source.authority === "informational" &&
+    source.availability === availability &&
+    source.label === "User answer" &&
+    decision.action === "revise" &&
+    decision.origin === "userAction" &&
+    decision.resultingStatus === "Revised" &&
+    Boolean(decision.value) &&
+    sameValue(decision.value as PlanningProposalValue, proposal.value) &&
+    decision.sourceIds?.includes(source.sourceId) === true
+    ? null
+    : issue("revisionHistoryInvalid", "Human-answer source does not prove a valid originating revision.", proposal.proposalId, "sourceIds");
+}
+
+function resolveCanonicalUserAnswerDecision(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord,
+  source: PlanningSourceReference
+): PlanningDecisionRecord | null {
+  const matches = planning.decisions.filter((decision) =>
+    decision.proposalId === proposal.proposalId &&
+    buildPlanningUserAnswerLocator(proposal.proposalId, decision.decisionId) === source.locator
+  );
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function resolveLastProposalDecision(
+  proposal: PlanningProposalRecord,
+  decisions: readonly PlanningDecisionRecord[]
+): PlanningDecisionRecord | null {
+  if (!proposal.lastDecisionId || decisions.length === 0) return null;
+  const matches = decisions.filter((decision) => decision.decisionId === proposal.lastDecisionId);
+  const lastDecision = decisions[decisions.length - 1];
+  return matches.length === 1 && lastDecision?.decisionId === proposal.lastDecisionId
+    ? lastDecision
+    : null;
+}
+
+function claimedHumanAnswerSources(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningSourceReference[] {
+  return resolveSourcesByIds(planning, proposal.sourceIds).filter((source) =>
+    source.sourceType === "userAnswer" ||
+    source.label === "User answer" ||
+    source.locator.startsWith("planning:userAnswer:")
+  );
+}
+
+function hasClaimedHumanAnswerSource(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): boolean {
+  return claimedHumanAnswerSources(planning, proposal).length > 0;
+}
+
+function resolveSourcesByIds(
+  planning: ProjectPlanningState,
+  sourceIds: readonly string[]
+): PlanningSourceReference[] {
+  return sourceIds.flatMap((sourceId) => {
+    const matches = planning.sources.filter((source) => source.sourceId === sourceId);
+    return matches.length === 1 ? [matches[0]] : [];
+  });
+}
+
+function validateProposalSourceResolution(
+  planning: ProjectPlanningState,
+  proposal: PlanningProposalRecord
+): PlanningClarificationDecisionContractIssue | null {
+  return proposal.sourceIds.every((sourceId) =>
+    planning.sources.filter((source) => source.sourceId === sourceId).length === 1
+  )
+    ? null
+    : issue("userAnswerSourceInvalid", "Proposal evidence cannot be resolved exactly once.", proposal.proposalId, "sourceIds");
+}
+
+function sameOptionalSourceIds(
+  sourceIds: readonly string[] | undefined,
+  expected: readonly string[]
+): boolean {
+  return Boolean(sourceIds) && sameStringArray(sourceIds as readonly string[], expected);
 }
 
 function hasOpenBlockingConflict(planning: ProjectPlanningState, proposalId: string): boolean {

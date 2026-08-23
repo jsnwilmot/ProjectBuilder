@@ -46,7 +46,8 @@ describe("planning clarification decision feedback", () => {
     ["confirm", "Planning decision confirmed."],
     ["reject", "Planning item rejected."],
     ["defer", "Planning item deferred."],
-    ["markNotApplicable", "Planning item marked not applicable."]
+    ["markNotApplicable", "Planning item marked not applicable."],
+    ["reopen", "Planning item reopened."]
   ] as const)("returns safe persisted feedback for %s", (action, message) => {
     expect(buildPlanningClarificationDecisionFeedback(result("persisted", { action }))).toEqual({
       kind: "persisted",
@@ -102,6 +103,7 @@ describe("planning clarification decision feedback", () => {
   it("excludes raw identities, issue messages, diagnostics, and authority claims from every feedback model", () => {
     const repositoryResults: PlanningClarificationDecisionRepositoryResult[] = [
       result("persisted", { action: "confirm" }),
+      result("persisted", { action: "reopen" }),
       result("blocked", { issues: [issue("invalidStatusTransition")] }),
       result("blocked", { issues: [issue("projectChangedDuringDecisionMaterialization")] }),
       result("projectNotFound", { issues: [issue("projectNotFound")] }),
@@ -145,16 +147,17 @@ describe("planning clarification decision feedback", () => {
     expect(sourceText).not.toMatch(/answerKind|valueKind|editorType|structuredRecord|enum values/i);
   });
 
-  it("keeps persisted action typing aligned with the existing five-action contract", () => {
+  it("keeps persisted action typing aligned with the six-action clarification contract", () => {
     const actions: PlanningClarificationHumanDecisionAction[] = [
       "revise",
       "confirm",
       "reject",
       "defer",
-      "markNotApplicable"
+      "markNotApplicable",
+      "reopen"
     ];
 
     expect(actions.map((action) => buildPlanningClarificationDecisionFeedback(result("persisted", { action })).kind))
-      .toEqual(["persisted", "persisted", "persisted", "persisted", "persisted"]);
+      .toEqual(["persisted", "persisted", "persisted", "persisted", "persisted", "persisted"]);
   });
 });

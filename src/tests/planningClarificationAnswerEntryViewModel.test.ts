@@ -9,9 +9,14 @@ import {
 } from "../lib/planningClarificationAnswerEntryViewModel";
 import * as answerSchemaRegistry from "../lib/planningClarificationAnswerSchemaRegistry";
 import {
+  analyzePlanningClarificationDecisionCapabilities,
+  buildPlanningUserAnswerLocator
+} from "../lib/planningClarificationDecisionContract";
+import {
   PLANNING_RULE_SET_ID,
   PLANNING_RULE_SET_VERSION,
   PLANNING_SCHEMA_VERSION,
+  type PlanningDecisionRecord,
   type PlanningProposalRecord,
   type PlanningSourceReference,
   type ProjectPlanningState
@@ -133,6 +138,69 @@ const yamlAnswer = {
   }
 };
 
+function confirmedPlanningFor(ruleId = "pp.canvas.yamlplanning.confirmation"): ProjectPlanningState {
+  const state = planningFor(ruleId);
+  const proposal = state.proposals[0];
+  const informationalSourceId = uuid(5001);
+  const confirmedSourceId = uuid(5002);
+  const reviseDecisionId = uuid(6001);
+  const confirmDecisionId = uuid(6002);
+  const informationalSource: PlanningSourceReference = {
+    sourceId: informationalSourceId,
+    sourceType: "userAnswer",
+    locator: buildPlanningUserAnswerLocator(proposal.proposalId, reviseDecisionId)!,
+    label: "User answer",
+    authority: "informational",
+    availability: "stale",
+    observedAt: proposal.updatedAt
+  };
+  const confirmedSource: PlanningSourceReference = {
+    ...informationalSource,
+    sourceId: confirmedSourceId,
+    locator: buildPlanningUserAnswerLocator(proposal.proposalId, confirmDecisionId)!,
+    authority: "confirmed",
+    availability: "current"
+  };
+  const reviseDecision: PlanningDecisionRecord = {
+    decisionId: reviseDecisionId,
+    proposalId: proposal.proposalId,
+    projectId,
+    action: "revise",
+    previousStatus: "Needs Clarification",
+    resultingStatus: "Revised",
+    origin: "userAction",
+    recordedAt: proposal.updatedAt,
+    value: yamlAnswer,
+    sourceIds: [...proposal.sourceIds, informationalSourceId],
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  const confirmedSourceIds = [...proposal.sourceIds, confirmedSourceId];
+  const confirmDecision: PlanningDecisionRecord = {
+    decisionId: confirmDecisionId,
+    proposalId: proposal.proposalId,
+    projectId,
+    action: "confirm",
+    previousStatus: "Revised",
+    resultingStatus: "Confirmed",
+    origin: "userAction",
+    recordedAt: proposal.updatedAt,
+    sourceIds: confirmedSourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return {
+    ...state,
+    sources: [...state.sources, informationalSource, confirmedSource],
+    proposals: [{
+      ...proposal,
+      status: "Confirmed",
+      value: yamlAnswer,
+      sourceIds: confirmedSourceIds,
+      lastDecisionId: confirmDecisionId
+    }],
+    decisions: [reviseDecision, confirmDecision]
+  };
+}
+
 describe("planning clarification answer-entry view model", () => {
   it("authorizes all ten bound current Needs Clarification rules through exact capability and schema identity", () => {
     expect(BOUND_RULE_IDS).toHaveLength(10);
@@ -160,6 +228,20 @@ describe("planning clarification answer-entry view model", () => {
   it("fails closed for exact rule-version mismatch and for a schema-bound non-Revise lifecycle", () => {
     expect(select("pp.canvas.yamlplanning.confirmation", 1, { ruleVersion: "1.0.1" }).state).toBe("unavailable");
     expect(select("pp.canvas.yamlplanning.confirmation", 1, { status: "Deferred" }).state).toBe("unavailable");
+  });
+
+  it("keeps the current generic answer-entry selector unavailable for Confirmed despite contract revise capability", () => {
+    const planning = confirmedPlanningFor();
+    const input = { projectId, planning, proposalId: planning.proposals[0].proposalId };
+    const revise = analyzePlanningClarificationDecisionCapabilities(input).capabilities.find(
+      (entry) => entry.action === "revise"
+    );
+
+    expect(revise).toMatchObject({ state: "inputRequired", requiredInput: "answer" });
+    expect(selectPlanningClarificationAnswerEntry(input)).toEqual({
+      state: "unavailable",
+      proposalId: planning.proposals[0].proposalId
+    });
   });
 
   it("does not let schema presence or caller-supplied schema authorize entry", () => {
@@ -258,5 +340,15 @@ describe("planning clarification answer-entry view model", () => {
     expect(source).toContain("analyzePlanningClarificationDecisionCapabilities");
     expect(source).toContain("getProductionPlanningClarificationAnswerSchema");
     expect(source).not.toMatch(/from ["']react|react-dom|projectRepository|storageVersion|readiness|controlledApply|generateProjectPackage|exportProjectPackage|localStorage|sessionStorage|indexedDB|fetch\(|XMLHttpRequest|Math\.random|randomUUID|Date\.now|new Date|analytics/i);
+  });
+
+  it("does not expose Phase 3I.2 Edit, Change, Resume, or Deferred saved-answer UI", () => {
+    const currentUi = [
+      readFileSync("src/components/Planning/ClarificationDecisionControls.tsx", "utf8"),
+      readFileSync("src/components/Planning/PlanningView.tsx", "utf8"),
+      readFileSync("src/app/App.tsx", "utf8")
+    ].join("\n");
+
+    expect(currentUi).not.toMatch(/Edit answer|Change answer|Resume decision/i);
   });
 });

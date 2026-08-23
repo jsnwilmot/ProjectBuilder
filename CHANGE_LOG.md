@@ -1,5 +1,63 @@
 # Change Log
 
+## 2026-08-23 - Phase 5C.3C.3I.1 - Human Decision Lifecycle Foundation
+
+### Summary
+
+- Marked the integrated H.4A.1 human-provenance Refresh correction Final Complete and extended the clarification decision contract with the existing global `reopen` action; no new status, persisted global action, or transition was added.
+- Added controlled Revised -> Needs Clarification reopen, Deferred-with-answer -> Revised resume, and Deferred-without-answer -> Needs Clarification resume semantics while preserving proposal identity, value, fingerprint, sources, decisions, and deferral history.
+- Added replacement revision behavior for a reopened Revised answer or a Confirmed answer: the exact prior current human source becomes stale history, one new informational `userAnswer` becomes current, and explicit confirmation is required again.
+- Reworked Confirm lineage proof to resolve the exact current informational answer through its canonical source locator and originating revise decision, including Revise -> Defer -> reopen -> Revised history.
+- Kept the live generic answer-entry selector restricted to `Needs Clarification`; visible Edit answer, Change answer, Resume decision, and Deferred saved-answer presentation remain Phase 3I.2.
+- Added safe generic persisted reopen feedback without answer, reason, source, rule, schema, or security content.
+- Added contract, materialization, real repository, concurrency, feedback, entry-selector, no-partial-UI, and lifecycle-history regressions.
+- Made no change to `planningProposals.ts`, `projectRepository.ts`, React Planning production components, App/hook production, Storage, migrations, readiness, mapping, Apply, backend binding, output, dependencies, Node, CI, or deployment.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationDecisionContract.ts` - adds clarification-level reopen capability, strict human lineage proof, Confirmed/reopened replacement revision planning, and Confirm-after-resume validation.
+- `src/lib/planningClarificationDecisionMaterialization.ts` - persists source-free reopen and exact current-human-source replacement while preserving append-only history.
+- `src/lib/planningClarificationDecisionFeedback.ts` - adds the generic persisted reopen message.
+- `src/lib/planningClarificationAnswerEntryViewModel.ts` - prevents Confirmed capability expansion from exposing the current generic answer-entry UI.
+- `src/tests/planningClarificationDecisionContract.test.ts` - covers reopen/resume capability, malformed provenance, Confirmed correction, replacement revise, and confirmation lineage.
+- `src/tests/planningClarificationDecisionMaterialization.test.ts` - covers reopen, edit, correction, reconfirmation, and answered/unanswered resume transactions.
+- `src/tests/planningClarificationDecisionFeedback.test.ts` - covers reopen feedback and privacy.
+- `src/tests/planningClarificationAnswerEntryViewModel.test.ts` - covers the Confirmed selector guard and no Phase 3I.2 control exposure.
+- `src/tests/projectRepository.test.ts` - covers real persisted lifecycle sequences, reload integrity, and concurrent-change rejection.
+- `CHANGE_LOG.md` - records this lifecycle foundation and preserved boundaries.
+- `TEST_PLAN.md` - records the complete 3I.1 validation matrix.
+
+### Scope boundaries preserved
+
+- `reopen` creates no answer and performs no source creation, staling, migration, or automatic confirmation.
+- Human answer replacement applies only to exactly one attached current `userAnswer` with informational or confirmed authority; deterministic and other provenance types are never replaced.
+- Old human sources and all decisions remain append-only history; `supersedesDecisionId` semantics remain unchanged.
+- Planning schema/rule-set versions, answer-schema contract, ten production bindings, absent backend binding, Storage Version 6, zero migrations, readiness/output ineligibility, and all H.4A.1 Refresh ownership rules remain unchanged.
+- TTI remains Draft with all 15 authoritative generated-content blockers unresolved.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, and app TypeScript checking passed.
+- Five focused foundation suites passed 228 tests; six H.4A.1 Refresh/lifecycle suites passed 99 tests; four current UI suites passed 88 tests; fourteen relevant product suites passed 263 tests.
+- `npm.cmd test` passed 73 unit/integration files with 2,681 tests and 7 UI files with 73 tests, for 80 files and 2,754 tests total.
+- `npm.cmd run test:coverage` passed the same 2,754 tests with 90.13% statements, 82.49% branches, 95.39% functions, and 93.91% lines.
+- `npm.cmd run build` passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high` passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high` exited 1 with 25 advisory development/tooling vulnerabilities (2 moderate, 23 high); no dependency remediation was performed.
+
+### Issues found
+
+- Low: the local advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); production dependencies report 0 vulnerabilities and remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Return the single review commit to GPT Architect for independent review; integration and Phase 3I.2 remain blocked.
+
 ## 2026-08-23 - Phase 5C.3C.3H.4A.1 - Refresh Planning Human-Provenance Reconciliation Correction
 
 ### Summary

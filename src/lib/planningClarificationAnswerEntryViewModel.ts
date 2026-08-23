@@ -58,14 +58,7 @@ export function selectPlanningClarificationAnswerEntry(
   const capabilities = analyzePlanningClarificationDecisionCapabilities(input);
   const revise = capabilities.capabilities.find((entry) => entry.action === "revise");
 
-  if (revise?.state === "answerSchemaRequired" && revise.requiredInput === "answerSchema") {
-    return withProposalId("schemaUnavailable", capabilities.proposalId);
-  }
-
-  if (revise?.state !== "inputRequired" || revise.requiredInput !== "answer" || !isPlainObject(input)) {
-    return withProposalId("unavailable", capabilities.proposalId);
-  }
-
+  if (!isPlainObject(input)) return withProposalId("unavailable", capabilities.proposalId);
   const normalized = normalizeProjectPlanningState(input.planning, input.projectId);
   if (normalized.issues.length > 0) {
     return withProposalId("unavailable", capabilities.proposalId);
@@ -74,6 +67,17 @@ export function selectPlanningClarificationAnswerEntry(
   const proposal = normalized.planning.proposals.find((entry) => entry.proposalId === input.proposalId);
   if (!proposal) {
     return withProposalId("unavailable", capabilities.proposalId);
+  }
+  if (proposal.status !== "Needs Clarification") {
+    return { state: "unavailable", proposalId: proposal.proposalId };
+  }
+
+  if (revise?.state === "answerSchemaRequired" && revise.requiredInput === "answerSchema") {
+    return { state: "schemaUnavailable", proposalId: proposal.proposalId };
+  }
+
+  if (revise?.state !== "inputRequired" || revise.requiredInput !== "answer") {
+    return { state: "unavailable", proposalId: proposal.proposalId };
   }
 
   const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
