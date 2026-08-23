@@ -495,14 +495,50 @@ describe("planning clarification source reconciliation classification", () => {
     expect(dispositions(unrelated.current)).toEqual({ exactMatch: 22 });
   });
 
-  it("reports unsupported lineage and unrecognized deterministic source identities without repairing history", async () => {
+  it.each([
+    ["current informational", "informational", "current"],
+    ["current confirmed", "confirmed", "current"],
+    ["stale historical", "informational", "stale"]
+  ] as const)("excludes %s user-answer provenance from deterministic source reconciliation", async (_label, authority, availability) => {
+    const planning = await planningWithSources();
+    const userAnswerSource = {
+      sourceId: sourceUuid(93),
+      sourceType: "userAnswer",
+      locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${proposalUuid(93)}`,
+      label: "User answer",
+      authority,
+      availability,
+      observedAt: timestamp
+    } as ProjectPlanningState["sources"][number];
+    const existingPlanning = {
+      ...planning,
+      sources: [...planning.sources, userAnswerSource],
+      proposals: planning.proposals.map((proposal, index) => index === 0 ? {
+        ...proposal,
+        sourceIds: [...proposal.sourceIds, userAnswerSource.sourceId]
+      } : proposal)
+    };
+    const before = JSON.stringify(existingPlanning);
+
+    const result = await reconcile({ existingPlanning });
+
+    expect(result.issues).toEqual([]);
+    expect(dispositions(result.current)).toEqual({ exactMatch: 22 });
+    expect(result.existingOnly).toEqual([]);
+    expect(result.nonCurrent).toEqual([]);
+    expect(result.current.some((entry) => entry.existingSourceId === userAnswerSource.sourceId)).toBe(false);
+    expect(JSON.stringify(result)).not.toContain(userAnswerSource.sourceId);
+    expect(JSON.stringify(existingPlanning)).toBe(before);
+  });
+
+  it("reports unsupported non-user-answer lineage and unrecognized deterministic source identities without repairing history", async () => {
     const fixture = await ttiFixture();
     const unsupportedSource = {
       sourceId: sourceUuid(93),
-      sourceType: "userAnswer",
-      locator: "answer:legacy",
-      label: "Legacy answer",
-      authority: "confirmed",
+      sourceType: "approvedDocument",
+      locator: "approved-document:legacy",
+      label: "Legacy approved document",
+      authority: "approved",
       availability: "current",
       observedAt: timestamp
     } as ProjectPlanningState["sources"][number];

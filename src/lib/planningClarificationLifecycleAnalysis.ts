@@ -349,7 +349,7 @@ function classifyChangedProposal(
   sourceReconciliation: PlanningClarificationSourceReconciliationResult,
   sourcesById: ReadonlyMap<string, PlanningSourceReference>
 ): { record: PlanningClarificationProposalLifecycleAnalysisRecord; issues: PlanningClarificationLifecycleAnalysisIssue[] } {
-  const changedFields = compareProposalFields(existing, generated, sourceIdsByKey);
+  const changedFields = compareProposalFields(existing, generated, sourceIdsByKey, sourcesById);
   const ruleSourceRollover = ruleVersionSourceRolloverApplies(existing, generated, changedFields, sourceReconciliation, sourcesById);
   const effectiveChangedFields = changedFields;
   const categories = changedCategories(effectiveChangedFields);
@@ -449,7 +449,8 @@ function compareSourceFields(
 function compareProposalFields(
   existing: PlanningProposalRecord,
   generated: PlanningClarificationProposalBlueprint,
-  sourceIdsByKey: ReadonlyMap<string, string>
+  sourceIdsByKey: ReadonlyMap<string, string>,
+  sourcesById: ReadonlyMap<string, PlanningSourceReference>
 ): string[] {
   const fields: string[] = [];
   if (existing.proposalSchemaVersion !== PLANNING_SCHEMA_VERSION) fields.push("proposalSchemaVersion");
@@ -460,13 +461,20 @@ function compareProposalFields(
   if (existing.ruleVersion !== generated.ruleVersion) fields.push("ruleVersion");
   if (!sameTarget(existing.target, generated.target)) fields.push("target");
   if (existing.category !== generated.category) fields.push("category");
+  const hasHumanOwnedValue = hasHumanAnswerProvenance(existing, sourcesById);
   for (const field of PROPOSAL_CONTENT_FIELDS) {
+    if (field === "value" && hasHumanOwnedValue) {
+      continue;
+    }
     if (!sameJson(existing[field], generated[field])) {
       fields.push(field);
     }
   }
   const expectedSourceIds = generated.sourceKeys.map((sourceKey) => sourceIdsByKey.get(sourceKey));
-  if (!expectedSourceIds.every(Boolean) || !sameStringArray(existing.sourceIds, expectedSourceIds as string[])) {
+  const existingDeterministicSourceIds = existing.sourceIds.filter((sourceId) =>
+    sourcesById.get(sourceId)?.sourceType !== "userAnswer"
+  );
+  if (!expectedSourceIds.every(Boolean) || !sameStringArray(existingDeterministicSourceIds, expectedSourceIds as string[])) {
     fields.push("sourceIds");
   }
   if (!sameStringArray(existing.applicableProjectTypes, generated.applicableProjectTypes)) {
@@ -479,6 +487,13 @@ function compareProposalFields(
     fields.push("fingerprint");
   }
   return fields.sort();
+}
+
+function hasHumanAnswerProvenance(
+  proposal: PlanningProposalRecord,
+  sourcesById: ReadonlyMap<string, PlanningSourceReference>
+): boolean {
+  return proposal.sourceIds.some((sourceId) => sourcesById.get(sourceId)?.sourceType === "userAnswer");
 }
 
 function ruleVersionSourceRolloverApplies(
@@ -499,10 +514,12 @@ function ruleVersionSourceRolloverApplies(
     return false;
   }
 
-  const existingSourceKeys = existing.sourceIds.map((sourceId) => {
-    const source = sourcesById.get(sourceId);
-    return source ? deriveExistingSourceKey(source) : null;
-  });
+  const existingSourceKeys = existing.sourceIds
+    .filter((sourceId) => sourcesById.get(sourceId)?.sourceType !== "userAnswer")
+    .map((sourceId) => {
+      const source = sourcesById.get(sourceId);
+      return source ? deriveExistingSourceKey(source) : null;
+    });
   if (!existingSourceKeys.every((entry): entry is string => Boolean(entry))) return false;
 
   const oldProjectRuleKey = `projectRule|${existing.ruleId}|${existing.ruleVersion}`;

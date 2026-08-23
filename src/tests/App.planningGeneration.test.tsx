@@ -128,6 +128,58 @@ describe("App - explicit planning generation and refresh", () => {
     expect(after.decisions).toEqual(before.decisions);
   }, 30000);
 
+  it("preserves a saved answer and deferral through the explicit Refresh planning UI flow", async () => {
+    const user = userEvent.setup();
+    await generatePersistedPlanning();
+    generationMocks.run.mockClear();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    expect(generationMocks.run).not.toHaveBeenCalled();
+    let yamlCard = screen.getByRole("heading", { name: "Confirm Canvas YAML planning" }).closest("article")!;
+    await user.click(within(yamlCard).getByRole("button", { name: "Answer question" }));
+    await user.type(within(yamlCard).getByRole("textbox", { name: /Installation responsibility/ }), "Solution owner");
+    await user.type(within(yamlCard).getByRole("textbox", { name: /Validation responsibility/ }), "Technical reviewer");
+    await user.type(within(yamlCard).getByRole("textbox", { name: /Application location/ }), "Approved Canvas app");
+    await user.type(within(yamlCard).getByRole("textbox", { name: /Parent relationship/ }), "Approved parent relationship");
+    await user.click(within(yamlCard).getByRole("button", { name: "Save answer for review" }));
+    expect(await screen.findByText("Planning answer saved for review.")).toBeInTheDocument();
+
+    yamlCard = screen.getByRole("heading", { name: "Confirm Canvas YAML planning" }).closest("article")!;
+    await user.click(within(yamlCard).getByRole("button", { name: "Defer" }));
+    await user.type(within(yamlCard).getByRole("textbox", { name: "Deferral reason" }), "Awaiting approved client evidence.");
+    await user.click(within(yamlCard).getByRole("button", { name: "Defer decision" }));
+    expect(await screen.findByText("Planning item deferred.")).toBeInTheDocument();
+
+    const beforeRefresh = loadStorageState().projects[0].planning!;
+    const deferred = beforeRefresh.proposals.find((proposal) => proposal.ruleId === "pp.canvas.yamlplanning.confirmation")!;
+    expect(deferred).toMatchObject({
+      status: "Deferred",
+      value: {
+        kind: "structuredRecord",
+        value: {
+          installationResponsibility: { kind: "text", value: "Solution owner" }
+        }
+      }
+    });
+    expect(beforeRefresh.decisions.map((decision) => decision.action)).toContain("revise");
+    expect(beforeRefresh.decisions.at(-1)).toMatchObject({
+      action: "defer",
+      reason: "Awaiting approved client evidence."
+    });
+    expect(beforeRefresh.sources.filter((source) => source.sourceType === "userAnswer")).toHaveLength(1);
+    expect(generationMocks.run).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Refresh planning" }));
+
+    expect(await screen.findByText("Planning is already current.")).toBeInTheDocument();
+    expect(screen.queryByText("Planning could not be refreshed safely. Review the latest project information and try again.")).not.toBeInTheDocument();
+    expect(generationMocks.run).toHaveBeenCalledOnce();
+    const afterRefresh = loadStorageState().projects[0].planning!;
+    expect(afterRefresh).toEqual(beforeRefresh);
+    expect(afterRefresh.proposals.find((proposal) => proposal.proposalId === deferred.proposalId)?.status).toBe("Deferred");
+  }, 30000);
+
   it("blocks Refresh while a meaningful answer draft exists and enables it after explicit discard", async () => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);

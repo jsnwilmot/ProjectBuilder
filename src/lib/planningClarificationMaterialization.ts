@@ -452,6 +452,7 @@ function validateExactProposalSourceBindings(
 ): PlanningClarificationMaterializationIssue[] {
   const proposalsByKey = new Map(proposals.map((proposal) => [proposal.proposalKey, proposal]));
   const existingById = new Map(existingPlanning.proposals.map((proposal) => [proposal.proposalId, proposal]));
+  const existingSourcesById = new Map(existingPlanning.sources.map((source) => [source.sourceId, source]));
   const issues: PlanningClarificationMaterializationIssue[] = [];
   for (const entry of proposalReconciliation.current) {
     if (entry.disposition !== "exactMatch") {
@@ -464,7 +465,10 @@ function validateExactProposalSourceBindings(
       continue;
     }
     const expected = proposal.sourceKeys.map((sourceKey) => sourceIdsByKey.get(sourceKey));
-    if (!expected.every(Boolean) || !sameStringArray(existing.sourceIds, expected as string[])) {
+    const existingDeterministicSourceIds = existing.sourceIds.filter((sourceId) =>
+      existingSourcesById.get(sourceId)?.sourceType !== "userAnswer"
+    );
+    if (!expected.every(Boolean) || !sameStringArray(existingDeterministicSourceIds, expected as string[])) {
       issues.push(issue("existingProposalSourceBindingMismatch", "Existing exact proposal source IDs do not match the current exact source identities.", undefined, entry.proposalKey, existing.proposalId, "sourceIds"));
     }
   }

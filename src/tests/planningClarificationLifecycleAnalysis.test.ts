@@ -256,6 +256,15 @@ function fingerprint(index: number): string {
   return `${index.toString(16).padStart(2, "0")}`.repeat(32);
 }
 
+function humanAnswerValue(): PlanningProposalRecord["value"] {
+  return {
+    kind: "structuredRecord",
+    value: {
+      answer: { kind: "text", value: "Human-approved answer" }
+    }
+  };
+}
+
 beforeEach(() => {
   vi.stubGlobal("crypto", webcrypto);
 });
@@ -286,9 +295,149 @@ describe("planning clarification lifecycle analysis", () => {
     expect(result.proposals.some((entry) => entry.staleReason)).toBe(false);
   });
 
+  it.each([
+    ["Revised with current informational provenance", "Revised", "informational"],
+    ["Confirmed with current confirmed provenance", "Confirmed", "confirmed"]
+  ] as const)("classifies deterministic lifecycle evidence unchanged for %s", async (_label, status, authority) => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const userAnswerSource: PlanningSourceReference = {
+      sourceId: uuid(90),
+      sourceType: "userAnswer",
+      locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${uuid(91)}`,
+      label: "User answer",
+      authority,
+      availability: "current",
+      observedAt: timestamp
+    };
+    planning.sources = [
+      ...planning.sources,
+      ...(status === "Confirmed" ? [{
+        ...userAnswerSource,
+        sourceId: uuid(89),
+        locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${uuid(88)}`,
+        authority: "informational" as const,
+        availability: "stale" as const
+      }] : []),
+      userAnswerSource
+    ];
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      status,
+      value: humanAnswerValue(),
+      sourceIds: [...proposal.sourceIds, userAnswerSource.sourceId]
+    } : proposal);
+    const before = JSON.stringify(planning);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    expect(result.issues).toEqual([]);
+    expect(result.sources.every((entry) => entry.disposition === "unchanged")).toBe(true);
+    expect(result.proposals.every((entry) => entry.disposition === "unchanged")).toBe(true);
+    expect(result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)?.changedFields).toBeUndefined();
+    expect(JSON.stringify(planning)).toBe(before);
+  });
+
+  it.each([
+    ["informational current", "informational", "current"],
+    ["confirmed current", "confirmed", "current"],
+    ["informational stale", "informational", "stale"]
+  ] as const)("classifies applicability change without a false source change for %s user provenance", async (_label, authority, availability) => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    const generatedProposal = fixture.proposals[0];
+    const userAnswerSource: PlanningSourceReference = {
+      sourceId: uuid(92),
+      sourceType: "userAnswer",
+      locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${uuid(93)}`,
+      label: "User answer",
+      authority,
+      availability,
+      observedAt: timestamp
+    };
+    planning.sources = [...planning.sources, userAnswerSource];
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      status: authority === "confirmed" ? "Confirmed" : "Revised",
+      value: humanAnswerValue(),
+      sourceIds: [...proposal.sourceIds, userAnswerSource.sourceId],
+      applicableDomains: ["security"],
+      fingerprint: fingerprint(20)
+    } : proposal);
+    const before = JSON.stringify(planning);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === generatedProposal.proposalKey)!;
+    expect(proposal).toMatchObject({
+      disposition: "staleRequired",
+      staleReason: "applicabilityChanged",
+      changedFields: ["applicableDomains"]
+    });
+    expect(result.issues).toEqual([]);
+    expect(JSON.stringify(planning)).toBe(before);
+  });
+
+  it("keeps a differing value deterministic with Confirmed status and only non-user-answer provenance", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      status: "Confirmed",
+      value: humanAnswerValue(),
+      fingerprint: fingerprint(21)
+    } : proposal);
+
+    const result = await analyzePlanningClarificationLifecycleChanges({
+      projectId,
+      existingPlanning: planning,
+      sources: fixture.sources,
+      proposals: fixture.proposals,
+      fingerprints: fixture.fingerprints
+    });
+
+    const proposal = result.proposals.find((entry) => entry.semanticKey === fixture.proposals[0].proposalKey)!;
+    expect(proposal).toMatchObject({
+      disposition: "staleRequired",
+      staleReason: "proposalRegenerated",
+      changedFields: ["value"]
+    });
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "unversionedRuleContentChange" }));
+    expect(planning.proposals[0].sourceIds.every((sourceId) =>
+      planning.sources.find((source) => source.sourceId === sourceId)?.sourceType !== "userAnswer"
+    )).toBe(true);
+  });
+
   it("maps changed readiness evidence to sourceChanged without mutating planning", async () => {
     const fixture = await ttiFixture();
     const planning = exactPlanning(fixture);
+    const userAnswerSource: PlanningSourceReference = {
+      sourceId: uuid(95),
+      sourceType: "userAnswer",
+      locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${uuid(96)}`,
+      label: "User answer",
+      authority: "informational",
+      availability: "current",
+      observedAt: timestamp
+    };
+    planning.sources = [...planning.sources, userAnswerSource];
+    planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      value: humanAnswerValue(),
+      sourceIds: [...proposal.sourceIds, userAnswerSource.sourceId]
+    } : proposal);
     const before = JSON.stringify(planning);
     const changedSourceKey = fixture.sources.find((source) => source.sourceKey.startsWith("readinessPrerequisite|"))!.sourceKey;
     const changedSourceId = planning.sources.find((source) => existingSourceKey(source) === changedSourceKey)!.sourceId;
@@ -351,7 +500,7 @@ describe("planning clarification lifecycle analysis", () => {
     }));
   });
 
-  it("maps realistic project-rule source identity rollover to proposal ruleChanged without fabricated lineage", async () => {
+  it("maps realistic project-rule rollover with user provenance to ruleChanged without fabricated lineage", async () => {
     const fixture = await ttiFixture();
     const planning = exactPlanning(fixture);
     const generatedProposal = fixture.proposals[0];
@@ -363,12 +512,26 @@ describe("planning clarification lifecycle analysis", () => {
       ...currentProjectRuleSource,
       version: oldRuleVersion
     };
-    planning.sources = planning.sources.map((source) =>
-      source.sourceId === currentProjectRuleSource.sourceId ? oldProjectRuleSource : source
-    );
+    const userAnswerSource: PlanningSourceReference = {
+      sourceId: uuid(76),
+      sourceType: "userAnswer",
+      locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${uuid(75)}`,
+      label: "User answer",
+      authority: "informational",
+      availability: "current",
+      observedAt: timestamp
+    };
+    planning.sources = [
+      ...planning.sources.map((source) =>
+        source.sourceId === currentProjectRuleSource.sourceId ? oldProjectRuleSource : source
+      ),
+      userAnswerSource
+    ];
     planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
       ...proposal,
       ruleVersion: oldRuleVersion,
+      value: humanAnswerValue(),
+      sourceIds: [...proposal.sourceIds, userAnswerSource.sourceId],
       fingerprint: fingerprint(11)
     } : proposal);
 
@@ -394,6 +557,7 @@ describe("planning clarification lifecycle analysis", () => {
     expect(proposal.disposition).toBe("staleRequired");
     expect(proposal.staleReason).toBe("ruleChanged");
     expect(proposal.changedFields).toEqual(expect.arrayContaining(["ruleVersion", "sourceIds"]));
+    expect(proposal.changedFields).not.toContain("value");
     expect(result.issues).toContainEqual(expect.objectContaining({
       code: "lifecycleCauseUnresolved",
       sourceKey: oldProjectRuleSourceKey
@@ -468,16 +632,26 @@ describe("planning clarification lifecycle analysis", () => {
       locator: "planning-rule:pp.extra.unrelated.confirmation",
       version: "phase-5c.extra-unrelated-rule-version"
     };
+    const userAnswerSource: PlanningSourceReference = {
+      sourceId: uuid(78),
+      sourceType: "userAnswer",
+      locator: `planning:userAnswer:${planning.proposals[0].proposalId}:${uuid(79)}`,
+      label: "User answer",
+      authority: "informational",
+      availability: "current",
+      observedAt: timestamp
+    };
     planning.sources = [
       ...planning.sources.map((source) =>
         source.sourceId === currentProjectRuleSource.sourceId ? { ...source, version: oldRuleVersion } : source
       ),
-      extraProjectRuleSource
+      extraProjectRuleSource,
+      userAnswerSource
     ];
     planning.proposals = planning.proposals.map((proposal, index) => index === 0 ? {
       ...proposal,
       ruleVersion: oldRuleVersion,
-      sourceIds: [...proposal.sourceIds, extraProjectRuleSource.sourceId],
+      sourceIds: [...proposal.sourceIds, extraProjectRuleSource.sourceId, userAnswerSource.sourceId],
       fingerprint: fingerprint(16)
     } : proposal);
 

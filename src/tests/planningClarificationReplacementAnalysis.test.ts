@@ -217,6 +217,31 @@ function markProposalStale(
   return { proposalId: proposal.proposalId, decisionId };
 }
 
+function attachUserAnswer(
+  planning: ProjectPlanningState,
+  proposalIndex: number,
+  index: number,
+  authority: Extract<PlanningSourceReference["authority"], "informational" | "confirmed">,
+  availability: PlanningSourceReference["availability"] = "current"
+): PlanningSourceReference {
+  const proposal = planning.proposals[proposalIndex];
+  const source: PlanningSourceReference = {
+    sourceId: uuid(index),
+    sourceType: "userAnswer",
+    locator: `planning:userAnswer:${proposal.proposalId}:${decisionUuid(index)}`,
+    label: "User answer",
+    authority,
+    availability,
+    observedAt: timestamp
+  };
+  planning.sources = [...planning.sources, source];
+  planning.proposals = planning.proposals.map((entry, entryIndex) => entryIndex === proposalIndex ? {
+    ...entry,
+    sourceIds: [...entry.sourceIds, source.sourceId]
+  } : entry);
+  return source;
+}
+
 async function changedSourceFixture(
   fixture: Awaited<ReturnType<typeof ttiFixture>>,
   sourceKey: string
@@ -342,6 +367,15 @@ function fingerprint(index: number): string {
   return `${index.toString(16).padStart(2, "0")}`.repeat(32);
 }
 
+function humanAnswerValue(): PlanningProposalRecord["value"] {
+  return {
+    kind: "structuredRecord",
+    value: {
+      answer: { kind: "text", value: "Human-approved answer" }
+    }
+  };
+}
+
 function clone<T>(input: T): T {
   return JSON.parse(JSON.stringify(input)) as T;
 }
@@ -370,12 +404,13 @@ describe("planning clarification replacement analysis", () => {
     });
   });
 
-  it("B pairs a sourceChanged post-D stale proposal with same-key generated source evidence", async () => {
+  it("B pairs sourceChanged with current informational human provenance", async () => {
     const fixture = await ttiFixture();
     const planning = exactPlanning(fixture);
     const sourceKey = proposalSourceKey(fixture, 0, "readinessPrerequisite|");
     const staleSourceId = markSourceStale(planning, sourceKey);
-    const staleProposal = markProposalStale(planning, 0, "sourceChanged");
+    const userAnswerSource = attachUserAnswer(planning, 0, 90, "informational");
+    const staleProposal = markProposalStale(planning, 0, "sourceChanged", { value: humanAnswerValue() });
     const changedFixture = await changedSourceFixture(fixture, sourceKey);
 
     const result = await analyzePlanningClarificationReplacements(inputFor(changedFixture, planning));
@@ -396,6 +431,7 @@ describe("planning clarification replacement analysis", () => {
       cause: "sourceChanged"
     }]);
     expect(result.issues).toEqual([]);
+    expect(result.sourceReplacements.some((entry) => entry.staleSourceId === userAnswerSource.sourceId)).toBe(false);
   });
 
   it("C and D pair ruleChanged post-D topology with old historical project-rule source", async () => {
@@ -403,7 +439,14 @@ describe("planning clarification replacement analysis", () => {
     for (const sourceAvailability of ["stale", "deleted"] as const) {
       const planning = exactPlanning(fixture);
       const rollover = applyRuleChangedPostD(planning, fixture.proposals[0], `phase-5c.old-${sourceAvailability}-rule-version`, sourceAvailability);
-      const staleProposal = markProposalStale(planning, 0, "ruleChanged");
+      const userAnswerSource = attachUserAnswer(
+        planning,
+        0,
+        sourceAvailability === "stale" ? 91 : 92,
+        sourceAvailability === "stale" ? "confirmed" : "informational",
+        sourceAvailability === "stale" ? "current" : "stale"
+      );
+      const staleProposal = markProposalStale(planning, 0, "ruleChanged", { value: humanAnswerValue() });
 
       const result = await analyzePlanningClarificationReplacements(inputFor(fixture, planning));
 
@@ -420,14 +463,17 @@ describe("planning clarification replacement analysis", () => {
         replacementSourceKey: rollover.newProjectRuleSourceKey,
         cause: "ruleChanged"
       }]);
+      expect(result.sourceReplacements.some((entry) => entry.staleSourceId === userAnswerSource.sourceId)).toBe(false);
     }
   });
 
-  it("E pairs applicabilityChanged without source replacements", async () => {
+  it("E pairs applicabilityChanged with stale historical human provenance without source replacements", async () => {
     const fixture = await ttiFixture();
     const planning = exactPlanning(fixture);
+    const userAnswerSource = attachUserAnswer(planning, 0, 93, "informational", "stale");
     const staleProposal = markProposalStale(planning, 0, "applicabilityChanged", {
       applicableDomains: ["security"],
+      value: humanAnswerValue(),
       fingerprint: fingerprint(44)
     });
 
@@ -441,6 +487,25 @@ describe("planning clarification replacement analysis", () => {
       replacementSourceKeys: []
     })]);
     expect(result.sourceReplacements).toEqual([]);
+    expect(planning.sources.find((source) => source.sourceId === userAnswerSource.sourceId)).toEqual(userAnswerSource);
+  });
+
+  it("E.1 keeps unrelated value differences blocked without user-answer provenance", async () => {
+    const fixture = await ttiFixture();
+    const planning = exactPlanning(fixture);
+    markProposalStale(planning, 0, "applicabilityChanged", {
+      applicableDomains: ["security"],
+      value: humanAnswerValue(),
+      fingerprint: fingerprint(47)
+    });
+
+    const result = await analyzePlanningClarificationReplacements(inputFor(fixture, planning));
+
+    expect(result.outcome).toBe("blocked");
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: "replacementCauseMismatch",
+      field: "value"
+    }));
   });
 
   it("F blocks stale proposals that no longer have a generated replacement", async () => {
@@ -580,6 +645,51 @@ describe("planning clarification replacement analysis", () => {
 
     expect(result.outcome).toBe("blocked");
     expect(result.issues).toContainEqual(expect.objectContaining({ code: "replacementCauseMismatch" }));
+  });
+
+  it("M.1 keeps unsupported non-user-answer and unresolved source IDs fail closed", async () => {
+    const fixture = await ttiFixture();
+    const unsupportedPlanning = exactPlanning(fixture);
+    const unsupportedSource: PlanningSourceReference = {
+      sourceId: uuid(94),
+      sourceType: "approvedDocument",
+      locator: "approved-document:unexpected",
+      label: "Unexpected approved document",
+      authority: "approved",
+      availability: "current",
+      observedAt: timestamp
+    };
+    unsupportedPlanning.sources = [...unsupportedPlanning.sources, unsupportedSource];
+    unsupportedPlanning.proposals = unsupportedPlanning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      sourceIds: [...proposal.sourceIds, unsupportedSource.sourceId]
+    } : proposal);
+    markProposalStale(unsupportedPlanning, 0, "applicabilityChanged", {
+      applicableDomains: ["security"],
+      fingerprint: fingerprint(45)
+    });
+
+    const unsupported = await analyzePlanningClarificationReplacements(inputFor(fixture, unsupportedPlanning));
+
+    expect(unsupported.outcome).toBe("blocked");
+    expect(unsupported.issues).toContainEqual(expect.objectContaining({
+      code: expect.stringMatching(/sourceReconciliationFailed|replacementCauseMismatch/)
+    }));
+
+    const unresolvedPlanning = exactPlanning(fixture);
+    unresolvedPlanning.proposals = unresolvedPlanning.proposals.map((proposal, index) => index === 0 ? {
+      ...proposal,
+      sourceIds: [...proposal.sourceIds, uuid(95)]
+    } : proposal);
+    markProposalStale(unresolvedPlanning, 0, "applicabilityChanged", {
+      applicableDomains: ["security"],
+      fingerprint: fingerprint(46)
+    });
+
+    const unresolved = await analyzePlanningClarificationReplacements(inputFor(fixture, unresolvedPlanning));
+
+    expect(unresolved.outcome).toBe("blocked");
+    expect(unresolved.issues).toContainEqual(expect.objectContaining({ code: "invalidExistingPlanning" }));
   });
 
   it("N and O block non-Stale changed proposal/source states until stale materialization runs first", async () => {

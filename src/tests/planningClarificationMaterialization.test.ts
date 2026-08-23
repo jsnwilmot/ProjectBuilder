@@ -196,6 +196,23 @@ function planningSource(index: number, overrides: Partial<PlanningSourceReferenc
   };
 }
 
+function humanAnswerSource(
+  index: number,
+  proposalId: string,
+  authority: Extract<PlanningSourceReference["authority"], "informational" | "confirmed">,
+  availability: PlanningSourceReference["availability"] = "current"
+): PlanningSourceReference {
+  return {
+    sourceId: uuid(index),
+    sourceType: "userAnswer",
+    locator: `planning:userAnswer:${proposalId}:${uuid(index + 100)}`,
+    label: "User answer",
+    authority,
+    availability,
+    observedAt: timestamp
+  };
+}
+
 function planningProposal(sourceId: string, overrides: Partial<PlanningProposalRecord> = {}): PlanningProposalRecord {
   return {
     proposalId: proposalUuid(1),
@@ -420,6 +437,91 @@ describe("planning clarification materialization", () => {
     expect(JSON.stringify(loadStorageState(storage))).toBe(beforeNoOp);
   });
 
+  it.each([
+    ["informational", "Revised"],
+    ["confirmed", "Confirmed"]
+  ] as const)("preserves exact proposal bindings with current %s user-answer provenance", async (authority, status) => {
+    const fixture = await ttiFixture();
+    const storage = new CountingStorage();
+    createCanvasProject(storage);
+    const project = await persistExactSubset(storage, fixture, 11);
+    const proposal = project.planning!.proposals[0];
+    const answerSource = humanAnswerSource(90, proposal.proposalId, authority);
+    const updated: ProjectRecord = {
+      ...project,
+      planning: {
+        ...project.planning!,
+        sources: [...project.planning!.sources, answerSource],
+        proposals: project.planning!.proposals.map((entry, index) => index === 0 ? {
+          ...entry,
+          status,
+          sourceIds: [...entry.sourceIds, answerSource.sourceId]
+        } : entry)
+      }
+    };
+    persistProject(storage, updated);
+    const before = JSON.stringify(loadStorageState(storage));
+    storage.writes = 0;
+    let uuidCalls = 0;
+    let clockCalls = 0;
+
+    const result = await materializeProjectPlanningClarifications(projectId, fixture, storage, {
+      uuid: () => {
+        uuidCalls += 1;
+        return uuid(300);
+      },
+      now: () => {
+        clockCalls += 1;
+        return timestamp;
+      }
+    });
+
+    expect(result).toMatchObject({ outcome: "unchanged", createdSources: [], createdProposals: [], issues: [] });
+    expect(uuidCalls).toBe(0);
+    expect(clockCalls).toBe(0);
+    expect(storage.writes).toBe(0);
+    expect(JSON.stringify(loadStorageState(storage))).toBe(before);
+    const persisted = getProjectById(projectId, storage)!.planning!;
+    expect(persisted.proposals[0].sourceIds).toEqual(updated.planning!.proposals[0].sourceIds);
+    expect(persisted.sources.find((source) => source.sourceId === answerSource.sourceId)).toEqual(answerSource);
+    expect(persisted.sources.filter((source) => source.sourceType === "userAnswer")).toHaveLength(1);
+    expect(persisted.decisions).toEqual([]);
+  });
+
+  it("preserves current confirmed and stale informational human-answer history during exact materialization", async () => {
+    const fixture = await ttiFixture();
+    const storage = new CountingStorage();
+    createCanvasProject(storage);
+    const project = await persistExactSubset(storage, fixture, 11);
+    const proposal = project.planning!.proposals[0];
+    const staleAnswer = humanAnswerSource(91, proposal.proposalId, "informational", "stale");
+    const confirmedAnswer = humanAnswerSource(92, proposal.proposalId, "confirmed");
+    const updated: ProjectRecord = {
+      ...project,
+      planning: {
+        ...project.planning!,
+        sources: [...project.planning!.sources, staleAnswer, confirmedAnswer],
+        proposals: project.planning!.proposals.map((entry, index) => index === 0 ? {
+          ...entry,
+          status: "Confirmed",
+          sourceIds: [...entry.sourceIds, confirmedAnswer.sourceId]
+        } : entry)
+      }
+    };
+    persistProject(storage, updated);
+    const before = JSON.stringify(loadStorageState(storage));
+    storage.writes = 0;
+
+    const result = await materializeProjectPlanningClarifications(projectId, fixture, storage);
+
+    expect(result).toMatchObject({ outcome: "unchanged", createdSources: [], createdProposals: [], issues: [] });
+    expect(storage.writes).toBe(0);
+    expect(JSON.stringify(loadStorageState(storage))).toBe(before);
+    const persisted = getProjectById(projectId, storage)!.planning!;
+    expect(persisted.proposals[0].sourceIds).toEqual(updated.planning!.proposals[0].sourceIds);
+    expect(persisted.sources.filter((source) => source.sourceType === "userAnswer")).toEqual([staleAnswer, confirmedAnswer]);
+  });
+
   it("appends only genuinely new records while reusing exact identities", async () => {
     const fixture = await ttiFixture();
     const storage = new CountingStorage();
@@ -548,6 +650,38 @@ describe("planning clarification materialization", () => {
     expect(result.issues).toEqual([expect.objectContaining({ code: "existingProposalSourceBindingMismatch" })]);
     expect(storage.writes).toBe(0);
     expect(JSON.stringify(loadStorageState(storage))).toBe(before);
+  });
+
+  it("does not exclude an extra non-user-answer source ID from exact binding validation", async () => {
+    const fixture = await ttiFixture();
+
+    const extraStorage = new CountingStorage();
+    createCanvasProject(extraStorage);
+    const extraProject = await persistExactSubset(extraStorage, fixture, 11);
+    const extraDeterministicSourceId = extraProject.planning!.sources.find((source) =>
+      !extraProject.planning!.proposals[0].sourceIds.includes(source.sourceId)
+    )!.sourceId;
+    persistProject(extraStorage, {
+      ...extraProject,
+      planning: {
+        ...extraProject.planning!,
+        proposals: extraProject.planning!.proposals.map((proposal, index) => index === 0 ? {
+          ...proposal,
+          sourceIds: [...proposal.sourceIds, extraDeterministicSourceId]
+        } : proposal)
+      }
+    });
+    const extraBefore = JSON.stringify(loadStorageState(extraStorage));
+    extraStorage.writes = 0;
+
+    const extraResult = await materializeProjectPlanningClarifications(projectId, fixture, extraStorage);
+
+    expect(extraResult).toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "existingProposalSourceBindingMismatch" })]
+    });
+    expect(extraStorage.writes).toBe(0);
+    expect(JSON.stringify(loadStorageState(extraStorage))).toBe(extraBefore);
   });
 
   it("detects concurrent project changes before UUID, clock, or storage write", async () => {

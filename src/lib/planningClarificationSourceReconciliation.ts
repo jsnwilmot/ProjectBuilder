@@ -312,6 +312,9 @@ function collectRelevantExistingSources(
   const nonCurrent: RelevantExistingSource[] = [];
 
   for (const source of sources) {
+    if (source.sourceType === "userAnswer") {
+      continue;
+    }
     const derived = deriveExistingSourceKey(source);
     const referencedByProposalId = inScopeReferences.get(source.sourceId);
     const relevant = referencedByProposalId !== undefined || (derived.kind === "derived" && generatedSourceKeys.has(derived.sourceKey));

@@ -6,6 +6,7 @@ import * as phaseGates from "../lib/phaseGates";
 import { runPlanningClarificationGeneration } from "../lib/planningClarificationOrchestration";
 import {
   getProjectById,
+  materializeProjectPlanningClarificationHumanDecision,
   saveStorageState,
   type StorageAdapter
 } from "../lib/projectRepository";
@@ -38,6 +39,51 @@ function canvasProject(id = projectId): ProjectRecord {
 
 function persist(storage: StorageAdapter, projects: ProjectRecord[], activeProjectId = projects[0]?.identity.id ?? null) {
   saveStorageState({ version: CURRENT_STORAGE_VERSION, activeProjectId, projects }, storage);
+}
+
+function yamlAnswer() {
+  return {
+    kind: "structuredRecord" as const,
+    value: {
+      installationResponsibility: { kind: "text" as const, value: "Solution owner" },
+      validationResponsibility: { kind: "text" as const, value: "Technical reviewer" },
+      yamlInstallationLocation: { kind: "text" as const, value: "Approved Canvas app" },
+      yamlParentRelationship: { kind: "text" as const, value: "Approved parent relationship" }
+    }
+  };
+}
+
+function uuidSequence(...ids: string[]) {
+  let index = 0;
+  return () => ids[index++]!;
+}
+
+async function generateAndRevise(storage: StorageAdapter) {
+  const project = canvasProject();
+  persist(storage, [project]);
+  await runPlanningClarificationGeneration(project.identity.id, { storage });
+  const proposal = getProjectById(project.identity.id, storage)!.planning!.proposals.find(
+    (entry) => entry.ruleId === "pp.canvas.yamlplanning.confirmation"
+  )!;
+  const result = await materializeProjectPlanningClarificationHumanDecision(project.identity.id, {
+    proposalId: proposal.proposalId,
+    action: "revise",
+    value: yamlAnswer()
+  }, storage, {
+    now: () => "2026-08-23T12:01:00.000Z",
+    uuid: uuidSequence(
+      "81000000-0000-4000-8000-000000000001",
+      "81000000-0000-4000-8000-000000000002"
+    )
+  });
+  expect(result).toMatchObject({ outcome: "persisted", action: "revise", issues: [] });
+  return proposal.proposalId;
+}
+
+function expectNoDuplicatePlanningRecords(planning: NonNullable<ProjectRecord["planning"]>) {
+  expect(new Set(planning.sources.map((source) => source.sourceId)).size).toBe(planning.sources.length);
+  expect(new Set(planning.proposals.map((proposal) => proposal.proposalId)).size).toBe(planning.proposals.length);
+  expect(new Set(planning.decisions.map((decision) => decision.decisionId)).size).toBe(planning.decisions.length);
 }
 
 beforeEach(() => {
@@ -93,6 +139,138 @@ describe("planning clarification orchestration", () => {
     expect(second.sources.map((source) => source.sourceId)).toEqual(firstIds.sources);
     expect(second.proposals.map((proposal) => proposal.proposalId)).toEqual(firstIds.proposals);
     expect(second.decisions.map((decision) => decision.decisionId)).toEqual(firstIds.decisions);
+  });
+
+  it("preserves a revised answer and informational human provenance across an unchanged refresh", async () => {
+    const storage = new MemoryStorage();
+    const proposalId = await generateAndRevise(storage);
+    const before = getProjectById(projectId, storage)!.planning!;
+    const proposalBefore = before.proposals.find((entry) => entry.proposalId === proposalId)!;
+    const beforeJson = JSON.stringify(before);
+
+    const result = await runPlanningClarificationGeneration(projectId, { storage });
+    const after = getProjectById(projectId, storage)!.planning!;
+
+    expect(result).toMatchObject({ outcome: "unchanged", successful: true });
+    expect(JSON.stringify(after)).toBe(beforeJson);
+    expect(after.proposals.find((entry) => entry.proposalId === proposalId)).toEqual(proposalBefore);
+    expect(proposalBefore).toMatchObject({ status: "Revised", value: yamlAnswer() });
+    expect(after.decisions).toEqual(before.decisions);
+    expect(after.sources.filter((source) => source.sourceType === "userAnswer")).toEqual(
+      before.sources.filter((source) => source.sourceType === "userAnswer")
+    );
+    expectNoDuplicatePlanningRecords(after);
+  });
+
+  it("preserves a revised then deferred answer, reason, and provenance across refresh", async () => {
+    const storage = new MemoryStorage();
+    const proposalId = await generateAndRevise(storage);
+    const deferred = await materializeProjectPlanningClarificationHumanDecision(projectId, {
+      proposalId,
+      action: "defer",
+      reason: "Awaiting approved client evidence."
+    }, storage, {
+      now: () => "2026-08-23T12:02:00.000Z",
+      uuid: () => "81000000-0000-4000-8000-000000000003"
+    });
+    expect(deferred).toMatchObject({ outcome: "persisted", action: "defer", issues: [] });
+    const before = getProjectById(projectId, storage)!.planning!;
+    const beforeJson = JSON.stringify(before);
+
+    const result = await runPlanningClarificationGeneration(projectId, { storage });
+    const after = getProjectById(projectId, storage)!.planning!;
+
+    expect(result).toMatchObject({ outcome: "unchanged", successful: true });
+    expect(JSON.stringify(after)).toBe(beforeJson);
+    expect(after.proposals.find((entry) => entry.proposalId === proposalId)).toMatchObject({
+      status: "Deferred",
+      value: yamlAnswer()
+    });
+    expect(after.decisions.at(-1)).toMatchObject({
+      action: "defer",
+      resultingStatus: "Deferred",
+      reason: "Awaiting approved client evidence."
+    });
+    expect(after.decisions.map((decision) => decision.action)).toEqual(["revise", "defer"]);
+    expect(after.sources.filter((source) => source.sourceType === "userAnswer")).toHaveLength(1);
+    expectNoDuplicatePlanningRecords(after);
+  });
+
+  it("preserves confirmed and stale historical human provenance across refresh", async () => {
+    const storage = new MemoryStorage();
+    const proposalId = await generateAndRevise(storage);
+    const confirmed = await materializeProjectPlanningClarificationHumanDecision(projectId, {
+      proposalId,
+      action: "confirm"
+    }, storage, {
+      now: () => "2026-08-23T12:03:00.000Z",
+      uuid: uuidSequence(
+        "81000000-0000-4000-8000-000000000004",
+        "81000000-0000-4000-8000-000000000005"
+      )
+    });
+    expect(confirmed).toMatchObject({ outcome: "persisted", action: "confirm", issues: [] });
+    const before = getProjectById(projectId, storage)!.planning!;
+    const beforeJson = JSON.stringify(before);
+
+    const result = await runPlanningClarificationGeneration(projectId, { storage });
+    const after = getProjectById(projectId, storage)!.planning!;
+    const answers = after.sources.filter((source) => source.sourceType === "userAnswer");
+
+    expect(result).toMatchObject({ outcome: "unchanged", successful: true });
+    expect(JSON.stringify(after)).toBe(beforeJson);
+    expect(after.proposals.find((entry) => entry.proposalId === proposalId)).toMatchObject({
+      status: "Confirmed",
+      value: yamlAnswer()
+    });
+    expect(after.decisions.map((decision) => decision.action)).toEqual(["revise", "confirm"]);
+    expect(answers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ authority: "informational", availability: "stale" }),
+      expect.objectContaining({ authority: "confirmed", availability: "current" })
+    ]));
+    expect(answers).toHaveLength(2);
+    expectNoDuplicatePlanningRecords(after);
+  });
+
+  it("still applies deterministic stale and replacement lifecycle after a human answer", async () => {
+    const storage = new MemoryStorage();
+    const proposalId = await generateAndRevise(storage);
+    const generated = getProjectById(projectId, storage)!;
+    const predecessor = generated.planning!.proposals.find((proposal) => proposal.proposalId === proposalId)!;
+    const humanSource = generated.planning!.sources.find((source) => source.sourceType === "userAnswer")!;
+    persist(storage, [{
+      ...generated,
+      planning: {
+        ...generated.planning!,
+        proposals: generated.planning!.proposals.map((proposal) => proposal.proposalId === proposalId ? {
+          ...proposal,
+          applicableDomains: ["security"],
+          fingerprint: "c".repeat(64)
+        } : proposal)
+      }
+    }]);
+
+    const result = await runPlanningClarificationGeneration(projectId, { storage });
+    const refreshed = getProjectById(projectId, storage)!.planning!;
+    const stale = refreshed.proposals.find((proposal) => proposal.proposalId === proposalId)!;
+    const replacement = refreshed.proposals.find((proposal) => proposal.proposalId === stale.supersededByProposalId)!;
+
+    expect(result).toMatchObject({ outcome: "refreshed", successful: true });
+    expect(stale).toMatchObject({ status: "Superseded", value: predecessor.value });
+    expect(replacement).toMatchObject({ status: "Needs Clarification", ruleId: predecessor.ruleId });
+    expect(replacement.value).toEqual({
+      kind: "clarification",
+      question: "Who is responsible for installing and validating any approved Canvas YAML, where would it be applied, and is YAML applicable to this project?"
+    });
+    expect(replacement.value).not.toEqual(predecessor.value);
+    expect(stale.sourceIds).toContain(humanSource.sourceId);
+    expect(replacement.sourceIds).not.toContain(humanSource.sourceId);
+    expect(replacement.sourceIds.filter((sourceId) =>
+      refreshed.sources.find((source) => source.sourceId === sourceId)?.sourceType === "userAnswer"
+    )).toHaveLength(0);
+    expect(refreshed.sources.find((source) => source.sourceId === humanSource.sourceId)).toEqual(humanSource);
+    expect(refreshed.decisions.map((decision) => decision.action)).toEqual(expect.arrayContaining(["revise", "markStale", "supersede"]));
+    expectNoDuplicatePlanningRecords(refreshed);
   });
 
   it("preserves predecessor history while the real lifecycle stales changed evidence and creates a linked replacement", async () => {

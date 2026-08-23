@@ -1,5 +1,35 @@
 # Test Plan
 
+## 2026-08-23 Phase 5C.3C.3H.4A.1 Refresh Planning human-provenance correction
+
+1. Verify current informational, current confirmed, and stale historical `userAnswer` records referenced by clarification planning remain outside deterministic source reconciliation `current`, `existingOnly`, and `nonCurrent` results.
+2. Verify those human sources produce no `unsupportedExistingClarificationSource`, while unsupported in-scope non-`userAnswer` provenance remains fail closed.
+3. Verify deterministic `projectRule` and `readinessPrerequisite` exact, changed, stale, removed, ambiguous, and identity-validation behavior remains unchanged.
+4. Verify ordinary exact materialization resolves persisted proposal source IDs and excludes only positively identified `userAnswer` records from the generator-owned binding comparison.
+5. Verify unresolved and every non-`userAnswer` source ID remain in the comparison or fail earlier through existing normalization; no permissive unknown-source filtering is allowed.
+6. Verify informational and confirmed human provenance leaves ordinary materialization unchanged with zero writes, UUIDs, clocks, new sources, new proposals, or new decisions.
+7. Verify current confirmed plus stale informational human-answer history remains preserved without mutation or duplication.
+8. Verify an extra deterministic non-human source binding still produces `existingProposalSourceBindingMismatch` without repair.
+9. Verify Revised plus current informational provenance and Confirmed plus current/stale provenance produce no false lifecycle-analysis issue or status-based special case.
+10. Verify changed-field and rule-version rollover lifecycle comparisons exclude only positively identified `userAnswer` IDs, retain unresolved/non-human IDs, and preserve existing applicability/rule classifications.
+11. Verify lifecycle comparison omits `value` only when an attached ID resolves to `userAnswer`, across current informational, current confirmed, and stale historical provenance.
+12. Verify Confirmed or other status without attached `userAnswer` does not suppress a differing value, and valid non-user deterministic provenance does not establish human ownership.
+13. Verify sourceChanged, ruleChanged, and applicabilityChanged replacement proofs accept differing human-owned predecessor values while keeping every other stable-content requirement strict.
+14. Verify replacement proof without attached `userAnswer` continues to block an unrelated value difference, and unsupported or unresolved source identities remain fail closed.
+15. Run Generate -> Revise -> Refresh through the real repository and verify `unchanged`, preserved status/value/source IDs/decision history, and zero duplicates.
+16. Run Generate -> Revise -> Defer with reason -> Refresh and verify Deferred status, saved answer, informational source, both decisions, and reason remain exact.
+17. Run Generate -> Revise -> Confirm -> Refresh and verify Confirmed status/value, current confirmed source, stale informational history, and both decisions remain exact.
+18. Run Generate -> Revise -> deterministic applicability change -> Refresh and verify `refreshed`, preserved answered predecessor/history, linked unanswered successor, generated successor value, and zero copied `userAnswer` IDs.
+19. Reproduce the live App flow with generated YAML planning, structured answer entry, Save for review, Defer, and explicit Refresh; require safe current feedback and zero valid-flow unsafe Refresh messages.
+20. Verify App mount, Planning navigation, and decision actions perform zero automatic Generate or Refresh calls.
+21. Verify no answer values enter deterministic sources, fingerprints, errors, feedback, logs, analytics, readiness, mapping, Apply, or output paths.
+22. Verify no source precedence, Planning transition, readiness/output eligibility, schema/version, registry/backend binding, Storage 6/migration, dependency, Node/CI, or TTI Draft blocker change.
+23. Verify approved deterministic source, proposal, stale-transition, replacement, supersession, and ordinary materialization classifications remain active after human provenance exists.
+24. Scan reconciliation, stale propagation/materialization, replacement materialization, and ordinary materialization for any independent persisted-to-generated value or full-source comparison; stop rather than expanding scope if found.
+25. Run clean install, lint, app typecheck, six focused correction suites, decision-provenance suites, lifecycle/repository suites, UI suites, relevant product regressions, full tests, coverage, build, production/advisory audits, diff checking, exact twelve-file scope, main/worktree refs, and stash preservation.
+
+Validation result: passed. Focused correction validation passed 6 files and 99 tests; decision provenance passed 3 files and 94 tests; lifecycle/repository passed 5 files and 162 tests; required UI validation passed 4 files and 88 tests; adjacent product regressions passed 14 files and 318 tests. Full and coverage validation passed 73 unit/integration files with 2,666 tests and 7 UI files with 73 tests, for 80 files and 2,739 tests total. Coverage was 90.17% statements, 82.49% branches, 95.38% functions, and 93.95% lines. Build and the zero-vulnerability production audit passed; the advisory full audit reported 25 development/tooling findings (2 moderate, 23 high). Broader value/source scans found no additional independent comparison requiring scope expansion. No dependency remediation or unauthorized production change was made.
+
 ## 2026-08-23 Phase 5C.3C.3H.5R clarification answer-workflow hardening replay
 
 1. Verify opening text, boolean, enum, zero-row string-list, structured-record, and zero-row structured-record-list roots focuses the first enabled answer-entry control.

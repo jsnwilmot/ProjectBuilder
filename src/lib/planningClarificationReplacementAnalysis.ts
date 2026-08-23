@@ -339,8 +339,9 @@ function proveSourceChangedReplacement(
   nonCurrentSourceIds: ReadonlySet<string>,
   generatedFingerprint: string
 ) {
+  const compareValue = !hasHumanAnswerProvenance(existing, sourcesById);
   const baseIssues = stableIdentityFieldsMatch(existing, generated, ["projectId", "ruleSetId", "ruleSetVersion", "ruleId", "ruleVersion", "target", "category"])
-    .concat(stableContentFieldsMatch(existing, generated, true));
+    .concat(stableContentFieldsMatch(existing, generated, true, compareValue));
   if (baseIssues.length > 0) {
     return proofBlocked(...baseIssues.map((field) => issue("replacementCauseMismatch", "sourceChanged replacement changed fields outside source evidence.", undefined, generated.proposalKey, existing.proposalId, field)));
   }
@@ -384,8 +385,9 @@ function proveRuleChangedReplacement(
   nonCurrentSourceIds: ReadonlySet<string>,
   generatedFingerprint: string
 ) {
+  const compareValue = !hasHumanAnswerProvenance(existing, sourcesById);
   const baseIssues = stableIdentityFieldsMatch(existing, generated, ["projectId", "ruleSetId", "ruleId", "target", "category"])
-    .concat(stableContentFieldsMatch(existing, generated, true));
+    .concat(stableContentFieldsMatch(existing, generated, true, compareValue));
   if (baseIssues.length > 0 || existing.ruleVersion === generated.ruleVersion || existing.fingerprint === generatedFingerprint) {
     return proofBlocked(issue("ruleRolloverUnresolved", "ruleChanged replacement requires exact rule-version rollover and otherwise stable fields.", undefined, generated.proposalKey, existing.proposalId, baseIssues[0] ?? "ruleVersion"));
   }
@@ -426,8 +428,9 @@ function proveApplicabilityChangedReplacement(
   currentSourcesByKey: ReadonlyMap<string, PlanningClarificationSourceCurrentReconciliation>,
   generatedFingerprint: string
 ) {
+  const compareValue = !hasHumanAnswerProvenance(existing, sourcesById);
   const baseIssues = stableIdentityFieldsMatch(existing, generated, ["projectId", "ruleSetId", "ruleSetVersion", "ruleId", "ruleVersion", "target", "category"])
-    .concat(stableContentFieldsMatch(existing, generated, false));
+    .concat(stableContentFieldsMatch(existing, generated, false, compareValue));
   const applicabilityChanged = !sameStringArray(existing.applicableProjectTypes, generated.applicableProjectTypes) ||
     !sameStringArray(existing.applicableDomains, generated.applicableDomains);
   if (baseIssues.length > 0 || !applicabilityChanged || existing.fingerprint === generatedFingerprint) {
@@ -483,7 +486,8 @@ function stableIdentityFieldsMatch(
 function stableContentFieldsMatch(
   existing: PlanningProposalRecord,
   generated: PlanningClarificationProposalBlueprint,
-  includeApplicability: boolean
+  includeApplicability: boolean,
+  compareValue: boolean
 ): string[] {
   const changed: string[] = [];
   const fields = [
@@ -500,7 +504,7 @@ function stableContentFieldsMatch(
   for (const field of fields) {
     switch (field) {
       case "value":
-        if (!sameJson(existing.value, generated.value)) changed.push(field);
+        if (compareValue && !sameJson(existing.value, generated.value)) changed.push(field);
         break;
       case "title":
         if (existing.title !== generated.title) changed.push(field);
@@ -534,6 +538,13 @@ function stableContentFieldsMatch(
   return changed;
 }
 
+function hasHumanAnswerProvenance(
+  proposal: PlanningProposalRecord,
+  sourcesById: ReadonlyMap<string, PlanningSourceReference>
+): boolean {
+  return proposal.sourceIds.some((sourceId) => sourcesById.get(sourceId)?.sourceType === "userAnswer");
+}
+
 function orderedSourceKeys(
   proposal: PlanningProposalRecord,
   sourcesById: ReadonlyMap<string, PlanningSourceReference>
@@ -541,8 +552,14 @@ function orderedSourceKeys(
   const entries: Array<{ sourceKey: string; source: PlanningSourceReference }> = [];
   for (const sourceId of proposal.sourceIds) {
     const source = sourcesById.get(sourceId);
-    const sourceKey = source ? deriveExistingSourceKey(source) : null;
-    if (!source || !sourceKey) {
+    if (!source) {
+      return null;
+    }
+    if (source.sourceType === "userAnswer") {
+      continue;
+    }
+    const sourceKey = deriveExistingSourceKey(source);
+    if (!sourceKey) {
       return null;
     }
     entries.push({ sourceKey, source });

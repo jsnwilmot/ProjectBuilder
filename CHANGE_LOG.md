@@ -1,5 +1,71 @@
 # Change Log
 
+## 2026-08-23 - Phase 5C.3C.3H.4A.1 - Refresh Planning Human-Provenance Reconciliation Correction
+
+### Summary
+
+- Corrected the complete Refresh ownership defect exposed by human acceptance across deterministic source reconciliation, lifecycle source/value and rule-rollover analysis, replacement source/value proof, and ordinary exact materialization binding.
+- Excluded only positively identified attached `userAnswer` provenance and its human-revised proposal value from generator-owned comparisons while preserving complete persisted sources, values, decisions, and proposal attachments.
+- Kept unresolved IDs and unsupported non-`userAnswer` provenance fail closed; no broad unknown-source filtering was introduced.
+- Kept value comparison strict when no attached source resolves to `userAnswer`; status, source authority, and source availability do not independently establish human value ownership.
+- Added direct informational, confirmed, stale-history, unsupported-source, unresolved-source, deterministic lifecycle/value, replacement proof, and ordinary materialization regressions.
+- Added real repository regressions for Revise -> Refresh, Revise -> Defer -> Refresh, and Revise -> Confirm -> Refresh, plus the live deferred App acceptance flow.
+- Added the mandatory Revise -> deterministic applicability change -> Refresh regression, preserving the answered predecessor while creating an unanswered `Needs Clarification` successor with generated value and zero copied `userAnswer` sources.
+- Made no orchestration, repository, decision-contract, decision-materialization, UI production, schema, storage, readiness, mapping, Apply, output, dependency, Node, CI, or deployment change.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationSourceReconciliation.ts` - excludes `userAnswer` from deterministic reconciliation membership and unsupported-source classification.
+- `src/lib/planningClarificationMaterialization.ts` - projects exact proposal bindings to non-`userAnswer` IDs for deterministic comparison without mutating persisted provenance.
+- `src/lib/planningClarificationLifecycleAnalysis.ts` - projects changed-field and rule-rollover source comparisons to non-`userAnswer` IDs without changing lifecycle policy.
+- `src/lib/planningClarificationReplacementAnalysis.ts` - projects positively proven human provenance and proposal values out of deterministic replacement proof while retaining strict non-human and unresolved-source handling.
+- `src/tests/planningClarificationSourceReconciliation.test.ts` - covers informational, confirmed, stale, and unsupported source boundaries.
+- `src/tests/planningClarificationMaterialization.test.ts` - covers exact binding with current and historical human provenance plus non-human fail-closed behavior.
+- `src/tests/planningClarificationLifecycleAnalysis.test.ts` - covers Revised and Confirmed human provenance without false deterministic lifecycle changes.
+- `src/tests/planningClarificationReplacementAnalysis.test.ts` - covers source, rule, and applicability replacement proof with current/historical human provenance and differing human values plus strict negative cases.
+- `src/tests/planningClarificationOrchestration.test.ts` - covers the three real repository Refresh sequences and preservation invariants.
+- `src/tests/App.planningGeneration.test.tsx` - reproduces the generated answer, Defer, and explicit Refresh human acceptance sequence.
+- `CHANGE_LOG.md` - records the complete source-and-value ownership boundary and preserved scope.
+- `TEST_PLAN.md` - records the correction and mandatory validation matrix.
+
+### Files removed
+
+- None.
+
+### Scope boundaries preserved
+
+- Human answer values are not copied into deterministic sources, fingerprints, errors, logs, or Refresh feedback.
+- Ordinary materialization creates zero `userAnswer` records; the human-decision lifecycle remains their sole owner.
+- Proposal source IDs and human source records remain byte-semantically unchanged during an unchanged Refresh.
+- Source precedence, Planning transitions, readiness/output eligibility, schema versions, ten production answer bindings, absent backend binding, Storage Version 6, and zero migrations remain unchanged.
+- TTI package readiness remains Draft and all 15 authoritative generated-content blockers remain unresolved.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, app TypeScript checking, and diff checking passed.
+- Focused correction validation passed 6 files and 99 tests; decision provenance passed 3 files and 94 tests; lifecycle/repository passed 5 files and 162 tests.
+- Required UI validation passed 4 files and 88 tests; adjacent product regressions passed 14 files and 318 tests.
+- `npm.cmd test` passed 73 unit/integration files with 2,666 tests and 7 UI files with 73 tests, for 80 files and 2,739 tests total.
+- `npm.cmd run test:coverage` passed the same 2,739 tests with 90.17% statements, 82.49% branches, 95.38% functions, and 93.95% lines.
+- `npm.cmd run build` passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high` passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high` exited 1 with 25 advisory development/tooling vulnerabilities (2 moderate, 23 high); no dependency remediation was performed.
+- Broader scans found no additional independent persisted-to-generated value comparison or full-source generator comparison outside the authorized analysis/reconciliation/materialization boundaries.
+- The exact twelve-file scope, final refs, stash, clean committed worktree, and remote review SHA are verified after the review commit and push.
+
+### Issues found
+
+- Low: the advisory full audit reports 25 development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Return the review commit to GPT Architect for independent review without integration.
+
 ## 2026-08-23 - Phase 5C.3C.3H.5R - Clarification Answer-Workflow Hardening Replay
 
 ### Summary
