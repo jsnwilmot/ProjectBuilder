@@ -1,5 +1,65 @@
 # Change Log
 
+## 2026-08-23 - Phase 5C.3C.3H.5R - Clarification Answer-Workflow Hardening Replay
+
+### Summary
+
+- Replayed the independently reviewed H.5 answer-workflow hardening on the integrated H.4A baseline without cherry-picking or modifying the preserved original H.5 commit.
+- Moved answer-entry focus to the first enabled control for all six supported root kinds, with the answer heading retained as the deterministic no-control fallback.
+- Added focused, React-generated stale-session status association while preserving the draft, dirty signal, disabled editing, enabled Cancel, and invalid-save error-summary focus.
+- Strengthened all five Planning exit guards, both New Project entry points, multi-draft unload protection, successful Revise focus/cleanup, explicit Confirm ordering, and Confirmed read-only regressions.
+- Added Planning-scoped width, nested-content, validation-location, and renderer wrapping hardening while preserving H.4A Generate/Refresh actions, feedback, pending protection, and responsive behavior.
+- Added no capability, answer kind, schema, registry, backend binding, persistence, storage, readiness, mapping, Apply, output, dependency, Node/CI, or deployment change.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/components/Planning/ClarificationDecisionControls.tsx` - adds first-enabled-control focus and stale-session focus/description orchestration.
+- `src/styles/global.css` - combines H.5 Planning-scoped width and long-content containment with H.4A Generate/Refresh styles.
+- `src/tests/ClarificationDecisionControls.test.tsx` - strengthens six-kind focus, stale/error/Cancel focus, privacy, and responsive coverage.
+- `src/tests/PlanningView.test.tsx` - preserves H.4A generation tests and strengthens read-only review ordering and long-content rendering coverage.
+- `src/tests/App.navigation.test.tsx` - covers all guarded destinations, both New Project entry points, and the multi-draft unload lifecycle.
+- `src/tests/App.planningDecisions.test.tsx` - strengthens successful Revise focus/cleanup and explicit Confirm/Confirmed persistence coverage.
+- `CHANGE_LOG.md` - records this controlled replay after H.4A.
+- `TEST_PLAN.md` - records the combined H.5R and H.4A regression matrix.
+
+### Files removed
+
+- None.
+
+### Scope boundaries preserved
+
+- H.4A Generate Planning, Refresh Planning, pending protection, operation feedback, explicit-only orchestration, and responsive behavior remain unchanged.
+- The primitive editor, structured editor, renderer, App, PlanningView production component, project hook, orchestration, repository, schemas, registry, rules, storage, and migration files remain unchanged.
+- Incomplete drafts remain memory-only; Storage Version 6 has zero new migrations.
+- Planning schema `phase-5c.1.1`, rule-set version `phase-5c.1.1`, answer-schema version `phase-5c.3c.3c`, ten production registry entries, and clarification rule versions `1.0.0` remain unchanged.
+- The backend binding remains absent; readiness, writable mappings, Apply, Power Fx, YAML generation, documents, manifests, ZIP, export, and implementation assets remain unchanged.
+- TTI package readiness remains Draft and all 15 authoritative generated-content blockers remain unresolved and unweakened.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, and app TypeScript checking passed.
+- Seven focused answer-workflow suites passed 124 tests; the isolated navigation suite passed 24 tests; the H.4A generation/refresh matrix passed 4 files and 41 tests.
+- Lifecycle and repository regressions passed 12 files and 275 tests; product foundation regressions passed 12 files and 304 tests.
+- `npm.cmd test` passed 73 unit/integration files with 2,646 tests and 7 UI files with 73 tests, for 80 files and 2,719 tests total.
+- `npm.cmd run test:coverage` passed the same 2,719 tests with 90.14% statements, 82.44% branches, 95.37% functions, and 93.94% lines.
+- `npm.cmd run build` passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high` passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high` exited 1 with 6 advisory development/tooling vulnerabilities (2 moderate, 4 high); no dependency remediation was performed.
+
+### Issues found
+
+- None in the replayed production behavior.
+- Low: the advisory full audit reports 6 development/tooling findings (2 moderate, 4 high); dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Obtain independent GPT Architect review of the new exact H.5R review commit before any integration.
+
 ## 2026-08-23 - Phase 5C.3C.3H.4A - Explicit Planning Generation and Refresh
 
 ### Summary

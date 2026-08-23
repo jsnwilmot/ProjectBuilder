@@ -412,13 +412,31 @@ describe("PlanningView", () => {
   });
 
   it("renders a valid Revised saved answer before the separate Confirm decision action", () => {
-    renderPlanningView(project(revisedYamlPlanning()));
+    const longAnswer = `SolutionOwner${"X".repeat(300)}`;
+    const revised = revisedYamlPlanning();
+    const proposal = revised.proposals[0]!;
+    const value = {
+      kind: "structuredRecord" as const,
+      value: {
+        installationResponsibility: { kind: "text" as const, value: longAnswer },
+        validationResponsibility: { kind: "text" as const, value: "Technical reviewer" },
+        yamlInstallationLocation: { kind: "text" as const, value: "Approved Canvas app" },
+        yamlParentRelationship: { kind: "text" as const, value: "Approved parent" }
+      }
+    };
+    renderPlanningView(project({
+      ...revised,
+      proposals: [{ ...proposal, value }],
+      decisions: revised.decisions.map((decision) => ({ ...decision, value }))
+    }));
 
     const reviewHeading = screen.getByRole("heading", { name: "Answer for review" });
     const confirm = screen.getByRole("button", { name: "Confirm decision" });
     expect(reviewHeading.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("Solution owner")).toBeInTheDocument();
+    expect(screen.getByText(longAnswer)).toBeInTheDocument();
+    expect(screen.getByText(longAnswer).closest(".planning-answer-renderer-field")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Answer question|Save answer/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("renders a valid Confirmed answer read-only without decision controls", () => {

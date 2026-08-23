@@ -1,5 +1,32 @@
 # Test Plan
 
+## 2026-08-23 Phase 5C.3C.3H.5R clarification answer-workflow hardening replay
+
+1. Verify opening text, boolean, enum, zero-row string-list, structured-record, and zero-row structured-record-list roots focuses the first enabled answer-entry control.
+2. Verify a valid schema with no interactive descendant focuses the labelled answer-form heading without fabricating a field.
+3. Verify a current-to-stale proposal/rule/version transition preserves the meaningful draft, disables editing and Save, focuses the safe status, associates its React-generated content-independent ID with the form, leaves Cancel enabled, and performs no submission.
+4. Verify invalid Save focuses the safe error summary, retains field/error associations, and makes no repository call.
+5. Verify untouched and confirmed Cancel return focus to `Answer question`, while declined discard preserves the open form and draft.
+6. Verify successful Revise focuses safe feedback, closes only that editor, removes its dirty protection, displays `Answer for review` before Confirm, and performs zero automatic Confirm actions.
+7. Verify separate Confirm persists Confirmed, keeps `Confirmed answer` visible and read-only, and exposes no editor or Apply action.
+8. Parameterize Mission Control, Guided Intake, Scope Review, Documents, and Export exits so decline remains in Planning and confirmation opens the requested destination once.
+9. Verify both rendered New Project entry points require discard, decline creates zero projects, and confirmation creates exactly one project.
+10. Verify two meaningful proposal drafts coexist, use one effective `beforeunload` lifecycle, remain protected after one cancellation, and remove protection only after both clear.
+11. Verify component and App discard confirmations use generic wording and exclude answer values, proposal/rule IDs, source contents, and security answers.
+12. Verify the dirty boundary remains only `(proposalId, meaningful)`, with no answer, schema, rule, source, or security content crossing into App.
+13. Verify answer contents never become DOM IDs, data attributes, hidden inputs, analytics, console output, or control identifiers.
+14. Verify Planning-scoped form, error, stale, nested editor, and review wrappers remain shrink-safe and preserve H.4A action wrapping and 44px touch targets at 860px, 640px, and 480px.
+15. Verify long unbroken answers, validation locations, renderer values, lists, records, and nested records wrap without truncating canonical content.
+16. Verify the unbound backend remains fail closed with zero editor, renderer, generic binding, or unbound Revised Confirm path.
+17. Verify H.4A zero-state Generate, explicit Refresh, pending protection, safe feedback, meaningful-answer Refresh blocking, and no-auto behavior remain unchanged.
+18. Regress H.4A orchestration, answer editors and renderer, answer-entry selection, planning decisions, navigation, lifecycle materializers, repository, Planning view model, client review, controlled Apply, generation, export, and every App UI leg.
+19. Verify no durable draft persistence, migration, schema/version, registry/backend, readiness, writable mapping, Apply, output, dependency, Node/CI, deployment, or TTI Draft blocker change.
+20. Compare the old H.5 semantic diff with the H.5R diff and permit differences only for preserved H.4A Generate/Refresh styles, PlanningView props/tests, and governance history.
+21. Verify exactly eight modified files, zero created files, zero removed files, and no change to `App.tsx`, `PlanningView.tsx`, orchestration, editors, renderer, foundations, package files, or workflows.
+22. Run clean install, lint, app typecheck, focused H.5R suites, H.4A regressions, lifecycle/product regressions, full tests, coverage, build, production and advisory audits, diff/scope checks, and final ref/stash/worktree checks.
+
+Validation result: all behavior and regression gates passed. Seven focused answer-workflow files passed 124 tests; isolated navigation passed 24 tests; H.4A generation/refresh passed 4 files and 41 tests; lifecycle/repository passed 12 files and 275 tests; product foundation passed 12 files and 304 tests. Full and coverage validation passed 73 unit/integration files with 2,646 tests and 7 UI files with 73 tests, for 80 files and 2,719 tests total. Coverage was 90.14% statements, 82.44% branches, 95.37% functions, and 93.94% lines. Build and the zero-vulnerability production audit passed. The advisory full audit reported 6 development/tooling findings (2 moderate, 4 high); no remediation was performed.
+
 ## 2026-08-23 Phase 5C.3C.3H.4A explicit planning generation and refresh
 
 - Initial-generation coverage uses a persisted supported Canvas project with unresolved applicable gates and the real active-rule, phase-gate, draft, blueprint, fingerprint, and repository pipeline; only `Needs Clarification` proposals and their approved sources are created, with no decisions, readiness, or controlled Apply mutation.
