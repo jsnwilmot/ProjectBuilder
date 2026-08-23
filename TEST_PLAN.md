@@ -1,5 +1,28 @@
 # Test Plan
 
+## 2026-08-22 Phase 5C.3C.3H.3 structured answer editors and read-only renderer
+
+- Structured-record coverage verifies recursive field rendering in exact schema order, visible schema labels, required and optional metadata, primitive-child delegation, sibling preservation, undeclared-draft-field exclusion, and no root Add or Remove actions.
+- Structured-record-list coverage verifies untouched zero-row drafts, no `minItems` fabrication, bottom Add, schema-defined empty-row creation, engagement, `Item N` labels, row-associated Remove before fields, exact removal, stable remaining order, final-row removal, `maxItems`, and visible blank rows.
+- Nested-repeater coverage uses current-production-equivalent component usage-target structures to verify local Add and Remove behavior, parent and nested ordering, primitive field editing, sibling preservation, component-local ephemeral IDs, and exact-branch immutable updates.
+- Issue coverage verifies already-safe projected field, row-index, and nested paths associate only with the relevant visible branch while preserving deterministic messages and excluding answer reconstruction.
+- Disabled coverage verifies every primitive descendant and every root or nested Add and Remove action is disabled without emitting draft changes.
+- Read-only coverage validates all six semantic kinds against the supplied exact schema before rendering and uses the canonical validated answer only.
+- Primitive rendering coverage verifies multiline text, Yes and No boolean text, humanized enum display, semantic ordered string lists, and zero editable controls.
+- Structured rendering coverage verifies schema-order labels and values, canonical row order, local `Item N` labels, recursive nested lists, and absent optional-field omission without invented placeholders.
+- Invalid historical-value coverage verifies kind mismatch, missing required fields, unexpected fields, invalid enums, and invalid nested rows fail closed with one generic notice and no answer fragments, raw JSON, or validator details.
+- HTML-safety coverage verifies normal React interpolation, literal benign HTML- and Markdown-looking text, fail-closed script-like content, and no `dangerouslySetInnerHTML`.
+- Privacy coverage verifies no value-derived DOM IDs, hidden serialization, raw-answer data attributes, logging, analytics, network requests, or executable permission interpretation.
+- Static isolation verifies zero new live Planning consumers, zero UI Revise or Confirm paths, the structured editor as the only new production primitive-editor consumer, and no repository, persistence, readiness, mapping, Apply, generation, or output integration.
+- Foundation regressions cover primitive editing, answer drafts, entry selection, schema validation, registry bindings, and decision contracts without foundation file changes.
+- Planning regressions cover decision controls, Planning view and view model, decision hook, App navigation and Planning decisions, repository, client review, controlled Apply, generation, and export with no live answer entry.
+- Required validation includes clean install, lint, app typecheck, focused editor and renderer tests, foundation and Planning regressions, full tests, coverage, build, production and advisory audits, diff, exact seven-file scope, clean primary worktree, and preserved stash checks.
+- Install, lint, app typecheck, focused validation (8 files, 153 tests), relevant regressions (16 files, 458 tests), and App navigation/Planning-decision regressions (2 files, 17 tests) passed.
+- Full validation passed across 70 unit/integration files with 2600 tests and 7 UI files with 64 tests, for 77 files and 2664 tests total.
+- Coverage passed across the same 2664 tests with 90.06% statements, 82.25% branches, 95.17% functions, and 93.78% lines.
+- Build passed with the existing Vite large-chunk warning.
+- Production audit passed with 0 vulnerabilities; the advisory full audit exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high), with no dependency remediation.
+
 ## 2026-08-21 Phase 5C.3C.3E clarification answer-schema registry bindings
 
 - Production registry coverage requires exactly these ten `@1.0.0` identities in rule-priority order: SharePoint internal names, Canvas screens, Canvas controls, Canvas components, YAML planning, delegation, security permissions, testing outcomes, ALM/rollback, and release approval.

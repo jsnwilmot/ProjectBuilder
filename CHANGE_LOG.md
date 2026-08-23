@@ -1,5 +1,57 @@
 # Change Log
 
+## 2026-08-22 - Phase 5C.3C.3H.3 - Structured Clarification Answer Editors and Renderer
+
+### Summary
+
+- Added isolated controlled editors for `structuredRecord` and `structuredRecordList` answer drafts, including recursively nested structured records and repeated lists.
+- Reused `ClarificationAnswerPrimitiveEditor` for text, boolean, enum, and string-list leaves while preserving schema field order, field labels, and required metadata.
+- Implemented ordered `Item N` repeated rows with associated Remove actions before row fields and Add actions after every repeater.
+- Preserved draft engagement, row ordering, sibling branches, and component-local ephemeral row IDs without fabricating `minItems` rows or deleting blank draft rows.
+- Added an isolated, read-only, exact-schema renderer for all six semantic answer kinds, including nested structured lists.
+- Made invalid saved values fail closed behind a generic notice without raw answer fragments or validator details; valid enum values use the existing humanized display helper.
+- Added no live Planning integration, Revise submission, confirmation action, navigation guard, persistence, readiness, mapping, Apply, generation, or output behavior.
+- Preserved Planning and answer-schema versions, storage version 6, the ten-entry production registry, absent backend binding, and all TTI Draft blockers.
+
+### Files created
+
+- `src/components/Planning/ClarificationAnswerStructuredEditor.tsx` - recursively edits structured answer drafts while delegating primitive leaves.
+- `src/components/Planning/ClarificationAnswerValueRenderer.tsx` - validates and renders canonical saved answers read-only.
+- `src/tests/ClarificationAnswerStructuredEditor.test.tsx` - covers record, repeater, nesting, association, disabled, and isolation behavior.
+- `src/tests/ClarificationAnswerValueRenderer.test.tsx` - covers all-six-kind rendering, fail-closed validation, safety, privacy, and isolation.
+
+### Files updated
+
+- `src/styles/global.css` - adds Planning-prefixed structured-editor and answer-renderer hierarchy and responsive behavior.
+- `CHANGE_LOG.md` - records this isolated phase.
+- `TEST_PLAN.md` - records the structured editing, renderer, safety, and regression matrix.
+
+### Files removed
+
+- None.
+
+### Testing completed
+
+- `npm.cmd ci`: passed; installed 432 packages and reported 6 development/tooling vulnerabilities (2 moderate, 4 high).
+- `npm.cmd run lint`: passed with no warnings.
+- `npx.cmd tsc --noEmit -p tsconfig.app.json`: passed.
+- Focused editor, renderer, primitive, draft, schema, registry, entry-view-model, and decision-contract validation passed (8 files, 153 tests).
+- Planning, repository, client-review, controlled Apply, generation, and export regressions passed (16 files, 458 tests); App navigation and Planning-decision regressions also passed (2 files, 17 tests).
+- `npm.cmd test`: passed (70 unit/integration files, 2600 tests; 7 UI files, 64 tests; 77 combined files, 2664 tests).
+- `npm.cmd run test:coverage`: passed across the same 2664 tests with 90.06% statements, 82.25% branches, 95.17% functions, and 93.78% lines.
+- `npm.cmd run build`: passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high`: passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high`: exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high) in the known `brace-expansion`, `js-yaml`, `nanoid`, `undici`, `miniflare`, and `wrangler` chains; no remediation was performed.
+
+### Issues found
+
+- Low: existing development/tooling dependency advisories remain outside this phase.
+- Low: existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent Architect review of the exact review commit is required before integration or live Planning use.
+
 ## 2026-08-21 - Phase 5C.3C.3E Clarification Answer-Schema Registry Bindings
 
 ### Summary
