@@ -109,14 +109,18 @@ export function ClarificationDecisionControls({
   const answerFormId = useId();
   const answerHeadingId = useId();
   const answerErrorSummaryId = useId();
+  const answerStaleStatusId = useId();
   const reasonInputRef = useRef<HTMLTextAreaElement>(null);
   const answerHeadingRef = useRef<HTMLHeadingElement>(null);
+  const answerEditorRegionRef = useRef<HTMLDivElement>(null);
   const answerErrorSummaryRef = useRef<HTMLDivElement>(null);
+  const answerStaleStatusRef = useRef<HTMLParagraphElement>(null);
   const answerButtonRef = useRef<HTMLButtonElement>(null);
   const reasonButtonRefs = useRef<Partial<Record<ReasonAction, HTMLButtonElement | null>>>({});
   const returnFocusActionRef = useRef<ReasonAction | null>(null);
-  const focusAnswerHeadingRef = useRef(false);
+  const focusInitialAnswerControlRef = useRef(false);
   const returnFocusToAnswerRef = useRef(false);
+  const previousAnswerSessionIsCurrentRef = useRef(true);
   const submissionPendingRef = useRef(false);
   const dirtyCallbackRef = useRef(onAnswerDraftMeaningfulChange);
   const capabilities = useMemo(
@@ -167,15 +171,25 @@ export function ClarificationDecisionControls({
   }, [activeReasonAction]);
 
   useEffect(() => {
-    if (focusAnswerHeadingRef.current && answerSession) {
-      focusAnswerHeadingRef.current = false;
-      answerHeadingRef.current?.focus();
+    if (focusInitialAnswerControlRef.current && answerSession) {
+      focusInitialAnswerControlRef.current = false;
+      const firstEnabledControl = answerEditorRegionRef.current?.querySelector<HTMLElement>(
+        "input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])"
+      );
+      (firstEnabledControl ?? answerHeadingRef.current)?.focus();
     }
     if (returnFocusToAnswerRef.current && !answerSession && answerEntrySelection.state === "eligible") {
       returnFocusToAnswerRef.current = false;
       answerButtonRef.current?.focus();
     }
   }, [answerEntrySelection.state, answerSession]);
+
+  useEffect(() => {
+    if (answerSession && previousAnswerSessionIsCurrentRef.current && !answerSessionIsCurrent) {
+      answerStaleStatusRef.current?.focus();
+    }
+    previousAnswerSessionIsCurrentRef.current = answerSession ? answerSessionIsCurrent : true;
+  }, [answerSession, answerSessionIsCurrent]);
 
   useEffect(() => {
     if (answerIssues.length > 0) answerErrorSummaryRef.current?.focus();
@@ -235,7 +249,7 @@ export function ClarificationDecisionControls({
     setActiveReasonAction(null);
     setReason("");
     setAnswerIssues([]);
-    focusAnswerHeadingRef.current = true;
+    focusInitialAnswerControlRef.current = true;
     setAnswerSession({
       proposalId: answerEntrySelection.proposalId,
       ruleId: answerEntrySelection.ruleId,
@@ -312,7 +326,10 @@ export function ClarificationDecisionControls({
       {answerSession ? (
         <form
           aria-busy={submitting}
-          aria-describedby={answerIssues.length > 0 ? answerErrorSummaryId : undefined}
+          aria-describedby={[
+            !answerSessionIsCurrent ? answerStaleStatusId : null,
+            answerIssues.length > 0 ? answerErrorSummaryId : null
+          ].filter(Boolean).join(" ") || undefined}
           aria-labelledby={answerHeadingId}
           className="planning-decision-answer-form"
           id={answerFormId}
@@ -324,7 +341,16 @@ export function ClarificationDecisionControls({
         >
           <h4 id={answerHeadingId} ref={answerHeadingRef} tabIndex={-1}>Answer question</h4>
           {!answerSessionIsCurrent ? (
-            <p className="planning-decision-answer-stale" role="status">{ANSWER_STATE_CHANGED_MESSAGE}</p>
+            <p
+              aria-live="polite"
+              className="planning-decision-answer-stale"
+              id={answerStaleStatusId}
+              ref={answerStaleStatusRef}
+              role="status"
+              tabIndex={-1}
+            >
+              {ANSWER_STATE_CHANGED_MESSAGE}
+            </p>
           ) : null}
           {answerIssues.length > 0 ? (
             <div
@@ -342,13 +368,15 @@ export function ClarificationDecisionControls({
               </ul>
             </div>
           ) : null}
-          <AnswerEditor
-            disabled={submitting || !answerSessionIsCurrent}
-            draft={answerSession.draft}
-            issues={answerIssues}
-            schema={answerSession.schema}
-            onChange={updateAnswerDraft}
-          />
+          <div className="planning-decision-answer-editor" ref={answerEditorRegionRef}>
+            <AnswerEditor
+              disabled={submitting || !answerSessionIsCurrent}
+              draft={answerSession.draft}
+              issues={answerIssues}
+              schema={answerSession.schema}
+              onChange={updateAnswerDraft}
+            />
+          </div>
           <div className="planning-decision-form-actions">
             <button
               className="button button-primary"

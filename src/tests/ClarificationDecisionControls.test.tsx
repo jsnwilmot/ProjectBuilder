@@ -298,14 +298,19 @@ describe("ClarificationDecisionControls", () => {
     renderControls(planningFor("pp.canvas.yamlplanning.confirmation"), undefined, onMeaningfulChange);
 
     await user.click(screen.getByRole("button", { name: "Answer question" }));
-    expect(screen.getByRole("heading", { name: "Answer question" })).toHaveFocus();
-    expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("");
+    const firstAnswer = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    expect(firstAnswer).toHaveFocus();
+    expect(firstAnswer).toHaveValue("");
     expect(onMeaningfulChange).toHaveBeenLastCalledWith(proposalId, false);
 
     await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Solution owner");
     expect(onMeaningfulChange).toHaveBeenLastCalledWith(proposalId, true);
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(confirm).toHaveBeenCalledOnce();
+    expect(confirm.mock.calls[0]?.[0]).toBe("Discard answer and stop editing? Select Cancel to keep editing.");
+    expect(confirm.mock.calls[0]?.[0]).not.toContain("Solution owner");
+    expect(confirm.mock.calls[0]?.[0]).not.toContain(proposalId);
+    expect(confirm.mock.calls[0]?.[0]).not.toContain("pp.canvas.yamlplanning.confirmation");
     expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("Solution owner");
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -372,13 +377,19 @@ describe("ClarificationDecisionControls", () => {
   });
 
   it.each([
-    ["text", { kind: "text" }],
-    ["boolean", { kind: "boolean" }],
-    ["enum", { kind: "enum", options: ["confirmed", "blocked"] }],
-    ["stringList", { kind: "stringList", minItems: 1 }],
-    ["structuredRecord", { kind: "structuredRecord", fields: [] }],
-    ["structuredRecordList", { kind: "structuredRecordList", minItems: 1, fields: [] }]
-  ] as const)("dispatches the %s root schema to an approved editor", async (_kind, schema) => {
+    ["text", { kind: "text" }, "textbox", /^Answer/],
+    ["boolean", { kind: "boolean" }, "radio", "Yes"],
+    ["enum", { kind: "enum", options: ["confirmed", "blocked"] }, "combobox", /^Answer/],
+    ["zero-row string list", { kind: "stringList" }, "button", "Add item"],
+    ["structured record", {
+      kind: "structuredRecord",
+      fields: [{ key: "owner", label: "Owner", required: true, schema: { kind: "text" } }]
+    }, "textbox", /Owner/],
+    ["zero-row structured record list", {
+      kind: "structuredRecordList",
+      fields: [{ key: "owner", label: "Owner", required: true, schema: { kind: "text" } }]
+    }, "button", /Add item to Answer/]
+  ] as const)("focuses the first enabled %s answer control", async (_kind, schema, role, name) => {
     const getter = vi.spyOn(answerSchemaRegistry, "getProductionPlanningClarificationAnswerSchema")
       .mockReturnValue(schema as PlanningClarificationAnswerSchema);
     const user = userEvent.setup();
@@ -386,9 +397,22 @@ describe("ClarificationDecisionControls", () => {
 
     await user.click(screen.getByRole("button", { name: "Answer question" }));
     expect(screen.getByRole("heading", { name: "Answer question" })).toBeInTheDocument();
+    expect(screen.getByRole(role, { name })).toHaveFocus();
     expect(screen.queryByText(/schema kind is not supported|draft type does not match|editor is unavailable/)).not.toBeInTheDocument();
 
     unmount();
+    getter.mockRestore();
+  });
+
+  it("falls back to the answer heading when a valid schema has no interactive descendant", async () => {
+    const getter = vi.spyOn(answerSchemaRegistry, "getProductionPlanningClarificationAnswerSchema")
+      .mockReturnValue({ kind: "structuredRecord", fields: [] });
+    const user = userEvent.setup();
+    renderControls(planningFor("pp.canvas.yamlplanning.confirmation"));
+
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+
+    expect(screen.getByRole("heading", { name: "Answer question" })).toHaveFocus();
     getter.mockRestore();
   });
 
@@ -554,7 +578,14 @@ describe("ClarificationDecisionControls", () => {
         onMeaningfulChange={onMeaningfulChange}
       />
     );
-    expect(screen.getByText(/Planning changed while this answer was being edited/)).toBeInTheDocument();
+    const staleStatus = screen.getByText(/Planning changed while this answer was being edited/);
+    expect(staleStatus).toHaveFocus();
+    expect(staleStatus).toHaveAttribute("role", "status");
+    expect(staleStatus).toHaveAttribute("tabindex", "-1");
+    expect(staleStatus.id).not.toContain(proposalId);
+    expect(staleStatus.id).not.toContain("pp.canvas.yamlplanning.confirmation");
+    const answerForm = screen.getByRole("heading", { name: "Answer question" }).closest("form");
+    expect(answerForm).toHaveAttribute("aria-describedby", staleStatus.id);
     expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("Preserved draft");
     expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save answer for review" })).toBeDisabled();
@@ -736,6 +767,8 @@ describe("ClarificationDecisionControls", () => {
     expect(sourceText).not.toMatch(/applyConfirmedPlanningProposal|readinessConfirmations|setReadinessConfirmation/);
     expect(sourceText).not.toMatch(/generateProjectPackage|exportProjectPackage|localStorage|sessionStorage/);
     expect(sourceText).not.toMatch(/reasonCodes|repositoryResult|materializationIssues/);
+    expect(sourceText).toContain("onAnswerDraftMeaningfulChange: (proposalId: string, meaningful: boolean) => void");
+    expect(sourceText).not.toMatch(/type=["']hidden["']|data-[a-z]|console\.|analytics/);
   });
 
   it("uses the existing responsive breakpoints for touch targets, layout, and width safety", () => {
@@ -747,5 +780,9 @@ describe("ClarificationDecisionControls", () => {
     expect(css).toMatch(/\.planning-decision-controls \{[\s\S]*?min-width: 0/);
     expect(css).toMatch(/\.planning-decision-reason-form textarea \{[\s\S]*?width: 100%[\s\S]*?max-width: 100%/);
     expect(css).toMatch(/\.planning-decision-feedback,[\s\S]*?overflow-wrap: anywhere/);
+    expect(css).toMatch(/\.planning-decision-answer-form \{[\s\S]*?width: 100%[\s\S]*?box-sizing: border-box/);
+    expect(css).toMatch(/\.planning-decision-answer-editor \{[\s\S]*?min-width: 0[\s\S]*?overflow-wrap: anywhere/);
+    expect(css).toMatch(/\.planning-answer-structured \{[\s\S]*?width: 100%[\s\S]*?box-sizing: border-box/);
+    expect(css).toMatch(/\.planning-answer-renderer-field dd \{[\s\S]*?overflow-wrap: anywhere/);
   });
 });

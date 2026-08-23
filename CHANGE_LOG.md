@@ -1,5 +1,64 @@
 # Change Log
 
+## 2026-08-22 - Phase 5C.3C.3H.5 - Final Clarification Answer-Workflow Hardening
+
+### Summary
+
+- Moved answer-entry focus to the first enabled control for all six supported root kinds, with the answer heading retained as the deterministic no-control fallback.
+- Added focused, React-generated stale-session status association while preserving the draft, dirty signal, disabled editing, enabled Cancel, and invalid-save error-summary focus.
+- Strengthened all five Planning exit guards, both New Project entry points, multi-draft unload protection, successful Revise focus/cleanup, explicit Confirm ordering, and Confirmed read-only regressions.
+- Added Planning-scoped width, nested-content, validation-location, and renderer wrapping hardening for 860px, 640px, and 480px behavior without changing global typography or touch targets.
+- Strengthened generic-confirmation, dirty-signal, DOM-identifier, safe-error, long-content, and consumer-topology privacy coverage.
+- Added no capability, answer kind, schema, registry, backend binding, persistence, storage, readiness, mapping, Apply, generation, output, dependency, Node/CI, or deployment change.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/components/Planning/ClarificationDecisionControls.tsx` - adds first-enabled-control focus and stale-session focus/description orchestration.
+- `src/styles/global.css` - adds Planning-scoped width and long-content containment.
+- `src/tests/ClarificationDecisionControls.test.tsx` - strengthens six-kind focus, stale/error/Cancel focus, privacy, pending, failure, and responsive coverage.
+- `src/tests/PlanningView.test.tsx` - strengthens read-only review ordering and long-content rendering coverage.
+- `src/tests/App.navigation.test.tsx` - covers all guarded destinations, both New Project entry points, and the multi-draft unload lifecycle.
+- `src/tests/App.planningDecisions.test.tsx` - strengthens successful Revise focus/cleanup and explicit Confirm/Confirmed persistence coverage.
+- `CHANGE_LOG.md` - records this hardening phase.
+- `TEST_PLAN.md` - records the exact H.5 hardening matrix.
+
+### Files removed
+
+- None.
+
+### Scope boundaries preserved
+
+- The primitive editor, structured editor, renderer, App, PlanningView, project hook, repository, schemas, registry, rules, storage, and migration files remain unchanged.
+- Incomplete drafts remain memory-only; Storage Version 6 has zero new migrations.
+- Planning schema `phase-5c.1.1`, rule-set version `phase-5c.1.1`, answer-schema version `phase-5c.3c.3c`, ten production registry entries, and clarification rule versions `1.0.0` remain unchanged.
+- The backend binding remains absent; readiness, writable mappings, Apply, Power Fx, YAML generation, documents, manifests, ZIP, export, and implementation assets remain unchanged.
+- TTI package readiness remains Draft and all 15 authoritative generated-content blockers remain unresolved and unweakened.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, and app TypeScript checking passed.
+- Seven focused suites passed with 132 tests; seven foundation suites passed with 155 tests; 14 product suites passed with 423 tests; all seven App UI legs passed with 73 tests.
+- `npm.cmd test` passed across 70 unit/integration files with 2,626 tests and 7 UI files with 73 tests, for 77 files and 2,699 tests total.
+- `npm.cmd run test:coverage` passed across the same 2,699 tests with 90.10% statements, 82.37% branches, 95.19% functions, and 93.83% lines.
+- `npm.cmd run build` passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high` passed with 0 vulnerabilities.
+- `npm.cmd audit --audit-level=high` exited 1 with 25 development/tooling vulnerabilities (2 moderate, 23 high); the authoritative prior exact-SHA CI reference remains 6 (2 moderate, 4 high), and no dependency remediation was performed.
+- Git diff checking, exact eight-file scope, version/topology invariants, TTI authority, primary-main cleanliness, and stash-preservation checks passed.
+
+### Issues found
+
+- None in the implemented production behavior at the time of this entry.
+- Low: the advisory full audit reports 25 local development/tooling findings (2 moderate, 23 high); dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Obtain independent GPT Architect review of the exact review commit before integration.
+
 ## 2026-08-22 - Phase 5C.3C.3H.4 - Live Clarification Answer Entry and Draft Protection
 
 ### Summary

@@ -43,7 +43,7 @@ import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
 
 declare const process: { cwd(): string };
 
-function planningAnswerProject(): ProjectRecord {
+function planningAnswerProject(includeSecondProposal = false): ProjectRecord {
   const projectId = "app-navigation-answer-project";
   const rule = getPlanningRuleById("pp.canvas.yamlplanning.confirmation");
   if (!rule) throw new Error("Missing YAML planning rule fixture.");
@@ -94,12 +94,52 @@ function planningAnswerProject(): ProjectRecord {
     applicableProjectTypes: ["powerAppsCanvas"],
     applicableDomains: [rule.target.domain]
   };
+  const secondRule = getPlanningRuleById("pp.security.permissions.confirmation");
+  if (!secondRule) throw new Error("Missing permission planning rule fixture.");
+  const secondProjectRuleSourceId = "11111111-1111-4111-8111-000000000103";
+  const secondReadinessSourceId = "11111111-1111-4111-8111-000000000104";
+  const secondSources: PlanningSourceReference[] = includeSecondProposal ? [
+    {
+      sourceId: secondProjectRuleSourceId,
+      sourceType: "projectRule",
+      locator: `planning-rule:${secondRule.ruleId}`,
+      label: secondRule.title,
+      authority: "approved",
+      availability: "current",
+      version: secondRule.ruleVersion
+    },
+    {
+      sourceId: secondReadinessSourceId,
+      sourceType: "readinessPrerequisite",
+      locator: `phase-gate:${secondRule.target.targetKey}`,
+      label: secondRule.title,
+      authority: "approved",
+      availability: "current"
+    }
+  ] : [];
+  const secondProposal: PlanningProposalRecord | null = includeSecondProposal ? {
+    ...proposal,
+    proposalId: "22222222-2222-4222-8222-000000000102",
+    ruleId: secondRule.ruleId,
+    ruleVersion: secondRule.ruleVersion,
+    fingerprint: "e".repeat(64),
+    target: { ...secondRule.target },
+    value: { kind: "clarification", question: secondRule.question },
+    title: secondRule.title,
+    rationale: secondRule.rationale,
+    consequence: secondRule.consequence,
+    sourceIds: [secondProjectRuleSourceId, secondReadinessSourceId],
+    uncertainty: secondRule.uncertainty,
+    restriction: secondRule.restriction,
+    readinessRequirementIds: [secondRule.target.targetKey],
+    applicableDomains: [secondRule.target.domain]
+  } : null;
   const planning: ProjectPlanningState = {
     schemaVersion: PLANNING_SCHEMA_VERSION,
     ruleSetId: PLANNING_RULE_SET_ID,
     ruleSetVersion: PLANNING_RULE_SET_VERSION,
-    sources,
-    proposals: [proposal],
+    sources: [...sources, ...secondSources],
+    proposals: secondProposal ? [proposal, secondProposal] : [proposal],
     decisions: [],
     dependencies: [],
     conflicts: []
@@ -114,8 +154,8 @@ function planningAnswerProject(): ProjectRecord {
   };
 }
 
-function seedPlanningAnswerApp() {
-  const project = planningAnswerProject();
+function seedPlanningAnswerApp(includeSecondProposal = false) {
+  const project = planningAnswerProject(includeSecondProposal);
   saveStorageState({
     version: CURRENT_STORAGE_VERSION,
     activeProjectId: project.identity.id,
@@ -200,43 +240,36 @@ describe("App - navigation", () => {
     expect(screen.getByRole("main")).toHaveFocus();
   });
 
-  it("guards Planning-to-Dashboard navigation and preserves the draft when discard is declined", async () => {
-    const user = userEvent.setup();
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    seedPlanningAnswerApp();
-    render(<App />);
-    await user.click(screen.getByRole("button", { name: "Planning" }));
-    await user.click(screen.getByRole("button", { name: "Answer question" }));
-    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Preserve navigation draft");
-
-    await user.click(screen.getByRole("button", { name: "Mission Control" }));
-
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("Discard unsaved planning answer"));
-    expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("Preserve navigation draft");
-    confirm.mockRestore();
-  });
-
-  it("discards once after confirmation and guards a separate Planning-to-Intake path", async () => {
+  it.each([
+    ["Mission Control", "Mission Control"],
+    ["Guided Intake", "Set the project foundation"],
+    ["Scope Review", "Review project readiness"],
+    ["Documents", "No active generated package"],
+    ["Export", "Generate the handoff package"]
+  ] as const)("guards the Planning-to-%s destination and discards only after confirmation", async (destination, heading) => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     seedPlanningAnswerApp();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Planning" }));
     await user.click(screen.getByRole("button", { name: "Answer question" }));
-    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Discard navigation draft");
+    await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "PRIVATE NAVIGATION DRAFT");
 
-    await user.click(screen.getByRole("button", { name: "Guided Intake" }));
+    await user.click(screen.getByRole("button", { name: destination }));
     expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Guided Intake" }));
+    expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("PRIVATE NAVIGATION DRAFT");
+    await user.click(screen.getByRole("button", { name: destination }));
 
     expect(confirm).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
-    expect(screen.queryByText("Discard navigation draft")).not.toBeInTheDocument();
+    expect(confirm.mock.calls.flat().join(" ")).not.toContain("PRIVATE NAVIGATION DRAFT");
+    expect(confirm.mock.calls.flat().join(" ")).not.toContain("22222222-2222-4222-8222-000000000101");
+    expect(confirm.mock.calls.flat().join(" ")).not.toContain("pp.canvas.yamlplanning.confirmation");
+    expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+    expect(screen.queryByText("PRIVATE NAVIGATION DRAFT")).not.toBeInTheDocument();
     confirm.mockRestore();
   });
 
-  it("guards New project and creates it only after confirmed discard", async () => {
+  it.each([0, 1])("guards New project entry point %s and creates exactly one project after confirmation", async (entryPoint) => {
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
     seedPlanningAnswerApp();
@@ -245,11 +278,11 @@ describe("App - navigation", () => {
     await user.click(screen.getByRole("button", { name: "Answer question" }));
     await user.type(screen.getByRole("textbox", { name: /Installation responsibility/ }), "Guard new project draft");
 
-    await user.click(screen.getAllByRole("button", { name: "New project" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "New project" })[entryPoint]);
     expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
     expect(loadStorageState().projects).toHaveLength(1);
 
-    await user.click(screen.getAllByRole("button", { name: "New project" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "New project" })[entryPoint]);
     expect(screen.getByRole("heading", { name: "Set the project foundation" })).toBeInTheDocument();
     expect(loadStorageState().projects).toHaveLength(2);
     confirm.mockRestore();
@@ -274,6 +307,55 @@ describe("App - navigation", () => {
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(remove.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
+    confirm.mockRestore();
+    add.mockRestore();
+    remove.mockRestore();
+  });
+
+  it("keeps one unload guard until both proposal-local drafts are discarded", async () => {
+    const user = userEvent.setup();
+    const add = vi.spyOn(window, "addEventListener");
+    const remove = vi.spyOn(window, "removeEventListener");
+    const confirm = vi.spyOn(window, "confirm")
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    seedPlanningAnswerApp(true);
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+
+    const yamlRegion = screen.getByRole("region", { name: /Clarification decision actions for Confirm Canvas YAML planning/ });
+    await user.click(within(yamlRegion).getByRole("button", { name: "Answer question" }));
+    await user.type(within(yamlRegion).getByRole("textbox", { name: /Installation responsibility/ }), "PRIVATE YAML DRAFT");
+    const securityRegion = screen.getByRole("region", { name: /Clarification decision actions for Confirm the permission matrix/ });
+    await user.click(within(securityRegion).getByRole("button", { name: "Answer question" }));
+    await user.click(within(securityRegion).getByRole("button", { name: /Add item to Answer/ }));
+    await user.type(within(securityRegion).getByRole("textbox", { name: /User role/ }), "PRIVATE SECURITY DRAFT");
+    await waitFor(() => {
+      const added = add.mock.calls.filter(([type]) => type === "beforeunload").length;
+      const removed = remove.mock.calls.filter(([type]) => type === "beforeunload").length;
+      expect(added - removed).toBe(1);
+    });
+
+    await user.click(within(yamlRegion).getByRole("button", { name: "Cancel" }));
+    const stillGuarded = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(stillGuarded);
+    expect(stillGuarded.defaultPrevented).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+    expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
+    expect(within(securityRegion).getByRole("textbox", { name: /User role/ })).toHaveValue("PRIVATE SECURITY DRAFT");
+
+    await user.click(within(securityRegion).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => {
+      const added = add.mock.calls.filter(([type]) => type === "beforeunload").length;
+      const removed = remove.mock.calls.filter(([type]) => type === "beforeunload").length;
+      expect(added - removed).toBe(0);
+    });
+    const noLongerGuarded = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(noLongerGuarded);
+    expect(noLongerGuarded.defaultPrevented).toBe(false);
+    const prompts = confirm.mock.calls.flat().join(" ");
+    expect(prompts).not.toMatch(/PRIVATE YAML DRAFT|PRIVATE SECURITY DRAFT|22222222-|pp\.security|pp\.canvas/);
     confirm.mockRestore();
     add.mockRestore();
     remove.mockRestore();

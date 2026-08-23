@@ -3326,8 +3326,10 @@ tbody tr:hover {
 .planning-decision-answer-form {
   display: grid;
   gap: 12px;
+  width: 100%;
   min-width: 0;
   max-width: 720px;
+  box-sizing: border-box;
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -3370,8 +3372,10 @@ tbody tr:hover {
 .planning-answer-review {
   display: grid;
   gap: 10px;
+  width: 100%;
   min-width: 0;
   max-width: 720px;
+  box-sizing: border-box;
   margin-top: 15px;
   padding: 14px;
   border: 1px solid var(--border);
@@ -3431,11 +3435,20 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+.planning-decision-answer-editor {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .planning-answer-primitive {
   display: grid;
   gap: 8px;
+  width: 100%;
   min-width: 0;
   max-width: 720px;
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
   border: 0;
@@ -3575,8 +3588,10 @@ tbody tr:hover {
 .planning-answer-structured {
   display: grid;
   gap: 12px;
+  width: 100%;
   min-width: 0;
   max-width: 720px;
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
   border: 0;
@@ -3692,8 +3707,10 @@ tbody tr:hover {
 .planning-answer-renderer {
   display: grid;
   gap: 10px;
+  width: 100%;
   min-width: 0;
   max-width: 720px;
+  box-sizing: border-box;
 }
 
 .planning-answer-renderer-label,
@@ -3769,6 +3786,16 @@ tbody tr:hover {
 .planning-answer-renderer-field dd {
   min-width: 0;
   margin: 0;
+}
+
+.planning-answer-primitive-issues li,
+.planning-answer-structured-issues li,
+.planning-answer-renderer-list li,
+.planning-answer-renderer-record-list li,
+.planning-answer-renderer-field dt,
+.planning-answer-renderer-field dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .planning-answer-renderer-unavailable {

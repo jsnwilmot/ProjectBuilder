@@ -1,5 +1,32 @@
 # Test Plan
 
+## 2026-08-22 Phase 5C.3C.3H.5 final clarification answer-workflow hardening
+
+1. Verify opening text, boolean, enum, zero-row string-list, structured-record, and zero-row structured-record-list roots focuses the first enabled answer-entry control, never an earlier-unavailable or later Save control.
+2. Verify a valid schema with no interactive descendant focuses the labelled answer-form heading without throwing or fabricating a field.
+3. Verify an exact proposal/rule/version transition from current to stale preserves the meaningful draft, disables editing and Save, focuses the safe status, associates its React-generated content-independent ID with the form, leaves Cancel enabled, retains the dirty signal, and performs no submission.
+4. Verify invalid Save focuses the safe error summary, retains field/error associations, makes no repository call, and does not move focus back to the first field or echo values, forged keys, or raw diagnostics.
+5. Verify untouched and confirmed Cancel return focus to `Answer question`, while declined discard preserves the open form, draft, and focus context.
+6. Verify successful Revise focuses safe feedback, closes only that editor, removes its dirty protection, displays `Answer for review` before a separate Confirm control, and performs zero automatic Confirm actions.
+7. Verify the separate Confirm persists Confirmed, keeps `Confirmed answer` visible and read-only, exposes no editor, and exposes no Apply action.
+8. Parameterize Mission Control, Guided Intake, Scope Review, Documents, and Export exits so decline remains in Planning with the draft and confirmation opens the requested destination once.
+9. Verify both rendered New Project entry points require discard, decline creates zero projects, and confirmation creates exactly one project.
+10. Verify two meaningful proposal drafts coexist, use one effective `beforeunload` lifecycle, remain protected after one cancellation, keep navigation guarded while one remains, and remove protection only after both clear.
+11. Verify untouched open editors add no unload listener, one meaningful draft adds protection, successful Revise removes that proposal from the dirty set, and no custom unload answer text is supplied.
+12. Verify component and App discard confirmations use generic planning-answer wording and exclude answer values, proposal/rule IDs, source contents, schema-derived secret data, and security answers.
+13. Verify the dirty boundary remains only `(proposalId, meaningful)`, with no draft, canonical answer, schema, rule identity, source, or security information crossing into App.
+14. Verify answer contents never become DOM IDs, data attributes, hidden inputs, analytics, console output, or control identifiers; visible live/read-only values remain intentional.
+15. Verify Planning-scoped form, error, stale, nested editor, and review wrappers are shrink-safe at 860px, 640px, and 480px; Save/Cancel wrap or stack without clipping and existing 44px touch targets remain intact.
+16. Verify long unbroken answers, validation locations, renderer values, string lists, records, and nested records wrap without truncating canonical content or causing horizontal page overflow.
+17. Regress semantic form naming, required metadata, labels/legends, error and stale associations, `aria-busy`, polite Save status, keyboard Save/Cancel/Add/Remove, and read-only renderer semantics.
+18. Regress the unbound backend as `schemaUnavailable` with zero editor, renderer, caller schema, fallback, and unbound Revised Confirm paths.
+19. Regress topology: PrimitiveEditor is consumed only by StructuredEditor and DecisionControls, StructuredEditor only by DecisionControls, and ValueRenderer only by PlanningView, with no direct App or hook consumption.
+20. Regress answer draft/entry/schema/registry and decision contract/materialization foundations, Planning view model and decision hook, repository, client review, controlled Apply, generation/export, and every App UI leg.
+21. Verify no durable draft persistence, migration, schema/version, registry/backend, readiness, destination/writable mapping, Apply, generation/output, dependency, Node/CI, deployment, or TTI Draft blocker change.
+22. Run clean install, lint, app typecheck, seven focused suites, seven foundation suites, product regressions, full tests, coverage, build, production and advisory audits, diff/scope checks, clean post-commit worktree checks, stash preservation, and unchanged local/remote main checks.
+
+Validation result: all behavior and regression gates passed. Focused validation passed 7 files/132 tests; foundations passed 7 files/155 tests; product regressions passed 14 files/423 tests; App UI passed 7 files/73 tests; full and coverage validation passed 77 files/2,699 tests. Coverage was 90.10% statements, 82.37% branches, 95.19% functions, and 93.83% lines. Build and the zero-vulnerability production audit passed. The advisory full audit reported 25 local development/tooling findings (2 moderate, 23 high) against the authoritative prior exact-SHA CI reference of 6 (2 moderate, 4 high); no remediation was performed.
+
 ## 2026-08-22 Phase 5C.3C.3H.4 live clarification answer entry and draft protection
 
 - Entry-eligibility coverage verifies only exact capability `revise` plus `inputRequired` plus `answer` with an exact registered rule ID/version exposes `Answer question`; the unbound backend remains fail closed.

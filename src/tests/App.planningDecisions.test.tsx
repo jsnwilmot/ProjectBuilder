@@ -135,11 +135,13 @@ describe("App - planning decisions", () => {
     await waitFor(() => expect(add.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
     await user.click(screen.getByRole("button", { name: "Save answer for review" }));
 
-    expect(await screen.findByText("Planning answer saved for review.")).toBeInTheDocument();
+    const savedFeedback = await screen.findByText("Planning answer saved for review.");
+    expect(savedFeedback).toHaveFocus();
     expect(screen.getByRole("heading", { name: "Answer for review" })).toBeInTheDocument();
     expect(screen.getByText("Solution owner")).toBeInTheDocument();
     await waitFor(() => expect(remove.mock.calls.some(([type]) => type === "beforeunload")).toBe(true));
-    expect(loadStorageState().projects[0]?.planning?.proposals[0]).toMatchObject({
+    const revisedPlanning = loadStorageState().projects[0]?.planning;
+    expect(revisedPlanning?.proposals[0]).toMatchObject({
       proposalId,
       status: "Revised",
       value: {
@@ -147,17 +149,24 @@ describe("App - planning decisions", () => {
         value: { installationResponsibility: { kind: "text", value: "Solution owner" } }
       }
     });
+    expect(revisedPlanning?.decisions).toHaveLength(1);
+    expect(revisedPlanning?.decisions[0]).toMatchObject({ proposalId, action: "revise", resultingStatus: "Revised" });
     expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm decision" })).not.toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "Confirm decision" }));
 
     expect(await screen.findByText("Planning decision confirmed.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
     expect(screen.getByText("Solution owner")).toBeInTheDocument();
-    expect(loadStorageState().projects[0]?.planning?.proposals[0]).toMatchObject({
+    const confirmedPlanning = loadStorageState().projects[0]?.planning;
+    expect(confirmedPlanning?.proposals[0]).toMatchObject({
       proposalId,
       status: "Confirmed"
     });
+    expect(confirmedPlanning?.decisions).toHaveLength(2);
+    expect(confirmedPlanning?.decisions.map(({ action }) => action)).toEqual(["revise", "confirm"]);
+    expect(screen.queryByRole("form", { name: "Answer question" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /apply/i })).not.toBeInTheDocument();
     add.mockRestore();
     remove.mockRestore();
@@ -169,7 +178,9 @@ describe("App - planning decisions", () => {
     expect(sourceText).toContain("submitPlanningClarificationDecision,");
     expect(sourceText).toContain("onSubmitClarificationDecision={submitPlanningClarificationDecision}");
     expect(sourceText).toContain("onAnswerDraftMeaningfulChange={handlePlanningAnswerDraftMeaningfulChange}");
+    expect(sourceText).toContain("useCallback((proposalId: string, meaningful: boolean)");
     expect(sourceText).toMatch(/persistenceWarning[\s\S]*className="persistence-warning"/);
     expect(sourceText).not.toMatch(/useState[^\n]*(answerDraft|reasonDraft|submittingProposal|decisionFeedback)/);
+    expect(sourceText).not.toMatch(/setMeaningfulPlanningAnswerDrafts[^\n]*(draft|answerSchema|ruleId|source)/);
   });
 });
