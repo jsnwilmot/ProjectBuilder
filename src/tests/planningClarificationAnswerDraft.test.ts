@@ -2,10 +2,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  arePlanningClarificationAnswerDraftsSemanticallyEqual,
   convertPlanningClarificationAnswerDraft,
   createEmptyPlanningClarificationAnswerDraft,
   createPlanningClarificationStringListDraftItem,
   createPlanningClarificationStructuredRecordListDraftRow,
+  hydratePlanningClarificationAnswerDraft,
   isPlanningClarificationAnswerDraftMeaningful,
   projectPlanningClarificationAnswerIssues,
   validatePlanningClarificationAnswerDraft,
@@ -281,6 +283,84 @@ describe("planning clarification answer draft", () => {
       kind: "structuredRecord",
       fields: { nested: { kind: "structuredRecord", fields: { value: text("answer") } } }
     })).toBe(true);
+  });
+
+  it("hydrates all six canonical kinds without mutating the saved answer", () => {
+    const answers = [
+      { kind: "text", value: "Saved text" },
+      { kind: "boolean", value: false },
+      { kind: "enum", value: "confirmed" },
+      { kind: "stringList", value: [] },
+      { kind: "structuredRecord", value: { name: { kind: "text", value: "Saved name" } } },
+      { kind: "structuredRecordList", value: [{ name: { kind: "text", value: "Saved row" } }] }
+    ] as const;
+    const before = JSON.stringify(answers);
+    const hydrated = sixSchemas.map((schema, index) =>
+      hydratePlanningClarificationAnswerDraft(schema, answers[index], "local-session")
+    );
+
+    expect(hydrated).toMatchObject([
+      { outcome: "hydrated", draft: { kind: "text", value: "Saved text" } },
+      { outcome: "hydrated", draft: { kind: "boolean", value: false } },
+      { outcome: "hydrated", draft: { kind: "enum", value: "confirmed" } },
+      { outcome: "hydrated", draft: { kind: "stringList", engaged: true, items: [] } },
+      { outcome: "hydrated", draft: { kind: "structuredRecord", fields: { name: { value: "Saved name" } } } },
+      { outcome: "hydrated", draft: { kind: "structuredRecordList", engaged: true, rows: [{ fields: { name: { value: "Saved row" } } }] } }
+    ]);
+    expect(JSON.stringify(answers)).toBe(before);
+  });
+
+  it("hydrates nested rows with deterministic local IDs and recursively empty optional fields", () => {
+    const schema: PlanningClarificationAnswerSchema = {
+      kind: "structuredRecordList",
+      minItems: 0,
+      fields: [
+        { key: "name", label: "Name", required: true, schema: { kind: "text" } },
+        { key: "notes", label: "Notes", required: false, schema: { kind: "stringList", minItems: 0 } }
+      ]
+    };
+    const answer = {
+      kind: "structuredRecordList" as const,
+      value: [{ name: { kind: "text" as const, value: "One" } }]
+    };
+    const first = hydratePlanningClarificationAnswerDraft(schema, answer, "edit");
+    const second = hydratePlanningClarificationAnswerDraft(schema, answer, "edit");
+    expect(first).toEqual(second);
+    expect(first).toMatchObject({
+      outcome: "hydrated",
+      draft: {
+        engaged: true,
+        rows: [{
+          draftId: "edit-root-row-0",
+          fields: { notes: { kind: "stringList", engaged: false, items: [] } }
+        }]
+      }
+    });
+  });
+
+  it("fails hydration closed and compares draft meaning while ignoring only local IDs", () => {
+    expect(hydratePlanningClarificationAnswerDraft(
+      { kind: "boolean" },
+      { kind: "text", value: "SECRET INVALID" },
+      "edit"
+    )).toEqual({ outcome: "invalid" });
+
+    const left: PlanningClarificationAnswerDraft = {
+      kind: "stringList", engaged: true, items: [{ draftId: "a", value: "one" }, { draftId: "b", value: "two" }]
+    };
+    const sameMeaning: PlanningClarificationAnswerDraft = {
+      kind: "stringList", engaged: true, items: [{ draftId: "x", value: "one" }, { draftId: "y", value: "two" }]
+    };
+    expect(arePlanningClarificationAnswerDraftsSemanticallyEqual(left, sameMeaning)).toBe(true);
+    expect(arePlanningClarificationAnswerDraftsSemanticallyEqual(left, { ...sameMeaning, engaged: false })).toBe(false);
+    expect(arePlanningClarificationAnswerDraftsSemanticallyEqual(left, {
+      ...sameMeaning,
+      items: [...sameMeaning.items].reverse()
+    })).toBe(false);
+    expect(arePlanningClarificationAnswerDraftsSemanticallyEqual(left, {
+      ...sameMeaning,
+      items: sameMeaning.items.slice(0, 1)
+    })).toBe(false);
   });
 
   it("projects deterministic safe labels for nested issues without echoing answers or unknown fields", () => {

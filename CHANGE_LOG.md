@@ -1,5 +1,62 @@
 # Change Log
 
+## 2026-08-23 - Phase 5C.3C.3I.2 - Human Decision Interaction Completion
+
+### Summary
+
+- Added provenance-gated saved-answer and deferral-reason presentation for valid Revised, Confirmed, answered Deferred, and controlled reopened Needs Clarification clarification records.
+- Added deterministic six-kind saved-answer draft hydration and semantic draft equality that ignores only editor-local draft IDs.
+- Completed `Edit answer`, `Change answer`, and `Resume decision` interactions over the existing 3I.1 `reopen` and `revise` actions without adding statuses, actions, transitions, hook operations, or persistence semantics.
+- Implemented Revised Edit Save as sequential `reopen` then `revise`, including no-write open/cancel behavior, safe partial-failure preservation, revise-only retry, and no rollback.
+- Preserved first-answer behavior, explicit confirmation, global unsaved-draft protection, accessible focus, duplicate-submission protection, and responsive Planning-only presentation.
+- Kept the backend answer schema unbound and kept Planning excluded from readiness, mappings, Apply, generated outputs, and TTI blocker resolution.
+
+### Files created
+
+- None.
+
+### Files updated
+
+- `src/lib/planningClarificationAnswerDraft.ts` - adds validated canonical hydration and semantic draft equality.
+- `src/lib/planningClarificationAnswerEntryViewModel.ts` - adds provenance-gated saved-answer and safe Deferred-reason selectors.
+- `src/components/Planning/ClarificationDecisionControls.tsx` - adds contextual Edit, Change, and Resume interactions plus controlled two-stage Edit persistence.
+- `src/components/Planning/PlanningView.tsx` - renders dedicated saved-answer and deferral-reason sections.
+- `src/app/useProjectBuilder.ts` - widens the existing decision input type to include the existing `reopen` action.
+- `src/styles/global.css` - adds Planning-scoped partial-failure and deferral-reason presentation.
+- `src/tests/planningClarificationAnswerDraft.test.ts` - covers six-kind/nested hydration, deterministic IDs, optional empties, fail-closed validation, and equality.
+- `src/tests/planningClarificationAnswerEntryViewModel.test.ts` - covers positive/negative provenance and safe deferral selection.
+- `src/tests/ClarificationDecisionControls.test.tsx` - covers contextual controls, prefill, dirty state, sequencing, partial retry, and resume locking.
+- `src/tests/PlanningView.test.tsx` - covers saved Deferred/reopened answer and separate reason presentation.
+- `src/tests/useProjectBuilderPlanningDecision.test.tsx` - covers existing reopen forwarding through the single hook operation.
+- `src/tests/App.planningDecisions.test.tsx` - covers real persisted Edit, Change, Deferred, Resume, explicit review, and dirty-guard flows.
+- `src/tests/App.navigation.test.tsx` - remains in the authorized validation scope for navigation and beforeunload regressions.
+- `CHANGE_LOG.md` - records this interaction-completion phase.
+- `TEST_PLAN.md` - records the complete 3I.2 validation matrix.
+
+### Scope boundaries preserved
+
+- No change to 3I.1 decision-contract, materialization, feedback, repository, Planning proposal, editor, renderer, lifecycle, replacement, orchestration, or App production files.
+- No automatic Generate, Refresh, Confirm, Resume, Edit, answer migration, or rollback was added.
+- Planning schema/rules, answer schema, ten bindings, zero backend bindings, Storage Version 6, zero migrations, readiness/output exclusion, and TTI Draft blockers remain unchanged.
+
+### Testing completed
+
+- Clean install, lint, and app TypeScript checking passed.
+- Focused 3I.2 validation passed 7 files and 148 tests; unchanged 3I.1 passed 4 files and 214 tests; H.4A.1 passed 6 files and 99 tests; editors/renderer passed 3 files and 48 tests.
+- Full and coverage validation passed 73 unit/integration files with 2,700 tests and 7 UI files with 74 tests, for 80 files and 2,774 tests total.
+- Coverage passed with 90.14% statements, 82.57% branches, 95.34% functions, and 93.93% lines.
+- Production build passed with the existing Vite large-chunk warning; production audit passed with 0 vulnerabilities.
+- Advisory full audit reported 25 development/tooling findings (2 moderate, 23 high); no dependency remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory-only development audit reports 25 findings; production dependencies report 0 vulnerabilities and remediation is outside scope.
+
+### Remaining work
+
+- Return the single review commit to GPT Architect for independent review; integration remains blocked.
+
 ## 2026-08-23 - Phase 5C.3C.3I.1 - Human Decision Lifecycle Foundation
 
 ### Summary

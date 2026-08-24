@@ -242,6 +242,87 @@ function revisedYamlPlanning(): ProjectPlanningState {
   });
 }
 
+function confirmedYamlPlanning(): ProjectPlanningState {
+  const revised = revisedYamlPlanning();
+  const proposal = revised.proposals[0];
+  const confirmDecisionId = "33333333-3333-4333-8333-333333333335";
+  const confirmedSourceId = "11111111-1111-4111-8111-111111111113";
+  const sourceIds = [sourceId, confirmedSourceId];
+  const informational = { ...revised.sources[1], availability: "stale" as const };
+  const confirmedSource = {
+    ...informational,
+    sourceId: confirmedSourceId,
+    locator: buildPlanningUserAnswerLocator(proposalId, confirmDecisionId)!,
+    authority: "confirmed" as const,
+    availability: "current" as const
+  };
+  const confirmDecision: PlanningDecisionRecord = {
+    decisionId: confirmDecisionId,
+    proposalId,
+    projectId,
+    action: "confirm",
+    previousStatus: "Revised",
+    resultingStatus: "Confirmed",
+    origin: "userAction",
+    recordedAt: timestamp,
+    sourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return {
+    ...revised,
+    sources: [revised.sources[0], informational, confirmedSource],
+    proposals: [{ ...proposal, status: "Confirmed", sourceIds, lastDecisionId: confirmDecisionId }],
+    decisions: [...revised.decisions, confirmDecision]
+  };
+}
+
+function deferredAnsweredYamlPlanning(): ProjectPlanningState {
+  const revised = revisedYamlPlanning();
+  const proposal = revised.proposals[0];
+  const deferredDecisionId = "33333333-3333-4333-8333-333333333336";
+  const deferredDecision: PlanningDecisionRecord = {
+    decisionId: deferredDecisionId,
+    proposalId,
+    projectId,
+    action: "defer",
+    previousStatus: "Revised",
+    resultingStatus: "Deferred",
+    origin: "userAction",
+    recordedAt: timestamp,
+    reason: "Waiting for saved-answer review.",
+    sourceIds: proposal.sourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return {
+    ...revised,
+    proposals: [{ ...proposal, status: "Deferred", lastDecisionId: deferredDecisionId }],
+    decisions: [...revised.decisions, deferredDecision]
+  };
+}
+
+function reopenedYamlPlanning(): ProjectPlanningState {
+  const revised = revisedYamlPlanning();
+  const proposal = revised.proposals[0];
+  const reopenDecisionId = "33333333-3333-4333-8333-333333333337";
+  const reopenDecision: PlanningDecisionRecord = {
+    decisionId: reopenDecisionId,
+    proposalId,
+    projectId,
+    action: "reopen",
+    previousStatus: "Revised",
+    resultingStatus: "Needs Clarification",
+    origin: "userAction",
+    recordedAt: timestamp,
+    sourceIds: proposal.sourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return {
+    ...revised,
+    proposals: [{ ...proposal, status: "Needs Clarification", lastDecisionId: reopenDecisionId }],
+    decisions: [...revised.decisions, reopenDecision]
+  };
+}
+
 describe("PlanningView", () => {
   it("renders an explicit Generate planning action for an empty Canvas project", () => {
     renderPlanningView(project());
@@ -440,22 +521,49 @@ describe("PlanningView", () => {
   });
 
   it("renders a valid Confirmed answer read-only without decision controls", () => {
-    renderPlanningView(project(planning({ proposals: [yamlProposal("Confirmed")] })));
+    renderPlanningView(project(confirmedYamlPlanning()));
 
     expect(screen.getByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
     expect(screen.getByText("Approved Canvas app")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change answer" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Confirm decision|Answer question|Save answer/ })).not.toBeInTheDocument();
   });
 
+  it("renders an answered Deferred item with separate reason, saved answer, and Resume decision", () => {
+    renderPlanningView(project(deferredAnsweredYamlPlanning()));
+
+    expect(screen.getByRole("heading", { name: "Saved answer" })).toBeInTheDocument();
+    expect(screen.getByText("Approved Canvas app")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Deferral reason" }))
+      .toHaveTextContent("Waiting for saved-answer review.");
+    expect(screen.getByRole("button", { name: "Resume decision" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit answer" })).not.toBeInTheDocument();
+  });
+
+  it("recovers a controlled reopened answer as Saved answer with Edit answer", () => {
+    renderPlanningView(project(reopenedYamlPlanning()));
+
+    expect(screen.getByRole("heading", { name: "Saved answer" })).toBeInTheDocument();
+    expect(screen.getByText("Solution owner")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit answer" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
+  });
+
   it("fails a semantically invalid bound historical answer closed and leaves Confirm unavailable", () => {
-    renderPlanningView(project(planning({
-      proposals: [yamlProposal("Revised", {
+    const revised = revisedYamlPlanning();
+    renderPlanningView(project({
+      ...revised,
+      proposals: [{ ...revised.proposals[0], value: {
         kind: "structuredRecord",
         value: { installationResponsibility: { kind: "text", value: "SECRET PARTIAL ANSWER" } }
-      })]
-    })));
+      } }],
+      decisions: revised.decisions.map((decision) => ({ ...decision, value: {
+        kind: "structuredRecord",
+        value: { installationResponsibility: { kind: "text", value: "SECRET PARTIAL ANSWER" } }
+      } }))
+    }));
 
-    expect(screen.getByText(/no longer matches the approved answer structure/)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Answer for review" })).not.toBeInTheDocument();
     expect(screen.queryByText("SECRET PARTIAL ANSWER")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
   });
@@ -468,7 +576,7 @@ describe("PlanningView", () => {
         value: { kind: "text", value: "SECRET UNBOUND ANSWER" }
       })] })));
 
-      expect(screen.getByText(/approved answer structure is unavailable/)).toBeInTheDocument();
+      expect(screen.queryByText(/approved answer structure is unavailable/)).not.toBeInTheDocument();
       expect(screen.queryByText("SECRET UNBOUND ANSWER")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Confirm decision" })).not.toBeInTheDocument();
     }
@@ -682,6 +790,8 @@ describe("PlanningView", () => {
 
     expect(screen.getByText("Planning item deferred.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Deferred or not needed" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Deferral reason" })).toHaveTextContent("Awaiting approved evidence.");
+    expect(screen.getByRole("button", { name: "Resume decision" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Questions to answer" })).not.toBeInTheDocument();
     expect(feedback).toHaveFocus();
   });

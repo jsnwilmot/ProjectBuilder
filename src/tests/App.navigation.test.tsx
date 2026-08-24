@@ -21,7 +21,13 @@ import {
   createDefaultSharePointLibrary,
   createDefaultSharePointList
 } from "../lib/powerPlatform";
-import { STORAGE_KEY, clearPersistenceWarning, loadStorageState, saveStorageState } from "../lib/projectRepository";
+import {
+  STORAGE_KEY,
+  clearPersistenceWarning,
+  loadStorageState,
+  materializeProjectPlanningClarificationHumanDecision,
+  saveStorageState
+} from "../lib/projectRepository";
 import {
   PLANNING_RULE_SET_ID,
   PLANNING_RULE_SET_VERSION,
@@ -310,6 +316,48 @@ describe("App - navigation", () => {
     confirm.mockRestore();
     add.mockRestore();
     remove.mockRestore();
+  });
+
+  it("does not guard untouched prefilled Edit navigation and clears the guard after exact reversion", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    seedPlanningAnswerApp();
+    await materializeProjectPlanningClarificationHumanDecision("app-navigation-answer-project", {
+      proposalId: "22222222-2222-4222-8222-000000000101",
+      action: "revise",
+      value: {
+        kind: "structuredRecord",
+        value: {
+          installationResponsibility: { kind: "text", value: "Saved owner" },
+          validationResponsibility: { kind: "text", value: "Saved reviewer" },
+          yamlInstallationLocation: { kind: "text", value: "Saved app" },
+          yamlParentRelationship: { kind: "text", value: "Saved parent" }
+        }
+      }
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Mission Control" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    const field = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(field);
+    await user.type(field, "Temporary owner");
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("heading", { name: "Architecture Planning" })).toBeInTheDocument();
+
+    await user.clear(field);
+    await user.type(field, "Saved owner");
+    await user.click(screen.getByRole("button", { name: "Mission Control" }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("heading", { name: "Mission Control" })).toBeInTheDocument();
+    confirm.mockRestore();
   });
 
   it("keeps one unload guard until both proposal-local drafts are discarded", async () => {

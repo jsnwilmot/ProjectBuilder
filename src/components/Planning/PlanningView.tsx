@@ -8,7 +8,10 @@ import {
   type PlanningUiProposal,
   type PlanningUiSource
 } from "../../lib/planningUiViewModel";
-import { selectPlanningClarificationAnswerReview } from "../../lib/planningClarificationAnswerEntryViewModel";
+import {
+  selectPlanningClarificationAnswerReview,
+  selectPlanningClarificationDeferral
+} from "../../lib/planningClarificationAnswerEntryViewModel";
 import type { PlanningClarificationOrchestrationResult } from "../../lib/planningClarificationOrchestration";
 import type { ProjectRecord } from "../../types/project";
 import {
@@ -226,6 +229,13 @@ function PlanningProposalCard({
         proposalId: proposal.key
       })
     : { state: "unavailable" as const };
+  const deferral = project.planning
+    ? selectPlanningClarificationDeferral({
+        projectId: project.identity.id,
+        planning: project.planning,
+        proposalId: proposal.key
+      })
+    : { state: "unavailable" as const };
 
   return (
     <article className={`planning-proposal status-${proposal.status.toLowerCase().replace(/\s+/g, "-")}`}>
@@ -267,10 +277,19 @@ function PlanningProposalCard({
 
       {proposal.applyState ? <PlanningApplyState applyState={proposal.applyState} /> : null}
 
+      {deferral.state === "available" ? (
+        <section className="planning-deferral-reason" aria-label="Deferral reason">
+          <h4>Deferral reason</h4>
+          <p>{deferral.reason}</p>
+        </section>
+      ) : null}
+
       {answerReview.state === "available" ? (
         <section className="planning-answer-review" aria-labelledby={answerReviewHeadingId}>
           <h4 id={answerReviewHeadingId}>
-            {answerReview.status === "Revised" ? "Answer for review" : "Confirmed answer"}
+            {answerReview.status === "Revised"
+              ? "Answer for review"
+              : answerReview.status === "Confirmed" ? "Confirmed answer" : "Saved answer"}
           </h4>
           <ClarificationAnswerValueRenderer
             answer={answerReview.answer}

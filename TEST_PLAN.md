@@ -1,5 +1,38 @@
 # Test Plan
 
+## 2026-08-23 Phase 5C.3C.3I.2 human decision interaction completion
+
+1. Verify saved-answer selection requires exact normalized human provenance for Revised, Confirmed, answered Deferred, and controlled reopened Needs Clarification states.
+2. Verify no source, multiple/wrong current sources, wrong locator/authority/type, unresolved source, invalid lineage, wrong rule version, missing schema, and schema-invalid answers fail closed without exposing content.
+3. Verify safe deferral selection requires exact current Deferred proposal, exact final `lastDecisionId`, `defer` user action, nonblank reason, resulting Deferred status, coherent source binding, and valid reopen capability.
+4. Verify public saved-answer and deferral results expose only approved presentation fields and no IDs, locators, provenance records, repository state, or raw issues.
+5. Verify canonical hydration supports text, boolean, enum, string list, structured record, structured record list, nested combinations, intentional empty collections, and recursively empty absent optional fields.
+6. Verify hydration validates before conversion, does not partially hydrate, mutate, repair, persist, use answer/source content as identity, or use random semantic identity.
+7. Verify deterministic local list/row IDs derive only from the supplied prefix, schema path, and index.
+8. Verify semantic draft equality ignores only `draftId` while comparing kinds, primitive values, engagement, field structure, lengths, order, rows, and nesting.
+9. Verify ordinary first-answer dirty behavior remains meaningful-input based while prefilled Edit/Change dirty behavior is semantic-difference based.
+10. Verify opening an untouched prefilled editor leaves Refresh enabled and beforeunload/navigation unguarded; semantic edits guard; exact reversion clears the guard.
+11. Verify valid Revised displays `Edit answer`, opens prefilled with zero writes, focuses the first control, and unchanged/confirmed Cancel returns focus without persistence.
+12. Verify changed Revised Save validates locally and persists `reopen` then `revise` sequentially with no parallel call or automatic Confirm.
+13. Verify reopen failure preserves the editor/draft and performs zero revise calls.
+14. Verify reopen success plus revise failure preserves the replacement draft, focuses safe partial status, performs no rollback, and retries revise only.
+15. Verify controlled reopened Needs Clarification reload displays `Saved answer` and `Edit answer`, not a blank first-answer flow.
+16. Verify valid Confirmed displays `Change answer`, opens prefilled with zero writes, persists revise only, becomes Revised, and requires explicit confirmation.
+17. Verify valid answered and unanswered Deferred records display one `Resume decision`, disable while pending, and submit exactly one reopen per explicit pending click.
+18. Verify answered Deferred displays its saved answer and reason separately, resumes to Revised, preserves the answer, and does not auto-open or auto-confirm.
+19. Verify unanswered Deferred resumes to Needs Clarification and presents bound answer entry or the existing unbound-schema explanation.
+20. Verify malformed Deferred history omits Resume and reason content and shows only the generic safe history-validation note.
+21. Verify all conflicting Confirm/Defer/Reject/Not applicable/Resume actions are hidden while the same proposal editor is open.
+22. Verify contextual headings and submit labels, start/cancel/success/partial focus, aria-busy/live states, and answer/reason-independent IDs.
+23. Verify long and nested saved answers use the existing renderer in their own section, reasons remain outside Sources, and no JSON fallback appears.
+24. Verify Planning controls retain responsive wrapping, 44px targets at 860px or below, and no horizontal overflow at 860px, 640px, and 480px.
+25. Verify the existing single hook decision operation accepts reopen, refreshes after every result/exception, and preserves primary error precedence.
+26. Regress 3I.1 contract/materialization/feedback/repository, H.4A.1 reconciliation/lifecycle/replacement/materialization/orchestration, editors/renderer, App navigation, generation, and product workflows.
+27. Verify `App.tsx`, repositories, 3I.1 production, editors/renderer, Planning foundations, package/dependencies, CI, Node, Wrangler, readiness, mapping, Apply, output, Storage, and TTI blocker semantics remain unchanged.
+28. Run clean install, lint, app typecheck, all required focused/regression suites, full tests, coverage, build, production/advisory audits, diff checks, exact fifteen-file scope, clean worktrees, stash preservation, one commit, push, and remote SHA verification.
+
+Validation result: passed. Clean install, lint, app TypeScript checking, and all required focused gates passed. Focused 3I.2 validation passed 7 files and 148 tests; unchanged 3I.1 passed 4 files and 214 tests; H.4A.1 passed 6 files and 99 tests; editors/renderer passed 3 files and 48 tests. Full and coverage validation passed 73 unit/integration files with 2,700 tests and 7 UI files with 74 tests, for 80 files and 2,774 tests total. Coverage was 90.14% statements, 82.57% branches, 95.34% functions, and 93.93% lines. Build and the zero-vulnerability production audit passed. The advisory full audit reported 25 development/tooling findings (2 moderate, 23 high); no remediation was performed.
+
 ## 2026-08-23 Phase 5C.3C.3I.1 human decision lifecycle foundation
 
 1. Verify clarification action capabilities expose exactly `revise`, `confirm`, `reject`, `defer`, `markNotApplicable`, and existing global `reopen`, with no new status or transition-table change.

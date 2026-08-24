@@ -1,7 +1,7 @@
 // @ts-expect-error -- Vitest runs static source isolation assertions in Node; app tsconfig intentionally excludes Node ambient types.
 import { readFileSync } from "node:fs";
 import { useState } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -9,7 +9,10 @@ import {
   type PlanningDecisionUiFeedback,
   type SubmitPlanningClarificationDecision
 } from "../components/Planning/ClarificationDecisionControls";
-import { buildPlanningUserAnswerLocator } from "../lib/planningClarificationDecisionContract";
+import {
+  buildPlanningUserAnswerLocator,
+  type PlanningClarificationHumanDecisionAction
+} from "../lib/planningClarificationDecisionContract";
 import type { PlanningClarificationDecisionFeedback } from "../lib/planningClarificationDecisionFeedback";
 import * as answerSchemaRegistry from "../lib/planningClarificationAnswerSchemaRegistry";
 import type { PlanningClarificationAnswerSchema } from "../lib/planningClarificationAnswerSchema";
@@ -25,6 +28,8 @@ import {
 } from "../lib/planningProposals";
 import { getPlanningRuleById } from "../lib/planningRules";
 
+type UiDecisionInput = PlanningClarificationDecisionRepositoryInput<PlanningClarificationHumanDecisionAction>;
+
 const projectId = "decision-controls-project";
 const proposalId = "22222222-2222-4222-8222-000000000001";
 const proposalTitle = "Confirm the backend schema";
@@ -33,6 +38,9 @@ const projectRuleSourceId = "11111111-1111-4111-8111-000000000001";
 const readinessSourceId = "11111111-1111-4111-8111-000000000002";
 const userAnswerSourceId = "11111111-1111-4111-8111-000000000003";
 const reviseDecisionId = "44444444-4444-4444-8444-000000000001";
+const confirmDecisionId = "44444444-4444-4444-8444-000000000002";
+const deferDecisionId = "44444444-4444-4444-8444-000000000003";
+const confirmedAnswerSourceId = "11111111-1111-4111-8111-000000000004";
 const timestamp = "2026-08-14T12:00:00.000Z";
 
 function ruleFor(ruleId: string) {
@@ -173,13 +181,69 @@ function revisedPlanning(
   });
 }
 
-function successfulFeedback(action: PlanningClarificationDecisionRepositoryInput["action"]) {
+function confirmedPlanning(): ProjectPlanningState {
+  const revised = revisedPlanning();
+  const proposal = revised.proposals[0];
+  const staleInformational = { ...revised.sources.at(-1)!, availability: "stale" as const };
+  const confirmedSource = {
+    ...staleInformational,
+    sourceId: confirmedAnswerSourceId,
+    locator: buildPlanningUserAnswerLocator(proposalId, confirmDecisionId)!,
+    authority: "confirmed" as const,
+    availability: "current" as const
+  };
+  const sourceIds = [projectRuleSourceId, readinessSourceId, confirmedAnswerSourceId];
+  const confirmDecision: PlanningDecisionRecord = {
+    decisionId: confirmDecisionId,
+    proposalId,
+    projectId,
+    action: "confirm",
+    previousStatus: "Revised",
+    resultingStatus: "Confirmed",
+    origin: "userAction",
+    recordedAt: timestamp,
+    sourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return {
+    ...revised,
+    sources: [...revised.sources.slice(0, -1), staleInformational, confirmedSource],
+    proposals: [{ ...proposal, status: "Confirmed", sourceIds, lastDecisionId: confirmDecisionId }],
+    decisions: [...revised.decisions, confirmDecision]
+  };
+}
+
+function deferredPlanning(answered = true): ProjectPlanningState {
+  const base = answered ? revisedPlanning() : planningFor("pp.canvas.yamlplanning.confirmation");
+  const proposal = base.proposals[0];
+  const deferDecision: PlanningDecisionRecord = {
+    decisionId: deferDecisionId,
+    proposalId,
+    projectId,
+    action: "defer",
+    previousStatus: answered ? "Revised" : "Needs Clarification",
+    resultingStatus: "Deferred",
+    origin: "userAction",
+    recordedAt: timestamp,
+    reason: "Waiting for owner approval.",
+    sourceIds: proposal.sourceIds,
+    ruleSetVersion: PLANNING_RULE_SET_VERSION
+  };
+  return {
+    ...base,
+    proposals: [{ ...proposal, status: "Deferred", lastDecisionId: deferDecisionId }],
+    decisions: [...base.decisions, deferDecision]
+  };
+}
+
+function successfulFeedback(action: UiDecisionInput["action"]) {
   const messages = {
     confirm: "Planning decision confirmed.",
     reject: "Planning item rejected.",
     defer: "Planning item deferred.",
     markNotApplicable: "Planning item marked not applicable.",
-    revise: "Planning answer saved for review."
+    revise: "Planning answer saved for review.",
+    reopen: "Planning item reopened."
   } as const;
   return { kind: "persisted" as const, successful: true, message: messages[action] };
 }
@@ -253,6 +317,172 @@ describe("ClarificationDecisionControls", () => {
     expect(container.innerHTML).not.toContain("pp.canvas.yamlplanning.confirmation");
   });
 
+  it("opens Revised Edit answer prefilled and clean, then cancels without persistence", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn(async (_project: string, input: UiDecisionInput) => ({
+      feedback: successfulFeedback(input.action)
+    }));
+    const onMeaningfulChange = vi.fn();
+    const confirm = vi.spyOn(window, "confirm");
+    renderControls(revisedPlanning(), onSubmit, onMeaningfulChange);
+
+    const edit = screen.getByRole("button", { name: "Edit answer" });
+    await user.click(edit);
+    expect(screen.getByRole("heading", { name: "Edit answer" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toHaveValue("Solution owner");
+    expect(screen.getByRole("button", { name: "Save updated answer for review" })).toBeDisabled();
+    expect(onMeaningfulChange).toHaveBeenLastCalledWith(proposalId, false);
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Edit answer" })).toHaveFocus();
+    confirm.mockRestore();
+  });
+
+  it("keeps a changed Edit draft when discard is declined and closes without persistence when accepted", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    renderControls(revisedPlanning(), onSubmit as SubmitPlanningClarificationDecision);
+
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    const field = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(field);
+    await user.type(field, "Unsaved replacement");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(field).toHaveValue("Unsaved replacement");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Edit answer" })).toHaveFocus();
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm.mock.calls.flat().join(" ")).not.toContain("Unsaved replacement");
+    confirm.mockRestore();
+  });
+
+  it("saves a changed Revised answer sequentially through reopen then revise", async () => {
+    const user = userEvent.setup();
+    const calls: UiDecisionInput[] = [];
+    const onSubmit = vi.fn(async (_project: string, input: UiDecisionInput) => {
+      calls.push(input);
+      return { feedback: successfulFeedback(input.action) };
+    });
+    renderControls(revisedPlanning(), onSubmit);
+
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    const field = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(field);
+    await user.type(field, "Updated owner");
+    await user.click(screen.getByRole("button", { name: "Save updated answer for review" }));
+
+    expect(calls.map((input) => input.action)).toEqual(["reopen", "revise"]);
+    expect(calls[0]).toEqual({ proposalId, action: "reopen" });
+    expect(calls[1]).toMatchObject({ proposalId, action: "revise" });
+    expect(screen.getByRole("status")).toHaveTextContent("Planning answer saved for review.");
+    expect(screen.queryByText("Planning item reopened.")).not.toBeInTheDocument();
+  });
+
+  it("keeps a replacement draft open and never revises when Edit reopen fails", async () => {
+    const user = userEvent.setup();
+    const calls: UiDecisionInput[] = [];
+    renderControls(revisedPlanning(), async (_project, input) => {
+      calls.push(input);
+      return {
+        feedback: {
+          kind: "stateChanged",
+          successful: false,
+          message: "This project changed before the decision could be saved."
+        }
+      };
+    });
+
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    const field = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(field);
+    await user.type(field, "Preserved after reopen failure");
+    await user.click(screen.getByRole("button", { name: "Save updated answer for review" }));
+
+    expect(calls.map((input) => input.action)).toEqual(["reopen"]);
+    expect(field).toHaveValue("Preserved after reopen failure");
+    expect(screen.getByRole("heading", { name: "Edit answer" })).toBeInTheDocument();
+  });
+
+  it("preserves a changed Edit draft after partial failure and retries revise without reopening again", async () => {
+    const user = userEvent.setup();
+    const calls: UiDecisionInput[] = [];
+    const outcomes = [true, false, true];
+    const onSubmit = vi.fn(async (_project: string, input: UiDecisionInput) => {
+      calls.push(input);
+      const successful = outcomes[calls.length - 1];
+      return {
+        feedback: successful
+          ? successfulFeedback(input.action)
+          : { kind: "blocked" as const, successful: false, message: "This planning decision could not be saved." }
+      };
+    });
+    renderControls(revisedPlanning(), onSubmit);
+
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    const field = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(field);
+    await user.type(field, "Preserved replacement");
+    const save = screen.getByRole("button", { name: "Save updated answer for review" });
+    await user.click(save);
+
+    expect(screen.getByText("The item was reopened, but the updated answer was not saved. Your draft is preserved.")).toHaveFocus();
+    expect(field).toHaveValue("Preserved replacement");
+    await user.click(save);
+    expect(calls.map((input) => input.action)).toEqual(["reopen", "revise", "revise"]);
+  });
+
+  it("changes a Confirmed answer with revise only and keeps confirmation explicit", async () => {
+    const user = userEvent.setup();
+    const calls: UiDecisionInput[] = [];
+    renderControls(confirmedPlanning(), async (_project, input) => {
+      calls.push(input);
+      return { feedback: successfulFeedback(input.action) };
+    });
+
+    await user.click(screen.getByRole("button", { name: "Change answer" }));
+    const field = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    expect(field).toHaveValue("Solution owner");
+    await user.clear(field);
+    await user.type(field, "Changed owner");
+    await user.click(screen.getByRole("button", { name: "Save changed answer for review" }));
+    expect(calls.map((input) => input.action)).toEqual(["revise"]);
+  });
+
+  it.each([true, false])("resumes a valid %s Deferred decision once", async (answered) => {
+    let resolve!: (value: { feedback: PlanningClarificationDecisionFeedback }) => void;
+    const onSubmit = vi.fn((_project: string, _input: UiDecisionInput) =>
+      new Promise<{ feedback: PlanningClarificationDecisionFeedback }>((complete) => { resolve = complete; })
+    );
+    renderControls(deferredPlanning(answered), onSubmit);
+
+    const resume = screen.getByRole("button", { name: "Resume decision" });
+    fireEvent.click(resume);
+    fireEvent.click(resume);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(projectId, { proposalId, action: "reopen" });
+    resolve({ feedback: successfulFeedback("reopen") });
+    await waitFor(() => expect(resume).toBeEnabled());
+  });
+
+  it("fails malformed Deferred history closed without exposing its persisted reason", () => {
+    const malformed = deferredPlanning(true);
+    malformed.decisions = malformed.decisions.map((decision) => decision.action === "defer"
+      ? { ...decision, origin: "migration" }
+      : decision);
+    renderControls(malformed);
+
+    expect(screen.queryByRole("button", { name: "Resume decision" })).not.toBeInTheDocument();
+    expect(screen.getByText(
+      "This deferred item cannot be resumed because its saved decision history could not be validated."
+    )).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for owner approval.")).not.toBeInTheDocument();
+  });
+
   it("derives Not Applicable availability from the governing capability and preserves action order", () => {
     renderControls(planningFor("pp.canvas.components.confirmation"));
 
@@ -270,6 +500,7 @@ describe("ClarificationDecisionControls", () => {
 
     expect(within(screen.getByRole("region", { name: decisionRegionName }))
       .getAllByRole("button").map((button) => button.textContent)).toEqual([
+        "Edit answer",
         "Confirm decision",
         "Defer",
         "Reject"
@@ -352,7 +583,7 @@ describe("ClarificationDecisionControls", () => {
   it("submits only the canonical structured answer through Revise and clears the saved draft", async () => {
     const user = userEvent.setup();
     const onMeaningfulChange = vi.fn();
-    const onSubmit = vi.fn(async (_submittedProjectId: string, input: PlanningClarificationDecisionRepositoryInput) => ({
+    const onSubmit = vi.fn(async (_submittedProjectId: string, input: UiDecisionInput) => ({
       feedback: successfulFeedback(input.action)
     }));
     renderControls(planningFor("pp.canvas.yamlplanning.confirmation"), onSubmit, onMeaningfulChange);
@@ -421,7 +652,7 @@ describe("ClarificationDecisionControls", () => {
       .mockReturnValue({ kind: "boolean" });
     const user = userEvent.setup();
     const onMeaningfulChange = vi.fn();
-    const onSubmit = vi.fn(async (_project: string, input: PlanningClarificationDecisionRepositoryInput) => ({
+    const onSubmit = vi.fn(async (_project: string, input: UiDecisionInput) => ({
       feedback: successfulFeedback(input.action)
     }));
     renderControls(planningFor("pp.canvas.yamlplanning.confirmation"), onSubmit, onMeaningfulChange);
@@ -458,7 +689,7 @@ describe("ClarificationDecisionControls", () => {
   it("submits a canonical nested structured-list answer through the same Revise path", async () => {
     const user = userEvent.setup();
     const onMeaningfulChange = vi.fn();
-    const onSubmit = vi.fn(async (_project: string, input: PlanningClarificationDecisionRepositoryInput) => ({
+    const onSubmit = vi.fn(async (_project: string, input: UiDecisionInput) => ({
       feedback: successfulFeedback(input.action)
     }));
     renderControls(planningFor("pp.canvas.components.confirmation"), onSubmit, onMeaningfulChange);
@@ -518,7 +749,7 @@ describe("ClarificationDecisionControls", () => {
     expect(onSubmit).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Save answer for review" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Defer" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Defer" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Installation responsibility/ })).toBeDisabled();
     expect(screen.getByRole("status", { name: "" })).toHaveTextContent("Saving answer...");
     await user.click(screen.getByRole("button", { name: "Save answer for review" }));
@@ -595,7 +826,7 @@ describe("ClarificationDecisionControls", () => {
 
   it("submits Confirm exactly once with no reason or value", async () => {
     const user = userEvent.setup();
-    const onSubmit = vi.fn(async (_submittedProjectId: string, input: PlanningClarificationDecisionRepositoryInput) => ({
+    const onSubmit = vi.fn(async (_submittedProjectId: string, input: UiDecisionInput) => ({
       feedback: successfulFeedback(input.action)
     }));
     renderControls(revisedPlanning(), onSubmit);
@@ -620,7 +851,7 @@ describe("ClarificationDecisionControls", () => {
     planning
   ) => {
     const user = userEvent.setup();
-    const onSubmit = vi.fn(async (_submittedProjectId: string, input: PlanningClarificationDecisionRepositoryInput) => ({
+    const onSubmit = vi.fn(async (_submittedProjectId: string, input: UiDecisionInput) => ({
       feedback: successfulFeedback(input.action)
     }));
     renderControls(planning, onSubmit);
@@ -637,7 +868,7 @@ describe("ClarificationDecisionControls", () => {
 
   it("enforces the reason limit, blocks blanks, clears on Cancel, and clears when switching actions", async () => {
     const user = userEvent.setup();
-    const onSubmit = vi.fn(async (_submittedProjectId: string, input: PlanningClarificationDecisionRepositoryInput) => ({
+    const onSubmit = vi.fn(async (_submittedProjectId: string, input: UiDecisionInput) => ({
       feedback: successfulFeedback(input.action)
     }));
     renderControls(planningFor(), onSubmit);

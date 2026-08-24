@@ -6,7 +6,9 @@ import {
 import type { PlanningClarificationDecisionFeedback } from "../../lib/planningClarificationDecisionFeedback";
 import type { PlanningClarificationDecisionRepositoryInput } from "../../lib/planningClarificationDecisionMaterialization";
 import {
+  arePlanningClarificationAnswerDraftsSemanticallyEqual,
   createEmptyPlanningClarificationAnswerDraft,
+  hydratePlanningClarificationAnswerDraft,
   isPlanningClarificationAnswerDraftMeaningful,
   projectPlanningClarificationAnswerIssues,
   validatePlanningClarificationAnswerDraft,
@@ -14,7 +16,10 @@ import {
   type PlanningClarificationAnswerIssuePresentation
 } from "../../lib/planningClarificationAnswerDraft";
 import type { PlanningClarificationAnswerSchema } from "../../lib/planningClarificationAnswerSchema";
-import { selectPlanningClarificationAnswerEntry } from "../../lib/planningClarificationAnswerEntryViewModel";
+import {
+  selectPlanningClarificationAnswerEntry,
+  selectPlanningClarificationAnswerReview
+} from "../../lib/planningClarificationAnswerEntryViewModel";
 import type { ProjectPlanningState } from "../../lib/planningProposals";
 import { ClarificationAnswerPrimitiveEditor } from "./ClarificationAnswerPrimitiveEditor";
 import { ClarificationAnswerStructuredEditor } from "./ClarificationAnswerStructuredEditor";
@@ -26,7 +31,7 @@ export interface PlanningDecisionUiFeedback {
 
 export type SubmitPlanningClarificationDecision = (
   projectId: string,
-  input: PlanningClarificationDecisionRepositoryInput
+  input: PlanningClarificationDecisionRepositoryInput<PlanningClarificationHumanDecisionAction>
 ) => Promise<{ feedback: PlanningClarificationDecisionFeedback }>;
 
 interface ClarificationDecisionControlsProps {
@@ -80,13 +85,21 @@ const ANSWER_STRUCTURE_UNAVAILABLE_MESSAGE =
   "Answer entry is unavailable because the required answer structure is not registered for this planning question.";
 const ANSWER_STATE_CHANGED_MESSAGE =
   "Planning changed while this answer was being edited. The draft is preserved, but it cannot be submitted against the previous planning state.";
+const PARTIAL_EDIT_FAILURE_MESSAGE =
+  "The item was reopened, but the updated answer was not saved. Your draft is preserved.";
+const DEFERRED_HISTORY_UNAVAILABLE_MESSAGE =
+  "This deferred item cannot be resumed because its saved decision history could not be validated.";
+
+type AnswerSessionMode = "first" | "edit" | "change";
 
 interface AnswerSession {
+  mode: AnswerSessionMode;
   proposalId: string;
   ruleId: string;
   ruleVersion: string;
   schema: PlanningClarificationAnswerSchema;
   draft: PlanningClarificationAnswerDraft;
+  initialDraft?: PlanningClarificationAnswerDraft;
 }
 
 export function ClarificationDecisionControls({
@@ -104,17 +117,20 @@ export function ClarificationDecisionControls({
   const [submissionKind, setSubmissionKind] = useState<"answer" | "decision" | null>(null);
   const [answerSession, setAnswerSession] = useState<AnswerSession | null>(null);
   const [answerIssues, setAnswerIssues] = useState<readonly PlanningClarificationAnswerIssuePresentation[]>([]);
+  const [partialEditFailure, setPartialEditFailure] = useState(false);
   const reasonInputId = useId();
   const reasonFormId = useId();
   const answerFormId = useId();
   const answerHeadingId = useId();
   const answerErrorSummaryId = useId();
   const answerStaleStatusId = useId();
+  const partialEditFailureId = useId();
   const reasonInputRef = useRef<HTMLTextAreaElement>(null);
   const answerHeadingRef = useRef<HTMLHeadingElement>(null);
   const answerEditorRegionRef = useRef<HTMLDivElement>(null);
   const answerErrorSummaryRef = useRef<HTMLDivElement>(null);
   const answerStaleStatusRef = useRef<HTMLParagraphElement>(null);
+  const partialEditFailureRef = useRef<HTMLParagraphElement>(null);
   const answerButtonRef = useRef<HTMLButtonElement>(null);
   const reasonButtonRefs = useRef<Partial<Record<ReasonAction, HTMLButtonElement | null>>>({});
   const returnFocusActionRef = useRef<ReasonAction | null>(null);
@@ -122,6 +138,7 @@ export function ClarificationDecisionControls({
   const returnFocusToAnswerRef = useRef(false);
   const previousAnswerSessionIsCurrentRef = useRef(true);
   const submissionPendingRef = useRef(false);
+  const editReopenCompletedRef = useRef(false);
   const dirtyCallbackRef = useRef(onAnswerDraftMeaningfulChange);
   const capabilities = useMemo(
     () => analyzePlanningClarificationDecisionCapabilities({ projectId, planning, proposalId }).capabilities,
@@ -131,19 +148,50 @@ export function ClarificationDecisionControls({
     () => selectPlanningClarificationAnswerEntry({ projectId, planning, proposalId }),
     [planning, projectId, proposalId]
   );
+  const savedAnswerSelection = useMemo(
+    () => selectPlanningClarificationAnswerReview({ projectId, planning, proposalId }),
+    [planning, projectId, proposalId]
+  );
   const confirmAvailable = capabilities.some(
     (entry) => entry.action === "confirm" && entry.state === "available" && entry.requiredInput === "none"
   );
   const availableReasonActions = REASON_ACTIONS.filter(({ action }) => capabilities.some(
     (entry) => entry.action === action && entry.state === "inputRequired" && entry.requiredInput === "reason"
   ));
+  const resumeAvailable = capabilities.some(
+    (entry) => entry.action === "reopen" && entry.state === "available" && entry.requiredInput === "none"
+  ) && planning.proposals.some((proposal) => proposal.proposalId === proposalId && proposal.status === "Deferred");
+  const deferredProposal = planning.proposals.some(
+    (proposal) => proposal.proposalId === proposalId && proposal.status === "Deferred"
+  );
   const activeReasonConfig = availableReasonActions.find(({ action }) => action === activeReasonAction);
-  const answerSessionIsCurrent = answerSession !== null && answerEntrySelection.state === "eligible" &&
-    answerEntrySelection.proposalId === answerSession.proposalId &&
-    answerEntrySelection.ruleId === answerSession.ruleId &&
-    answerEntrySelection.ruleVersion === answerSession.ruleVersion;
-  const answerDraftMeaningful = answerSession !== null &&
-    isPlanningClarificationAnswerDraftMeaningful(answerSession.draft);
+  const currentAnswerIdentityMatches = answerSession !== null && (
+    answerSession.mode === "first"
+      ? answerEntrySelection.state === "eligible" &&
+        answerEntrySelection.proposalId === answerSession.proposalId &&
+        answerEntrySelection.ruleId === answerSession.ruleId &&
+        answerEntrySelection.ruleVersion === answerSession.ruleVersion
+      : savedAnswerSelection.state === "available" &&
+        savedAnswerSelection.proposalId === answerSession.proposalId &&
+        savedAnswerSelection.ruleId === answerSession.ruleId &&
+        savedAnswerSelection.ruleVersion === answerSession.ruleVersion &&
+        (answerSession.mode === "change"
+          ? savedAnswerSelection.status === "Confirmed"
+          : savedAnswerSelection.status === "Revised" || savedAnswerSelection.status === "Needs Clarification")
+  );
+  const answerSessionIsCurrent = answerSession !== null && currentAnswerIdentityMatches;
+  const answerDraftMeaningful = answerSession !== null && (
+    answerSession.mode === "first"
+      ? isPlanningClarificationAnswerDraftMeaningful(answerSession.draft)
+      : Boolean(answerSession.initialDraft) &&
+        !arePlanningClarificationAnswerDraftsSemanticallyEqual(answerSession.draft, answerSession.initialDraft!)
+  );
+  const answerStartMode: AnswerSessionMode | null = savedAnswerSelection.state === "available"
+    ? savedAnswerSelection.status === "Confirmed" ? "change" : savedAnswerSelection.status === "Deferred" ? null : "edit"
+    : answerEntrySelection.state === "eligible" ? "first" : null;
+  const answerStartLabel = answerStartMode === "edit"
+    ? "Edit answer"
+    : answerStartMode === "change" ? "Change answer" : "Answer question";
 
   useEffect(() => {
     dirtyCallbackRef.current = onAnswerDraftMeaningfulChange;
@@ -178,11 +226,13 @@ export function ClarificationDecisionControls({
       );
       (firstEnabledControl ?? answerHeadingRef.current)?.focus();
     }
-    if (returnFocusToAnswerRef.current && !answerSession && answerEntrySelection.state === "eligible") {
+    if (returnFocusToAnswerRef.current && !answerSession && (
+      answerEntrySelection.state === "eligible" || savedAnswerSelection.state === "available"
+    )) {
       returnFocusToAnswerRef.current = false;
       answerButtonRef.current?.focus();
     }
-  }, [answerEntrySelection.state, answerSession]);
+  }, [answerEntrySelection.state, answerSession, savedAnswerSelection.state]);
 
   useEffect(() => {
     if (answerSession && previousAnswerSessionIsCurrentRef.current && !answerSessionIsCurrent) {
@@ -195,18 +245,26 @@ export function ClarificationDecisionControls({
     if (answerIssues.length > 0) answerErrorSummaryRef.current?.focus();
   }, [answerIssues]);
 
+  useEffect(() => {
+    if (partialEditFailure) partialEditFailureRef.current?.focus();
+  }, [partialEditFailure]);
+
   if (
     !confirmAvailable &&
     availableReasonActions.length === 0 &&
     answerEntrySelection.state === "unavailable" &&
+    savedAnswerSelection.state === "unavailable" &&
+    !resumeAvailable &&
+    !deferredProposal &&
     !answerSession
   ) {
     return null;
   }
 
   const submitDecision = async (
-    input: PlanningClarificationDecisionRepositoryInput,
-    kind: "answer" | "decision" = "decision"
+    input: PlanningClarificationDecisionRepositoryInput<PlanningClarificationHumanDecisionAction>,
+    kind: "answer" | "decision" = "decision",
+    feedbackMode: "all" | "failures" | "none" = "all"
   ): Promise<PlanningClarificationDecisionFeedback | undefined> => {
     if (submissionPendingRef.current) return undefined;
 
@@ -216,14 +274,18 @@ export function ClarificationDecisionControls({
     onFeedback(null);
     try {
       const result = await onSubmitClarificationDecision(projectId, input);
-      onFeedback(result.feedback);
+      if (feedbackMode === "all" || (feedbackMode === "failures" && !result.feedback.successful)) {
+        onFeedback(result.feedback);
+      }
       if (result.feedback.successful) {
         setActiveReasonAction(null);
         setReason("");
       }
       return result.feedback;
     } catch {
-      onFeedback({ successful: false, message: UNEXPECTED_ERROR_MESSAGE });
+      if (feedbackMode !== "none") {
+        onFeedback({ successful: false, message: UNEXPECTED_ERROR_MESSAGE });
+      }
       return undefined;
     } finally {
       submissionPendingRef.current = false;
@@ -245,17 +307,49 @@ export function ClarificationDecisionControls({
   };
 
   const startAnswer = () => {
-    if (submissionPendingRef.current || answerEntrySelection.state !== "eligible") return;
+    if (submissionPendingRef.current || !answerStartMode) return;
+    let schema: PlanningClarificationAnswerSchema;
+    let draft: PlanningClarificationAnswerDraft;
+    let initialDraft: PlanningClarificationAnswerDraft | undefined;
+    let ruleId: string;
+    let ruleVersion: string;
+
+    if (answerStartMode === "first") {
+      if (answerEntrySelection.state !== "eligible") return;
+      schema = answerEntrySelection.schema;
+      draft = createEmptyPlanningClarificationAnswerDraft(schema);
+      ruleId = answerEntrySelection.ruleId;
+      ruleVersion = answerEntrySelection.ruleVersion;
+    } else {
+      if (savedAnswerSelection.state !== "available") return;
+      const hydration = hydratePlanningClarificationAnswerDraft(
+        savedAnswerSelection.schema,
+        savedAnswerSelection.answer,
+        answerFormId
+      );
+      if (hydration.outcome !== "hydrated") return;
+      schema = savedAnswerSelection.schema;
+      draft = hydration.draft;
+      initialDraft = hydration.draft;
+      ruleId = savedAnswerSelection.ruleId;
+      ruleVersion = savedAnswerSelection.ruleVersion;
+    }
     setActiveReasonAction(null);
     setReason("");
     setAnswerIssues([]);
+    setPartialEditFailure(false);
+    editReopenCompletedRef.current = answerStartMode === "edit" &&
+      savedAnswerSelection.state === "available" &&
+      savedAnswerSelection.status === "Needs Clarification";
     focusInitialAnswerControlRef.current = true;
     setAnswerSession({
-      proposalId: answerEntrySelection.proposalId,
-      ruleId: answerEntrySelection.ruleId,
-      ruleVersion: answerEntrySelection.ruleVersion,
-      schema: answerEntrySelection.schema,
-      draft: createEmptyPlanningClarificationAnswerDraft(answerEntrySelection.schema)
+      mode: answerStartMode,
+      proposalId,
+      ruleId,
+      ruleVersion,
+      schema,
+      draft,
+      initialDraft
     });
   };
 
@@ -268,6 +362,8 @@ export function ClarificationDecisionControls({
   const closeAnswerSession = () => {
     setAnswerIssues([]);
     setAnswerSession(null);
+    setPartialEditFailure(false);
+    editReopenCompletedRef.current = false;
     onAnswerDraftMeaningfulChange(proposalId, false);
   };
 
@@ -282,6 +378,7 @@ export function ClarificationDecisionControls({
 
   const saveAnswer = async () => {
     if (submissionPendingRef.current || !answerSession || !answerSessionIsCurrent) return;
+    if (answerSession.mode !== "first" && !answerDraftMeaningful) return;
     const validation = validatePlanningClarificationAnswerDraft(answerSession.schema, answerSession.draft);
     if (validation.outcome === "invalid") {
       setAnswerIssues(projectPlanningClarificationAnswerIssues(answerSession.schema, validation.issues));
@@ -289,12 +386,28 @@ export function ClarificationDecisionControls({
     }
 
     setAnswerIssues([]);
+    if (answerSession.mode === "edit" && !editReopenCompletedRef.current) {
+      const reopenFeedback = await submitDecision({
+        proposalId: answerSession.proposalId,
+        action: "reopen"
+      }, "answer", "failures");
+      if (!reopenFeedback?.successful) return;
+      editReopenCompletedRef.current = true;
+    }
+
+    const suppressRevisionFailure = answerSession.mode === "edit" && editReopenCompletedRef.current;
     const feedback = await submitDecision({
       proposalId: answerSession.proposalId,
       action: "revise",
       value: validation.answer
-    }, "answer");
-    if (feedback?.successful) closeAnswerSession();
+    }, "answer", suppressRevisionFailure ? "none" : "all");
+    if (feedback?.successful) {
+      if (suppressRevisionFailure) onFeedback(feedback);
+      closeAnswerSession();
+    } else if (suppressRevisionFailure) {
+      onFeedback(null);
+      setPartialEditFailure(true);
+    }
   };
 
   return (
@@ -309,7 +422,13 @@ export function ClarificationDecisionControls({
         </p>
       ) : null}
 
-      {!answerSession && answerEntrySelection.state === "eligible" ? (
+      {!answerSession && deferredProposal && !resumeAvailable ? (
+        <p className="planning-decision-answer-note">
+          {DEFERRED_HISTORY_UNAVAILABLE_MESSAGE}
+        </p>
+      ) : null}
+
+      {!answerSession && answerStartMode ? (
         <div className="planning-decision-answer-start">
           <button
             className="button button-primary"
@@ -318,7 +437,21 @@ export function ClarificationDecisionControls({
             type="button"
             onClick={startAnswer}
           >
-            Answer question
+            {answerStartLabel}
+          </button>
+        </div>
+      ) : null}
+
+
+      {!answerSession && resumeAvailable ? (
+        <div className="planning-decision-answer-start">
+          <button
+            className="button button-primary"
+            disabled={submitting}
+            type="button"
+            onClick={() => void submitDecision({ proposalId, action: "reopen" })}
+          >
+            Resume decision
           </button>
         </div>
       ) : null}
@@ -328,6 +461,7 @@ export function ClarificationDecisionControls({
           aria-busy={submitting}
           aria-describedby={[
             !answerSessionIsCurrent ? answerStaleStatusId : null,
+            partialEditFailure ? partialEditFailureId : null,
             answerIssues.length > 0 ? answerErrorSummaryId : null
           ].filter(Boolean).join(" ") || undefined}
           aria-labelledby={answerHeadingId}
@@ -339,7 +473,11 @@ export function ClarificationDecisionControls({
             void saveAnswer();
           }}
         >
-          <h4 id={answerHeadingId} ref={answerHeadingRef} tabIndex={-1}>Answer question</h4>
+          <h4 id={answerHeadingId} ref={answerHeadingRef} tabIndex={-1}>
+            {answerSession.mode === "edit"
+              ? "Edit answer"
+              : answerSession.mode === "change" ? "Change answer" : "Answer question"}
+          </h4>
           {!answerSessionIsCurrent ? (
             <p
               aria-live="polite"
@@ -350,6 +488,18 @@ export function ClarificationDecisionControls({
               tabIndex={-1}
             >
               {ANSWER_STATE_CHANGED_MESSAGE}
+            </p>
+          ) : null}
+          {partialEditFailure ? (
+            <p
+              aria-live="polite"
+              className="planning-decision-answer-partial"
+              id={partialEditFailureId}
+              ref={partialEditFailureRef}
+              role="status"
+              tabIndex={-1}
+            >
+              {PARTIAL_EDIT_FAILURE_MESSAGE}
             </p>
           ) : null}
           {answerIssues.length > 0 ? (
@@ -380,10 +530,13 @@ export function ClarificationDecisionControls({
           <div className="planning-decision-form-actions">
             <button
               className="button button-primary"
-              disabled={submitting || !answerSessionIsCurrent}
+              disabled={submitting || !answerSessionIsCurrent ||
+                (answerSession.mode !== "first" && !answerDraftMeaningful)}
               type="submit"
             >
-              Save answer for review
+              {answerSession.mode === "edit"
+                ? "Save updated answer for review"
+                : answerSession.mode === "change" ? "Save changed answer for review" : "Save answer for review"}
             </button>
             <button
               className="button button-text"
@@ -397,7 +550,7 @@ export function ClarificationDecisionControls({
         </form>
       ) : null}
 
-      {confirmAvailable || availableReasonActions.length > 0 ? (
+      {!answerSession && (confirmAvailable || availableReasonActions.length > 0) ? (
         <div className="planning-decision-actions">
           {confirmAvailable ? (
             <button

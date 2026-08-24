@@ -91,6 +91,15 @@ export type PlanningClarificationAnswerDraftValidationResult =
       issues: readonly (PlanningClarificationAnswerDraftIssue | PlanningClarificationAnswerSchemaIssue)[];
     };
 
+export type PlanningClarificationAnswerDraftHydrationResult =
+  | {
+      outcome: "hydrated";
+      draft: PlanningClarificationAnswerDraft;
+    }
+  | {
+      outcome: "invalid";
+    };
+
 export interface PlanningClarificationAnswerIssuePresentation {
   code: string;
   associationPath: readonly (string | number)[];
@@ -130,6 +139,51 @@ export function createPlanningClarificationStructuredRecordListDraftRow(
   draftId: string
 ): PlanningClarificationStructuredRecordListDraftRow {
   return { draftId, fields: createFieldDrafts(schema.fields) };
+}
+
+export function hydratePlanningClarificationAnswerDraft(
+  schema: PlanningClarificationAnswerSchema,
+  answer: PlanningProposalValue,
+  draftIdPrefix: string
+): PlanningClarificationAnswerDraftHydrationResult {
+  const validation = validatePlanningClarificationAnswer(schema, answer);
+  if (validation.outcome !== "valid") return { outcome: "invalid" };
+
+  return {
+    outcome: "hydrated",
+    draft: hydrateNode(schema, validation.answer, draftIdPrefix, [])
+  };
+}
+
+export function arePlanningClarificationAnswerDraftsSemanticallyEqual(
+  left: PlanningClarificationAnswerDraft,
+  right: PlanningClarificationAnswerDraft
+): boolean {
+  if (left.kind !== right.kind) return false;
+
+  switch (left.kind) {
+    case "text":
+      return right.kind === "text" && left.value === right.value;
+    case "boolean":
+      return right.kind === "boolean" && left.value === right.value;
+    case "enum":
+      return right.kind === "enum" && left.value === right.value;
+    case "stringList":
+      return right.kind === "stringList" &&
+        left.engaged === right.engaged &&
+        left.items.length === right.items.length &&
+        left.items.every((item, index) => item.value === right.items[index]?.value);
+    case "structuredRecord":
+      return right.kind === "structuredRecord" && draftFieldsAreSemanticallyEqual(left.fields, right.fields);
+    case "structuredRecordList":
+      return right.kind === "structuredRecordList" &&
+        left.engaged === right.engaged &&
+        left.rows.length === right.rows.length &&
+        left.rows.every((row, index) => {
+          const otherRow = right.rows[index];
+          return Boolean(otherRow) && draftFieldsAreSemanticallyEqual(row.fields, otherRow.fields);
+        });
+  }
 }
 
 export function isPlanningClarificationAnswerDraftMeaningful(
@@ -298,6 +352,91 @@ function createFieldDrafts(
     field.key,
     createEmptyPlanningClarificationAnswerDraft(field.schema)
   ]));
+}
+
+function hydrateNode(
+  schema: PlanningClarificationAnswerSchema,
+  answer: PlanningProposalValue,
+  draftIdPrefix: string,
+  path: readonly (string | number)[]
+): PlanningClarificationAnswerDraft {
+  switch (schema.kind) {
+    case "text":
+      return { kind: "text", value: answer.kind === "text" ? answer.value : "" };
+    case "boolean":
+      return { kind: "boolean", value: answer.kind === "boolean" ? answer.value : undefined };
+    case "enum":
+      return { kind: "enum", value: answer.kind === "enum" ? answer.value : undefined };
+    case "stringList":
+      return {
+        kind: "stringList",
+        engaged: true,
+        items: answer.kind === "stringList"
+          ? answer.value.map((value, index) => ({
+              draftId: localDraftId(draftIdPrefix, path, "item", index),
+              value
+            }))
+          : []
+      };
+    case "structuredRecord":
+      return {
+        kind: "structuredRecord",
+        fields: hydrateFields(
+          schema.fields,
+          answer.kind === "structuredRecord" ? answer.value : {},
+          draftIdPrefix,
+          path
+        )
+      };
+    case "structuredRecordList":
+      return {
+        kind: "structuredRecordList",
+        engaged: true,
+        rows: answer.kind === "structuredRecordList"
+          ? answer.value.map((row, index) => ({
+              draftId: localDraftId(draftIdPrefix, path, "row", index),
+              fields: hydrateFields(schema.fields, row, draftIdPrefix, [...path, index])
+            }))
+          : []
+      };
+  }
+}
+
+function hydrateFields(
+  fields: readonly PlanningClarificationAnswerSchemaField[],
+  answerFields: Readonly<Record<string, PlanningProposalValue>>,
+  draftIdPrefix: string,
+  path: readonly (string | number)[]
+): Readonly<Record<string, PlanningClarificationAnswerDraft>> {
+  return Object.fromEntries(fields.map((field) => [
+    field.key,
+    answerFields[field.key] === undefined
+      ? createEmptyPlanningClarificationAnswerDraft(field.schema)
+      : hydrateNode(field.schema, answerFields[field.key], draftIdPrefix, [...path, field.key])
+  ]));
+}
+
+function localDraftId(
+  prefix: string,
+  path: readonly (string | number)[],
+  kind: "item" | "row",
+  index: number
+): string {
+  const location = path.length > 0
+    ? path.map((segment) => typeof segment === "number" ? `index-${segment}` : `field-${segment}`).join("-")
+    : "root";
+  return `${prefix}-${location}-${kind}-${index}`;
+}
+
+function draftFieldsAreSemanticallyEqual(
+  left: Readonly<Record<string, PlanningClarificationAnswerDraft>>,
+  right: Readonly<Record<string, PlanningClarificationAnswerDraft>>
+): boolean {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) => key === rightKeys[index] && Boolean(right[key]) &&
+      arePlanningClarificationAnswerDraftsSemanticallyEqual(left[key], right[key]));
 }
 
 function fieldsAreMeaningful(

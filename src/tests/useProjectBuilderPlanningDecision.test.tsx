@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProjectBuilder } from "../app/useProjectBuilder";
+import type { PlanningClarificationHumanDecisionAction } from "../lib/planningClarificationDecisionContract";
 import type {
   PlanningClarificationDecisionRepositoryInput,
   PlanningClarificationDecisionRepositoryResult
@@ -32,6 +33,7 @@ const input: PlanningClarificationDecisionRepositoryInput = {
   action: "reject",
   reason: "The planning item does not match the approved scope."
 };
+type UiDecisionInput = PlanningClarificationDecisionRepositoryInput<PlanningClarificationHumanDecisionAction>;
 
 function state(id: string | null): StorageState {
   return { version: 5, activeProjectId: id, projects: [] };
@@ -53,7 +55,8 @@ function repositoryResult(
 
 function arrangeRepository(
   result: PlanningClarificationDecisionRepositoryResult,
-  calls: string[]
+  calls: string[],
+  expectedInput: UiDecisionInput = input
 ): { refreshedState: StorageState } {
   const initialState = state(activeProjectId);
   const refreshedState = state("durable-refreshed-project-id");
@@ -70,10 +73,10 @@ function arrangeRepository(
       return "Durable persistence warning.";
     });
   repositoryMocks.materializeProjectPlanningClarificationHumanDecision.mockImplementation(
-    async (projectId: string, repositoryInput: PlanningClarificationDecisionRepositoryInput) => {
+    async (projectId: string, repositoryInput: UiDecisionInput) => {
       calls.push("repository");
       expect(projectId).toBe(suppliedProjectId);
-      expect(repositoryInput).toBe(input);
+      expect(repositoryInput).toBe(expectedInput);
       return result;
     }
   );
@@ -112,6 +115,27 @@ describe("useProjectBuilder planning clarification decision wiring", () => {
     expect(result.current.storageState).toBe(refreshedState);
     expect(result.current.persistenceWarning).toBe("Durable persistence warning.");
     expect(result.current.storageState.activeProjectId).not.toBe(activeProjectId);
+  });
+
+  it("forwards the existing reopen action through the same single hook operation", async () => {
+    const calls: string[] = [];
+    const reopenInput: UiDecisionInput = { proposalId, action: "reopen" };
+    const persisted = repositoryResult("persisted", { action: "reopen" });
+    arrangeRepository(persisted, calls, reopenInput);
+    const { result } = renderHook(() => useProjectBuilder());
+
+    await act(async () => {
+      const submission = await result.current.submitPlanningClarificationDecision(suppliedProjectId, reopenInput);
+      expect(submission.feedback).toEqual({
+        kind: "persisted",
+        successful: true,
+        message: "Planning item reopened."
+      });
+    });
+
+    expect(repositoryMocks.materializeProjectPlanningClarificationHumanDecision)
+      .toHaveBeenCalledOnce();
+    expect(calls[0]).toBe("repository");
   });
 
   it.each([

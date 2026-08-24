@@ -3396,6 +3396,7 @@ tbody tr:hover {
 
 .planning-decision-answer-errors,
 .planning-decision-answer-stale,
+.planning-decision-answer-partial,
 .planning-answer-review-unavailable {
   min-width: 0;
   margin: 0;
@@ -3405,6 +3406,11 @@ tbody tr:hover {
   font-size: 0.76rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.planning-decision-answer-partial {
+  border-left-color: #b06b00;
+  color: #6d4700;
 }
 
 .planning-decision-answer-errors strong {
@@ -3431,6 +3437,36 @@ tbody tr:hover {
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface);
+}
+
+.planning-deferral-reason {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 720px;
+  margin-top: 15px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--amber);
+  background: var(--amber-soft);
+}
+
+.planning-deferral-reason h4,
+.planning-deferral-reason p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.planning-deferral-reason h4 {
+  color: var(--ink);
+  font-size: 0.76rem;
+}
+
+.planning-deferral-reason p {
+  color: #5f430d;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .planning-decision-reason-form label {

@@ -42,9 +42,9 @@ const projectRuleSourceId = "11111111-1111-4111-8111-000000000001";
 const readinessSourceId = "11111111-1111-4111-8111-000000000002";
 const timestamp = "2026-08-14T12:00:00.000Z";
 
-function planningProject(): ProjectRecord {
-  const rule = getPlanningRuleById("pp.canvas.yamlplanning.confirmation");
-  if (!rule) throw new Error("Missing YAML planning rule fixture.");
+function planningProject(ruleId = "pp.canvas.yamlplanning.confirmation"): ProjectRecord {
+  const rule = getPlanningRuleById(ruleId);
+  if (!rule) throw new Error("Missing planning rule fixture.");
   const sources: PlanningSourceReference[] = [
     {
       sourceId: projectRuleSourceId,
@@ -154,23 +154,142 @@ describe("App - planning decisions", () => {
     expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Confirm decision" })).not.toHaveFocus();
 
+    await user.click(screen.getByRole("button", { name: "Edit answer" }));
+    const editField = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    expect(editField).toHaveValue("Solution owner");
+    expect(screen.getByRole("button", { name: "Refresh planning" })).toBeEnabled();
+    expect(loadStorageState().projects[0]?.planning?.decisions).toHaveLength(1);
+    const untouchedEditUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(untouchedEditUnload);
+    expect(untouchedEditUnload.defaultPrevented).toBe(false);
+    await user.clear(editField);
+    await user.type(editField, "Temporary owner");
+    expect(screen.getByRole("button", { name: "Refresh planning" })).toBeDisabled();
+    await user.clear(editField);
+    await user.type(editField, "Solution owner");
+    expect(screen.getByRole("button", { name: "Refresh planning" })).toBeEnabled();
+    await user.clear(editField);
+    await user.type(editField, "Updated solution owner");
+    const changedEditUnload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(changedEditUnload);
+    expect(changedEditUnload.defaultPrevented).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Save updated answer for review" }));
+
+    await screen.findByText("Planning answer saved for review.");
+    expect(loadStorageState().projects[0]?.planning?.decisions.map(({ action }) => action))
+      .toEqual(["revise", "reopen", "revise"]);
+    expect(screen.getByText("Updated solution owner")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Confirm decision" }));
 
     expect(await screen.findByText("Planning decision confirmed.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
-    expect(screen.getByText("Solution owner")).toBeInTheDocument();
+    expect(screen.getByText("Updated solution owner")).toBeInTheDocument();
     const confirmedPlanning = loadStorageState().projects[0]?.planning;
     expect(confirmedPlanning?.proposals[0]).toMatchObject({
       proposalId,
       status: "Confirmed"
     });
-    expect(confirmedPlanning?.decisions).toHaveLength(2);
-    expect(confirmedPlanning?.decisions.map(({ action }) => action)).toEqual(["revise", "confirm"]);
+    expect(confirmedPlanning?.decisions).toHaveLength(4);
+    expect(confirmedPlanning?.decisions.map(({ action }) => action)).toEqual(["revise", "reopen", "revise", "confirm"]);
     expect(screen.queryByRole("form", { name: "Answer question" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Change answer" }));
+    const changeField = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(changeField);
+    await user.type(changeField, "Changed confirmed owner");
+    await user.click(screen.getByRole("button", { name: "Save changed answer for review" }));
+    await screen.findByText("Changed confirmed owner");
+    expect(loadStorageState().projects[0]?.planning?.decisions.map(({ action }) => action))
+      .toEqual(["revise", "reopen", "revise", "confirm", "revise"]);
+    expect(screen.getByRole("button", { name: "Confirm decision" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Confirm decision" }));
+    expect(await screen.findByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
+    expect(loadStorageState().projects[0]?.planning?.decisions.map(({ action }) => action))
+      .toEqual(["revise", "reopen", "revise", "confirm", "revise", "confirm"]);
+
+    await user.click(screen.getByRole("button", { name: "Change answer" }));
+    const deferredField = screen.getByRole("textbox", { name: /Installation responsibility/ });
+    await user.clear(deferredField);
+    await user.type(deferredField, "Deferred answer owner");
+    await user.click(screen.getByRole("button", { name: "Save changed answer for review" }));
+    await screen.findByText("Deferred answer owner");
+
+    await user.click(screen.getByRole("button", { name: "Defer" }));
+    await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Waiting for final owner review.");
+    await user.click(screen.getByRole("button", { name: "Defer decision" }));
+    expect(await screen.findByRole("region", { name: "Deferral reason" }))
+      .toHaveTextContent("Waiting for final owner review.");
+    expect(screen.getByRole("heading", { name: "Saved answer" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Resume decision" }));
+    expect(await screen.findByRole("heading", { name: "Answer for review" })).toBeInTheDocument();
+    expect(screen.getByText("Deferred answer owner")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit answer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm decision" })).toBeInTheDocument();
+    expect(loadStorageState().projects[0]?.planning?.decisions.map(({ action }) => action))
+      .toEqual(["revise", "reopen", "revise", "confirm", "revise", "confirm", "revise", "defer", "reopen"]);
+    await user.click(screen.getByRole("button", { name: "Confirm decision" }));
+    expect(await screen.findByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
+    expect(loadStorageState().projects[0]?.planning?.decisions.map(({ action }) => action))
+      .toEqual(["revise", "reopen", "revise", "confirm", "revise", "confirm", "revise", "defer", "reopen", "confirm"]);
     expect(screen.queryByRole("button", { name: /apply/i })).not.toBeInTheDocument();
     add.mockRestore();
     remove.mockRestore();
-  }, 30000);
+  }, 60000);
+
+  it("runs the real unanswered Deferred resume path without fabricating a saved answer", async () => {
+    const user = userEvent.setup();
+    const inputProject = planningProject();
+    saveStorageState({
+      version: CURRENT_STORAGE_VERSION,
+      activeProjectId: inputProject.identity.id,
+      projects: [inputProject]
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Defer" }));
+    await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Waiting for the first answer.");
+    await user.click(screen.getByRole("button", { name: "Defer decision" }));
+
+    expect(await screen.findByRole("region", { name: "Deferral reason" }))
+      .toHaveTextContent("Waiting for the first answer.");
+    expect(screen.queryByRole("heading", { name: "Saved answer" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Resume decision" }));
+
+    expect(await screen.findByRole("button", { name: "Answer question" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Saved answer" })).not.toBeInTheDocument();
+    const persisted = loadStorageState().projects[0]?.planning;
+    expect(persisted?.proposals[0].status).toBe("Needs Clarification");
+    expect(persisted?.decisions.map(({ action }) => action)).toEqual(["defer", "reopen"]);
+  });
+
+  it("keeps unbound backend answer entry unavailable after Deferred resume", async () => {
+    const user = userEvent.setup();
+    const inputProject = planningProject("pp.canvas.schema.confirmation");
+    saveStorageState({
+      version: CURRENT_STORAGE_VERSION,
+      activeProjectId: inputProject.identity.id,
+      projects: [inputProject]
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Defer" }));
+    await user.type(screen.getByRole("textbox", { name: "Deferral reason" }), "Waiting for backend schema approval.");
+    await user.click(screen.getByRole("button", { name: "Defer decision" }));
+    await user.click(await screen.findByRole("button", { name: "Resume decision" }));
+
+    expect(await screen.findByText(
+      "Answer entry is unavailable because the required answer structure is not registered for this planning question."
+    )).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /answer/i })).not.toBeInTheDocument();
+    const persisted = loadStorageState().projects[0]?.planning;
+    expect(persisted?.proposals[0].status).toBe("Needs Clarification");
+    expect(persisted?.decisions.map(({ action }) => action)).toEqual(["defer", "reopen"]);
+  });
 
   it("keeps App limited to hook-to-PlanningView wiring with separate persistence warning presentation", () => {
     const sourceText = readFileSync("src/app/App.tsx", "utf8");

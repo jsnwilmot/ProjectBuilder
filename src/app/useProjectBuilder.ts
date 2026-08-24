@@ -26,6 +26,7 @@ import {
   buildPlanningClarificationDecisionFeedback,
   type PlanningClarificationDecisionFeedback
 } from "../lib/planningClarificationDecisionFeedback";
+import type { PlanningClarificationHumanDecisionAction } from "../lib/planningClarificationDecisionContract";
 import type {
   PlanningClarificationDecisionRepositoryInput,
   PlanningClarificationDecisionRepositoryResult
@@ -158,7 +159,7 @@ export function useProjectBuilder() {
 
   const submitPlanningClarificationDecision = async (
     projectId: string,
-    input: PlanningClarificationDecisionRepositoryInput
+    input: PlanningClarificationDecisionRepositoryInput<PlanningClarificationHumanDecisionAction>
   ): Promise<PlanningClarificationDecisionSubmissionResult> => {
     let submissionResult: PlanningClarificationDecisionSubmissionResult;
 

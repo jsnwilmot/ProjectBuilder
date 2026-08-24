@@ -5,7 +5,8 @@ import {
   humanizePlanningClarificationEnumOption,
   planningClarificationItemLabel,
   selectPlanningClarificationAnswerEntry,
-  selectPlanningClarificationAnswerReview
+  selectPlanningClarificationAnswerReview,
+  selectPlanningClarificationDeferral
 } from "../lib/planningClarificationAnswerEntryViewModel";
 import * as answerSchemaRegistry from "../lib/planningClarificationAnswerSchemaRegistry";
 import {
@@ -201,6 +202,32 @@ function confirmedPlanningFor(ruleId = "pp.canvas.yamlplanning.confirmation"): P
   };
 }
 
+function revisedPlanningFor(ruleId = "pp.canvas.yamlplanning.confirmation"): ProjectPlanningState {
+  const confirmed = confirmedPlanningFor(ruleId);
+  const reviseDecision = confirmed.decisions[0];
+  const informationalSource = confirmed.sources.find(
+    (source) => source.sourceType === "userAnswer" && source.authority === "informational"
+  );
+  if (!reviseDecision || !informationalSource || !reviseDecision.sourceIds) {
+    throw new Error("Missing revised fixture lineage");
+  }
+  return {
+    ...confirmed,
+    sources: confirmed.sources
+      .filter((source) => source.authority !== "confirmed")
+      .map((source) => source.sourceId === informationalSource.sourceId
+        ? { ...source, availability: "current" as const }
+        : source),
+    proposals: [{
+      ...confirmed.proposals[0],
+      status: "Revised",
+      sourceIds: reviseDecision.sourceIds,
+      lastDecisionId: reviseDecision.decisionId
+    }],
+    decisions: [reviseDecision]
+  };
+}
+
 describe("planning clarification answer-entry view model", () => {
   it("authorizes all ten bound current Needs Clarification rules through exact capability and schema identity", () => {
     expect(BOUND_RULE_IDS).toHaveLength(10);
@@ -279,7 +306,12 @@ describe("planning clarification answer-entry view model", () => {
   it.each(["Revised", "Confirmed"] as const)(
     "selects the exact-bound normalized saved answer for %s review",
     (status) => {
-      const result = review("pp.canvas.yamlplanning.confirmation", { status, value: yamlAnswer });
+      const planning = status === "Revised" ? revisedPlanningFor() : confirmedPlanningFor();
+      const result = selectPlanningClarificationAnswerReview({
+        projectId,
+        planning,
+        proposalId: planning.proposals[0].proposalId
+      });
       expect(result).toEqual({
         state: "available",
         proposalId: uuid(1),
@@ -308,15 +340,67 @@ describe("planning clarification answer-entry view model", () => {
       status: "Revised",
       value: yamlAnswer,
       ruleVersion: "1.0.1"
-    })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
-    expect(review("pp.canvas.schema.confirmation", {
-      status: "Revised",
-      value: { kind: "text", value: "SECRET HISTORICAL ANSWER" }
+    })).toEqual({ state: "unavailable", proposalId: uuid(1) });
+    const unbound = revisedPlanningFor("pp.canvas.schema.confirmation");
+    expect(selectPlanningClarificationAnswerReview({
+      projectId,
+      planning: unbound,
+      proposalId: unbound.proposals[0].proposalId
     })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
     expect(review("pp.canvas.schema.confirmation", {
       status: "Confirmed",
       value: { kind: "text", value: "SECRET HISTORICAL ANSWER" }
-    })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
+    })).toEqual({ state: "unavailable", proposalId: uuid(1) });
+  });
+
+  it("fails status-shaped saved answers closed when human provenance is absent or malformed", () => {
+    expect(review("pp.canvas.yamlplanning.confirmation", { status: "Revised", value: yamlAnswer })).toEqual({
+      state: "unavailable",
+      proposalId: uuid(1)
+    });
+    const malformed = revisedPlanningFor();
+    malformed.sources = malformed.sources.map((source) => source.sourceType === "userAnswer"
+      ? { ...source, locator: "planning:userAnswer:wrong" }
+      : source);
+    expect(selectPlanningClarificationAnswerReview({
+      projectId,
+      planning: malformed,
+      proposalId: malformed.proposals[0].proposalId
+    })).toEqual({ state: "unavailable", proposalId: uuid(1) });
+  });
+
+  it("selects only a coherent Deferred reason and exposes no decision identity", () => {
+    const revised = revisedPlanningFor();
+    const deferDecisionId = uuid(7001);
+    const proposal = revised.proposals[0];
+    const deferDecision: PlanningDecisionRecord = {
+      decisionId: deferDecisionId,
+      proposalId: proposal.proposalId,
+      projectId,
+      action: "defer",
+      previousStatus: "Revised",
+      resultingStatus: "Deferred",
+      origin: "userAction",
+      recordedAt: proposal.updatedAt,
+      reason: "Waiting for approved evidence.",
+      sourceIds: proposal.sourceIds,
+      ruleSetVersion: PLANNING_RULE_SET_VERSION
+    };
+    const deferred: ProjectPlanningState = {
+      ...revised,
+      proposals: [{ ...proposal, status: "Deferred", lastDecisionId: deferDecisionId }],
+      decisions: [...revised.decisions, deferDecision]
+    };
+    const input = { projectId, planning: deferred, proposalId: proposal.proposalId };
+    expect(selectPlanningClarificationDeferral(input)).toEqual({
+      state: "available",
+      reason: "Waiting for approved evidence."
+    });
+    expect(Object.keys(selectPlanningClarificationDeferral(input)).sort()).toEqual(["reason", "state"]);
+    expect(selectPlanningClarificationDeferral({
+      ...input,
+      planning: { ...deferred, decisions: [...deferred.decisions.slice(0, -1), { ...deferDecision, origin: "migration" }] }
+    })).toEqual({ state: "unavailable" });
   });
 
   it("humanizes enum display values deterministically without replacing canonical values", () => {
@@ -342,13 +426,14 @@ describe("planning clarification answer-entry view model", () => {
     expect(source).not.toMatch(/from ["']react|react-dom|projectRepository|storageVersion|readiness|controlledApply|generateProjectPackage|exportProjectPackage|localStorage|sessionStorage|indexedDB|fetch\(|XMLHttpRequest|Math\.random|randomUUID|Date\.now|new Date|analytics/i);
   });
 
-  it("does not expose Phase 3I.2 Edit, Change, Resume, or Deferred saved-answer UI", () => {
+  it("exposes 3I.2 labels only in the scoped Planning UI", () => {
     const currentUi = [
       readFileSync("src/components/Planning/ClarificationDecisionControls.tsx", "utf8"),
       readFileSync("src/components/Planning/PlanningView.tsx", "utf8"),
       readFileSync("src/app/App.tsx", "utf8")
     ].join("\n");
 
-    expect(currentUi).not.toMatch(/Edit answer|Change answer|Resume decision/i);
+    expect(currentUi).toMatch(/Edit answer|Change answer|Resume decision/i);
+    expect(readFileSync("src/app/App.tsx", "utf8")).not.toMatch(/Edit answer|Change answer|Resume decision/i);
   });
 });
