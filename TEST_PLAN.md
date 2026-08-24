@@ -1,5 +1,42 @@
 # Test Plan
 
+## 2026-08-24 Phase 5C.3C.3J.2 Planning readiness evidence candidate analyzer
+
+1. Verify the analyzer contract version is exactly `phase-5c.3c.3j.2` and top-level outcomes are limited to analyzed, unsupported project type, and blocked.
+2. Verify a valid Canvas project returns exactly one assessment for each of the 11 active rules in existing priority order, with exact rule/version/gate identity and `architectApprovalRequired` metadata.
+3. Verify all assessment dispositions are limited to `validatedCandidate`, `notCandidate`, and `blocked`, and every top-level and assessment authority value is literal `readinessAuthorized: false`.
+4. Verify current snapshot reconstruction evaluates the deduplicated complete active gate set, then uses the existing draft, blueprint, and fingerprint generators without calling persistent orchestration.
+5. Verify gate, draft, blueprint, or fingerprint failure returns only bounded `generationFailed` metadata and no nested messages or project content.
+6. Verify lifecycle analysis receives canonical empty Planning for absent Planning and otherwise receives the normalized supplied Planning plus the complete current source, proposal, and fingerprint blueprints.
+7. Verify normalization or lifecycle ambiguity fails closed as `invalidPlanning` or `lifecycleAnalysisFailed` and produces no candidate extraction.
+8. Verify absent Planning, canonical empty Planning, duplicate-style empty Planning, and no current proposal return zero candidates and never gain readiness authority.
+9. Verify a generated current question with no persisted proposal is `notCandidate / currentProposalMissing`, while a canonically resolved gate is `notCandidate / clarificationNotCurrentlyRequired`.
+10. Verify candidate binding requires one lifecycle record with a persisted ID, `unchanged` disposition, and exact persisted/generated/proposal fingerprint equality.
+11. Verify only current `Confirmed` may continue to evidence proof; Needs Clarification, Revised, Deferred, Rejected, Not Applicable, Stale, Superseded, Blocked, and Proposed never become candidates.
+12. Verify Confirmed records carrying stale or supersession markers fail closed and Planning Not Applicable remains unmapped even for component and YAML rules.
+13. Verify `selectPlanningClarificationAnswerReview` remains authoritative for complete saved-answer revision lineage and exact registered-schema validation.
+14. Verify the unbound backend rule can never become a candidate and fails closed as `answerSchemaUnavailable` without fallback or inferred schema.
+15. Verify exactly one attached `userAnswer / confirmed / current / User answer` source is required; wrong authority, availability, type, label, unresolved ID, or duplicate current source fails closed.
+16. Verify the final decision is exactly one final `userAction` Confirm from Revised to Confirmed, with undefined value/reason and source IDs exactly equal to the proposal source IDs.
+17. Verify the current confirmed source locator exactly equals `buildPlanningUserAnswerLocator(proposalId, confirmationDecisionId)` and malformed prefix-shaped locators fail closed.
+18. Verify missing final decision, wrong action/origin/status, mismatched source binding, and corrupted revision history cannot produce a candidate.
+19. Verify open blocking conflicts reference the proposal through involved references, affected proposal IDs, or resolution-option proposal IDs; resolved and nonblocking conflicts do not independently block.
+20. Verify candidate authority comes from the exact current active rule and exact readinessRequirement/clarificationOnly target, with no deprecated, mismatched, or invented target accepted.
+21. Verify validated candidates expose only project, proposal, rule/version, gate, fingerprint, confirmation-decision, confirmed-source, Architect-required, disposition, and literal-false authority fields.
+22. Verify a unique secret answer and source-locator marker do not occur anywhere in serialized analyzer results, and no raw answers, locators, decisions, conflicts, sources, or ProjectRecord are returned.
+23. Verify deep-equal input snapshots produce deep-equal results with no clock, UUID, random, or mutable-global dependency.
+24. Verify deeply frozen ProjectRecord and nested Planning input remains unchanged, including sources, proposals, decisions, conflicts, readiness, generated documents, review status, and `packageGeneratedAt`.
+25. Verify a deterministic persisted-context contradiction prevents an old Confirmed record from remaining a candidate before Refresh.
+26. Verify Refresh replacement leaves the predecessor Superseded, creates a Needs Clarification successor, and produces zero candidates for that rule until independent revision and confirmation.
+27. Verify archived/restored-style persisted Confirmed evidence receives the same full current-context revalidation and receives no status bypass.
+28. Verify `isPlanningStatusReadinessEligible("Confirmed")`, `isPlanningStatusReadinessEligible("Not Applicable")`, and `isPlanningStatusOutputEligible("Confirmed")` remain false.
+29. Verify the analyzer has zero imports/consumers in Phase Gates, Power Platform readiness, Client Review, generated-package readiness, package generation, export, and UI.
+30. Verify no destination path, mapping registry, canonical transformer, Architect approval record, repository operation, controlled Apply operation, package invalidation, output integration, Storage migration, or TTI blocker change is introduced.
+31. Regress clarification decision contract/materialization, answer review, lifecycle, source reconciliation, replacement, materialization, orchestration, repository, Planning controls/views/App interaction, and readiness/package foundations.
+32. Run clean install, lint, app TypeScript checking, focused and required regression suites, full tests, coverage, build, production/advisory audits, exact four-file scope, diff checks, worktree checks, stash preservation, one review commit, push, and remote SHA verification.
+
+Validation result: passed. Clean install, lint, and app TypeScript checking passed. The focused analyzer suite passed 39 tests; Planning foundations passed 307 tests; Planning interaction regressions passed 108 tests; readiness/package regressions passed 73 tests. Full and coverage validation passed 74 unit/integration files with 2,739 tests and 7 UI files with 74 tests, for 81 files and 2,813 tests total. Coverage was 90.10% statements, 82.58% branches, 95.38% functions, and 93.86% lines. Build and the zero-vulnerability production audit passed. The advisory full audit reported 6 development/tooling findings (2 moderate, 4 high); no remediation was performed.
+
 ## 2026-08-23 Phase 5C.3C.3I.2 human decision interaction completion
 
 1. Verify saved-answer selection requires exact normalized human provenance for Revised, Confirmed, answered Deferred, and controlled reopened Needs Clarification states.
