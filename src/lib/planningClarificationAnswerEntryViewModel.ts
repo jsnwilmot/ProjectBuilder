@@ -1,7 +1,9 @@
 import { analyzePlanningClarificationDecisionCapabilities } from "./planningClarificationDecisionContract";
 import {
-  getProductionPlanningClarificationAnswerSchema
-} from "./planningClarificationAnswerSchemaRegistry";
+  resolveProductionPlanningClarificationAnswerSchema,
+  type PlanningClarificationAnswerSchemaContext,
+  type PlanningClarificationAnswerSchemaResolutionReason
+} from "./planningClarificationAnswerSchemaResolver";
 import {
   normalizeProjectPlanningState,
   type PlanningDecisionRecord,
@@ -18,6 +20,7 @@ export interface PlanningClarificationAnswerEntrySelectorInput {
   projectId: string;
   planning: ProjectPlanningState;
   proposalId: string;
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext;
 }
 
 export type PlanningClarificationAnswerEntrySelection =
@@ -31,6 +34,7 @@ export type PlanningClarificationAnswerEntrySelection =
   | {
       state: "schemaUnavailable";
       proposalId?: string;
+      reason: PlanningClarificationAnswerSchemaResolutionReason;
     }
   | {
       state: "unavailable";
@@ -50,6 +54,7 @@ export type PlanningClarificationAnswerReviewSelection =
   | {
       state: "schemaUnavailable";
       proposalId?: string;
+      reason: PlanningClarificationAnswerSchemaResolutionReason;
     }
   | {
       state: "unavailable";
@@ -81,16 +86,29 @@ export function selectPlanningClarificationAnswerEntry(
   }
 
   if (revise?.state === "answerSchemaRequired" && revise.requiredInput === "answerSchema") {
-    return { state: "schemaUnavailable", proposalId: proposal.proposalId };
+    const resolution = resolveProductionPlanningClarificationAnswerSchema(
+      proposal.ruleId,
+      proposal.ruleVersion,
+      input.answerSchemaContext
+    );
+    return {
+      state: "schemaUnavailable",
+      proposalId: proposal.proposalId,
+      reason: resolution.state === "unavailable" ? resolution.reason : "schemaNotRegistered"
+    };
   }
 
   if (revise?.state !== "inputRequired" || revise.requiredInput !== "answer") {
     return { state: "unavailable", proposalId: proposal.proposalId };
   }
 
-  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
-  if (!schema) {
-    return { state: "schemaUnavailable", proposalId: proposal.proposalId };
+  const resolution = resolveProductionPlanningClarificationAnswerSchema(
+    proposal.ruleId,
+    proposal.ruleVersion,
+    input.answerSchemaContext
+  );
+  if (resolution.state === "unavailable") {
+    return { state: "schemaUnavailable", proposalId: proposal.proposalId, reason: resolution.reason };
   }
 
   return {
@@ -98,7 +116,7 @@ export function selectPlanningClarificationAnswerEntry(
     proposalId: proposal.proposalId,
     ruleId: proposal.ruleId,
     ruleVersion: proposal.ruleVersion,
-    schema
+    schema: resolution.schema
   };
 }
 
@@ -118,10 +136,16 @@ export function selectPlanningClarificationAnswerReview(
     return { state: "unavailable", proposalId: proposal.proposalId };
   }
 
-  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
-  if (!schema) return { state: "schemaUnavailable", proposalId: proposal.proposalId };
+  const resolution = resolveProductionPlanningClarificationAnswerSchema(
+    proposal.ruleId,
+    proposal.ruleVersion,
+    input.answerSchemaContext
+  );
+  if (resolution.state === "unavailable") {
+    return { state: "schemaUnavailable", proposalId: proposal.proposalId, reason: resolution.reason };
+  }
 
-  const validation = validatePlanningClarificationAnswer(schema, proposal.value);
+  const validation = validatePlanningClarificationAnswer(resolution.schema, proposal.value);
   if (validation.outcome !== "valid") {
     return { state: "unavailable", proposalId: proposal.proposalId };
   }
@@ -132,7 +156,7 @@ export function selectPlanningClarificationAnswerReview(
     status: proposal.status,
     ruleId: proposal.ruleId,
     ruleVersion: proposal.ruleVersion,
-    schema,
+    schema: resolution.schema,
     answer: validation.answer
   };
 }
@@ -193,8 +217,23 @@ export function planningClarificationItemLabel(zeroBasedIndex: number): string {
     : "Item";
 }
 
+export function planningClarificationAnswerSchemaUnavailableMessage(
+  reason: PlanningClarificationAnswerSchemaResolutionReason
+): string {
+  switch (reason) {
+    case "backendSelectionRequired":
+      return "Confirm a single backend/data-source type before answering this question.";
+    case "backendTypeUnsupported":
+      return "Project Builder does not yet have an approved answer form for the selected backend type.";
+    case "mixedBackendUnsupported":
+      return "Project Builder does not yet have an approved answer form for projects using multiple backend types.";
+    default:
+      return "This planning question does not yet have an approved answer form.";
+  }
+}
+
 function withProposalId(
-  state: "schemaUnavailable" | "unavailable",
+  state: "unavailable",
   proposalId: string | undefined
 ): PlanningClarificationAnswerEntrySelection {
   return proposalId ? { state, proposalId } : { state };

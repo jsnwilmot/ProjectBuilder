@@ -14,6 +14,7 @@ import {
   type PlanningSourceReference,
   type ProjectPlanningState
 } from "./planningProposals";
+import type { PlanningClarificationAnswerSchemaContext } from "./planningClarificationAnswerSchemaResolver";
 
 export interface PlanningClarificationDecisionRepositoryInput<
   TAction extends PlanningClarificationHumanDecisionAction = Exclude<
@@ -97,7 +98,8 @@ const REPOSITORY_INPUT_KEYS = new Set(["proposalId", "action", "value", "reason"
 export function preparePlanningClarificationDecisionMaterialization(
   projectId: string,
   existingPlanning: unknown,
-  input: unknown
+  input: unknown,
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext
 ): PlanningClarificationDecisionMaterializationPreparation {
   if (!isValidProjectId(projectId)) {
     return blocked(projectId, [
@@ -127,7 +129,8 @@ export function preparePlanningClarificationDecisionMaterialization(
     proposalId: input.proposalId,
     action: input.action,
     value: input.value,
-    reason: input.reason
+    reason: input.reason,
+    answerSchemaContext
   });
   if (contract.outcome === "blocked") {
     return blocked(projectId, contract.issues.map((entry) =>

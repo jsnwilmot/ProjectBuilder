@@ -14,6 +14,7 @@ import {
   type PlanningClarificationHumanDecisionAction
 } from "../lib/planningClarificationDecisionContract";
 import type { PlanningClarificationDecisionFeedback } from "../lib/planningClarificationDecisionFeedback";
+import type { PlanningClarificationAnswerSchemaContext } from "../lib/planningClarificationAnswerSchemaResolver";
 import * as answerSchemaRegistry from "../lib/planningClarificationAnswerSchemaRegistry";
 import type { PlanningClarificationAnswerSchema } from "../lib/planningClarificationAnswerSchema";
 import type { PlanningClarificationDecisionRepositoryInput } from "../lib/planningClarificationDecisionMaterialization";
@@ -251,11 +252,17 @@ function successfulFeedback(action: UiDecisionInput["action"]) {
 function ControlHarness({
   planning,
   onSubmit,
-  onMeaningfulChange = () => undefined
+  onMeaningfulChange = () => undefined,
+  answerSchemaContext = {
+    projectType: "powerAppsCanvas",
+    primaryDataSourceType: "undecided",
+    selectedDataSourceTypes: []
+  }
 }: {
   planning: ProjectPlanningState;
   onSubmit: SubmitPlanningClarificationDecision;
   onMeaningfulChange?: (proposalId: string, meaningful: boolean) => void;
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext;
 }) {
   const [feedback, setFeedback] = useState<PlanningDecisionUiFeedback | null>(null);
   return (
@@ -263,6 +270,7 @@ function ControlHarness({
       <ClarificationDecisionControls
         projectId={projectId}
         planning={planning}
+        answerSchemaContext={answerSchemaContext}
         proposalId={proposalId}
         proposalTitle={proposalTitle}
         onSubmitClarificationDecision={onSubmit}
@@ -280,19 +288,21 @@ function renderControls(
   onSubmit: SubmitPlanningClarificationDecision = async (_submittedProjectId, input) => ({
     feedback: successfulFeedback(input.action)
   }),
-  onMeaningfulChange: (proposalId: string, meaningful: boolean) => void = () => undefined
+  onMeaningfulChange: (proposalId: string, meaningful: boolean) => void = () => undefined,
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext
 ) {
   return render(
     <ControlHarness
       planning={planning}
       onSubmit={onSubmit}
       onMeaningfulChange={onMeaningfulChange}
+      answerSchemaContext={answerSchemaContext}
     />
   );
 }
 
 describe("ClarificationDecisionControls", () => {
-  it("keeps the unbound backend answer structure unavailable without a Revise submission", () => {
+  it("requires a single backend selection without exposing internal identifiers", () => {
     const { container } = renderControls(planningFor());
     const controls = screen.getByRole("region", { name: decisionRegionName });
 
@@ -301,9 +311,71 @@ describe("ClarificationDecisionControls", () => {
     expect(within(controls).getByRole("button", { name: "Reject" })).toBeInTheDocument();
     expect(within(controls).queryByRole("button", { name: "Not applicable" })).not.toBeInTheDocument();
     expect(within(controls).queryByRole("button", { name: /revise|answer|edit/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/required answer structure is not registered/)).toBeInTheDocument();
+    expect(screen.getByText(
+      "Confirm a single backend/data-source type before answering this question."
+    )).toBeInTheDocument();
     expect(container.innerHTML).not.toContain(proposalId);
     expect(container.innerHTML).not.toContain("pp.canvas.schema.confirmation");
+  });
+
+  it("edits and submits the exact SharePoint List backend answer contract", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn(async (_project: string, input: UiDecisionInput) => ({
+      feedback: successfulFeedback(input.action)
+    }));
+    renderControls(
+      planningFor(),
+      onSubmit,
+      undefined,
+      {
+        projectType: "powerAppsCanvas",
+        primaryDataSourceType: "sharePointList",
+        selectedDataSourceTypes: ["sharePointList"]
+      }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    await user.click(screen.getByRole("button", { name: /Add item to Data sources/ }));
+    await user.type(screen.getByRole("textbox", { name: /Data source name/ }), "Projects");
+    await user.type(screen.getByRole("textbox", { name: /^Purpose/ }), "Track project delivery");
+    await user.type(screen.getByRole("textbox", { name: /Expected record volume/ }), "Up to 10,000 records");
+    await user.type(screen.getByRole("textbox", { name: /Ownership/ }), "Operations");
+    await user.type(screen.getByRole("textbox", { name: /^Relationships/ }), "Projects link to assignments.");
+    await user.type(screen.getByRole("textbox", { name: /Schema confirmation source/ }), "Approved solution design");
+    await user.click(screen.getByRole("button", { name: "Save answer for review" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(projectId, {
+      proposalId,
+      action: "revise",
+      value: {
+        kind: "structuredRecord",
+        value: {
+          dataSources: {
+            kind: "structuredRecordList",
+            value: [{
+              dataSourceName: { kind: "text", value: "Projects" },
+              purpose: { kind: "text", value: "Track project delivery" },
+              expectedRecordVolume: { kind: "text", value: "Up to 10,000 records" },
+              ownership: { kind: "text", value: "Operations" }
+            }]
+          },
+          relationships: { kind: "text", value: "Projects link to assignments." },
+          confirmationSource: { kind: "text", value: "Approved solution design" }
+        }
+      }
+    });
+    expect(Object.keys(onSubmit.mock.calls[0][1]).sort()).toEqual(["action", "proposalId", "value"]);
+  });
+
+  it.each([
+    [{ projectType: "powerAppsCanvas", primaryDataSourceType: "dataverse", selectedDataSourceTypes: ["dataverse"] },
+      "Project Builder does not yet have an approved answer form for the selected backend type."],
+    [{ projectType: "powerAppsCanvas", primaryDataSourceType: "multiple", selectedDataSourceTypes: ["sharePointList", "dataverse"] },
+      "Project Builder does not yet have an approved answer form for projects using multiple backend types."]
+  ] as const)("renders the exact backend unavailable message for context %#", (answerSchemaContext, message) => {
+    renderControls(planningFor(), undefined, undefined, answerSchemaContext);
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
   });
 
   it("shows Answer question for a bound eligible rule without pre-populating an editor", () => {

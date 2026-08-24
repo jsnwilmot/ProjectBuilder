@@ -14,7 +14,10 @@ import {
   type ProjectPlanningState
 } from "./planningProposals";
 import { validatePlanningClarificationAnswer } from "./planningClarificationAnswerSchema";
-import { getProductionPlanningClarificationAnswerSchema } from "./planningClarificationAnswerSchemaRegistry";
+import {
+  resolveProductionPlanningClarificationAnswerSchema,
+  type PlanningClarificationAnswerSchemaContext
+} from "./planningClarificationAnswerSchemaResolver";
 import { getPlanningRuleById, type PlanningClarificationRule } from "./planningRules";
 
 export type PlanningClarificationHumanDecisionAction =
@@ -32,12 +35,14 @@ export interface PlanningClarificationDecisionContractInput {
   action: PlanningClarificationHumanDecisionAction;
   value?: PlanningProposalValue;
   reason?: string;
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext;
 }
 
 export interface PlanningClarificationDecisionCapabilityInput {
   projectId: string;
   planning: ProjectPlanningState;
   proposalId: string;
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext;
 }
 
 export type PlanningClarificationDecisionCapabilityState =
@@ -155,8 +160,8 @@ const SUPPORTED_ACTIONS: readonly PlanningClarificationHumanDecisionAction[] = [
 const TERMINAL_STATUSES = new Set<PlanningProposalStatus>(["Rejected", "Superseded"]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const CAPABILITY_INPUT_KEYS = new Set(["projectId", "planning", "proposalId"]);
-const DECISION_INPUT_KEYS = new Set(["projectId", "planning", "proposalId", "action", "value", "reason"]);
+const CAPABILITY_INPUT_KEYS = new Set(["projectId", "planning", "proposalId", "answerSchemaContext"]);
+const DECISION_INPUT_KEYS = new Set(["projectId", "planning", "proposalId", "action", "value", "reason", "answerSchemaContext"]);
 
 const LIMITS = {
   projectId: 200,
@@ -219,12 +224,17 @@ export function analyzePlanningClarificationDecisionCapabilities(
         case "revise": {
           const structuralIssue = validateReviseAvailability(planning, proposal);
           if (structuralIssue) return unavailableCapability(action, structuralIssue.code);
-          return getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion)
+          const resolution = resolveProductionPlanningClarificationAnswerSchema(
+            proposal.ruleId,
+            proposal.ruleVersion,
+            input.answerSchemaContext
+          );
+          return resolution.state === "available"
             ? capability(action, "inputRequired", "answer", ["answerRequired"])
             : capability(action, "answerSchemaRequired", "answerSchema", ["answerSchemaRequired"]);
         }
         case "confirm": {
-          const structuralIssue = validateConfirmAvailability(planning, proposal);
+          const structuralIssue = validateConfirmAvailability(planning, proposal, input.answerSchemaContext);
           return structuralIssue
             ? unavailableCapability(action, structuralIssue.code)
             : capability(action, "available", "none");
@@ -248,7 +258,7 @@ export function analyzePlanningClarificationDecisionCapabilities(
             : capability(action, "inputRequired", "reason", ["reasonRequired"]);
         }
         case "reopen": {
-          const resolution = resolveReopenTransition(planning, proposal);
+          const resolution = resolveReopenTransition(planning, proposal, input.answerSchemaContext);
           return resolution.outcome === "blocked"
             ? unavailableCapability(action, resolution.issue.code)
             : capability(action, "available", "none");
@@ -292,9 +302,9 @@ export function analyzePlanningClarificationHumanDecision(
 
   switch (action) {
     case "revise":
-      return analyzeRevise(input.value, planning, proposal);
+      return analyzeRevise(input.value, planning, proposal, input.answerSchemaContext);
     case "confirm":
-      return analyzeConfirm(planning, proposal);
+      return analyzeConfirm(planning, proposal, input.answerSchemaContext);
     case "reject":
       return analyzeReject(input.reason, proposal);
     case "defer":
@@ -302,20 +312,25 @@ export function analyzePlanningClarificationHumanDecision(
     case "markNotApplicable":
       return analyzeMarkNotApplicable(input.reason, proposal, rule);
     case "reopen":
-      return analyzeReopen(planning, proposal);
+      return analyzeReopen(planning, proposal, input.answerSchemaContext);
   }
 }
 
 function analyzeRevise(
   inputValue: unknown,
   planning: ProjectPlanningState,
-  proposal: PlanningProposalRecord
+  proposal: PlanningProposalRecord,
+  answerSchemaContext?: unknown
 ): PlanningClarificationDecisionContractResult {
   const structuralIssue = validateReviseAvailability(planning, proposal);
   if (structuralIssue) return blocked(structuralIssue);
 
-  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
-  if (!schema) {
+  const resolution = resolveProductionPlanningClarificationAnswerSchema(
+    proposal.ruleId,
+    proposal.ruleVersion,
+    answerSchemaContext
+  );
+  if (resolution.state === "unavailable") {
     return blocked(issue("answerSchemaRequired", "Revision requires an exact registered answer schema.", proposal.proposalId, "value"));
   }
 
@@ -323,7 +338,7 @@ function analyzeRevise(
     return blocked(issue("answerRequired", "Revision requires an answer value.", proposal.proposalId, "value"));
   }
 
-  const validation = validatePlanningClarificationAnswer(schema, inputValue);
+  const validation = validatePlanningClarificationAnswer(resolution.schema, inputValue);
   if (validation.outcome === "invalid") {
     return blocked(invalidAnswerIssue(proposal, validation.issues[0]?.code));
   }
@@ -343,9 +358,10 @@ function analyzeRevise(
 
 function analyzeReopen(
   planning: ProjectPlanningState,
-  proposal: PlanningProposalRecord
+  proposal: PlanningProposalRecord,
+  answerSchemaContext?: unknown
 ): PlanningClarificationDecisionContractResult {
-  const resolution = resolveReopenTransition(planning, proposal);
+  const resolution = resolveReopenTransition(planning, proposal, answerSchemaContext);
   if (resolution.outcome === "blocked") return blocked(resolution.issue);
 
   return allowed({
@@ -359,9 +375,10 @@ function analyzeReopen(
 
 function analyzeConfirm(
   planning: ProjectPlanningState,
-  proposal: PlanningProposalRecord
+  proposal: PlanningProposalRecord,
+  answerSchemaContext?: unknown
 ): PlanningClarificationDecisionContractResult {
-  const structuralIssue = validateConfirmAvailability(planning, proposal);
+  const structuralIssue = validateConfirmAvailability(planning, proposal, answerSchemaContext);
   if (structuralIssue) return blocked(structuralIssue);
 
   return allowed({
@@ -521,7 +538,8 @@ function validateReviseAvailability(
 
 function validateConfirmAvailability(
   planning: ProjectPlanningState,
-  proposal: PlanningProposalRecord
+  proposal: PlanningProposalRecord,
+  answerSchemaContext?: unknown
 ): PlanningClarificationDecisionContractIssue | null {
   const sourceResolutionIssue = validateProposalSourceResolution(planning, proposal);
   if (sourceResolutionIssue) return sourceResolutionIssue;
@@ -540,11 +558,15 @@ function validateConfirmAvailability(
   const revisionIssue = validateRevisionHistory(planning, proposal);
   if (revisionIssue) return revisionIssue;
 
-  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
-  if (!schema) {
+  const resolution = resolveProductionPlanningClarificationAnswerSchema(
+    proposal.ruleId,
+    proposal.ruleVersion,
+    answerSchemaContext
+  );
+  if (resolution.state === "unavailable") {
     return issue("answerSchemaRequired", "Confirmation requires an exact registered answer schema.", proposal.proposalId, "value");
   }
-  const validation = validatePlanningClarificationAnswer(schema, proposal.value);
+  const validation = validatePlanningClarificationAnswer(resolution.schema, proposal.value);
   return validation.outcome === "invalid"
     ? invalidAnswerIssue(proposal, validation.issues[0]?.code)
     : null;
@@ -665,7 +687,8 @@ type ReopenTransitionResolution =
 
 function resolveReopenTransition(
   planning: ProjectPlanningState,
-  proposal: PlanningProposalRecord
+  proposal: PlanningProposalRecord,
+  answerSchemaContext?: unknown
 ): ReopenTransitionResolution {
   const sourceResolutionIssue = validateProposalSourceResolution(planning, proposal);
   if (sourceResolutionIssue) return { outcome: "blocked", issue: sourceResolutionIssue };
@@ -703,14 +726,18 @@ function resolveReopenTransition(
   const lineageIssue = validateInformationalRevisionLineage(planning, proposal, currentSource.source, "current");
   if (lineageIssue) return { outcome: "blocked", issue: lineageIssue };
 
-  const schema = getProductionPlanningClarificationAnswerSchema(proposal.ruleId, proposal.ruleVersion);
-  if (!schema) {
+  const resolution = resolveProductionPlanningClarificationAnswerSchema(
+    proposal.ruleId,
+    proposal.ruleVersion,
+    answerSchemaContext
+  );
+  if (resolution.state === "unavailable") {
     return {
       outcome: "blocked",
       issue: issue("answerSchemaRequired", "Deferred saved-answer resume requires an exact registered answer schema.", proposal.proposalId, "value")
     };
   }
-  const validation = validatePlanningClarificationAnswer(schema, proposal.value);
+  const validation = validatePlanningClarificationAnswer(resolution.schema, proposal.value);
   if (!isValidPlanningTransition(proposal.status, "Revised")) {
     return {
       outcome: "blocked",

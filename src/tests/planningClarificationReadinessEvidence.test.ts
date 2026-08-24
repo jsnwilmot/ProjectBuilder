@@ -71,6 +71,25 @@ function yamlAnswer(value = secretAnswer): PlanningProposalValue {
   };
 }
 
+function sharePointBackendAnswer(): PlanningProposalValue {
+  return {
+    kind: "structuredRecord",
+    value: {
+      dataSources: {
+        kind: "structuredRecordList",
+        value: [{
+          dataSourceName: { kind: "text", value: "Projects" },
+          purpose: { kind: "text", value: "Track project delivery" },
+          expectedRecordVolume: { kind: "text", value: "Up to 10,000 records" },
+          ownership: { kind: "text", value: "Operations" }
+        }]
+      },
+      relationships: { kind: "text", value: "Projects link to assignments." },
+      confirmationSource: { kind: "text", value: "Approved solution design" }
+    }
+  };
+}
+
 function persist(storage: StorageAdapter, project: ProjectRecord): void {
   saveStorageState({
     version: CURRENT_STORAGE_VERSION,
@@ -126,6 +145,42 @@ async function generateConfirmedProject(id: string): Promise<ProjectRecord> {
   });
   expect(confirmed.outcome).toBe("persisted");
   return getProjectById(id, storage)!;
+}
+
+async function generateBackendProject(
+  id: string,
+  status: "Revised" | "Confirmed" | "Deferred"
+): Promise<{ project: ProjectRecord; storage: StorageAdapter; proposalId: string }> {
+  const storage = new MemoryStorage();
+  persist(storage, canvasProject(id));
+  const generation = await runPlanningClarificationGeneration(id, { storage });
+  expect(generation.successful).toBe(true);
+  const generated = getProjectById(id, storage)!;
+  const proposal = generated.planning!.proposals.find((entry) => entry.ruleId === backendRuleId)!;
+
+  const revised = await materializeProjectPlanningClarificationHumanDecision(id, {
+    proposalId: proposal.proposalId,
+    action: "revise",
+    value: sharePointBackendAnswer()
+  }, storage);
+  expect(revised.outcome).toBe("persisted");
+
+  if (status === "Confirmed") {
+    const confirmed = await materializeProjectPlanningClarificationHumanDecision(id, {
+      proposalId: proposal.proposalId,
+      action: "confirm"
+    }, storage);
+    expect(confirmed.outcome).toBe("persisted");
+  } else if (status === "Deferred") {
+    const deferred = await materializeProjectPlanningClarificationHumanDecision(id, {
+      proposalId: proposal.proposalId,
+      action: "defer",
+      reason: "Waiting for approved backend evidence."
+    }, storage);
+    expect(deferred.outcome).toBe("persisted");
+  }
+
+  return { project: getProjectById(id, storage)!, storage, proposalId: proposal.proposalId };
 }
 
 function cloneProject(project: ProjectRecord): ProjectRecord {
@@ -529,21 +584,68 @@ describe("planning clarification readiness evidence candidate analyzer", () => {
     expect(validatedCount(result)).toBe(0);
   });
 
-  it("fails the unbound backend rule closed as answerSchemaUnavailable", async () => {
+  it("validates supported SharePoint backend evidence without authorizing readiness", async () => {
     const project = claimConfirmed(
       generatedBaseline,
       backendRuleId,
-      { kind: "text", value: "No inferred backend schema" }
+      sharePointBackendAnswer()
     );
     const result = await analyzePlanningClarificationReadinessEvidence(project);
     const assessment = result.outcome === "analyzed"
       ? result.assessments.find((entry) => entry.ruleId === backendRuleId)
       : undefined;
     expect(assessment).toMatchObject({
-      disposition: "blocked",
-      reason: "answerSchemaUnavailable",
+      disposition: "validatedCandidate",
       readinessAuthorized: false
     });
+    expect(result.readinessAuthorized).toBe(false);
+  });
+
+  it("fails an unsupported canonical backend closed as answerSchemaUnavailable", async () => {
+    const project = claimConfirmed(generatedBaseline, backendRuleId, sharePointBackendAnswer());
+    project.powerPlatform!.canvas!.primaryDataSourceType = "dataverse";
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["dataverse"];
+    const result = await analyzePlanningClarificationReadinessEvidence(project);
+    expect(validatedCount(result)).toBe(0);
+    expect(result.readinessAuthorized).toBe(false);
+  });
+
+  it.each(["Revised", "Confirmed", "Deferred"] as const)(
+    "preserves a supported SharePoint backend %s answer through deterministic Refresh",
+    async (status) => {
+      const id = `${projectId}-backend-refresh-${status.toLowerCase()}`;
+      const before = await generateBackendProject(id, status);
+      const refresh = await runPlanningClarificationGeneration(id, { storage: before.storage });
+      expect(refresh.outcome).toBe("unchanged");
+      const after = getProjectById(id, before.storage)!;
+      expect(after.planning).toEqual(before.project.planning);
+      expect(after.planning!.proposals.find((proposal) => proposal.proposalId === before.proposalId))
+        .toMatchObject({ status, value: sharePointBackendAnswer() });
+      expect(after.planning!.proposals.filter((proposal) => proposal.ruleId === backendRuleId)).toHaveLength(1);
+    }
+  );
+
+  it("blocks Refresh and denies current SharePoint answer authority after a canonical backend change", async () => {
+    const id = `${projectId}-backend-refresh-changed`;
+    const before = await generateBackendProject(id, "Confirmed");
+    const changed = getProjectById(id, before.storage)!;
+    changed.powerPlatform!.canvas!.primaryDataSourceType = "dataverse";
+    changed.powerPlatform!.canvas!.selectedDataSourceTypes = ["dataverse"];
+    persist(before.storage, changed);
+
+    const refresh = await runPlanningClarificationGeneration(id, { storage: before.storage });
+    const after = getProjectById(id, before.storage)!;
+    const prior = after.planning!.proposals.find((proposal) => proposal.proposalId === before.proposalId);
+    const assessment = await analyzePlanningClarificationReadinessEvidence(after);
+
+    expect(refresh).toEqual({
+      outcome: "blocked",
+      successful: false,
+      message: "Planning could not be refreshed safely. Review the latest project information and try again."
+    });
+    expect(prior?.status).toBe("Confirmed");
+    expect(validatedCount(assessment)).toBe(0);
+    expect(assessment.readinessAuthorized).toBe(false);
   });
 
   it("blocks open blocking conflicts through every supported proposal reference location", async () => {

@@ -265,7 +265,7 @@ describe("App - planning decisions", () => {
     expect(persisted?.decisions.map(({ action }) => action)).toEqual(["defer", "reopen"]);
   });
 
-  it("keeps unbound backend answer entry unavailable after Deferred resume", async () => {
+  it("keeps undecided backend answer entry unavailable after Deferred resume", async () => {
     const user = userEvent.setup();
     const inputProject = planningProject("pp.canvas.schema.confirmation");
     saveStorageState({
@@ -282,13 +282,56 @@ describe("App - planning decisions", () => {
     await user.click(await screen.findByRole("button", { name: "Resume decision" }));
 
     expect(await screen.findByText(
-      "Answer entry is unavailable because the required answer structure is not registered for this planning question."
+      "Confirm a single backend/data-source type before answering this question."
     )).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /answer/i })).not.toBeInTheDocument();
     const persisted = loadStorageState().projects[0]?.planning;
     expect(persisted?.proposals[0].status).toBe("Needs Clarification");
     expect(persisted?.decisions.map(({ action }) => action)).toEqual(["defer", "reopen"]);
+  });
+
+  it("persists and confirms a SharePoint List backend answer through the real App flow", async () => {
+    const user = userEvent.setup();
+    const inputProject = planningProject("pp.canvas.schema.confirmation");
+    inputProject.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    inputProject.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+    saveStorageState({
+      version: CURRENT_STORAGE_VERSION,
+      activeProjectId: inputProject.identity.id,
+      projects: [inputProject]
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Planning" }));
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    await user.click(screen.getByRole("button", { name: /Add item to Data sources/ }));
+    await user.type(screen.getByRole("textbox", { name: /Data source name/ }), "Projects");
+    await user.type(screen.getByRole("textbox", { name: /^Purpose/ }), "Track delivery");
+    await user.type(screen.getByRole("textbox", { name: /Expected record volume/ }), "Up to 10,000 records");
+    await user.type(screen.getByRole("textbox", { name: /Ownership/ }), "Operations");
+    await user.type(screen.getByRole("textbox", { name: /^Relationships/ }), "Projects link to assignments.");
+    await user.type(screen.getByRole("textbox", { name: /Schema confirmation source/ }), "Approved solution design");
+    await user.click(screen.getByRole("button", { name: "Save answer for review" }));
+
+    expect(await screen.findByRole("heading", { name: "Answer for review" })).toBeInTheDocument();
+    expect(screen.getByText("Projects")).toBeInTheDocument();
+    const revised = loadStorageState().projects[0]?.planning;
+    expect(revised?.decisions.map(({ action }) => action)).toEqual(["revise"]);
+    expect(revised?.decisions[0]).not.toHaveProperty("answerSchemaContext");
+    expect(revised?.proposals[0].value).toMatchObject({
+      kind: "structuredRecord",
+      value: {
+        relationships: { kind: "text", value: "Projects link to assignments." },
+        confirmationSource: { kind: "text", value: "Approved solution design" }
+      }
+    });
+
+    await user.click(screen.getByRole("button", { name: "Confirm decision" }));
+    expect(await screen.findByRole("heading", { name: "Confirmed answer" })).toBeInTheDocument();
+    expect(loadStorageState().projects[0]?.planning?.decisions.map(({ action }) => action))
+      .toEqual(["revise", "confirm"]);
+    expect(screen.queryByRole("button", { name: /apply/i })).not.toBeInTheDocument();
   });
 
   it("keeps App limited to hook-to-PlanningView wiring with separate persistence warning presentation", () => {

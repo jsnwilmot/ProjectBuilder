@@ -3,11 +3,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   humanizePlanningClarificationEnumOption,
+  planningClarificationAnswerSchemaUnavailableMessage,
   planningClarificationItemLabel,
   selectPlanningClarificationAnswerEntry,
   selectPlanningClarificationAnswerReview,
   selectPlanningClarificationDeferral
 } from "../lib/planningClarificationAnswerEntryViewModel";
+import type { PlanningClarificationAnswerSchemaContext } from "../lib/planningClarificationAnswerSchemaResolver";
 import * as answerSchemaRegistry from "../lib/planningClarificationAnswerSchemaRegistry";
 import {
   analyzePlanningClarificationDecisionCapabilities,
@@ -111,21 +113,38 @@ function planningFor(
   };
 }
 
-function select(ruleId: string, index = 1, proposalOverrides: Partial<PlanningProposalRecord> = {}) {
+const sharePointContext: PlanningClarificationAnswerSchemaContext = {
+  projectType: "powerAppsCanvas",
+  primaryDataSourceType: "sharePointList",
+  selectedDataSourceTypes: ["sharePointList"]
+};
+
+function select(
+  ruleId: string,
+  index = 1,
+  proposalOverrides: Partial<PlanningProposalRecord> = {},
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext
+) {
   const planning = planningFor(ruleId, index, proposalOverrides);
   return selectPlanningClarificationAnswerEntry({
     projectId,
     planning,
-    proposalId: planning.proposals[0].proposalId
+    proposalId: planning.proposals[0].proposalId,
+    answerSchemaContext
   });
 }
 
-function review(ruleId: string, proposalOverrides: Partial<PlanningProposalRecord> = {}) {
+function review(
+  ruleId: string,
+  proposalOverrides: Partial<PlanningProposalRecord> = {},
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext
+) {
   const planning = planningFor(ruleId, 1, proposalOverrides);
   return selectPlanningClarificationAnswerReview({
     projectId,
     planning,
-    proposalId: planning.proposals[0].proposalId
+    proposalId: planning.proposals[0].proposalId,
+    answerSchemaContext
   });
 }
 
@@ -136,6 +155,23 @@ const yamlAnswer = {
     validationResponsibility: { kind: "text" as const, value: "Technical reviewer" },
     yamlInstallationLocation: { kind: "text" as const, value: "Approved Canvas app" },
     yamlParentRelationship: { kind: "text" as const, value: "Approved parent" }
+  }
+};
+
+const backendAnswer = {
+  kind: "structuredRecord" as const,
+  value: {
+    dataSources: {
+      kind: "structuredRecordList" as const,
+      value: [{
+        dataSourceName: { kind: "text" as const, value: "Projects" },
+        purpose: { kind: "text" as const, value: "Track delivery" },
+        expectedRecordVolume: { kind: "text" as const, value: "10,000 records" },
+        ownership: { kind: "text" as const, value: "Operations" }
+      }]
+    },
+    relationships: { kind: "text" as const, value: "Projects relate to assignments." },
+    confirmationSource: { kind: "text" as const, value: "Approved solution design" }
   }
 };
 
@@ -248,8 +284,44 @@ describe("planning clarification answer-entry view model", () => {
 
   it("returns schemaUnavailable for the unbound backend rule without a fallback schema", () => {
     const result = select("pp.canvas.schema.confirmation");
-    expect(result).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
+    expect(result).toEqual({
+      state: "schemaUnavailable",
+      proposalId: uuid(1),
+      reason: "backendSelectionRequired"
+    });
     expect(result).not.toHaveProperty("schema");
+  });
+
+  it("makes SharePoint backend entry eligible and safely distinguishes unavailable backend reasons", () => {
+    expect(select("pp.canvas.schema.confirmation", 1, {}, sharePointContext)).toMatchObject({
+      state: "eligible",
+      ruleId: "pp.canvas.schema.confirmation",
+      ruleVersion: "1.0.0",
+      schema: { kind: "structuredRecord" }
+    });
+    for (const [answerSchemaContext, reason] of [
+      [
+        { projectType: "powerAppsCanvas", primaryDataSourceType: "undecided", selectedDataSourceTypes: [] },
+        "backendSelectionRequired"
+      ],
+      [
+        { projectType: "powerAppsCanvas", primaryDataSourceType: "dataverse", selectedDataSourceTypes: ["dataverse"] },
+        "backendTypeUnsupported"
+      ],
+      [
+        {
+          projectType: "powerAppsCanvas",
+          primaryDataSourceType: "sharePointList",
+          selectedDataSourceTypes: ["sharePointList", "dataverse"]
+        },
+        "mixedBackendUnsupported"
+      ]
+    ] as const) {
+      expect(select("pp.canvas.schema.confirmation", 1, {}, answerSchemaContext)).toMatchObject({
+        state: "schemaUnavailable",
+        reason
+      });
+    }
   });
 
   it("fails closed for exact rule-version mismatch and for a schema-bound non-Revise lifecycle", () => {
@@ -288,7 +360,11 @@ describe("planning clarification answer-entry view model", () => {
     const getter = vi.spyOn(answerSchemaRegistry, "getProductionPlanningClarificationAnswerSchema");
     getter.mockReturnValueOnce(schema).mockReturnValueOnce(undefined);
 
-    expect(select(ruleId)).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
+    expect(select(ruleId)).toEqual({
+      state: "schemaUnavailable",
+      proposalId: uuid(1),
+      reason: "schemaNotRegistered"
+    });
     getter.mockRestore();
   });
 
@@ -346,11 +422,52 @@ describe("planning clarification answer-entry view model", () => {
       projectId,
       planning: unbound,
       proposalId: unbound.proposals[0].proposalId
-    })).toEqual({ state: "schemaUnavailable", proposalId: uuid(1) });
+    })).toEqual({
+      state: "schemaUnavailable",
+      proposalId: uuid(1),
+      reason: "backendSelectionRequired"
+    });
     expect(review("pp.canvas.schema.confirmation", {
       status: "Confirmed",
       value: { kind: "text", value: "SECRET HISTORICAL ANSWER" }
     })).toEqual({ state: "unavailable", proposalId: uuid(1) });
+  });
+
+  it("validates and returns a proven saved SharePoint backend answer with current context", () => {
+    const original = revisedPlanningFor("pp.canvas.schema.confirmation");
+    const state: ProjectPlanningState = {
+      ...original,
+      proposals: [{ ...original.proposals[0], value: backendAnswer }],
+      decisions: [{ ...original.decisions[0], value: backendAnswer }]
+    };
+    const result = selectPlanningClarificationAnswerReview({
+      projectId,
+      planning: state,
+      proposalId: state.proposals[0].proposalId,
+      answerSchemaContext: sharePointContext
+    });
+    expect(result).toMatchObject({
+      state: "available",
+      status: "Revised",
+      ruleId: "pp.canvas.schema.confirmation",
+      answer: backendAnswer,
+      schema: { kind: "structuredRecord" }
+    });
+  });
+
+  it("maps bounded schema reasons to approved human-facing messages", () => {
+    expect(planningClarificationAnswerSchemaUnavailableMessage("backendSelectionRequired")).toBe(
+      "Confirm a single backend/data-source type before answering this question."
+    );
+    expect(planningClarificationAnswerSchemaUnavailableMessage("backendTypeUnsupported")).toBe(
+      "Project Builder does not yet have an approved answer form for the selected backend type."
+    );
+    expect(planningClarificationAnswerSchemaUnavailableMessage("mixedBackendUnsupported")).toBe(
+      "Project Builder does not yet have an approved answer form for projects using multiple backend types."
+    );
+    expect(planningClarificationAnswerSchemaUnavailableMessage("schemaNotRegistered")).toBe(
+      "This planning question does not yet have an approved answer form."
+    );
   });
 
   it("fails status-shaped saved answers closed when human provenance is absent or malformed", () => {
@@ -419,10 +536,11 @@ describe("planning clarification answer-entry view model", () => {
     expect(planningClarificationItemLabel(-1)).toBe("Item");
   });
 
-  it("remains a pure non-React capability and registry boundary", () => {
+  it("remains a pure non-React capability and resolver boundary", () => {
     const source = readFileSync("src/lib/planningClarificationAnswerEntryViewModel.ts", "utf8");
     expect(source).toContain("analyzePlanningClarificationDecisionCapabilities");
-    expect(source).toContain("getProductionPlanningClarificationAnswerSchema");
+    expect(source).toContain("resolveProductionPlanningClarificationAnswerSchema");
+    expect(source).not.toContain("planningClarificationAnswerSchemaRegistry");
     expect(source).not.toMatch(/from ["']react|react-dom|projectRepository|storageVersion|readiness|controlledApply|generateProjectPackage|exportProjectPackage|localStorage|sessionStorage|indexedDB|fetch\(|XMLHttpRequest|Math\.random|randomUUID|Date\.now|new Date|analytics/i);
   });
 

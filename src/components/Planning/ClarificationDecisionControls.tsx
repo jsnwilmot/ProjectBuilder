@@ -17,9 +17,11 @@ import {
 } from "../../lib/planningClarificationAnswerDraft";
 import type { PlanningClarificationAnswerSchema } from "../../lib/planningClarificationAnswerSchema";
 import {
+  planningClarificationAnswerSchemaUnavailableMessage,
   selectPlanningClarificationAnswerEntry,
   selectPlanningClarificationAnswerReview
 } from "../../lib/planningClarificationAnswerEntryViewModel";
+import type { PlanningClarificationAnswerSchemaContext } from "../../lib/planningClarificationAnswerSchemaResolver";
 import type { ProjectPlanningState } from "../../lib/planningProposals";
 import { ClarificationAnswerPrimitiveEditor } from "./ClarificationAnswerPrimitiveEditor";
 import { ClarificationAnswerStructuredEditor } from "./ClarificationAnswerStructuredEditor";
@@ -37,6 +39,7 @@ export type SubmitPlanningClarificationDecision = (
 interface ClarificationDecisionControlsProps {
   projectId: string;
   planning: ProjectPlanningState;
+  answerSchemaContext: PlanningClarificationAnswerSchemaContext;
   proposalId: string;
   proposalTitle: string;
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
@@ -81,8 +84,6 @@ const REASON_ACTIONS: readonly {
 
 const UNEXPECTED_ERROR_MESSAGE =
   "The planning decision could not be completed. Review the latest saved state before trying again.";
-const ANSWER_STRUCTURE_UNAVAILABLE_MESSAGE =
-  "Answer entry is unavailable because the required answer structure is not registered for this planning question.";
 const ANSWER_STATE_CHANGED_MESSAGE =
   "Planning changed while this answer was being edited. The draft is preserved, but it cannot be submitted against the previous planning state.";
 const PARTIAL_EDIT_FAILURE_MESSAGE =
@@ -105,6 +106,7 @@ interface AnswerSession {
 export function ClarificationDecisionControls({
   projectId,
   planning,
+  answerSchemaContext,
   proposalId,
   proposalTitle,
   onSubmitClarificationDecision,
@@ -141,16 +143,21 @@ export function ClarificationDecisionControls({
   const editReopenCompletedRef = useRef(false);
   const dirtyCallbackRef = useRef(onAnswerDraftMeaningfulChange);
   const capabilities = useMemo(
-    () => analyzePlanningClarificationDecisionCapabilities({ projectId, planning, proposalId }).capabilities,
-    [planning, projectId, proposalId]
+    () => analyzePlanningClarificationDecisionCapabilities({
+      projectId,
+      planning,
+      proposalId,
+      answerSchemaContext
+    }).capabilities,
+    [answerSchemaContext, planning, projectId, proposalId]
   );
   const answerEntrySelection = useMemo(
-    () => selectPlanningClarificationAnswerEntry({ projectId, planning, proposalId }),
-    [planning, projectId, proposalId]
+    () => selectPlanningClarificationAnswerEntry({ projectId, planning, proposalId, answerSchemaContext }),
+    [answerSchemaContext, planning, projectId, proposalId]
   );
   const savedAnswerSelection = useMemo(
-    () => selectPlanningClarificationAnswerReview({ projectId, planning, proposalId }),
-    [planning, projectId, proposalId]
+    () => selectPlanningClarificationAnswerReview({ projectId, planning, proposalId, answerSchemaContext }),
+    [answerSchemaContext, planning, projectId, proposalId]
   );
   const confirmAvailable = capabilities.some(
     (entry) => entry.action === "confirm" && entry.state === "available" && entry.requiredInput === "none"
@@ -418,7 +425,7 @@ export function ClarificationDecisionControls({
     >
       {!answerSession && answerEntrySelection.state === "schemaUnavailable" ? (
         <p className="planning-decision-answer-note">
-          {ANSWER_STRUCTURE_UNAVAILABLE_MESSAGE}
+          {planningClarificationAnswerSchemaUnavailableMessage(answerEntrySelection.reason)}
         </p>
       ) : null}
 

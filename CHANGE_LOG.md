@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-08-24 - Phase 5C.3C.3J.2A - SharePoint List Backend Planning Answer Capability
+
+### Summary
+
+- Recorded Phase 5C.3C.3J.2 as Final Complete and added one project-aware answer-schema resolver above the unchanged ten-entry static registry.
+- Added exactly one backend-specific contract for canonical Canvas projects using only `sharePointList`, with required data-source, relationship, and confirmation-source Planning evidence.
+- Enabled explicit Answer, Save for review, Edit, Change, Resume, and Confirm behavior through the existing clarification lifecycle without automatic confirmation or canonical project mutation.
+- Made unsupported, mixed, undecided, malformed, and changed backend context fail closed with bounded reason codes and human-facing messages.
+- Applied the Architect scope correction for the existing `App.planningGeneration` regression assertion that referenced the intentionally replaced unavailable-backend message; test scope now includes that file, with no production scope expansion.
+
+### Files created
+
+- `src/lib/planningClarificationAnswerSchemaResolver.ts` - immutable project-context builder and exact static/backend-specific schema resolution boundary.
+- `src/tests/planningClarificationAnswerSchemaResolver.test.ts` - context, schema-shape, support, inference, malformed-input, and version coverage.
+
+### Files updated
+
+- Seven Planning decision, repository, answer-view-model, UI, and readiness analyzer production files now consume the resolver where project-aware validation is required.
+- Nine decision, repository, UI, generation, refresh, and readiness test files cover the supported and fail-closed backend matrix.
+- `CHANGE_LOG.md` and `TEST_PLAN.md` record the phase behavior, scope correction, validation matrix, and preserved boundaries.
+
+### Scope boundaries preserved
+
+- The generic `pp.canvas.schema.confirmation@1.0.0` rule and static answer registry remain unchanged; static bindings remain 10 and the registry contains no backend binding.
+- SharePoint List is the only backend-specific contract. SharePoint Library, Microsoft List, Dataverse, all other single backends, mixed backends, and undecided selection remain unsupported.
+- The answer collects no internal names or canonical column schema and contains no TTI prefill. Repository callers cannot supply schema context; the repository derives it from the canonical baseline project and never persists it.
+- Planning readiness authority remains zero. No destination mapping, Architect approval persistence, canonical project write, controlled Apply, Phase Gate, output, Storage, migration, dependency, Node, CI, external AI, or deployment behavior changed.
+- Resolver version is `phase-5c.3c.3j.2a`; answer-schema version remains `phase-5c.3c.3c`; Planning schema/rules remain `phase-5c.1.1`; analyzer remains `phase-5c.3c.3j.2`; Storage remains Version 6 with zero migrations.
+- TTI remains Draft with 15 generated-content blockers; no blocker was resolved, inferred, weakened, or reclassified.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, and app TypeScript checking passed; the corrected ten-file focused matrix passed 383 tests and the consolidated resolver/decision/UI/refresh/readiness matrix passed 22 files with 617 tests.
+- Full and coverage validation passed 75 unit/integration files with 2,786 tests and 7 UI files with 74 tests, for 82 files and 2,860 tests total.
+- Coverage passed with 90.16% statements, 82.64% branches, 95.39% functions, and 93.90% lines.
+- Production build passed with the existing Vite large-chunk warning; production audit passed with 0 vulnerabilities.
+- Advisory full audit reported 6 development/tooling findings (2 moderate, 4 high); no dependency remediation was performed.
+
+### Issues found
+
+- The original 19-file authorization omitted an existing generation regression that asserted the intentionally replaced unavailable-backend message. The Architect corrected test scope to 20 paths; this was not a product defect and added no production path.
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory-only development audit reports 6 findings; production dependencies report 0 vulnerabilities and remediation is outside scope.
+
+### Remaining work
+
+- Independent GPT Architect review is required before integration. Dataverse and other backend contracts, readiness projection, mappings, approval persistence, controlled Apply expansion, output integration, Storage changes, and deployment remain blocked.
+
 ## 2026-08-24 - Phase 5C.3C.3J.2 - Planning Readiness Evidence Candidate Analyzer
 
 ### Summary

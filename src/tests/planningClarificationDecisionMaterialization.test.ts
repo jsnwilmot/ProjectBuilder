@@ -21,6 +21,7 @@ import {
 } from "../lib/planningClarificationDecisionMaterialization";
 import { buildPlanningUserAnswerLocator } from "../lib/planningClarificationDecisionContract";
 import { getPlanningRuleById } from "../lib/planningRules";
+import type { PlanningClarificationAnswerSchemaContext } from "../lib/planningClarificationAnswerSchemaResolver";
 
 const projectId = "tti-project";
 const proposalId = "22222222-2222-4222-8222-000000000001";
@@ -60,6 +61,31 @@ function structuredValue(overrides: { purpose?: string; inputs?: string } = {}):
       },
       confirmationSource: textValue("Approved component review")
     }]
+  };
+}
+
+const sharePointContext: PlanningClarificationAnswerSchemaContext = {
+  projectType: "powerAppsCanvas",
+  primaryDataSourceType: "sharePointList",
+  selectedDataSourceTypes: ["sharePointList"]
+};
+
+function backendAnswer(): PlanningProposalValue {
+  return {
+    kind: "structuredRecord",
+    value: {
+      dataSources: {
+        kind: "structuredRecordList",
+        value: [{
+          dataSourceName: textValue("Projects"),
+          purpose: textValue("Track delivery"),
+          expectedRecordVolume: textValue("10,000 records"),
+          ownership: textValue("Operations")
+        }]
+      },
+      relationships: textValue("Projects relate to assignments by project ID."),
+      confirmationSource: textValue("Approved solution design")
+    }
   };
 }
 
@@ -220,9 +246,15 @@ function materialize(
   state: ProjectPlanningState,
   input: unknown,
   ids: readonly string[] = [decisionId, sourceId],
-  now = nextTimestamp
+  now = nextTimestamp,
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext
 ) {
-  const preparation = preparePlanningClarificationDecisionMaterialization(projectId, state, input);
+  const preparation = preparePlanningClarificationDecisionMaterialization(
+    projectId,
+    state,
+    input,
+    answerSchemaContext
+  );
   if (preparation.kind !== "ready") {
     return { preparation, finalized: undefined };
   }
@@ -824,6 +856,48 @@ describe("planning clarification human decision materialization", () => {
     }
     expect(nowCalls).toBe(0);
     expect(uuidCalls).toBe(0);
+  });
+
+  it("materializes SharePoint backend Revise with internal context but persists no context metadata", () => {
+    const backend = planning({
+      sources: sourcesFor("pp.canvas.schema.confirmation"),
+      proposals: [proposalFor("pp.canvas.schema.confirmation")]
+    });
+    const run = materialize(
+      backend,
+      { proposalId, action: "revise", value: backendAnswer() },
+      [decisionId, sourceId],
+      nextTimestamp,
+      sharePointContext
+    );
+    const finalized = requireFinalized(run);
+
+    expect(finalized.result.outcome).toBe("persisted");
+    expect(finalized.planning.proposals[0]).toMatchObject({ status: "Revised", value: backendAnswer() });
+    expect(JSON.stringify(finalized)).not.toContain("answerSchemaContext");
+    expect(JSON.stringify(finalized)).not.toContain("primaryDataSourceType");
+    expect(JSON.stringify(finalized)).not.toContain("selectedDataSourceTypes");
+  });
+
+  it("keeps repository input context forbidden even when internal SharePoint context is supplied", () => {
+    const backend = planning({
+      sources: sourcesFor("pp.canvas.schema.confirmation"),
+      proposals: [proposalFor("pp.canvas.schema.confirmation")]
+    });
+    const preparation = preparePlanningClarificationDecisionMaterialization(
+      projectId,
+      backend,
+      {
+        proposalId,
+        action: "revise",
+        value: backendAnswer(),
+        answerSchemaContext: sharePointContext
+      },
+      sharePointContext
+    );
+    expectBlockedCode(preparation, "forbiddenRepositoryInput");
+    expect(preparation.kind === "blocked" ? preparation.result.issues[0]?.field : undefined)
+      .toBe("answerSchemaContext");
   });
 
   it.each([

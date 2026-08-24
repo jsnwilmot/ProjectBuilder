@@ -9,9 +9,14 @@ import {
   type PlanningUiSource
 } from "../../lib/planningUiViewModel";
 import {
+  planningClarificationAnswerSchemaUnavailableMessage,
   selectPlanningClarificationAnswerReview,
   selectPlanningClarificationDeferral
 } from "../../lib/planningClarificationAnswerEntryViewModel";
+import {
+  buildPlanningClarificationAnswerSchemaContext,
+  type PlanningClarificationAnswerSchemaContext
+} from "../../lib/planningClarificationAnswerSchemaResolver";
 import type { PlanningClarificationOrchestrationResult } from "../../lib/planningClarificationOrchestration";
 import type { ProjectRecord } from "../../types/project";
 import {
@@ -44,6 +49,10 @@ export function PlanningView({
   const [planningOperationFeedback, setPlanningOperationFeedback] = useState<PlanningClarificationOrchestrationResult | null>(null);
   const [planningOperationPending, setPlanningOperationPending] = useState(false);
   const model = useMemo(() => buildPlanningUiViewModel(project), [project]);
+  const answerSchemaContext = useMemo(
+    () => buildPlanningClarificationAnswerSchemaContext(project),
+    [project]
+  );
 
   useEffect(() => {
     mainRef.current?.focus();
@@ -190,6 +199,7 @@ export function PlanningView({
                 {group.proposals.map((proposal) => (
                   <PlanningProposalCard
                     project={project}
+                    answerSchemaContext={answerSchemaContext}
                     proposal={proposal}
                     onSubmitClarificationDecision={onSubmitClarificationDecision}
                     onDecisionFeedback={setDecisionFeedback}
@@ -210,12 +220,14 @@ export function PlanningView({
 
 function PlanningProposalCard({
   project,
+  answerSchemaContext,
   proposal,
   onSubmitClarificationDecision,
   onDecisionFeedback,
   onAnswerDraftMeaningfulChange
 }: {
   project: ProjectRecord;
+  answerSchemaContext: PlanningClarificationAnswerSchemaContext;
   proposal: PlanningUiProposal;
   onSubmitClarificationDecision: SubmitPlanningClarificationDecision;
   onDecisionFeedback: (feedback: PlanningDecisionUiFeedback | null) => void;
@@ -226,7 +238,8 @@ function PlanningProposalCard({
     ? selectPlanningClarificationAnswerReview({
         projectId: project.identity.id,
         planning: project.planning,
-        proposalId: proposal.key
+        proposalId: proposal.key,
+        answerSchemaContext
       })
     : { state: "unavailable" as const };
   const deferral = project.planning
@@ -300,7 +313,7 @@ function PlanningProposalCard({
 
       {answerReview.state === "schemaUnavailable" ? (
         <p className="planning-answer-review-unavailable" role="status">
-          This saved answer cannot be displayed because its approved answer structure is unavailable.
+          {planningClarificationAnswerSchemaUnavailableMessage(answerReview.reason)}
         </p>
       ) : null}
 
@@ -308,6 +321,7 @@ function PlanningProposalCard({
         <ClarificationDecisionControls
           projectId={project.identity.id}
           planning={project.planning}
+          answerSchemaContext={answerSchemaContext}
           proposalId={proposal.key}
           proposalTitle={proposal.title}
           onSubmitClarificationDecision={onSubmitClarificationDecision}

@@ -4,7 +4,11 @@ import {
   type PlanningClarificationProposalBlueprint
 } from "./planningClarificationBlueprints";
 import { selectPlanningClarificationAnswerReview } from "./planningClarificationAnswerEntryViewModel";
-import { getProductionPlanningClarificationAnswerSchema } from "./planningClarificationAnswerSchemaRegistry";
+import {
+  buildPlanningClarificationAnswerSchemaContext,
+  resolveProductionPlanningClarificationAnswerSchema,
+  type PlanningClarificationAnswerSchemaContext
+} from "./planningClarificationAnswerSchemaResolver";
 import { buildPlanningUserAnswerLocator } from "./planningClarificationDecisionContract";
 import { generatePlanningClarificationDrafts } from "./planningClarificationDrafts";
 import { generatePlanningClarificationFingerprints } from "./planningClarificationFingerprints";
@@ -215,7 +219,8 @@ export async function analyzePlanningClarificationReadinessEvidence(
       rule,
       normalized.planning,
       snapshot.proposals,
-      lifecycle.proposals
+      lifecycle.proposals,
+      buildPlanningClarificationAnswerSchemaContext(project)
     )),
     reasonCodes: []
   };
@@ -226,7 +231,8 @@ function assessRule(
   rule: PlanningClarificationRule,
   planning: ProjectPlanningState,
   generatedProposals: readonly PlanningClarificationProposalBlueprint[],
-  lifecycleRecords: readonly PlanningClarificationProposalLifecycleAnalysisRecord[]
+  lifecycleRecords: readonly PlanningClarificationProposalLifecycleAnalysisRecord[],
+  answerSchemaContext: PlanningClarificationAnswerSchemaContext
 ): PlanningClarificationReadinessEvidenceAssessment {
   const base = assessmentBase(projectId, rule);
   const generatedMatches = generatedProposals.filter((proposal) => proposal.ruleId === rule.ruleId);
@@ -283,16 +289,18 @@ function assessRule(
   const answerReview = selectPlanningClarificationAnswerReview({
     projectId,
     planning,
-    proposalId: proposal.proposalId
+    proposalId: proposal.proposalId,
+    answerSchemaContext
   });
   if (answerReview.state !== "available" || answerReview.status !== "Confirmed") {
-    const schema = getProductionPlanningClarificationAnswerSchema(
+    const resolution = resolveProductionPlanningClarificationAnswerSchema(
       proposal.ruleId,
-      proposal.ruleVersion
+      proposal.ruleVersion,
+      answerSchemaContext
     );
     return blockedAssessment(
       boundBase,
-      answerReview.state === "schemaUnavailable" || !schema
+      answerReview.state === "schemaUnavailable" || resolution.state === "unavailable"
         ? "answerSchemaUnavailable"
         : "confirmedAnswerInvalid"
     );

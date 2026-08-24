@@ -15,6 +15,7 @@ import {
 } from "./clientReview";
 import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
 import { createEmptyProjectPlanningState } from "./planningProposals";
+import { buildPlanningClarificationAnswerSchemaContext } from "./planningClarificationAnswerSchemaResolver";
 import {
   finalizePlanningClarificationMaterialization,
   invalidProjectIdResult,
@@ -772,7 +773,8 @@ export async function materializeProjectPlanningClarificationHumanDecision(
   const preparation = preparePlanningClarificationDecisionMaterialization(
     projectId,
     baselineProject.planning ?? createEmptyProjectPlanningState(),
-    input as PlanningClarificationDecisionRepositoryInput
+    input as PlanningClarificationDecisionRepositoryInput,
+    buildPlanningClarificationAnswerSchemaContext(baselineProject)
   );
   if (preparation.kind === "blocked") {
     return preparation.result;

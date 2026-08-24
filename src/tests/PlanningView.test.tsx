@@ -714,17 +714,45 @@ describe("PlanningView", () => {
     expect(screen.queryByRole("heading", { name: "Applied history" })).not.toBeInTheDocument();
   });
 
-  it("renders a TTI-like unresolved clarification without a recommendation group or readiness claim", () => {
+  it("renders an unresolved backend clarification without a recommendation group or readiness claim", () => {
     renderPlanningView(project(planning({ proposals: [clarificationProposal()] })));
 
     expect(screen.getByRole("heading", { name: "Questions to answer" })).toBeInTheDocument();
     expect(screen.getByText("Answer required")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Recommendations" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Ready for Codex/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/required answer structure is not registered/)).toBeInTheDocument();
+    expect(screen.getByText(
+      "Confirm a single backend/data-source type before answering this question."
+    )).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Defer" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /revise|provide answer|edit answer/i })).not.toBeInTheDocument();
+  });
+
+  it("renders the SharePoint List answer editor only for the exact canonical backend context", async () => {
+    const user = userEvent.setup();
+    const input = project(planning({ proposals: [clarificationProposal()] }));
+    input.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
+    input.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+    renderPlanningView(input);
+
+    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    expect(screen.getByRole("button", { name: /Add item to Data sources/ })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /^Relationships/ })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: /Schema confirmation source/ })).toBeInTheDocument();
+    expect(screen.queryByText(/required answer structure is not registered/)).not.toBeInTheDocument();
+  });
+
+  it("fails mixed backend answer entry closed with the approved message", () => {
+    const input = project(planning({ proposals: [clarificationProposal()] }));
+    input.powerPlatform!.canvas!.primaryDataSourceType = "multiple";
+    input.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList", "dataverse"];
+    renderPlanningView(input);
+
+    expect(screen.getByText(
+      "Project Builder does not yet have an approved answer form for projects using multiple backend types."
+    )).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Answer question" })).not.toBeInTheDocument();
   });
 
   it("uses logical proposal headings and non-interactive cards", () => {

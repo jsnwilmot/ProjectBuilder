@@ -623,6 +623,25 @@ function humanStructuredValue(overrides: { purpose?: string; inputs?: string } =
   };
 }
 
+function humanBackendAnswer(): PlanningProposalValue {
+  return {
+    kind: "structuredRecord",
+    value: {
+      dataSources: {
+        kind: "structuredRecordList",
+        value: [{
+          dataSourceName: humanTextValue("Projects"),
+          purpose: humanTextValue("Track delivery"),
+          expectedRecordVolume: humanTextValue("10,000 records"),
+          ownership: humanTextValue("Operations")
+        }]
+      },
+      relationships: humanTextValue("Projects relate to assignments by project ID."),
+      confirmationSource: humanTextValue("Approved solution design")
+    }
+  };
+}
+
 function humanRule(ruleId = "pp.canvas.components.confirmation") {
   const rule = getPlanningRuleById(ruleId);
   if (!rule) throw new Error(`Missing human-decision fixture rule ${ruleId}`);
@@ -771,6 +790,17 @@ function humanProject(planning: ProjectPlanningState, overrides: Partial<Project
     now: humanTimestamp
   }, new MemoryStorage());
   return { ...project, planning, ...overrides };
+}
+
+function humanBackendProject(
+  planning: ProjectPlanningState,
+  primaryDataSourceType: "sharePointList" | "dataverse" = "sharePointList",
+  selectedDataSourceTypes: Array<"sharePointList" | "dataverse"> = [primaryDataSourceType]
+): ProjectRecord {
+  const project = humanProject(planning);
+  project.powerPlatform!.canvas!.primaryDataSourceType = primaryDataSourceType;
+  project.powerPlatform!.canvas!.selectedDataSourceTypes = selectedDataSourceTypes;
+  return project;
 }
 
 beforeEach(() => {
@@ -1207,6 +1237,113 @@ describe("projectRepository", () => {
     expect(serializedPlanning).not.toContain("answerSchema");
     expect(serializedPlanning).not.toContain("phase-5c.3c.3c");
     expect(serializedPlanning).not.toContain("registryEntry");
+  });
+
+  it("derives SharePoint backend context from the canonical project for Revise and explicit Confirm", async () => {
+    const storage = new CountingStorage();
+    const initialPlanning = humanPlanning(humanProjectId, {
+      sources: humanSources("pp.canvas.schema.confirmation"),
+      proposals: [humanProposal(humanProjectId, "pp.canvas.schema.confirmation")]
+    });
+    const project = humanBackendProject(initialPlanning);
+    saveStorageState({ version: 6, activeProjectId: humanProjectId, projects: [project] }, storage);
+
+    const revise = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "revise",
+      value: humanBackendAnswer()
+    }, storage, {
+      now: () => humanMaterializedAt,
+      uuid: (() => {
+        const ids = [humanDecisionId, humanSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    });
+    expect(revise).toMatchObject({ outcome: "persisted", action: "revise" });
+    expect(getProjectById(humanProjectId, storage)?.planning?.proposals[0]).toMatchObject({
+      status: "Revised",
+      value: humanBackendAnswer()
+    });
+
+    const confirm = await materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "confirm"
+    }, storage, {
+      now: () => humanConfirmedAt,
+      uuid: (() => {
+        const ids = [humanConfirmDecisionId, humanConfirmedSourceId];
+        let index = 0;
+        return () => ids[index++]!;
+      })()
+    });
+    expect(confirm).toMatchObject({ outcome: "persisted", action: "confirm" });
+    const confirmed = getProjectById(humanProjectId, storage)!;
+    expect(confirmed.planning?.proposals[0]).toMatchObject({
+      status: "Confirmed",
+      value: humanBackendAnswer()
+    });
+    expect(JSON.stringify(confirmed.planning)).not.toMatch(
+      /answerSchemaContext|primaryDataSourceType|selectedDataSourceTypes/
+    );
+  });
+
+  it("rejects forged repository context and unsupported canonical backend without writes", async () => {
+    const initialPlanning = humanPlanning(humanProjectId, {
+      sources: humanSources("pp.canvas.schema.confirmation"),
+      proposals: [humanProposal(humanProjectId, "pp.canvas.schema.confirmation")]
+    });
+    for (const [project, input, code] of [
+      [
+        humanBackendProject(initialPlanning),
+        {
+          proposalId: humanProposalId,
+          action: "revise",
+          value: humanBackendAnswer(),
+          answerSchemaContext: {
+            projectType: "powerAppsCanvas",
+            primaryDataSourceType: "sharePointList",
+            selectedDataSourceTypes: ["sharePointList"]
+          }
+        },
+        "forbiddenRepositoryInput"
+      ],
+      [
+        humanBackendProject(initialPlanning, "dataverse"),
+        { proposalId: humanProposalId, action: "revise", value: humanBackendAnswer() },
+        "answerSchemaRequired"
+      ]
+    ] as const) {
+      const storage = new CountingStorage();
+      saveStorageState({ version: 6, activeProjectId: humanProjectId, projects: [project] }, storage);
+      const writesBefore = storage.writes;
+      const result = await materializeProjectPlanningClarificationHumanDecision(
+        humanProjectId,
+        input,
+        storage
+      );
+      expect(result).toMatchObject({ outcome: "blocked", issues: [expect.objectContaining({ code })] });
+      expect(storage.writes).toBe(writesBefore);
+    }
+  });
+
+  it("uses the existing project-change guard for concurrent backend changes", async () => {
+    const storage = new ChangingReadStorage();
+    const initialPlanning = humanPlanning(humanProjectId, {
+      sources: humanSources("pp.canvas.schema.confirmation"),
+      proposals: [humanProposal(humanProjectId, "pp.canvas.schema.confirmation")]
+    });
+    const project = humanBackendProject(initialPlanning);
+    saveStorageState({ version: 6, activeProjectId: humanProjectId, projects: [project] }, storage);
+
+    await expect(materializeProjectPlanningClarificationHumanDecision(humanProjectId, {
+      proposalId: humanProposalId,
+      action: "revise",
+      value: humanBackendAnswer()
+    }, storage)).resolves.toMatchObject({
+      outcome: "blocked",
+      issues: [expect.objectContaining({ code: "projectChangedDuringDecisionMaterialization" })]
+    });
   });
 
   it.each([

@@ -23,6 +23,7 @@ import {
   type PlanningClarificationHumanDecisionAction
 } from "../lib/planningClarificationDecisionContract";
 import { getPlanningRuleById, getPlanningRuleRegistry } from "../lib/planningRules";
+import type { PlanningClarificationAnswerSchemaContext } from "../lib/planningClarificationAnswerSchemaResolver";
 
 const projectId = "tti-project";
 const proposalId = "22222222-2222-4222-8222-000000000001";
@@ -66,6 +67,45 @@ function yamlAnswer(valuePrefix = "Approved"): PlanningProposalValue {
       yamlParentRelationship: textValue(`${valuePrefix} parent relationship`)
     }
   };
+}
+
+const sharePointContext: PlanningClarificationAnswerSchemaContext = {
+  projectType: "powerAppsCanvas",
+  primaryDataSourceType: "sharePointList",
+  selectedDataSourceTypes: ["sharePointList"]
+};
+
+function backendAnswer(valuePrefix = "Approved"): PlanningProposalValue {
+  return {
+    kind: "structuredRecord",
+    value: {
+      dataSources: {
+        kind: "structuredRecordList",
+        value: [{
+          dataSourceName: textValue(`${valuePrefix} Projects`),
+          purpose: textValue(`${valuePrefix} project tracking`),
+          expectedRecordVolume: textValue(`${valuePrefix} 10,000 records`),
+          ownership: textValue(`${valuePrefix} Operations`)
+        }]
+      },
+      relationships: textValue(`${valuePrefix} project-to-assignment relationship`),
+      confirmationSource: textValue(`${valuePrefix} solution design`)
+    }
+  };
+}
+
+function revisedBackendPlanning(): ProjectPlanningState {
+  const value = backendAnswer();
+  return planning({
+    sources: [...sourcesFor("pp.canvas.schema.confirmation"), userAnswerSource()],
+    proposals: [proposalFor("pp.canvas.schema.confirmation", {
+      status: "Revised",
+      value,
+      sourceIds: [projectRuleSourceId, readinessSourceId, userAnswerSourceId],
+      lastDecisionId: reviseDecisionId
+    })],
+    decisions: [reviseDecision(value)]
+  });
 }
 
 function internalNamesAnswer(): PlanningProposalValue {
@@ -382,6 +422,7 @@ function analyze(input: {
   reason?: string;
   state?: ProjectPlanningState;
   id?: string;
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext;
 }) {
   return analyzePlanningClarificationHumanDecision({
     projectId,
@@ -389,7 +430,8 @@ function analyze(input: {
     proposalId: input.id ?? proposalId,
     action: input.action,
     value: input.value,
-    reason: input.reason
+    reason: input.reason,
+    answerSchemaContext: input.answerSchemaContext
   });
 }
 
@@ -400,9 +442,15 @@ function expectBlockedCode(result: ReturnType<typeof analyze>, code: string): vo
 
 function analyzeCapabilities(
   state: ProjectPlanningState = planning(),
-  id: string = proposalId
+  id: string = proposalId,
+  answerSchemaContext?: PlanningClarificationAnswerSchemaContext
 ): PlanningClarificationDecisionCapabilitiesResult {
-  return analyzePlanningClarificationDecisionCapabilities({ projectId, planning: state, proposalId: id });
+  return analyzePlanningClarificationDecisionCapabilities({
+    projectId,
+    planning: state,
+    proposalId: id,
+    answerSchemaContext
+  });
 }
 
 function capability(
@@ -1149,6 +1197,84 @@ describe("planning clarification human decision contract", () => {
         outcome: "blocked",
         issues: [{ code: "answerSchemaRequired", field: "value" }]
       });
+    });
+
+    it("enables SharePoint backend Revise and Confirm only with the same supported context", () => {
+      const initial = planning({
+        sources: sourcesFor("pp.canvas.schema.confirmation"),
+        proposals: [proposalFor("pp.canvas.schema.confirmation")]
+      });
+      expect(capability(analyzeCapabilities(initial, proposalId, sharePointContext), "revise")).toEqual({
+        action: "revise",
+        state: "inputRequired",
+        requiredInput: "answer",
+        reasonCodes: ["answerRequired"]
+      });
+      expect(analyze({
+        action: "revise",
+        value: backendAnswer(),
+        state: initial,
+        answerSchemaContext: sharePointContext
+      })).toMatchObject({ outcome: "allowed", plan: { resultingStatus: "Revised" } });
+      expect(analyze({
+        action: "confirm",
+        state: revisedBackendPlanning(),
+        answerSchemaContext: sharePointContext
+      })).toMatchObject({ outcome: "allowed", plan: { resultingStatus: "Confirmed" } });
+    });
+
+    it("blocks backend Confirm when canonical backend context changes", () => {
+      for (const answerSchemaContext of [
+        {
+          projectType: "powerAppsCanvas" as const,
+          primaryDataSourceType: "dataverse" as const,
+          selectedDataSourceTypes: ["dataverse" as const]
+        },
+        {
+          projectType: "powerAppsCanvas" as const,
+          primaryDataSourceType: "sharePointList" as const,
+          selectedDataSourceTypes: ["sharePointList" as const, "dataverse" as const]
+        }
+      ]) {
+        expectBlockedCode(analyze({
+          action: "confirm",
+          state: revisedBackendPlanning(),
+          answerSchemaContext
+        }), "answerSchemaRequired");
+      }
+    });
+
+    it("resumes a deferred backend answer only under unchanged SharePoint context", () => {
+      const value = backendAnswer();
+      const sourceIds = [projectRuleSourceId, readinessSourceId, userAnswerSourceId];
+      const state = planning({
+        sources: [...sourcesFor("pp.canvas.schema.confirmation"), userAnswerSource()],
+        proposals: [proposalFor("pp.canvas.schema.confirmation", {
+          status: "Deferred",
+          value,
+          sourceIds,
+          lastDecisionId: deferDecisionId
+        })],
+        decisions: [
+          reviseDecision(value),
+          humanDecision(deferDecisionId, "defer", "Revised", "Deferred", sourceIds, {
+            reason: "Waiting for review."
+          })
+        ]
+      });
+      expect(analyze({ action: "reopen", state, answerSchemaContext: sharePointContext })).toMatchObject({
+        outcome: "allowed",
+        plan: { resultingStatus: "Revised" }
+      });
+      expectBlockedCode(analyze({
+        action: "reopen",
+        state,
+        answerSchemaContext: {
+          projectType: "powerAppsCanvas",
+          primaryDataSourceType: "dataverse",
+          selectedDataSourceTypes: ["dataverse"]
+        }
+      }), "answerSchemaRequired");
     });
 
     it("reports the exact Revised matrix and makes Confirm available only with coherent evidence", () => {

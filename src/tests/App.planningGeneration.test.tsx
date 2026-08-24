@@ -76,7 +76,7 @@ describe("App - explicit planning generation and refresh", () => {
     vi.unstubAllGlobals();
   });
 
-  it("materializes zero-state Canvas planning and rerenders persisted bound and unbound questions", async () => {
+  it("materializes zero-state Canvas planning and rerenders answerable static and SharePoint questions", async () => {
     const user = userEvent.setup();
     seed();
     render(<App />);
@@ -90,7 +90,17 @@ describe("App - explicit planning generation and refresh", () => {
     const boundCard = screen.getByRole("heading", { name: "Confirm Canvas YAML planning" }).closest("article")!;
     expect(within(boundCard).getByRole("button", { name: "Answer question" })).toBeInTheDocument();
     const backendCard = screen.getByRole("heading", { name: "Confirm the backend schema" }).closest("article")!;
-    expect(within(backendCard).getByText(/answer structure is not registered/i)).toBeInTheDocument();
+    expect(within(backendCard).getByRole("button", { name: "Answer question" })).toBeInTheDocument();
+    expect(within(backendCard).queryByRole("form", { name: "Answer question" })).not.toBeInTheDocument();
+    expect(within(backendCard).queryByText(/answer structure is not registered/i)).not.toBeInTheDocument();
+    const backendProposal = loadStorageState().projects[0].planning?.proposals.find(
+      (proposal) => proposal.ruleId === "pp.canvas.schema.confirmation"
+    );
+    expect(backendProposal).toMatchObject({
+      status: "Needs Clarification",
+      value: { kind: "clarification" }
+    });
+    expect(loadStorageState().projects[0].planning?.decisions).toEqual([]);
     expect(loadStorageState().projects[0].planning?.proposals.every((proposal) => proposal.status === "Needs Clarification")).toBe(true);
     expect(generationMocks.run).toHaveBeenCalledOnce();
   }, 30000);

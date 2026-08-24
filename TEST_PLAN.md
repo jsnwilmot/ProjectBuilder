@@ -1,5 +1,40 @@
 # Test Plan
 
+## 2026-08-24 Phase 5C.3C.3J.2A SharePoint List backend Planning answer capability
+
+1. Verify resolver version `phase-5c.3c.3j.2a`, answer-schema version `phase-5c.3c.3c`, Planning versions `phase-5c.1.1`, analyzer version `phase-5c.3c.3j.2`, rule version `1.0.0`, and Storage Version 6 with zero migrations.
+2. Verify the unchanged static registry contains exactly ten bindings, excludes `pp.canvas.schema.confirmation@1.0.0`, and ordinary exact rule/version resolution remains identical with no fuzzy or latest-version fallback.
+3. Verify backend-specific resolver contracts total exactly one and support only canonical `powerAppsCanvas / sharePointList / [sharePointList]` context.
+4. Verify the immutable context builder exposes only project type, primary data-source type, and selected data-source types sourced from canonical project fields.
+5. Verify backend resolution never infers from free-text data sources, relationships, Canvas subtype, project title, Planning answers, source metadata, connector display names, or TTI content.
+6. Verify missing, malformed, unknown, duplicate, incoherent, and extra-key context fails closed without coercion or raw validation details.
+7. Verify undecided or incomplete selection returns `backendSelectionRequired`, mixed selection returns `mixedBackendUnsupported`, and unsupported valid single selection returns `backendTypeUnsupported`.
+8. Verify SharePoint Library, Microsoft List, Dataverse, Excel, SQL Server, Microsoft 365 connector, custom connector, external API, and other connector remain unsupported.
+9. Verify the SharePoint root is exactly `structuredRecord` with only required `dataSources`, `relationships`, and `confirmationSource` fields.
+10. Verify `dataSources` is a required structured-record list with bounds 1 through 100 and exact required text fields `dataSourceName`, `purpose`, `expectedRecordVolume`, and `ownership`.
+11. Verify Relationships and Schema confirmation source are required text fields; no internal-name, column-schema, mapping, or TTI-prefill field exists.
+12. Verify decision capability and execution use the runtime resolver context for SharePoint Revise, Confirm, Deferred-with-answer resume, and Confirmed Change answer.
+13. Verify a backend change before Confirm or Resume fails closed and never silently preserves authority under the old schema.
+14. Verify decision and materialization strict-key validation permits runtime context internally but the external repository payload remains only `proposalId`, `action`, optional `value`, and optional `reason`.
+15. Verify the repository derives context from the canonical baseline ProjectRecord, rejects forged caller context, and persists no context metadata.
+16. Verify real repository SharePoint Revise then explicit Confirm persists canonical Planning evidence atomically, while unsupported context and concurrent project change produce no write.
+17. Verify supported answer entry returns eligible and saved-answer review validates Revised, Confirmed, Deferred, and controlled reopened records through current context without JSON fallback.
+18. Verify exact backend-selection, unsupported-backend, mixed-backend, and ordinary-static-missing UI messages and zero rendered occurrences of the obsolete implementation message.
+19. Verify the existing structured editor renders Data sources, Relationships, and Schema confirmation source and submits only the canonical answer value.
+20. Verify the real App flow performs Answer question, add row, Save answer for review, Revised review rendering, separate Confirm, and Confirmed answer rendering with no automatic Confirm or Apply control.
+21. Verify existing Edit answer, Change answer, and Resume decision interactions remain available only when current context validates the saved SharePoint answer.
+22. Verify supported SharePoint Revised, Confirmed, and Deferred-with-answer records survive deterministic Refresh, while a changed backend does not silently retain current authority.
+23. Verify Generate planning for the canonical SharePoint seed generates the backend clarification with Answer question available, leaves the editor closed, creates no answer/decision, and keeps the proposal Needs Clarification.
+24. Verify generation still reports current-project generation, renders Questions to answer, keeps Canvas YAML answerable, generates backend clarification, leaves every new proposal Needs Clarification, and invokes orchestration exactly once.
+25. Verify the 3J.2 analyzer may classify a proven current SharePoint backend answer as `validatedCandidate` while top-level and assessment `readinessAuthorized` remain false and Architect approval remains required.
+26. Verify unsupported or mixed current backend context never receives a validated backend candidate or SharePoint fallback.
+27. Verify resolver results, feedback, source labels/locators, DOM identifiers, logs, and analytics expose no raw answer or project content; direct answer presentation and existing Planning persistence are the only answer surfaces.
+28. Verify zero source-precedence, readiness, mapping, approval, canonical project-write, controlled Apply, Phase Gate, output, package, Storage, migration, dependency, Node, CI, TTI-blocker, external-AI, or deployment changes.
+29. Regress schema/registry/draft, decision contract/materialization/feedback, repository, answer-entry view-model, controls, PlanningView, App decisions/navigation/generation, lifecycle/reconciliation/replacement/orchestration, readiness, Phase Gates, Power Platform, Client Review, package generation, and outputs.
+30. Run clean install, lint, app TypeScript checking, focused suites, full tests, coverage, build, production and advisory audits, exact 20-path scope, diff checks, worktree checks, stash preservation, one review commit, push, and remote SHA verification.
+
+Validation result: passed. Clean install, lint, and app TypeScript checking passed. The corrected ten-file focused matrix passed 383 tests; the consolidated resolver, decision, UI, Refresh, and readiness matrix passed 22 files with 617 tests. Full and coverage validation passed 75 unit/integration files with 2,786 tests and 7 UI files with 74 tests, for 82 files and 2,860 tests total. Coverage was 90.16% statements, 82.64% branches, 95.39% functions, and 93.90% lines. Build and the zero-vulnerability production audit passed. The advisory full audit reported 6 development/tooling findings (2 moderate, 4 high); no remediation was performed. Exact 20-path scope, static-registry isolation, versions, privacy, readiness exclusion, TTI Draft/15-blocker authority, clean primary worktree, and preserved stash gates passed.
+
 ## 2026-08-24 Phase 5C.3C.3J.2 Planning readiness evidence candidate analyzer
 
 1. Verify the analyzer contract version is exactly `phase-5c.3c.3j.2` and top-level outcomes are limited to analyzed, unsupported project type, and blocked.
