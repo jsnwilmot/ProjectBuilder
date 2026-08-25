@@ -55,7 +55,7 @@ function canvasProject(id = projectId): ProjectRecord {
     now: "2026-08-24T12:00:00.000Z"
   });
   project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
-  project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+  project.powerPlatform!.canvas!.selectedDataSourceTypes = [];
   return project;
 }
 
@@ -604,7 +604,7 @@ describe("planning clarification readiness evidence candidate analyzer", () => {
   it("fails an unsupported canonical backend closed as answerSchemaUnavailable", async () => {
     const project = claimConfirmed(generatedBaseline, backendRuleId, sharePointBackendAnswer());
     project.powerPlatform!.canvas!.primaryDataSourceType = "dataverse";
-    project.powerPlatform!.canvas!.selectedDataSourceTypes = ["dataverse"];
+    project.powerPlatform!.canvas!.selectedDataSourceTypes = [];
     const result = await analyzePlanningClarificationReadinessEvidence(project);
     expect(validatedCount(result)).toBe(0);
     expect(result.readinessAuthorized).toBe(false);
@@ -630,7 +630,7 @@ describe("planning clarification readiness evidence candidate analyzer", () => {
     const before = await generateBackendProject(id, "Confirmed");
     const changed = getProjectById(id, before.storage)!;
     changed.powerPlatform!.canvas!.primaryDataSourceType = "dataverse";
-    changed.powerPlatform!.canvas!.selectedDataSourceTypes = ["dataverse"];
+    changed.powerPlatform!.canvas!.selectedDataSourceTypes = [];
     persist(before.storage, changed);
 
     const refresh = await runPlanningClarificationGeneration(id, { storage: before.storage });

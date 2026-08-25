@@ -46,7 +46,7 @@ function canvasProject(): ProjectRecord {
     now: "2026-08-23T12:00:00.000Z"
   });
   project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
-  project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+  project.powerPlatform!.canvas!.selectedDataSourceTypes = [];
   return project;
 }
 

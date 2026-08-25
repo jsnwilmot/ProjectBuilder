@@ -295,7 +295,7 @@ describe("App - planning decisions", () => {
     const user = userEvent.setup();
     const inputProject = planningProject("pp.canvas.schema.confirmation");
     inputProject.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
-    inputProject.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+    inputProject.powerPlatform!.canvas!.selectedDataSourceTypes = [];
     saveStorageState({
       version: CURRENT_STORAGE_VERSION,
       activeProjectId: inputProject.identity.id,
@@ -317,6 +317,7 @@ describe("App - planning decisions", () => {
     expect(await screen.findByRole("heading", { name: "Answer for review" })).toBeInTheDocument();
     expect(screen.getByText("Projects")).toBeInTheDocument();
     const revised = loadStorageState().projects[0]?.planning;
+    expect(loadStorageState().projects[0]?.powerPlatform?.canvas?.selectedDataSourceTypes).toEqual([]);
     expect(revised?.decisions.map(({ action }) => action)).toEqual(["revise"]);
     expect(revised?.decisions[0]).not.toHaveProperty("answerSchemaContext");
     expect(revised?.proposals[0].value).toMatchObject({

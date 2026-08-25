@@ -1,5 +1,45 @@
 # Change Log
 
+## 2026-08-25 - Phase 5C.3C.3J.2A.1 - Canonical Single-Backend Resolution Correction
+
+### Summary
+
+- Recorded Phase 5C.3C.3J.2A as Final Complete and corrected the resolver-local interpretation of canonical single-backend Canvas intake data.
+- Fixed the root cause: Guided Intake intentionally clears `selectedDataSourceTypes` for a non-`multiple` primary backend, while the 3J.2A resolver incorrectly required that array to repeat the concrete primary backend.
+- Made canonical `sharePointList / []` directly eligible for the existing SharePoint Planning answer form while preserving compatible `sharePointList / [sharePointList]` data.
+- Kept contradictory selected data, multiple selections, undecided selection, and unsupported concrete single backends fail closed with existing bounded reason semantics.
+
+### Files updated
+
+- `src/lib/planningClarificationAnswerSchemaResolver.ts` - accepts an empty selected array or an exact redundant singleton for concrete single primaries and records resolver version `phase-5c.3c.3j.2a.1`.
+- Five authorized test files cover canonical and redundant resolver states, unsupported and incoherent contexts, existing-proposal rendering, generation, real Save/Confirm flow, backend change, and readiness analysis.
+- `CHANGE_LOG.md` and `TEST_PLAN.md` record the correction and validation boundaries.
+
+### Scope boundaries preserved
+
+- Guided Intake persistence, `PowerPlatformCanvasData`, ProjectRecord data, and existing projects are unchanged; no project migration or selected-array repair is required.
+- The SharePoint answer schema is unchanged, contains no internal-name fields, and remains the only backend-specific contract above the unchanged ten-entry static registry.
+- Planning readiness authority remains zero. No destination mapping, Architect approval persistence, immutable readiness projection, canonical project write, controlled Apply, Phase Gate, output, Storage, migration, dependency, Node, CI, external AI, or deployment behavior changed.
+- Answer-schema version remains `phase-5c.3c.3c`; Planning schema/rules remain `phase-5c.1.1`; analyzer remains `phase-5c.3c.3j.2`; Storage remains Version 6 with zero migrations.
+- TTI remains Draft with 15 generated-content blockers; no blocker was resolved, inferred, weakened, or reclassified.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, and app TypeScript checking passed. The five correction-focused suites passed 111 tests; the six lifecycle/repository/control/orchestration regressions passed 284 tests; App navigation passed 25 tests; and the resolver-only suite passed 27 tests.
+- Full and coverage validation passed 75 unit/integration files with 2,788 tests and 7 UI files with 74 tests, for 82 files and 2,862 tests total.
+- Coverage passed with 90.17% statements, 82.64% branches, 95.39% functions, and 93.90% lines.
+- Production build passed with Vite 8.1.0 and the existing large-chunk warning; the production audit passed with 0 vulnerabilities.
+- The advisory full audit reported 6 development/tooling findings (2 moderate, 4 high); no dependency remediation was performed.
+
+### Issues found
+
+- High: canonical single-backend projects were incorrectly classified as requiring backend selection because the resolver treated an intentionally empty selected array as incomplete. This review commit corrects the resolver interpretation without changing Intake or persisted data.
+- Low: an unchanged five-second UI regression timed out transiently while another Vitest process was active; the required final standard coverage runner passed all unit/integration and UI legs after that unrelated process completed. No timeout or test change was made.
+
+### Remaining work
+
+- Independent GPT Architect review and separate integration authorization are required. Integration, other backend contracts, deeper readiness, mapping, approval persistence, Apply, output, Storage changes, and deployment remain blocked.
+
 ## 2026-08-24 - Phase 5C.3C.3J.2A - SharePoint List Backend Planning Answer Capability
 
 ### Summary

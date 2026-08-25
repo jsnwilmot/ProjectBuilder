@@ -8,7 +8,7 @@ import type { PlanningClarificationAnswerSchema } from "./planningClarificationA
 import { getProductionPlanningClarificationAnswerSchema } from "./planningClarificationAnswerSchemaRegistry";
 
 export const PLANNING_CLARIFICATION_ANSWER_SCHEMA_RESOLVER_VERSION =
-  "phase-5c.3c.3j.2a";
+  "phase-5c.3c.3j.2a.1";
 
 export interface PlanningClarificationAnswerSchemaContext {
   readonly projectType: ProjectType | "";
@@ -148,15 +148,18 @@ export function resolveProductionPlanningClarificationAnswerSchema(
   if (normalized.state === "unavailable") return normalized;
 
   const { primaryDataSourceType, selectedDataSourceTypes } = normalized.context;
-  if (primaryDataSourceType === "undecided" || selectedDataSourceTypes.length === 0) {
+  if (primaryDataSourceType === "undecided") {
     return { state: "unavailable", reason: "backendSelectionRequired" };
   }
-  if (selectedDataSourceTypes.length > 1 || primaryDataSourceType === "multiple") {
+  if (primaryDataSourceType === "multiple") {
     return selectedDataSourceTypes.length > 1
       ? { state: "unavailable", reason: "mixedBackendUnsupported" }
       : { state: "unavailable", reason: "backendSelectionRequired" };
   }
-  if (primaryDataSourceType !== selectedDataSourceTypes[0]) {
+  if (selectedDataSourceTypes.length > 1) {
+    return { state: "unavailable", reason: "mixedBackendUnsupported" };
+  }
+  if (selectedDataSourceTypes.length === 1 && primaryDataSourceType !== selectedDataSourceTypes[0]) {
     return { state: "unavailable", reason: "backendSelectionRequired" };
   }
   if (primaryDataSourceType !== "sharePointList") {

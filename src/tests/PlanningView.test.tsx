@@ -729,18 +729,32 @@ describe("PlanningView", () => {
     expect(screen.queryByRole("button", { name: /revise|provide answer|edit answer/i })).not.toBeInTheDocument();
   });
 
-  it("renders the SharePoint List answer editor only for the exact canonical backend context", async () => {
+  it("makes an existing canonical single-SharePoint proposal answerable without automatic actions", async () => {
     const user = userEvent.setup();
     const input = project(planning({ proposals: [clarificationProposal()] }));
     input.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
-    input.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
-    renderPlanningView(input);
+    input.powerPlatform!.canvas!.selectedDataSourceTypes = [];
+    const submit = vi.fn(defaultSubmitClarificationDecision);
+    const generateOrRefresh = vi.fn(defaultGenerateOrRefreshPlanning);
+    renderPlanningView(input, submit, () => undefined, {
+      onGenerateOrRefreshPlanning: generateOrRefresh
+    });
 
-    await user.click(screen.getByRole("button", { name: "Answer question" }));
+    const answer = screen.getByRole("button", { name: "Answer question" });
+    expect(answer).toBeEnabled();
+    expect(screen.queryByText(
+      "Confirm a single backend/data-source type before answering this question."
+    )).not.toBeInTheDocument();
+    expect(generateOrRefresh).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
+
+    await user.click(answer);
     expect(screen.getByRole("button", { name: /Add item to Data sources/ })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /^Relationships/ })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /Schema confirmation source/ })).toBeInTheDocument();
     expect(screen.queryByText(/required answer structure is not registered/)).not.toBeInTheDocument();
+    expect(generateOrRefresh).not.toHaveBeenCalled();
+    expect(submit).not.toHaveBeenCalled();
   });
 
   it("fails mixed backend answer entry closed with the approved message", () => {

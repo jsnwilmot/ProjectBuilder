@@ -1,5 +1,25 @@
 # Test Plan
 
+## 2026-08-25 Phase 5C.3C.3J.2A.1 canonical single-backend resolution correction
+
+1. Verify Guided Intake production remains unchanged and intentionally stores a concrete Canvas primary backend with empty `selectedDataSourceTypes` and `secondaryConnectorIds`.
+2. Verify resolver version `phase-5c.3c.3j.2a.1` accepts canonical `sharePointList / []` as an available backend-specific schema without mutating or persisting normalized data.
+3. Verify redundant compatible `sharePointList / [sharePointList]` remains available for legacy, imported, and manually constructed data.
+4. Verify canonical empty-array forms for SharePoint Library, Microsoft List, Dataverse, Excel, SQL Server, Microsoft 365 connector, custom connector, external API, and other connector return `backendTypeUnsupported`.
+5. Verify contradictory `sharePointList / [dataverse]` and multi-entry `sharePointList / [sharePointList, dataverse]` contexts fail closed without SharePoint fallback.
+6. Verify `undecided / []` returns `backendSelectionRequired` and `multiple / [sharePointList, dataverse]` returns `mixedBackendUnsupported`.
+7. Verify the context builder preserves exact canonical `sharePointList / []` project data and performs zero ProjectRecord or selected-array mutations.
+8. Verify an already-generated Needs Clarification backend proposal exposes enabled Answer question on initial render without the backend-selection warning, Generate, Refresh, repository decision, or other automatic action.
+9. Verify Generate Planning from canonical `sharePointList / []` generates the backend question as Needs Clarification with Answer question available, editor closed, and zero automatic answer, decision, or Confirm.
+10. Verify the real App path uses canonical `sharePointList / []` through Answer question, valid structured answer entry, Save answer for review, Revised, explicit Confirm, and Confirmed without patching selected data.
+11. Verify confirmed canonical SharePoint evidence may be a `validatedCandidate` while assessment and top-level `readinessAuthorized` remain false and Architect approval remains required.
+12. Verify changing canonical backend context from `sharePointList / []` to `dataverse / []` fails old SharePoint evidence closed with no fallback or authority.
+13. Verify the answer schema, internal-name boundary, ten-entry static registry, one backend contract, versions, Storage 6, and zero migrations remain unchanged except for the resolver version.
+14. Regress decision contract, materialization, repository, answer-entry view-model, controls, orchestration, App navigation, Refresh, readiness, package, and output boundaries.
+15. Run clean install, lint, app TypeScript checking, focused suites, full tests, coverage, build, production/advisory audits, diff checks, exact eight-path scope, clean worktrees, preserved stash, one review commit, and remote review-SHA verification.
+
+Validation result: passed. Clean install, lint, app TypeScript checking, and all focused gates passed. The five correction-focused suites passed 111 tests; six lifecycle/repository/control/orchestration suites passed 284 tests; App navigation passed 25 tests; and the resolver-only suite passed 27 tests. Full and coverage validation passed 75 unit/integration files with 2,788 tests and 7 UI files with 74 tests, for 82 files and 2,862 tests total. Coverage was 90.17% statements, 82.64% branches, 95.39% functions, and 93.90% lines. Vite 8.1.0 built 138 modules successfully with the existing large-chunk warning. Production audit passed with 0 vulnerabilities. The advisory full audit reported 6 development/tooling findings (2 moderate, 4 high); no remediation was performed. Exact eight-path scope, version, authority, clean-worktree, and preserved-stash gates passed.
+
 ## 2026-08-24 Phase 5C.3C.3J.2A SharePoint List backend Planning answer capability
 
 1. Verify resolver version `phase-5c.3c.3j.2a`, answer-schema version `phase-5c.3c.3c`, Planning versions `phase-5c.1.1`, analyzer version `phase-5c.3c.3j.2`, rule version `1.0.0`, and Storage Version 6 with zero migrations.

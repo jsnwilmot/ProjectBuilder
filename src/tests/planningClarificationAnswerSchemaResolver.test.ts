@@ -27,7 +27,7 @@ function sharePointProject(): ProjectRecord {
     now: "2026-08-24T13:00:00.000Z"
   });
   project.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
-  project.powerPlatform!.canvas!.selectedDataSourceTypes = ["sharePointList"];
+  project.powerPlatform!.canvas!.selectedDataSourceTypes = [];
   return project;
 }
 
@@ -41,7 +41,7 @@ function resolveBackend(answerSchemaContext: unknown) {
 
 describe("planning clarification answer schema resolver", () => {
   it("retains the resolver version and all ten exact static bindings", () => {
-    expect(PLANNING_CLARIFICATION_ANSWER_SCHEMA_RESOLVER_VERSION).toBe("phase-5c.3c.3j.2a");
+    expect(PLANNING_CLARIFICATION_ANSWER_SCHEMA_RESOLVER_VERSION).toBe("phase-5c.3c.3j.2a.1");
     const registry = getProductionPlanningClarificationAnswerSchemaRegistry();
     expect(registry.entries).toHaveLength(10);
     for (const entry of registry.entries) {
@@ -62,7 +62,7 @@ describe("planning clarification answer schema resolver", () => {
     project.powerPlatform!.canvas!.subtype = "sharePointOnline";
     const built = buildPlanningClarificationAnswerSchemaContext(project);
 
-    expect(built).toEqual(context("sharePointList", ["sharePointList"]));
+    expect(built).toEqual(context("sharePointList", []));
     expect(Object.keys(built).sort()).toEqual([
       "primaryDataSourceType",
       "projectType",
@@ -70,11 +70,12 @@ describe("planning clarification answer schema resolver", () => {
     ]);
     expect(Object.isFrozen(built)).toBe(true);
     expect(Object.isFrozen(built.selectedDataSourceTypes)).toBe(true);
+    expect(project.powerPlatform!.canvas!.selectedDataSourceTypes).toEqual([]);
     expect(JSON.stringify(built)).not.toContain("Projects");
   });
 
   it("resolves exactly one SharePoint List backend contract", () => {
-    const resolution = resolveBackend(context("sharePointList", ["sharePointList"]));
+    const resolution = resolveBackend(context("sharePointList", []));
     expect(resolution).toMatchObject({
       state: "available",
       schemaSource: "backendSpecific",
@@ -101,8 +102,16 @@ describe("planning clarification answer schema resolver", () => {
     expect(JSON.stringify(resolution.schema)).not.toMatch(/internalName|columnInternalName|columnType|choiceValues|lookupTarget|indexing|uniqueValues|defaultValue/);
   });
 
+  it("preserves the redundant consistent SharePoint List compatibility state", () => {
+    expect(resolveBackend(context("sharePointList", ["sharePointList"]))).toMatchObject({
+      state: "available",
+      schemaSource: "backendSpecific",
+      backendKind: "sharePointList"
+    });
+  });
+
   it("validates complete SharePoint evidence and rejects every missing required field", () => {
-    const resolution = resolveBackend(context("sharePointList", ["sharePointList"]));
+    const resolution = resolveBackend(context("sharePointList", []));
     if (resolution.state !== "available") throw new Error("Expected SharePoint schema.");
     const answer = {
       kind: "structuredRecord",
@@ -156,7 +165,7 @@ describe("planning clarification answer schema resolver", () => {
     "externalApi",
     "otherConnector"
   ] as const)("fails closed for unsupported single backend %s", (backend) => {
-    expect(resolveBackend(context(backend, [backend]))).toEqual({
+    expect(resolveBackend(context(backend, []))).toEqual({
       state: "unavailable",
       reason: "backendTypeUnsupported"
     });
@@ -176,6 +185,17 @@ describe("planning clarification answer schema resolver", () => {
       reason: "mixedBackendUnsupported"
     });
     expect(resolveBackend(context("multiple", ["sharePointList", "dataverse"]))).toEqual({
+      state: "unavailable",
+      reason: "mixedBackendUnsupported"
+    });
+  });
+
+  it("fails contradictory selected data closed for a concrete single primary", () => {
+    expect(resolveBackend(context("sharePointList", ["dataverse"]))).toEqual({
+      state: "unavailable",
+      reason: "backendSelectionRequired"
+    });
+    expect(resolveBackend(context("sharePointList", ["sharePointList", "dataverse"]))).toEqual({
       state: "unavailable",
       reason: "mixedBackendUnsupported"
     });
@@ -214,7 +234,7 @@ describe("planning clarification answer schema resolver", () => {
     expect(resolveProductionPlanningClarificationAnswerSchema(
       backendRuleId,
       "2.0.0",
-      context("sharePointList", ["sharePointList"])
+      context("sharePointList", [])
     )).toEqual({ state: "unavailable", reason: "unsupportedBackendRuleVersion" });
   });
 });
