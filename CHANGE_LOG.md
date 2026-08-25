@@ -1,5 +1,54 @@
 # Change Log
 
+## 2026-08-25 - Phase 5C.3C.3J.4 - Planning Readiness Mapping Contract Foundation
+
+### Summary
+
+- Recorded Phase 5C.3C.3J.3 Architecture Decisions Complete with approved Option D: a shared immutable mapping contract with classified metadata and no executable mapping.
+- Added an immutable, non-executable Planning readiness mapping contract and production registry for all 11 current active Canvas clarification rules.
+- Classified eight rules as `partialProjection` and three as `unsupportedProjection`; no mapping is exact from an answer or exact by canonical merge.
+- Added fail-closed validation for rule/gate/schema identity, exact canonical property paths, destination/merge/validator-dependency separation, missing-fact codes, authority flags, conflict policy, stale invalidation, duplicate identity, and complete rule coverage.
+- Applied the Architect correction to the SharePoint List backend metadata: six projection destinations, two explicit merge paths, and two validator-only dependency paths now match the current structured validator.
+
+### Files created
+
+- `src/lib/planningReadinessMappingContract.ts` - immutable contract types, bounded metadata values, and strict definition/registry validation.
+- `src/lib/planningReadinessMappingRegistry.ts` - 11-entry production metadata registry with no projector or consumer.
+- `src/tests/planningReadinessMappingContract.test.ts` - fail-closed contract, policy, path, backend-context, authority, and coverage tests.
+- `src/tests/planningReadinessMappingRegistry.test.ts` - exact registry inventory, resolver, validator-boundary, privacy, isolation, and non-authority tests.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records the corrected Phase 5C.3C.3J.4 foundation and preserved boundaries.
+- `TEST_PLAN.md` - records the mapping validation matrix and required release gates.
+
+### Scope boundaries preserved
+
+- `canonicalValidatorDependencyPaths` records validator inputs only. It grants no destination, merge, projection, readiness, output, controlled Apply, approval, or write authority.
+- SharePoint List destinations exclude `sharePointEnvironment`, `schemaStatus`, `sharePointSites`, and `sharePointLibrarySchemas`; `sharePointSites` and `sharePointLibrarySchemas` are dependency metadata only.
+- Every definition requires future Architect approval and has `projectionAuthorized`, `readinessAuthorized`, `applyAuthorized`, and not-applicable projection authority set to false; every `projectorId` is null.
+- The registry has no production consumer. No ProjectRecord, Planning state, repository, Phase Gate, readiness, output, package, controlled Apply, Storage Version, migration, UI, dependency, Node/CI, external AI, or deployment behavior changed.
+- Planning answer-schema version remains `phase-5c.3c.3c`; resolver version remains `phase-5c.3c.3j.2a.1`; rules remain `phase-5c.1.1`; mapping definitions are `1.0.0`; Storage remains Version 6 with zero migrations.
+- TTI remains Draft with all 15 generated-content blockers. No blocker was resolved, inferred, weakened, or reclassified.
+
+### Testing completed
+
+- `npm.cmd ci`, lint, and app TypeScript checking passed. The two focused mapping suites passed 44 tests; the complete nine-file mapping/rule/schema/Apply/readiness/gate matrix passed 295 tests.
+- Full and coverage validation passed 77 unit/integration files with 2,833 tests and 7 UI files with 74 tests, for 84 files and 2,907 tests total.
+- Coverage passed with 90.22% statements, 82.81% branches, 95.35% functions, and 93.92% lines.
+- Production build passed with Vite 8.1.0 and the existing large-chunk warning; the production audit passed with 0 vulnerabilities.
+- The advisory full audit reported 25 development/tooling findings (2 moderate, 23 high); no dependency remediation was performed.
+
+### Issues found
+
+- The original SharePoint mapping inventory included fields that the structured validator does not use as projection destinations. The Architect correction supplied the exact destination, merge, and validator-dependency categories implemented here.
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory-only development audit currently reports 25 findings; production dependencies report 0 vulnerabilities and remediation is outside scope.
+
+### Remaining work
+
+- Independent GPT Architect review and separate integration authorization are required. Canonical projection, readiness consumers, Architect approval persistence, controlled Apply expansion, output integration, Phase Gate changes, Storage changes, and later phases remain blocked.
+
 ## 2026-08-25 - Phase 5C.3C.3J.2A.1 - Canonical Single-Backend Resolution Correction
 
 ### Summary

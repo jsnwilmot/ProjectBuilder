@@ -1,5 +1,35 @@
 # Test Plan
 
+## 2026-08-25 Phase 5C.3C.3J.4 Planning readiness mapping contract foundation
+
+1. Verify contract/registry version `phase-5c.3c.3j.4`, registry ID `project-builder-planning-readiness-mappings`, mapping version `1.0.0`, and exactly 11 unique active Canvas rule mappings.
+2. Verify classifications total zero `exactFromAnswer`, zero `exactByCanonicalMerge`, eight `partialProjection`, and three `unsupportedProjection` mappings.
+3. Verify exact rule/version/gate coverage matches the current active Canvas rule registry once each and rejects unknown, duplicate, missing, mismatched, or inactive identities.
+4. Verify ten mappings bind current static answer schemas and the backend mapping binds only the current canonical SharePoint List resolver context.
+5. Verify backend context is exactly `powerAppsCanvas / sharePointList / phase-5c.3c.3j.2a.1` and contains no selected-data-source arrays or inferred context.
+6. Verify SharePoint List destinations are exactly site URL, site title, site owner, access status, list schemas, and column schemas.
+7. Verify SharePoint List explicit merge paths are exactly primary and selected data-source types.
+8. Verify SharePoint List validator dependencies are exactly `sharePointSites` and `sharePointLibrarySchemas` and grant no destination or merge authority.
+9. Verify `sharePointEnvironment`, `schemaStatus`, `sharePointSites`, and `sharePointLibrarySchemas` are never SharePoint List projection destinations.
+10. Verify the current structured SharePoint gate does not require `sharePointEnvironment` or structured-mode `schemaStatus`, while every present list/library requires current confirmed schema and a bound confirmed column.
+11. Verify the internal-name, screen-target, control-target, and delegation mappings record only dependencies proven by their current validators; all other non-backend dependency arrays remain empty.
+12. Verify destination, merge, and validator-dependency arrays accept only exact `powerPlatform.canvas` or `powerPlatform.common` property paths, reject wildcards/indexing/nested traversal, contain no duplicates, and never overlap.
+13. Verify backend missing-fact codes include site identity/owner/access, list/column identity and type, parent binding, controlled status, and internal-name confirmation failures.
+14. Verify missing-fact codes, classifications, stale reasons, validators, schema sources, and backend kinds are bounded and reject invented values.
+15. Verify conflict outcomes are same/unchanged, empty/projection-candidate, and partial/different/invalid blocked; canonical merge is explicit allowlist only.
+16. Verify stale invalidation reasons are exactly stale, superseded, rule-version changed, answer-schema changed, mapping-version changed, backend-context changed, fingerprint changed, historical confirmed source, and unanswered replacement.
+17. Verify legacy fails closed, duplicates transfer no authority, archive/restore requires full revalidation, privacy is metadata only, and not-applicable projection is unauthorized.
+18. Verify every mapping requires future Architect approval while projection, readiness, Apply, and not-applicable projection authority remain false and every projector ID remains null.
+19. Verify production registry objects and nested arrays are deeply immutable and deterministic.
+20. Verify the registry contains no project values, answers, sources, TTI content, user identity, raw validation data, or executable projector reference.
+21. Verify no production module consumes the mapping registry and current Planning readiness/output eligibility helpers remain false.
+22. Verify the current controlled Apply analyzer remains fail closed and receives no mapping-registry integration.
+23. Regress current answer-schema registry/resolver, active rules, SharePoint gate behavior, readiness, output, controlled Apply, Planning lifecycle, package, and repository behavior.
+24. Verify Planning schema/rules, answer schemas, resolver, ProjectRecord, Storage Version 6, zero migrations, dependencies, UI, Phase Gates, and TTI Draft/15-blocker authority remain unchanged.
+25. Run clean install, lint, app TypeScript checking, focused suites, full tests, coverage, build, production and advisory audits, exact six-file scope, diff checks, clean primary/review worktrees, preserved stash, one review commit, push, and remote SHA verification.
+
+Validation result: passed. Clean install, lint, and app TypeScript checking passed. The two mapping suites passed 44 tests; the complete focused matrix passed 9 files with 295 tests. Full and coverage validation passed 77 unit/integration files with 2,833 tests and 7 UI files with 74 tests, for 84 files and 2,907 tests total. Coverage was 90.22% statements, 82.81% branches, 95.35% functions, and 93.92% lines. Vite 8.1.0 built 138 modules successfully with the existing large-chunk warning. Production audit passed with 0 vulnerabilities. The advisory full audit reported 25 development/tooling findings (2 moderate, 23 high); no remediation was performed. Exact six-path scope, version, authority, isolation, TTI, clean-worktree, and stash gates are verified before commit.
+
 ## 2026-08-25 Phase 5C.3C.3J.2A.1 canonical single-backend resolution correction
 
 1. Verify Guided Intake production remains unchanged and intentionally stores a concrete Canvas primary backend with empty `selectedDataSourceTypes` and `secondaryConnectorIds`.
