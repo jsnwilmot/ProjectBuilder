@@ -312,7 +312,7 @@ describe("production Planning readiness mapping registry", () => {
     expect(controlledApplySource).toContain('proposal.value.kind !== "text"');
   });
 
-  it("has no production consumers or executable projector references", () => {
+  it("has only the approved evidence evaluator consumer and no executable projector references", () => {
     const sourceFiles = readdirSync("src/lib").filter((name: string) => name.endsWith(".ts"));
     const consumers = sourceFiles
       .filter((name: string) => ![
@@ -320,7 +320,7 @@ describe("production Planning readiness mapping registry", () => {
         "planningReadinessMappingRegistry.ts"
       ].includes(name))
       .filter((name: string) => readFileSync(`src/lib/${name}`, "utf8").includes("planningReadinessMapping"));
-    expect(consumers).toEqual([]);
+    expect(consumers).toEqual(["planningCanonicalFactEvidence.ts"]);
 
     const registrySource = readFileSync("src/lib/planningReadinessMappingRegistry.ts", "utf8");
     expect(registrySource).not.toMatch(/projectorId:\s*["']/);

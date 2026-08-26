@@ -1,5 +1,30 @@
 # Test Plan
 
+## 2026-08-25 Phase 5C.3C.3J.6A derived canonical-fact evidence candidate foundation
+
+1. Verify the production registry contains exactly one canonical-fact evidence binding and all ten unrelated mappings contain zero bindings.
+2. Verify the binding identity is the existing YAML mapping/rule at version `1.0.0` and the binding contract is `phase-5c.3c.3j.6a`.
+3. Verify extraction is only `directStructuredRecordField`, destination shape is only `projectGlobalScalar`, scalar kind is only text, and arbitrary callbacks or selectors fail closed.
+4. Verify the answer field is exactly `validationResponsibility` and the destination is exactly `powerPlatform.canvas.validationResponsibility`.
+5. Verify `installationResponsibility`, `yamlInstallationLocation`, and `yamlParentRelationship` receive zero bindings.
+6. Verify the other eight YAML canonical destinations, including `yamlStatus`, receive zero bindings.
+7. Verify a current confirmed schema-valid YAML answer produces exactly one ephemeral candidate bound to the current proposal, final Confirm decision, and current confirmed `userAnswer` source.
+8. Verify the evaluator delegates lifecycle, current proposal, proposal fingerprint, registered rule/schema, confirmation lineage, source lineage, and blocking-conflict proof to the existing readiness-evidence analyzer.
+9. Verify informational, missing, wrong-type, stale, or wrong-lineage answer sources produce no candidate.
+10. Verify stale, superseded, Not Applicable, wrong-rule, wrong-version, missing-confirmation, schema-invalid, field-missing, and field-invalid proposals produce no candidate.
+11. Verify bounded failure results contain one reason code and no raw answer, source excerpt, locator, or value fingerprint.
+12. Verify canonical serialization is versioned and deterministic, identical normalized values have identical SHA-256 fingerprints, and changed values have different fingerprints.
+13. Verify the evaluator uses the existing `computePlanningSha256Fingerprint` primitive with no dependency or alternate hashing implementation.
+14. Verify the candidate carries the normalized in-memory answer value but never reads or mutates the canonical ProjectRecord destination.
+15. Verify no candidate or fingerprint is persisted into ProjectRecord, Planning state, repository payloads, Storage, exports, generated documents, UI, or DOM surfaces.
+16. Verify YAML remains `partialProjection`, merge paths remain empty, projector remains null, and projection/readiness/Apply/not-applicable authority remain false.
+17. Verify `isPlanningStatusReadinessEligible("Confirmed")` and Not Applicable remain false and no readiness consumer or Phase Gate imports the evaluator.
+18. Verify Storage remains Version 6 with no migration or persisted evidence collection.
+19. Regress answer schemas, mapping contract/registry, source authority, readiness evidence, lifecycle, stale propagation/materialization, replacement, conflicts, repository, duplication, archive/restore, and Storage normalization.
+20. Run ESLint, app TypeScript checking, the new focused suite, the 14-file affected matrix, repository-wide tests, coverage, production build, dependency audits required by normal validation, diff checks, exact scope checks, preserved-stash checks, one review commit, push, and remote review-SHA verification.
+
+Validation result: passed. The new evidence-candidate suite passed 36 tests; the immediate three-file evaluator/mapping matrix passed 87 tests; and the 14-file affected matrix passed 440 tests. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 138 modules with the existing large-chunk warning. Full and coverage validation each passed 78 unit/integration files with 2,875 tests and 7 UI files with 74 tests, for 85 files and 2,949 tests total. Coverage was 89.87% statements, 82.55% branches, 95.04% functions, and 93.64% lines. Production dependencies reported 0 vulnerabilities. The advisory development/tooling audit reported 6 findings (2 moderate, 4 high); no remediation was performed. Exact eight-path scope, one binding, zero readiness/projector/Apply authority, Storage 6, TTI Draft/15 blockers, and preserved-stash gates are verified before commit.
+
 ## 2026-08-25 Phase 5C.3C.3J.4R corrected mapping-contract replay
 
 1. Verify the corrected replay has one direct parent at baseline `97ec57bda70b45e15c438460263fc537c53bc082` and preserves original review commit `e190e8487ced725bfe44b89cecad031f7deaefe5` unchanged.

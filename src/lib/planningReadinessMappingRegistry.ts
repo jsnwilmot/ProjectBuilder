@@ -1,5 +1,6 @@
 import {
   PLANNING_READINESS_MAPPING_CONTRACT_VERSION,
+  PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION,
   PLANNING_READINESS_MAPPING_REGISTRY_ID,
   PLANNING_READINESS_MAPPING_REGISTRY_VERSION,
   PLANNING_READINESS_MAPPING_STALE_INVALIDATION_REASONS,
@@ -19,12 +20,16 @@ const authority = {
 } as const;
 
 const definition = (
-  input: Omit<PlanningReadinessMappingDefinition, keyof typeof authority | "mappingVersion" | "ruleVersion" | "answerSchemaContractVersion">
+  input: Omit<
+    PlanningReadinessMappingDefinition,
+    keyof typeof authority | "mappingVersion" | "ruleVersion" | "answerSchemaContractVersion" | "canonicalFactEvidenceBindings"
+  > & Pick<Partial<PlanningReadinessMappingDefinition>, "canonicalFactEvidenceBindings">
 ): PlanningReadinessMappingDefinition => ({
   ...input,
   mappingVersion: PLANNING_READINESS_MAPPING_VERSION,
   ruleVersion: "1.0.0",
   answerSchemaContractVersion: "phase-5c.3c.3c",
+  canonicalFactEvidenceBindings: input.canonicalFactEvidenceBindings ?? [],
   ...authority
 } as PlanningReadinessMappingDefinition);
 
@@ -211,6 +216,21 @@ const PRODUCTION_REGISTRY_INPUT = {
       ],
       canonicalMergePaths: [],
       canonicalValidatorDependencyPaths: [],
+      canonicalFactEvidenceBindings: [{
+        bindingContractVersion: PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION,
+        mappingId: "planning-map.pp.canvas.yamlplanning.confirmation",
+        mappingVersion: PLANNING_READINESS_MAPPING_VERSION,
+        ruleId: "pp.canvas.yamlplanning.confirmation",
+        ruleVersion: "1.0.0",
+        answerFieldKey: "validationResponsibility",
+        canonicalDestinationPath: "powerPlatform.canvas.validationResponsibility",
+        destinationShape: "projectGlobalScalar",
+        requiredSourceType: "userAnswer",
+        requiredSourceAuthority: "confirmed",
+        requiredSourceAvailability: "current",
+        extractionKind: "directStructuredRecordField",
+        scalarKind: "text"
+      }],
       validatorId: "calculateCanvasYamlPlanningGate",
       missingFactCodes: ["yamlRequirementFlagsMissing", "yamlSourceMissing", "controlledStatusMissing"]
     }),

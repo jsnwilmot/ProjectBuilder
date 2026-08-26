@@ -1,5 +1,54 @@
 # Change Log
 
+## 2026-08-25 - Phase 5C.3C.3J.6A - Derived Canonical-Fact Evidence Candidate Foundation
+
+### Summary
+
+- Added one validated static direct-field evidence binding for `pp.canvas.yamlplanning.confirmation@1.0.0`: `validationResponsibility` to `powerPlatform.canvas.validationResponsibility`.
+- Added a pure, ephemeral evaluator that reuses the existing Planning readiness-evidence analyzer, answer-schema validator, and SHA-256 fingerprint primitive before returning one unapproved evidence candidate.
+- Added versioned canonical text serialization and a deterministic value fingerprint while retaining the normalized value only in memory.
+- Kept the other eight YAML destinations and the other three YAML answer fields unbound.
+
+### Files created
+
+- `src/lib/planningCanonicalFactEvidence.ts` - pure candidate evaluator, bounded reason codes, canonical text serialization, and existing SHA-256 reuse.
+- `src/tests/planningCanonicalFactEvidence.test.ts` - focused source, lineage, lifecycle, schema, conflict, fingerprint, privacy, non-persistence, and authority regressions.
+
+### Files updated
+
+- `src/lib/planningReadinessMappingContract.ts` - bounded project-global scalar direct-field evidence-binding metadata and fail-closed validation.
+- `src/lib/planningReadinessMappingRegistry.ts` - the one authorized YAML evidence binding; all other definitions retain empty binding arrays.
+- `src/tests/planningReadinessMappingContract.test.ts` - exact binding contract and unauthorized metadata rejection coverage.
+- `src/tests/planningReadinessMappingRegistry.test.ts` - permits only the approved pure evaluator as a mapping consumer.
+- `CHANGE_LOG.md` - records this bounded implementation and preserved boundaries.
+- `TEST_PLAN.md` - records the evidence-candidate validation matrix.
+
+### Scope boundaries preserved
+
+- The candidate is derived only from the schema-normalized `validationResponsibility` answer field associated with the current validated proposal, final Confirm decision, and current confirmed `userAnswer` source.
+- `installationResponsibility` is not interpreted as `expectedInstallationMethod`; `yamlInstallationLocation` and `yamlParentRelationship` receive no global binding; `yamlStatus` receives no binding.
+- YAML remains `partialProjection` with zero merge paths, a null projector, and false projection/readiness/Apply/not-applicable authority.
+- No ProjectRecord, Planning persistence, repository payload, Storage migration, Phase Gate, readiness consumer, UI, output, package, Controlled Apply, dependency, Node/CI, external AI, or deployment behavior changed.
+- Storage remains Version 6. TTI remains Draft with all 15 blockers; no blocker was resolved, inferred, weakened, or reclassified.
+
+### Testing completed
+
+- The new evidence-candidate suite passed 36 tests; the immediate evaluator/mapping matrix passed 87 tests across 3 files.
+- The focused answer-schema, mapping, readiness-evidence, lifecycle, stale/supersession, repository, duplication, archive/restore, conflict, and Storage matrix passed 440 tests across 14 files.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 138 modules with the existing large-chunk warning.
+- Full and coverage validation each passed 78 unit/integration files with 2,875 tests and 7 UI files with 74 tests, for 85 files and 2,949 tests total.
+- Coverage passed at 89.87% statements, 82.55% branches, 95.04% functions, and 93.64% lines.
+- Production dependencies reported 0 vulnerabilities. The advisory development/tooling audit reported 6 findings (2 moderate, 4 high); no remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory-only development audit reports 6 findings; production dependencies report 0 vulnerabilities and remediation is outside scope.
+
+### Remaining work
+
+- Independent GPT Architect review and separate integration authorization are required. Architect approval persistence, immutable approved projection, readiness integration, canonical mutation, Controlled Apply expansion, Storage 7, confirmed-intake/document provenance, additional bindings, and later phases remain blocked.
+
 ## 2026-08-25 - Phase 5C.3C.3J.4R - Corrected Planning Readiness Mapping Contract Replay
 
 ### Summary

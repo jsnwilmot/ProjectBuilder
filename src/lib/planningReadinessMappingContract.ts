@@ -8,6 +8,23 @@ export const PLANNING_READINESS_MAPPING_REGISTRY_ID = "project-builder-planning-
 export const PLANNING_READINESS_MAPPING_REGISTRY_VERSION = PLANNING_READINESS_MAPPING_CONTRACT_VERSION;
 export const PLANNING_READINESS_MAPPING_VERSION = "1.0.0";
 
+export const PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION =
+  "phase-5c.3c.3j.6a";
+
+export const PLANNING_CANONICAL_FACT_EVIDENCE_EXTRACTION_KINDS = [
+  "directStructuredRecordField"
+] as const;
+
+export type PlanningCanonicalFactEvidenceExtractionKind =
+  (typeof PLANNING_CANONICAL_FACT_EVIDENCE_EXTRACTION_KINDS)[number];
+
+export const PLANNING_CANONICAL_FACT_EVIDENCE_DESTINATION_SHAPES = [
+  "projectGlobalScalar"
+] as const;
+
+export type PlanningCanonicalFactEvidenceDestinationShape =
+  (typeof PLANNING_CANONICAL_FACT_EVIDENCE_DESTINATION_SHAPES)[number];
+
 export const PLANNING_READINESS_MAPPING_CANONICAL_PATHS = Object.freeze([
   "powerPlatform.canvas.componentApplicabilityDecision",
   "powerPlatform.canvas.componentTargets",
@@ -83,6 +100,29 @@ export const PLANNING_READINESS_MAPPING_CANONICAL_PATHS = Object.freeze([
 export type PlanningReadinessMappingCanonicalPath =
   (typeof PLANNING_READINESS_MAPPING_CANONICAL_PATHS)[number];
 
+export const PLANNING_CANONICAL_FACT_EVIDENCE_GLOBAL_SCALAR_PATHS = Object.freeze([
+  "powerPlatform.canvas.validationResponsibility"
+] as const satisfies readonly PlanningReadinessMappingCanonicalPath[]);
+
+export type PlanningCanonicalFactEvidenceGlobalScalarPath =
+  (typeof PLANNING_CANONICAL_FACT_EVIDENCE_GLOBAL_SCALAR_PATHS)[number];
+
+export interface PlanningCanonicalFactEvidenceBinding {
+  bindingContractVersion: typeof PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION;
+  mappingId: string;
+  mappingVersion: typeof PLANNING_READINESS_MAPPING_VERSION;
+  ruleId: string;
+  ruleVersion: "1.0.0";
+  answerFieldKey: string;
+  canonicalDestinationPath: PlanningCanonicalFactEvidenceGlobalScalarPath;
+  destinationShape: PlanningCanonicalFactEvidenceDestinationShape;
+  requiredSourceType: "userAnswer";
+  requiredSourceAuthority: "confirmed";
+  requiredSourceAvailability: "current";
+  extractionKind: PlanningCanonicalFactEvidenceExtractionKind;
+  scalarKind: "text";
+}
+
 export const PLANNING_READINESS_MAPPING_CLASSIFICATIONS = [
   "exactFromAnswer",
   "exactByCanonicalMerge",
@@ -154,6 +194,7 @@ interface PlanningReadinessMappingDefinitionBase {
   canonicalDestinationPaths: readonly PlanningReadinessMappingCanonicalPath[];
   canonicalMergePaths: readonly PlanningReadinessMappingCanonicalPath[];
   canonicalValidatorDependencyPaths: readonly PlanningReadinessMappingCanonicalPath[];
+  canonicalFactEvidenceBindings: readonly PlanningCanonicalFactEvidenceBinding[];
   validatorId: string;
   missingFactCodes: readonly PlanningReadinessMappingMissingFactCode[];
   architectApprovalRequired: true;
@@ -217,6 +258,7 @@ export type PlanningReadinessMappingValidationIssueCode =
   | "invalidCanonicalPath"
   | "duplicatePath"
   | "pathCategoryCollision"
+  | "invalidCanonicalFactBinding"
   | "invalidValidator"
   | "invalidMissingFactCode"
   | "invalidApprovalPolicy"
@@ -251,6 +293,7 @@ const DEFINITION_KEYS = [
   "canonicalDestinationPaths",
   "canonicalMergePaths",
   "canonicalValidatorDependencyPaths",
+  "canonicalFactEvidenceBindings",
   "validatorId",
   "missingFactCodes",
   "architectApprovalRequired",
@@ -345,6 +388,14 @@ export function validatePlanningReadinessMappingDefinition(
     true,
     issues
   );
+  const canonicalFactEvidenceBindings = validateCanonicalFactEvidenceBindings(
+    input.canonicalFactEvidenceBindings,
+    mappingId,
+    ruleId,
+    ruleVersion,
+    destinations,
+    issues
+  );
   if (destinations && merges && dependencies) {
     const destinationSet = new Set(destinations);
     const mergeSet = new Set(merges);
@@ -385,6 +436,7 @@ export function validatePlanningReadinessMappingDefinition(
     !destinations ||
     !merges ||
     !dependencies ||
+    !canonicalFactEvidenceBindings ||
     !missingFactCodes ||
     !expectedValidator ||
     (answerSchemaSource !== "staticRule" && answerSchemaSource !== "backendSpecific")
@@ -403,6 +455,7 @@ export function validatePlanningReadinessMappingDefinition(
     canonicalDestinationPaths: destinations,
     canonicalMergePaths: merges,
     canonicalValidatorDependencyPaths: dependencies,
+    canonicalFactEvidenceBindings,
     validatorId: expectedValidator,
     missingFactCodes,
     architectApprovalRequired: true as const,
@@ -417,6 +470,83 @@ export function validatePlanningReadinessMappingDefinition(
     ? { ...base, answerSchemaSource, backendContext: backendContext! }
     : { ...base, answerSchemaSource };
   return { outcome: "valid", definition: deepFreeze(definition), issues: [] };
+}
+
+function validateCanonicalFactEvidenceBindings(
+  input: unknown,
+  mappingId: string | null,
+  ruleId: string | null,
+  ruleVersion: unknown,
+  destinations: readonly PlanningReadinessMappingCanonicalPath[] | null,
+  issues: PlanningReadinessMappingValidationIssue[]
+): PlanningCanonicalFactEvidenceBinding[] | null {
+  if (!Array.isArray(input) || input.length > ARRAY_LIMIT || hasSparseArrayEntry(input)) {
+    issues.push(issue("invalidCanonicalFactBinding", "Canonical-fact evidence bindings are invalid.", "canonicalFactEvidenceBindings"));
+    return null;
+  }
+
+  const expectedCount = ruleId === "pp.canvas.yamlplanning.confirmation" ? 1 : 0;
+  if (input.length !== expectedCount) {
+    issues.push(issue("invalidCanonicalFactBinding", "Canonical-fact evidence binding count is invalid for the rule.", "canonicalFactEvidenceBindings"));
+    return null;
+  }
+
+  const bindings: PlanningCanonicalFactEvidenceBinding[] = [];
+  for (const value of input) {
+    if (
+      !isPlainObject(value) ||
+      !mappingId ||
+      !ruleId ||
+      !hasOnlyKeys(value, [
+        "bindingContractVersion",
+        "mappingId",
+        "mappingVersion",
+        "ruleId",
+        "ruleVersion",
+        "answerFieldKey",
+        "canonicalDestinationPath",
+        "destinationShape",
+        "requiredSourceType",
+        "requiredSourceAuthority",
+        "requiredSourceAvailability",
+        "extractionKind",
+        "scalarKind"
+      ]) ||
+      value.bindingContractVersion !== PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION ||
+      value.mappingId !== mappingId ||
+      value.mappingVersion !== PLANNING_READINESS_MAPPING_VERSION ||
+      value.ruleId !== ruleId ||
+      value.ruleVersion !== ruleVersion ||
+      value.answerFieldKey !== "validationResponsibility" ||
+      value.canonicalDestinationPath !== "powerPlatform.canvas.validationResponsibility" ||
+      value.destinationShape !== "projectGlobalScalar" ||
+      value.requiredSourceType !== "userAnswer" ||
+      value.requiredSourceAuthority !== "confirmed" ||
+      value.requiredSourceAvailability !== "current" ||
+      value.extractionKind !== "directStructuredRecordField" ||
+      value.scalarKind !== "text" ||
+      !destinations?.includes(value.canonicalDestinationPath)
+    ) {
+      issues.push(issue("invalidCanonicalFactBinding", "Canonical-fact evidence binding exceeds the approved direct-field proof contract.", "canonicalFactEvidenceBindings"));
+      continue;
+    }
+    bindings.push({
+      bindingContractVersion: PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION,
+      mappingId,
+      mappingVersion: PLANNING_READINESS_MAPPING_VERSION,
+      ruleId,
+      ruleVersion: "1.0.0",
+      answerFieldKey: value.answerFieldKey,
+      canonicalDestinationPath: value.canonicalDestinationPath,
+      destinationShape: "projectGlobalScalar",
+      requiredSourceType: "userAnswer",
+      requiredSourceAuthority: "confirmed",
+      requiredSourceAvailability: "current",
+      extractionKind: "directStructuredRecordField",
+      scalarKind: "text"
+    });
+  }
+  return bindings.length === expectedCount ? bindings : null;
 }
 
 export function validatePlanningReadinessMappingRegistry(

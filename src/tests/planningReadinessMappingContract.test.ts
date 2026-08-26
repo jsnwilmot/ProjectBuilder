@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION,
+  PLANNING_CANONICAL_FACT_EVIDENCE_DESTINATION_SHAPES,
+  PLANNING_CANONICAL_FACT_EVIDENCE_EXTRACTION_KINDS,
+  PLANNING_CANONICAL_FACT_EVIDENCE_GLOBAL_SCALAR_PATHS,
   PLANNING_READINESS_MAPPING_CLASSIFICATIONS,
   PLANNING_READINESS_MAPPING_CANONICAL_PATHS,
   PLANNING_READINESS_MAPPING_CONTRACT_VERSION,
@@ -44,6 +48,12 @@ describe("Planning readiness mapping contract", () => {
     expect(PLANNING_READINESS_MAPPING_REGISTRY_ID).toBe("project-builder-planning-readiness-mappings");
     expect(PLANNING_READINESS_MAPPING_REGISTRY_VERSION).toBe("phase-5c.3c.3j.4");
     expect(PLANNING_READINESS_MAPPING_VERSION).toBe("1.0.0");
+    expect(PLANNING_CANONICAL_FACT_EVIDENCE_BINDING_CONTRACT_VERSION).toBe("phase-5c.3c.3j.6a");
+    expect(PLANNING_CANONICAL_FACT_EVIDENCE_EXTRACTION_KINDS).toEqual(["directStructuredRecordField"]);
+    expect(PLANNING_CANONICAL_FACT_EVIDENCE_DESTINATION_SHAPES).toEqual(["projectGlobalScalar"]);
+    expect(PLANNING_CANONICAL_FACT_EVIDENCE_GLOBAL_SCALAR_PATHS).toEqual([
+      "powerPlatform.canvas.validationResponsibility"
+    ]);
     expect(PLANNING_READINESS_MAPPING_CANONICAL_PATHS).toHaveLength(69);
     expect(new Set(PLANNING_READINESS_MAPPING_CANONICAL_PATHS).size).toBe(69);
     expect(Object.isFrozen(PLANNING_READINESS_MAPPING_CANONICAL_PATHS)).toBe(true);
@@ -66,6 +76,29 @@ describe("Planning readiness mapping contract", () => {
     expect(Object.isFrozen(result.definition)).toBe(true);
     expect(Object.isFrozen(result.definition.canonicalDestinationPaths)).toBe(true);
     expect(Object.isFrozen(result.definition.canonicalValidatorDependencyPaths)).toBe(true);
+    expect(Object.isFrozen(result.definition.canonicalFactEvidenceBindings)).toBe(true);
+  });
+
+  it("accepts only the one approved YAML direct-field evidence binding", () => {
+    const yaml = clone(getProductionPlanningReadinessMappingRegistry().definitions[5]);
+    expect(yaml.canonicalFactEvidenceBindings).toHaveLength(1);
+
+    for (const mutation of [
+      { answerFieldKey: "installationResponsibility" },
+      { canonicalDestinationPath: "powerPlatform.canvas.expectedInstallationMethod" },
+      { destinationShape: "collection" },
+      { requiredSourceType: "confirmedIntake" },
+      { requiredSourceAuthority: "informational" },
+      { requiredSourceAvailability: "stale" },
+      { extractionKind: "callback" },
+      { scalarKind: "structuredRecord" }
+    ]) {
+      const binding = { ...yaml.canonicalFactEvidenceBindings[0], ...mutation };
+      expect(definitionIssueCodes({ ...yaml, canonicalFactEvidenceBindings: [binding] }))
+        .toContain("invalidCanonicalFactBinding");
+    }
+    expect(definitionIssueCodes({ ...yaml, canonicalFactEvidenceBindings: [] }))
+      .toContain("invalidCanonicalFactBinding");
   });
 
   it.each([
