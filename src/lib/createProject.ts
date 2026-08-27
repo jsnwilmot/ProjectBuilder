@@ -10,6 +10,7 @@ import type {
   ReviewStatus,
   PowerPlatformProjectData
 } from "../types/project";
+import type { ProjectConfirmationProvenance } from "./projectConfirmationProvenance";
 import { deriveReviewItems } from "./clientReview";
 import { getOutstandingFields } from "./validateIntake";
 import { getReadinessSections } from "./projectSelectors";
@@ -30,6 +31,7 @@ export interface CreateProjectOptions {
   sourceProjectId?: string | null;
   duplicatedAt?: string | null;
   powerPlatform?: PowerPlatformProjectData;
+  confirmationProvenance?: ProjectConfirmationProvenance;
   now?: string;
 }
 
@@ -209,6 +211,9 @@ export function createProject(options: CreateProjectOptions = {}): ProjectRecord
     sourceProjectId: options.sourceProjectId ?? null,
     duplicatedAt: options.duplicatedAt ?? null,
     powerPlatform: options.powerPlatform ?? createDefaultPowerPlatformData(normalizedAppType),
+    ...(options.confirmationProvenance
+      ? { confirmationProvenance: options.confirmationProvenance }
+      : {}),
     controlledApplyHistory: [],
     createdAt: now,
     updatedAt: now

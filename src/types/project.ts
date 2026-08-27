@@ -1,5 +1,6 @@
 import type { PlanningControlledApplyHistoryRecord } from "../lib/planningControlledApplyHistory";
 import type { ProjectPlanningState } from "../lib/planningProposals";
+import type { ProjectConfirmationProvenance } from "../lib/projectConfirmationProvenance";
 
 export const PROJECT_STATUSES = [
   "Intake Started",
@@ -23,7 +24,7 @@ export const REVIEW_STATUSES = [
 ] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
-export type StorageVersion = 1 | 2 | 3 | 4 | 5 | 6;
+export type StorageVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type RecordLifecycleFormulaTechnicalReviewOutcome =
   | "Accepted"
@@ -1388,6 +1389,7 @@ export interface ProjectRecord {
   sourceProjectId: string | null;
   duplicatedAt: string | null;
   powerPlatform?: PowerPlatformProjectData;
+  confirmationProvenance?: ProjectConfirmationProvenance;
   planning?: ProjectPlanningState;
   controlledApplyHistory: PlanningControlledApplyHistoryRecord[];
   createdAt: string;
