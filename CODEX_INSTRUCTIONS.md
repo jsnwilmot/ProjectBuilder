@@ -18,3 +18,11 @@ Before completing a change:
 10. Update `CHANGE_LOG.md`, testing notes, and any behavior documentation affected by the change.
 
 Do not add authentication, a database, analytics, billing, paid services, or external AI APIs without Architect approval.
+
+## Storage 7 invariants
+
+- Preserve `gpt-project-builder.storage.v2`; canonical persisted projects require valid Storage 7 confirmation provenance.
+- Keep UUID allocation, source-revision reconciliation, migration, quarantine preservation, and all final writes inside the repository boundary.
+- Never repair malformed provenance during normalization or grant it confirmation, Planning, readiness, projection, Apply, YAML, package, or output authority.
+- Keep the confirmation source registry closed to the approved seven Canvas strings until the Architect approves a later phase.
+- After Storage 7 production adoption, do not deploy a Storage-6-only rollback or hotfix against the production key; rollback code must remain Storage-7-aware.

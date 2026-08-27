@@ -1,5 +1,39 @@
 # Change Log
 
+## 2026-08-27 - Phase 5C.3C.3J.6B.6 - Storage 7 Atomic Confirmation Provenance
+
+### Summary
+
+- Advanced Project Builder persistence to Storage Version 7 on the isolated review branch while preserving the existing `gpt-project-builder.storage.v2` key.
+- Added canonical `confirmationProvenance` persistence for every Storage 7 project, strict Web Crypto UUID allocation, seven closed Canvas source accessors, pure revision reconciliation, atomic Storage 1-6 migration, and repository-wide revision enforcement.
+- Added fail-closed migration-blocked reads and bounded issue codes; malformed Storage 7 provenance remains non-authoritative in a non-persisted quarantine sidecar and is either structurally preserved for unrelated writes or blocks provenance-affecting writes.
+- Preserved zero confirmation-event creation, zero `confirmedIntake` materializers, one existing canonical-fact binding, and zero new readiness, projection, Apply, YAML merge, or output authority.
+
+### Files changed
+
+- Updated the project/storage types, pure constructor option, storage normalizer, repository, application persistence-warning hook, directly affected regression fixtures, and the five authorized governance files.
+- Added bounded UUID runtime, closed source accessors, pure revision reconciliation, quarantine utilities, and focused Storage 7 test suites.
+- Removed no files and changed no dependency, Node, CI, deployment, or TTI-authority files.
+
+### Testing completed
+
+- Focused Storage 7 runtime/repository suites passed 50 tests.
+- Full coverage validation passed 82 unit/integration files with 2,957 tests; all 7 UI files passed 74 tests, for 89 files and 3,031 tests combined.
+- Coverage passed at 89.78% statements, 82.67% branches, 95.19% functions, and 93.46% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 144 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 6 findings (2 moderate, 4 high); no remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory development audit reports 6 findings; production dependencies report 0 vulnerabilities and dependency remediation is outside scope.
+
+### Remaining work
+
+- GPT Architect review is required before integration. Do not merge this atomic Storage 7 unit partially.
+- Once Storage 7 is written in production, no Storage-6-only build may be redeployed against the production key; every rollback or emergency hotfix must remain Storage-7-aware.
+- TTI remains Draft with all 15 blockers. This phase resolves no TTI blocker and adds no confirmation UI or confirmation authority.
+
 ## 2026-08-27 - Phase 5C.3C.3J.6B.4R - Linear Confirmation Supersession Correction
 
 ### Summary

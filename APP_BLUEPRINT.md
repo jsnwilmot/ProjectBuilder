@@ -19,11 +19,19 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 
 ## Runtime boundaries
 
+### Storage 7 confirmation provenance
+
+- Storage Version 7 is the canonical repository format and retains the `gpt-project-builder.storage.v2` key.
+- Every canonical Storage 7 project has valid `confirmationProvenance`; Storage 1-6 records migrate atomically before writes are enabled.
+- Repository transactions alone allocate strict `globalThis.crypto.randomUUID()` provenance IDs and reconcile the seven registered Canvas source revisions.
+- Malformed provenance is non-authoritative and held only in bounded, non-persisted quarantine metadata. Unrelated writes must preserve its parsed JSON structure exactly or fail closed.
+- Confirmation events are not created in this phase. Provenance supplies revision identity only and grants no Planning, readiness, projection, Apply, YAML, package, or output authority.
+
 - React components own display and user interaction.
 - `useProjectBuilder` coordinates the active record with the versioned project repository.
 - `createProject.ts` creates complete records with safe defaults.
 - `projectRepository.ts` owns multi-project CRUD and the single localStorage key.
-- `storageVersion.ts` validates and migrates stored schema version 1.
+- `storageVersion.ts` validates Storage 7 and normalizes supported Storage 1-6 inputs for atomic repository migration.
 - `projectSelectors.ts` derives dashboard values without mutating records.
 - `exportIntegrity.ts` validates active-project generated documents, approved mappings, safe paths, duplicates, missing files, empty content, and warnings before archive creation.
 - `exportManifest.ts` creates stable Markdown and JSON export diagnostics.

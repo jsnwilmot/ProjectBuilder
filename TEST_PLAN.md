@@ -1,5 +1,21 @@
 # Test Plan
 
+## 2026-08-27 Phase 5C.3C.3J.6B.6 Storage 7 atomic persistence
+
+1. Verify Storage Versions 1-6 migrate as one complete state to canonical Storage 7 through one same-key write, with seven Canvas revisions, zero non-Canvas Canvas revisions, zero events, and idempotent reloads.
+2. Verify unavailable storage/crypto, UUID throw/invalid/collision/partial allocation, invalid legacy state, serialization failure, and write failure preserve legacy authority and expose only bounded migration issue codes in read-only mode.
+3. Verify new and duplicated projects receive fresh applicable revisions before persistence, no inherited confirmation/event/action IDs, and no partial write on allocation failure.
+4. Verify each of the seven registered Canvas strings rotates only its own revision, same normalized values allocate nothing, and `A -> B -> A` produces three distinct revisions.
+5. Verify Canvas-to-non-Canvas removes current revisions while preserving history, and return to Canvas requires seven entirely fresh revisions atomically.
+6. Verify every production repository mutation routes through the central invariant, blocks caller provenance mutation, and preserves valid provenance through archive/restore, Planning, Controlled Apply, document, readiness, review, active-project, and generic writes.
+7. Verify malformed Storage 7 provenance is never repaired or trusted, remains absent from the broad read model, and is represented only by bounded non-persisted quarantine metadata.
+8. Verify unrelated quarantined writes recursively preserve raw JSON structure, registered-field/type changes block, delete remains allowed, and duplicate receives clean fresh provenance without reusing raw malformed UUIDs.
+9. Verify the exact seven-entry registry, contract `phase-5c.3c.3j.6b.3r`, storage key, one existing canonical binding, and zero confirmation-event, `confirmedIntake`, readiness, projection, Apply, yamlStatus, merge-path, projector, or output authority additions.
+10. Regress creation, management, duplication, archive/restore, Intake, Power Platform transitions, Planning generation/human lifecycle, Controlled Apply, generated documents, migration/corruption recovery, canonical-fact evidence, mappings, and UI persistence warnings.
+11. Run focused tests, full unit/integration tests, all UI legs, coverage, ESLint, app TypeScript checking, production build, production audit, advisory development audit, exact-scope checks, git topology checks, preserved-stash checks, linear review commits, push, and remote verification.
+
+Validation result: passed. Focused Storage 7 suites passed 50 tests. Coverage validation passed 82 unit/integration files with 2,957 tests and 7 UI files with 74 tests, for 89 files and 3,031 tests total. Coverage was 89.78% statements, 82.67% branches, 95.19% functions, and 93.46% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 144 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 6 findings (2 moderate, 4 high); no remediation was performed.
+
 ## 2026-08-27 Phase 5C.3C.3J.6B.4R linear confirmation supersession correction
 
 1. Reproduce that the rejected validator accepts two same-source roots and a later same-source event with omitted supersession.
