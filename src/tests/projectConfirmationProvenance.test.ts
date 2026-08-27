@@ -132,11 +132,18 @@ describe("project confirmation provenance contract", () => {
     expect(result.provenance.confirmationEvents[0]).not.toHaveProperty("applyAuthorized");
   });
 
-  it("accepts a known historical source when it is currently non-applicable", () => {
+  it("accepts a valid linear chain for a known historical source when it is currently non-applicable", () => {
     const sourceFieldIds = applicable("webApplication");
     expect(sourceFieldIds).toEqual([]);
+    const first = event();
+    const second = event({
+      confirmationId: "20000000-0000-4000-8000-000000000002",
+      confirmationActionId: "30000000-0000-4000-8000-000000000002",
+      confirmedAt: "2026-08-27T12:01:00.000Z",
+      supersedesConfirmationId: first.confirmationId
+    });
     const result = validateProjectConfirmationProvenance(
-      provenance(sourceFieldIds, [event()]),
+      provenance(sourceFieldIds, [first, second]),
       { projectId: PROJECT_ID, applicableSourceFieldIds: sourceFieldIds }
     );
     expect(result.outcome).toBe("valid");
@@ -229,7 +236,7 @@ describe("project confirmation provenance contract", () => {
     }
   });
 
-  it("enforces batch action identity and supersession lineage", () => {
+  it("enforces batch action identity", () => {
     const canvasIds = applicable("powerAppsCanvas");
     const first = event();
     const second = event({
@@ -248,23 +255,179 @@ describe("project confirmation provenance contract", () => {
       { projectId: PROJECT_ID, applicableSourceFieldIds: canvasIds }
     );
     expect(inconsistentBatch.issueCodes).toContain("invalidAction");
+  });
 
-    const reconfirmation = event({
-      confirmationId: "20000000-0000-4000-8000-000000000003",
+  it("accepts empty, single-event, and ordered linear confirmation chains", () => {
+    const canvasIds = applicable("powerAppsCanvas");
+    const first = event();
+
+    const second = event({
+      confirmationId: "20000000-0000-4000-8000-000000000002",
       confirmationActionId: "30000000-0000-4000-8000-000000000002",
       confirmedAt: "2026-08-27T12:01:00.000Z",
       supersedesConfirmationId: first.confirmationId
     });
+    const third = event({
+      confirmationId: "20000000-0000-4000-8000-000000000003",
+      confirmationActionId: "30000000-0000-4000-8000-000000000003",
+      confirmedAt: "2026-08-27T12:02:00.000Z",
+      supersedesConfirmationId: second.confirmationId
+    });
+
+    for (const events of [[], [first], [first, second], [first, second, third]]) {
+      expect(validateProjectConfirmationProvenance(
+        provenance(canvasIds, events),
+        { projectId: PROJECT_ID, applicableSourceFieldIds: canvasIds }
+      ).outcome).toBe("valid");
+    }
+  });
+
+  it("accepts independent ordered lineages for separate source fields", () => {
+    const canvasIds = applicable("powerAppsCanvas");
+    const firstA = event();
+    const firstB = event({
+      confirmationId: "20000000-0000-4000-8000-000000000002",
+      sourceFieldId: canvasIds[1],
+      sourceFieldRevisionId: REVISION_IDS[1]
+    });
+    const secondA = event({
+      confirmationId: "20000000-0000-4000-8000-000000000003",
+      confirmationActionId: "30000000-0000-4000-8000-000000000002",
+      confirmedAt: "2026-08-27T12:01:00.000Z",
+      supersedesConfirmationId: firstA.confirmationId
+    });
+    const secondB = event({
+      confirmationId: "20000000-0000-4000-8000-000000000004",
+      confirmationActionId: "30000000-0000-4000-8000-000000000002",
+      confirmedAt: "2026-08-27T12:01:00.000Z",
+      sourceFieldId: canvasIds[1],
+      sourceFieldRevisionId: REVISION_IDS[1],
+      supersedesConfirmationId: firstB.confirmationId
+    });
+
     expect(validateProjectConfirmationProvenance(
-      provenance(canvasIds, [first, reconfirmation]),
+      provenance(canvasIds, [firstA, firstB, secondA, secondB]),
       { projectId: PROJECT_ID, applicableSourceFieldIds: canvasIds }
     ).outcome).toBe("valid");
+  });
 
-    const invalidSupersession = { ...reconfirmation, supersedesConfirmationId: reconfirmation.confirmationId };
+  it("uses stored event order without sorting by timestamp or UUID", () => {
+    const canvasIds = applicable("powerAppsCanvas");
+    const first = event({
+      confirmationId: "90000000-0000-4000-8000-000000000009",
+      confirmedAt: "2026-08-27T12:02:00.000Z"
+    });
+    const second = event({
+      confirmationId: "10000000-0000-4000-8000-000000000001",
+      confirmationActionId: "30000000-0000-4000-8000-000000000002",
+      confirmedAt: "2026-08-27T12:01:00.000Z",
+      supersedesConfirmationId: first.confirmationId
+    });
+
     expect(validateProjectConfirmationProvenance(
-      provenance(canvasIds, [first, invalidSupersession]),
+      provenance(canvasIds, [first, second]),
       { projectId: PROJECT_ID, applicableSourceFieldIds: canvasIds }
-    ).issueCodes).toContain("invalidSupersession");
+    ).outcome).toBe("valid");
+  });
+
+  it.each([
+    ["a second same-source root", (first: ProjectFieldConfirmationEvent) => [
+      first,
+      event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002"
+      })
+    ]],
+    ["a third same-source event with omitted supersession", (first: ProjectFieldConfirmationEvent) => {
+      const second = event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002",
+        supersedesConfirmationId: first.confirmationId
+      });
+      return [first, second, event({
+        confirmationId: "20000000-0000-4000-8000-000000000003",
+        confirmationActionId: "30000000-0000-4000-8000-000000000003"
+      })];
+    }],
+    ["a later event superseding an older non-head event", (first: ProjectFieldConfirmationEvent) => {
+      const second = event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002",
+        supersedesConfirmationId: first.confirmationId
+      });
+      return [first, second, event({
+        confirmationId: "20000000-0000-4000-8000-000000000003",
+        confirmationActionId: "30000000-0000-4000-8000-000000000003",
+        supersedesConfirmationId: first.confirmationId
+      })];
+    }],
+    ["two independent roots for one source", (first: ProjectFieldConfirmationEvent) => [
+      first,
+      event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002"
+      })
+    ]],
+    ["a branch from a historical event", (first: ProjectFieldConfirmationEvent) => {
+      const second = event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002",
+        supersedesConfirmationId: first.confirmationId
+      });
+      return [first, second, event({
+        confirmationId: "20000000-0000-4000-8000-000000000003",
+        confirmationActionId: "30000000-0000-4000-8000-000000000003",
+        supersedesConfirmationId: first.confirmationId
+      })];
+    }],
+    ["a cycle", (first: ProjectFieldConfirmationEvent) => {
+      const secondId = "20000000-0000-4000-8000-000000000002";
+      return [
+        { ...first, supersedesConfirmationId: secondId },
+        event({
+          confirmationId: secondId,
+          confirmationActionId: "30000000-0000-4000-8000-000000000002",
+          supersedesConfirmationId: first.confirmationId
+        })
+      ];
+    }],
+    ["an unknown supersession ID", (first: ProjectFieldConfirmationEvent) => [
+      first,
+      event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002",
+        supersedesConfirmationId: "90000000-0000-4000-8000-000000000099"
+      })
+    ]],
+    ["a supersession to another source field", (first: ProjectFieldConfirmationEvent) => [
+      first,
+      event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        confirmationActionId: "30000000-0000-4000-8000-000000000002",
+        sourceFieldId: PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[1],
+        sourceFieldRevisionId: REVISION_IDS[1],
+        supersedesConfirmationId: first.confirmationId
+      })
+    ]],
+    ["same-action supersession", (first: ProjectFieldConfirmationEvent) => [
+      first,
+      event({
+        confirmationId: "20000000-0000-4000-8000-000000000002",
+        supersedesConfirmationId: first.confirmationId
+      })
+    ]]
+  ] as const)("fails closed on %s", (name, createEvents) => {
+    const canvasIds = applicable("powerAppsCanvas");
+    const result = validateProjectConfirmationProvenance(
+      provenance(canvasIds, createEvents(event())),
+      { projectId: PROJECT_ID, applicableSourceFieldIds: canvasIds }
+    );
+
+    expect(result.outcome).toBe("quarantined");
+    expect(result.issueCodes).toContain("invalidSupersession");
+    if (name === "same-action supersession") {
+      expect(result.issueCodes).toContain("invalidAction");
+    }
   });
 
   it("keeps every quarantine issue code bounded and free of raw evidence", () => {

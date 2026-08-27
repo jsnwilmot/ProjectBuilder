@@ -1,5 +1,45 @@
 # Change Log
 
+## 2026-08-27 - Phase 5C.3C.3J.6B.4R - Linear Confirmation Supersession Correction
+
+### Summary
+
+- Corrected confirmation-provenance validation to use immutable `confirmationEvents` order and maintain exactly one connected linear supersession chain per source field.
+- Each source field now permits one root only; every later event must come from a different action and supersede that source field's immediately preceding valid lineage head.
+- Added focused fail-closed coverage for disconnected roots, omitted supersession, non-head references, branching, cycles, unknown references, cross-source references, and same-action supersession.
+- Added focused valid coverage for empty history, one root, two- and three-event chains, independent per-field chains, and historical known-but-currently-non-applicable chains.
+
+### Files updated
+
+- `src/lib/projectConfirmationProvenance.ts` - enforces append-order, per-source linear lineage.
+- `src/tests/projectConfirmationProvenance.test.ts` - adds the required lineage success and failure matrix.
+- `CHANGE_LOG.md` - records the narrow review correction and preserved boundaries.
+- `TEST_PLAN.md` - records the corrected lineage verification matrix.
+
+### Scope boundaries preserved
+
+- The confirmation contract version, seven source IDs, accessor IDs, actor assurance, action origin, value kind, normalization, serialization, fingerprint version, UUID syntax, quarantine result, and 13-code issue vocabulary are unchanged.
+- The source registry, `ProjectRecord`, `StorageState`, Storage Version 6, migrations, repository persistence, Guided Intake, Planning sources, canonical bindings, mapping authority, readiness authority, Apply authority, and output behavior are unchanged.
+- TTI remains Draft with 15 blockers, YAML planning remains Review needed, Canvas YAML targets remain Not applicable, and no blocker was resolved.
+
+### Testing completed
+
+- Before correction, the focused provenance suite reproduced the defect with 3 failures: second root, third event without supersession, and duplicate independent-root case were incorrectly accepted.
+- After correction, the two focused suites passed 32 tests and the nine-file affected regression matrix passed 305 tests.
+- Full and coverage validation each passed 80 unit/integration files with 2,907 tests and 7 UI files with 74 tests, for 87 files and 2,981 tests total.
+- Coverage passed at 89.87% statements, 82.64% branches, 95.09% functions, and 93.61% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 138 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development/tooling audit reported 25 findings (2 moderate, 23 high); no remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory-only development audit reports 25 findings; production dependencies report 0 vulnerabilities and remediation is outside scope.
+
+### Remaining work
+
+- Independent GPT Architect re-review is required before integration. Storage 7 and all persistence, runtime materialization, mapping, readiness, Apply, and output integration remain unauthorized.
+
 ## 2026-08-27 - Phase 5C.3C.3J.6B.4 - Confirmation Provenance Contract and Source Registry Foundation
 
 ### Summary

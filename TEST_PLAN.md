@@ -1,5 +1,28 @@
 # Test Plan
 
+## 2026-08-27 Phase 5C.3C.3J.6B.4R linear confirmation supersession correction
+
+1. Reproduce that the rejected validator accepts two same-source roots and a later same-source event with omitted supersession.
+2. Verify an empty confirmation event sequence is valid.
+3. Verify one event with no supersession is the only permitted root for its source field.
+4. Verify ordered `A -> B` and `A -> B -> C` chains are valid.
+5. Verify separate source fields independently maintain their own ordered linear chains.
+6. Verify a known historical source that is currently non-applicable retains a valid linear chain without gaining current authority.
+7. Verify a second root for a source field fails closed with bounded `invalidSupersession`.
+8. Verify a third same-source event with omitted supersession fails closed.
+9. Verify a later same-source event that references an older non-head event fails closed.
+10. Verify branching from a historical event and cyclic references fail closed.
+11. Verify unknown and cross-source supersession references fail closed.
+12. Verify same-action supersession remains invalid and one action still contains at most one event for each source field.
+13. Verify stored append-only event order is authoritative without sorting or inference from timestamps, UUIDs, or source precedence.
+14. Verify the contract version, registry contents, issue-code vocabulary, UUID rules, metadata versions, and quarantine result shape are unchanged.
+15. Verify the source registry remains seven entries for Canvas and zero applicable entries for each non-Canvas project type.
+16. Verify Storage remains Version 6 with no migration, ProjectRecord, StorageState, repository persistence, Guided Intake, confirmed-intake materializer, canonical binding, readiness, projection, Apply, or output changes.
+17. Regress source reconciliation, readiness mapping contract/registry, canonical-fact evidence, project types, Power Platform normalization, and repository behavior.
+18. Run focused suites, the affected nine-file matrix, full tests, coverage, ESLint, app TypeScript checking, production build, production/advisory audits, exact-scope checks, git topology checks, preserved-stash checks, one correction commit, push, and remote verification.
+
+Validation result: passed. Before correction, 3 of 23 focused provenance tests reproduced the disconnected-root defect. After correction, the two focused suites passed 32 tests and the nine-file affected matrix passed 305 tests. Full and coverage validation each passed 80 unit/integration files with 2,907 tests and 7 UI files with 74 tests, for 87 files and 2,981 tests total. Coverage passed at 89.87% statements, 82.64% branches, 95.09% functions, and 93.61% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 138 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development/tooling audit reported 25 findings (2 moderate, 23 high); no remediation was performed.
+
 ## 2026-08-27 Phase 5C.3C.3J.6B.4 confirmation provenance contract and source registry foundation
 
 1. Verify the confirmation contract version is exactly `phase-5c.3c.3j.6b.3r` and no independent registry version exists.

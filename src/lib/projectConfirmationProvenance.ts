@@ -374,36 +374,23 @@ function validateSupersession(
   events: readonly ProjectFieldConfirmationEvent[],
   issues: Set<ProjectConfirmationProvenanceIssueCode>
 ): void {
-  const eventsById = new Map(events.map((event) => [event.confirmationId, event]));
-  const supersededIds = new Set<string>();
+  const lineageHeads = new Map<ProjectConfirmationSourceFieldId, ProjectFieldConfirmationEvent>();
   for (const event of events) {
-    if (!event.supersedesConfirmationId) continue;
-    const previous = eventsById.get(event.supersedesConfirmationId);
+    const currentHead = lineageHeads.get(event.sourceFieldId);
+    if (!currentHead) {
+      if (event.supersedesConfirmationId) issues.add("invalidSupersession");
+      else lineageHeads.set(event.sourceFieldId, event);
+      continue;
+    }
+
     if (
-      !previous ||
-      previous.confirmationId === event.confirmationId ||
-      previous.projectId !== event.projectId ||
-      previous.sourceFieldId !== event.sourceFieldId ||
-      previous.confirmationActionId === event.confirmationActionId ||
-      supersededIds.has(previous.confirmationId)
+      event.supersedesConfirmationId !== currentHead.confirmationId ||
+      event.confirmationActionId === currentHead.confirmationActionId
     ) {
       issues.add("invalidSupersession");
       continue;
     }
-    supersededIds.add(previous.confirmationId);
-  }
-
-  for (const event of events) {
-    const visited = new Set<string>();
-    let current: ProjectFieldConfirmationEvent | undefined = event;
-    while (current?.supersedesConfirmationId) {
-      if (visited.has(current.confirmationId)) {
-        issues.add("invalidSupersession");
-        break;
-      }
-      visited.add(current.confirmationId);
-      current = eventsById.get(current.supersedesConfirmationId);
-    }
+    lineageHeads.set(event.sourceFieldId, event);
   }
 }
 
