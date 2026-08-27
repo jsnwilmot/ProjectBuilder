@@ -2,6 +2,10 @@ import { createProject, EMPTY_PROJECT_INTAKE } from "./createProject";
 import { normalizePlanningControlledApplyHistory } from "./planningControlledApplyHistory";
 import { createEmptyProjectPlanningState, normalizeProjectPlanningState } from "./planningProposals";
 import { normalizePowerPlatformData } from "./powerPlatform";
+import {
+  validateProjectConfirmationProvenance
+} from "./projectConfirmationProvenance";
+import { applicableProjectConfirmationSourceFieldIds } from "./projectConfirmationRevisionReconciliation";
 import type {
   ClientDetails,
   GeneratedDocument,
@@ -22,7 +26,7 @@ import {
 } from "../types/project";
 import { normalizeProjectTypeValue } from "../data/projectTypes";
 
-export const CURRENT_STORAGE_VERSION: StorageVersion = 6;
+export const CURRENT_STORAGE_VERSION: StorageVersion = 7;
 
 export const EMPTY_STORAGE_STATE: StorageState = {
   version: CURRENT_STORAGE_VERSION,
@@ -141,10 +145,10 @@ function normalizeProject(value: unknown, sourceVersion: StorageVersion): Projec
     powerPlatform: normalizePowerPlatformData(value.powerPlatform, normalizedIntake.appType),
     now: asString(value.createdAt) || new Date().toISOString()
   });
-  const planning = sourceVersion === 4 || sourceVersion === 5 || sourceVersion === 6
+  const planning = sourceVersion === 4 || sourceVersion === 5 || sourceVersion === 6 || sourceVersion === 7
     ? normalizeProjectPlanningState(value.planning, id).planning
     : createEmptyProjectPlanningState();
-  const normalizedHistory = sourceVersion === 5 || sourceVersion === 6
+  const normalizedHistory = sourceVersion === 5 || sourceVersion === 6 || sourceVersion === 7
     ? normalizePlanningControlledApplyHistory({
         projectId: id,
         planning,
@@ -152,8 +156,18 @@ function normalizeProject(value: unknown, sourceVersion: StorageVersion): Projec
       })
     : { outcome: "valid" as const, history: [] };
 
+  const provenanceValidation = sourceVersion === 7
+    ? validateProjectConfirmationProvenance(value.confirmationProvenance, {
+        projectId: id,
+        applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(normalizedIntake.appType)
+      })
+    : null;
+
   return {
     ...project,
+    ...(provenanceValidation?.outcome === "valid"
+      ? { confirmationProvenance: provenanceValidation.provenance }
+      : {}),
     planning,
     controlledApplyHistory: normalizedHistory.outcome === "valid"
       ? normalizedHistory.history.map((record) => ({ ...record, sourceIds: [...record.sourceIds] }))
@@ -203,7 +217,10 @@ export function migrateStorageState(input: unknown): StorageState {
     return finalizeState(CURRENT_STORAGE_VERSION, input.activeProjectId, input.projects);
   }
 
-  if (input.version === 1 || input.version === 2 || input.version === 3 || input.version === 4 || input.version === 5) {
+  if (
+    input.version === 1 || input.version === 2 || input.version === 3 || input.version === 4 ||
+    input.version === 5 || input.version === 6
+  ) {
     return migrateLegacyStorage(input);
   }
 

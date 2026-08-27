@@ -14,6 +14,28 @@ import {
   updateReviewItemDecision
 } from "./clientReview";
 import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
+import {
+  PROJECT_CONFIRMATION_CONTRACT_VERSION,
+  validateProjectConfirmationProvenance,
+  type ProjectConfirmationProvenance
+} from "./projectConfirmationProvenance";
+import {
+  analyzeProjectConfirmationRevisionReconciliation,
+  applicableProjectConfirmationSourceFieldIds,
+  collectProjectConfirmationProvenanceIds,
+  createInitialProjectConfirmationProvenance,
+  materializeProjectConfirmationRevisionReconciliation
+} from "./projectConfirmationRevisionReconciliation";
+import {
+  allocateProjectConfirmationUuids,
+  type ProjectConfirmationUuidRuntime
+} from "./projectConfirmationRuntime";
+import {
+  collectCanonicalUuidsFromParsedJson,
+  cloneParsedJsonValue,
+  parsedJsonStructurallyEqual,
+  type ProjectConfirmationQuarantineSidecar
+} from "./projectConfirmationQuarantine";
 import { createEmptyProjectPlanningState } from "./planningProposals";
 import { buildPlanningClarificationAnswerSchemaContext } from "./planningClarificationAnswerSchemaResolver";
 import {
@@ -92,6 +114,8 @@ export const LEGACY_STORAGE_KEY = "gpt-project-builder:project:v1";
 
 const STORAGE_UNAVAILABLE_WARNING = "Saving is currently unavailable in this browser context. Keep this tab open to avoid losing unsaved changes.";
 const STORAGE_WRITE_WARNING = "We could not save project changes to browser storage. Free local storage space or check browser privacy settings.";
+const STORAGE_MIGRATION_WARNING = "Project data is available read-only because storage migration could not be completed.";
+const PROVENANCE_WRITE_WARNING = "Project changes could not be saved because confirmation provenance could not be preserved safely.";
 
 let persistenceWarning: string | null = null;
 
@@ -100,6 +124,48 @@ export interface StorageAdapter {
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
+
+export const REPOSITORY_MIGRATION_ISSUE_CODES = Object.freeze([
+  "storageUnavailable",
+  "storageReadFailed",
+  "storageParseFailed",
+  "unsupportedStorageVersion",
+  "uuidUnavailable",
+  "uuidInvalid",
+  "uuidCollision",
+  "migrationValidationFailed",
+  "migrationSerializationFailed",
+  "migrationWriteFailed"
+] as const);
+
+export type RepositoryMigrationIssueCode = (typeof REPOSITORY_MIGRATION_ISSUE_CODES)[number];
+
+export interface RepositoryPersistenceRuntime extends ProjectConfirmationUuidRuntime {
+  readonly serialize?: (value: unknown) => string;
+}
+
+export interface RepositoryReadStatus {
+  readonly writeMode: "readWrite" | "blocked";
+  readonly issueCodes: readonly RepositoryMigrationIssueCode[];
+  readonly quarantinedProjectIds: readonly string[];
+}
+
+interface RepositoryReadSnapshot extends RepositoryReadStatus {
+  readonly state: StorageState;
+  readonly rawCurrentStorage: string | null;
+  readonly quarantines: ReadonlyMap<string, ProjectConfirmationQuarantineSidecar>;
+}
+
+type RepositoryWriteIntent =
+  | { readonly kind: "generic" }
+  | { readonly kind: "create"; readonly projectId: string }
+  | { readonly kind: "duplicate"; readonly projectId: string; readonly sourceProjectId: string }
+  | { readonly kind: "delete"; readonly projectId: string }
+  | { readonly kind: "ordinaryUpdate"; readonly projectId: string }
+  | { readonly kind: "archiveRestore"; readonly projectId: string }
+  | { readonly kind: "activeProjectOnly" }
+  | { readonly kind: "planning"; readonly projectId: string }
+  | { readonly kind: "controlledApply"; readonly projectId: string };
 
 export type PlanningControlledApplyRepositoryIssueCode =
   | "invalidProjectId"
@@ -241,13 +307,560 @@ function cloneControlledApplyHistory(
   }));
 }
 
-function writeCurrentStorageState(state: StorageState, storage: StorageAdapter): boolean {
+function emptySnapshot(
+  writeMode: RepositoryReadStatus["writeMode"] = "readWrite",
+  issueCodes: readonly RepositoryMigrationIssueCode[] = []
+): RepositoryReadSnapshot {
+  return {
+    state: { ...EMPTY_STORAGE_STATE, projects: [] },
+    writeMode,
+    issueCodes,
+    quarantinedProjectIds: [],
+    quarantines: new Map(),
+    rawCurrentStorage: null
+  };
+}
+
+function blockedSnapshot(
+  state: StorageState,
+  issueCode: RepositoryMigrationIssueCode,
+  rawCurrentStorage: string | null
+): RepositoryReadSnapshot {
+  setPersistenceWarning(STORAGE_MIGRATION_WARNING);
+  return {
+    state,
+    writeMode: "blocked",
+    issueCodes: Object.freeze([issueCode]),
+    quarantinedProjectIds: [],
+    quarantines: new Map(),
+    rawCurrentStorage
+  };
+}
+
+function readStorageValue(
+  storage: StorageAdapter,
+  key: string
+): { outcome: "read"; value: string | null } | { outcome: "blocked" } {
+  try {
+    return { outcome: "read", value: storage.getItem(key) };
+  } catch {
+    return { outcome: "blocked" };
+  }
+}
+
+function repositorySerialize(value: unknown, runtime: RepositoryPersistenceRuntime): string {
+  return (runtime.serialize ?? JSON.stringify)(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isLegacyStorageVersion(value: unknown): value is 1 | 2 | 3 | 4 | 5 | 6 {
+  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5 || value === 6;
+}
+
+function prepareLegacyStorage7Candidate(
+  legacyInput: unknown,
+  runtime: RepositoryPersistenceRuntime
+): { outcome: "ready"; state: StorageState } | { outcome: "blocked"; issueCode: RepositoryMigrationIssueCode } {
+  const normalized = synchronizeStorageState(migrateStorageState(legacyInput));
+  if (isRecord(legacyInput)) {
+    const rawProjects = Array.isArray(legacyInput.projects) ? legacyInput.projects : [];
+    const normalizedIds = normalized.projects.map((project) => project.identity.id);
+    if (
+      rawProjects.length !== normalized.projects.length ||
+      new Set(normalizedIds).size !== normalizedIds.length
+    ) {
+      return { outcome: "blocked", issueCode: "migrationValidationFailed" };
+    }
+  }
+  const revisionCount = normalized.projects.reduce(
+    (count, project) => count + applicableProjectConfirmationSourceFieldIds(project.intake.appType).length,
+    0
+  );
+  const allocation = allocateProjectConfirmationUuids(revisionCount, runtime);
+  if (allocation.outcome === "blocked") return allocation;
+
+  let allocationIndex = 0;
+  const projects: ProjectRecord[] = [];
+  for (const project of normalized.projects) {
+    const count = applicableProjectConfirmationSourceFieldIds(project.intake.appType).length;
+    const initialized = createInitialProjectConfirmationProvenance(
+      project.intake.appType,
+      allocation.values.slice(allocationIndex, allocationIndex + count)
+    );
+    if (initialized.outcome === "blocked") {
+      return { outcome: "blocked", issueCode: "migrationValidationFailed" };
+    }
+    allocationIndex += count;
+    projects.push({ ...project, confirmationProvenance: initialized.provenance });
+  }
+
+  const state: StorageState = { ...normalized, version: CURRENT_STORAGE_VERSION, projects };
+  return validateCanonicalStorage7State(state)
+    ? { outcome: "ready", state }
+    : { outcome: "blocked", issueCode: "migrationValidationFailed" };
+}
+
+function validateCanonicalStorage7State(state: StorageState): boolean {
+  if (state.version !== CURRENT_STORAGE_VERSION) return false;
+  const projectIds = new Set<string>();
+  for (const project of state.projects) {
+    if (!project.identity.id || projectIds.has(project.identity.id)) return false;
+    projectIds.add(project.identity.id);
+    const validation = validateProjectConfirmationProvenance(project.confirmationProvenance, {
+      projectId: project.identity.id,
+      applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(project.intake.appType)
+    });
+    if (validation.outcome !== "valid") return false;
+  }
+  return true;
+}
+
+function readStorage7Snapshot(raw: string, parsed: Record<string, unknown>): RepositoryReadSnapshot {
+  const state = synchronizeStorageState(migrateStorageState(parsed));
+  const rawProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
+  const normalizedIds = state.projects.map((project) => project.identity.id);
+  if (
+    rawProjects.length !== state.projects.length ||
+    new Set(normalizedIds).size !== normalizedIds.length
+  ) {
+    return blockedSnapshot(state, "migrationValidationFailed", raw);
+  }
+
+  const quarantines = new Map<string, ProjectConfirmationQuarantineSidecar>();
+  for (const project of state.projects) {
+    const matching = rawProjects.filter((candidate) =>
+      isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === project.identity.id
+    );
+    if (matching.length !== 1) return blockedSnapshot(state, "migrationValidationFailed", raw);
+    const rawProject = matching[0] as Record<string, unknown>;
+    const present = Object.prototype.hasOwnProperty.call(rawProject, "confirmationProvenance");
+    const validation = validateProjectConfirmationProvenance(rawProject.confirmationProvenance, {
+      projectId: project.identity.id,
+      applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(project.intake.appType)
+    });
+    if (validation.outcome === "quarantined") {
+      quarantines.set(project.identity.id, {
+        projectId: project.identity.id,
+        rawProvenancePropertyPresent: present,
+        ...(present ? { rawProvenance: cloneParsedJsonValue(rawProject.confirmationProvenance) } : {}),
+        issueCodes: validation.issueCodes,
+        provenanceWritesBlocked: true,
+        wholeProjectWriteDisposition: "preserveRawProvenanceExactlyOrBlock"
+      });
+    }
+  }
+
+  setPersistenceWarning(null);
+  return {
+    state,
+    writeMode: "readWrite",
+    issueCodes: [],
+    quarantinedProjectIds: Object.freeze([...quarantines.keys()]),
+    quarantines,
+    rawCurrentStorage: raw
+  };
+}
+
+function persistLegacyMigration(
+  legacyInput: unknown,
+  readableLegacyState: StorageState,
+  rawCurrentStorage: string | null,
+  sourceKey: string,
+  storage: StorageAdapter,
+  runtime: RepositoryPersistenceRuntime
+): RepositoryReadSnapshot {
+  const prepared = prepareLegacyStorage7Candidate(legacyInput, runtime);
+  if (prepared.outcome === "blocked") {
+    return blockedSnapshot(readableLegacyState, prepared.issueCode, rawCurrentStorage);
+  }
+
+  let serialized: string;
+  let parsed: Record<string, unknown>;
+  try {
+    serialized = repositorySerialize(prepared.state, runtime);
+    const roundTrip = JSON.parse(serialized);
+    if (!isRecord(roundTrip)) throw new Error("Invalid serialized storage state.");
+    parsed = roundTrip;
+    if (!validateCanonicalStorage7State(migrateStorageState(parsed))) {
+      return blockedSnapshot(readableLegacyState, "migrationValidationFailed", rawCurrentStorage);
+    }
+  } catch {
+    return blockedSnapshot(readableLegacyState, "migrationSerializationFailed", rawCurrentStorage);
+  }
+
+  try {
+    storage.setItem(STORAGE_KEY, serialized);
+  } catch {
+    return blockedSnapshot(readableLegacyState, "migrationWriteFailed", rawCurrentStorage);
+  }
+
+  if (sourceKey !== STORAGE_KEY) {
+    try {
+      storage.removeItem(sourceKey);
+    } catch {
+      // The canonical current key is authoritative; a retained legacy copy is harmless.
+    }
+  }
+  return readStorage7Snapshot(serialized, parsed);
+}
+
+function readParsedStorageState(
+  raw: string,
+  sourceKey: string,
+  storage: StorageAdapter,
+  runtime: RepositoryPersistenceRuntime
+): RepositoryReadSnapshot {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageParseFailed", sourceKey === STORAGE_KEY ? raw : null);
+  }
+  if (!isRecord(parsed)) {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageParseFailed", sourceKey === STORAGE_KEY ? raw : null);
+  }
+  if (parsed.version === CURRENT_STORAGE_VERSION) return readStorage7Snapshot(raw, parsed);
+  if (!isLegacyStorageVersion(parsed.version)) {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "unsupportedStorageVersion", sourceKey === STORAGE_KEY ? raw : null);
+  }
+
+  const normalized = synchronizeStorageState(migrateStorageState(parsed));
+  const readableLegacyState: StorageState = { ...normalized, version: parsed.version };
+  return persistLegacyMigration(
+    parsed,
+    readableLegacyState,
+    sourceKey === STORAGE_KEY ? raw : null,
+    sourceKey,
+    storage,
+    runtime
+  );
+}
+
+function readLegacyProjectState(
+  raw: string,
+  storage: StorageAdapter,
+  runtime: RepositoryPersistenceRuntime
+): RepositoryReadSnapshot {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageParseFailed", null);
+  }
+  if (!isRecord(parsed) || !isRecord(parsed.intake)) {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageParseFailed", null);
+  }
+  const metadata = isRecord(parsed.metadata) ? parsed.metadata : {};
+  const intakeRecord = parsed.intake as Record<string, unknown>;
+  const appName = typeof intakeRecord.appName === "string" ? intakeRecord.appName : "";
+  const clientName = typeof intakeRecord.clientName === "string" ? intakeRecord.clientName : "";
+  const businessName = typeof intakeRecord.businessName === "string" ? intakeRecord.businessName : "";
+  const intake = Object.fromEntries(
+    Object.entries(intakeRecord).filter(([key]) => !["appName", "clientName", "businessName"].includes(key))
+  ) as Record<string, string>;
+  const project = createProjectRecord({
+    identity: {
+      id: typeof metadata.id === "string" ? metadata.id : undefined,
+      projectName: appName
+    },
+    client: { clientName, businessName },
+    intake,
+    status: metadata.status as ProjectRecord["status"] | undefined,
+    reviewStatus: metadata.reviewStatus as ProjectRecord["reviewStatus"] | undefined,
+    now: typeof metadata.lastUpdated === "string" ? metadata.lastUpdated : undefined
+  });
+  const legacyState: StorageState = { version: 1, activeProjectId: project.identity.id, projects: [project] };
+  const readable = { ...synchronizeStorageState(migrateStorageState(legacyState)), version: 1 as const };
+  return persistLegacyMigration(legacyState, readable, null, LEGACY_STORAGE_KEY, storage, runtime);
+}
+
+function readRepositorySnapshot(
+  storage: StorageAdapter,
+  runtime: RepositoryPersistenceRuntime = {}
+): RepositoryReadSnapshot {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return emptySnapshot("blocked", ["storageUnavailable"]);
+  }
+
+  const current = readStorageValue(storage, STORAGE_KEY);
+  if (current.outcome === "blocked") {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageReadFailed", null);
+  }
+  if (current.value !== null) return readParsedStorageState(current.value, STORAGE_KEY, storage, runtime);
+
+  const previous = readStorageValue(storage, PREVIOUS_STORAGE_KEY);
+  if (previous.outcome === "blocked") {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageReadFailed", null);
+  }
+  if (previous.value !== null) return readParsedStorageState(previous.value, PREVIOUS_STORAGE_KEY, storage, runtime);
+
+  const legacy = readStorageValue(storage, LEGACY_STORAGE_KEY);
+  if (legacy.outcome === "blocked") {
+    return blockedSnapshot({ ...EMPTY_STORAGE_STATE, projects: [] }, "storageReadFailed", null);
+  }
+  if (legacy.value !== null) return readLegacyProjectState(legacy.value, storage, runtime);
+
+  setPersistenceWarning(null);
+  return emptySnapshot();
+}
+
+function registeredConfirmationValuesEqual(current: ProjectRecord, candidate: ProjectRecord): boolean {
+  const currentCanvas = current.powerPlatform?.canvas;
+  const candidateCanvas = candidate.powerPlatform?.canvas;
+  return currentCanvas?.fullScreenYamlRequired === candidateCanvas?.fullScreenYamlRequired &&
+    currentCanvas?.controlLevelYamlRequired === candidateCanvas?.controlLevelYamlRequired &&
+    currentCanvas?.containerYamlRequired === candidateCanvas?.containerYamlRequired &&
+    currentCanvas?.componentYamlRequired === candidateCanvas?.componentYamlRequired &&
+    currentCanvas?.paYamlSourceRequired === candidateCanvas?.paYamlSourceRequired &&
+    currentCanvas?.expectedInstallationMethod === candidateCanvas?.expectedInstallationMethod &&
+    currentCanvas?.existingSourceAvailability === candidateCanvas?.existingSourceAvailability;
+}
+
+function provenanceStructurallyEqual(
+  current: ProjectConfirmationProvenance | undefined,
+  candidate: ProjectConfirmationProvenance | undefined
+): boolean {
+  return parsedJsonStructurallyEqual(current, candidate);
+}
+
+function intentAllowsAddition(intent: RepositoryWriteIntent, projectId: string): boolean {
+  return (intent.kind === "create" || intent.kind === "duplicate") && intent.projectId === projectId;
+}
+
+function intentAllowsDeletion(intent: RepositoryWriteIntent, projectId: string): boolean {
+  return intent.kind === "delete" && intent.projectId === projectId;
+}
+
+function serializeStateWithQuarantines(
+  state: StorageState,
+  snapshot: RepositoryReadSnapshot,
+  runtime: RepositoryPersistenceRuntime
+): { outcome: "serialized"; value: string } | { outcome: "blocked" } {
+  let serializable: Record<string, unknown>;
+  try {
+    serializable = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+  } catch {
+    return { outcome: "blocked" };
+  }
+  const projects = Array.isArray(serializable.projects) ? serializable.projects : [];
+
+  for (const quarantine of snapshot.quarantines.values()) {
+    const project = projects.find((candidate) =>
+      isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === quarantine.projectId
+    );
+    if (!project || !isRecord(project)) continue;
+    if (quarantine.rawProvenancePropertyPresent) {
+      project.confirmationProvenance = cloneParsedJsonValue(quarantine.rawProvenance);
+    } else {
+      delete project.confirmationProvenance;
+    }
+  }
+
+  let value: string;
+  let roundTrip: unknown;
+  try {
+    value = repositorySerialize(serializable, runtime);
+    roundTrip = JSON.parse(value);
+  } catch {
+    return { outcome: "blocked" };
+  }
+  if (!isRecord(roundTrip) || roundTrip.version !== CURRENT_STORAGE_VERSION || !Array.isArray(roundTrip.projects)) {
+    return { outcome: "blocked" };
+  }
+
+  for (const quarantine of snapshot.quarantines.values()) {
+    const project = roundTrip.projects.find((candidate) =>
+      isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === quarantine.projectId
+    );
+    if (!project || !isRecord(project)) continue;
+    const present = Object.prototype.hasOwnProperty.call(project, "confirmationProvenance");
+    if (present !== quarantine.rawProvenancePropertyPresent) return { outcome: "blocked" };
+    if (present && !parsedJsonStructurallyEqual(project.confirmationProvenance, quarantine.rawProvenance)) {
+      return { outcome: "blocked" };
+    }
+  }
+  return { outcome: "serialized", value };
+}
+
+function writeCurrentStorageState(
+  state: StorageState,
+  storage: StorageAdapter,
+  intent: RepositoryWriteIntent,
+  runtime: RepositoryPersistenceRuntime = {}
+): boolean {
   if (storage === unavailableStorage) {
     setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
     return false;
   }
+
+  if (state.version !== CURRENT_STORAGE_VERSION) {
+    if (intent.kind !== "generic") {
+      setPersistenceWarning(STORAGE_MIGRATION_WARNING);
+      return false;
+    }
+    const current = readStorageValue(storage, STORAGE_KEY);
+    if (current.outcome === "blocked") {
+      setPersistenceWarning(STORAGE_MIGRATION_WARNING);
+      return false;
+    }
+    if (current.value !== null) {
+      try {
+        const parsed = JSON.parse(current.value) as { version?: unknown };
+        if (parsed.version === CURRENT_STORAGE_VERSION) {
+          setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+          return false;
+        }
+      } catch {
+        setPersistenceWarning(STORAGE_MIGRATION_WARNING);
+        return false;
+      }
+    }
+    const readable = { ...synchronizeStorageState(migrateStorageState(state)), version: state.version };
+    const migrated = persistLegacyMigration(state, readable, current.value, STORAGE_KEY, storage, runtime);
+    return migrated.writeMode === "readWrite" && migrated.rawCurrentStorage !== null;
+  }
+
+  const snapshot = readRepositorySnapshot(storage, runtime);
+  if (snapshot.writeMode === "blocked") {
+    setPersistenceWarning(STORAGE_MIGRATION_WARNING);
+    return false;
+  }
+
+  const originalProjects = new Map(state.projects.map((project) => [project.identity.id, project]));
+  const normalized: StorageState = {
+    ...state,
+    projects: state.projects.map((project) => ({ ...project }))
+  };
+  const candidateIds = normalized.projects.map((project) => project.identity.id);
+  if (new Set(candidateIds).size !== candidateIds.length) {
+    setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+    return false;
+  }
+
+  const baselineById = new Map(snapshot.state.projects.map((project) => [project.identity.id, project]));
+  const candidateById = new Map(normalized.projects.map((project) => [project.identity.id, project]));
+  for (const project of snapshot.state.projects) {
+    if (!candidateById.has(project.identity.id) && !intentAllowsDeletion(intent, project.identity.id)) {
+      setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+      return false;
+    }
+  }
+
+  const analyses = new Map<
+    string,
+    Extract<ReturnType<typeof analyzeProjectConfirmationRevisionReconciliation>, { outcome: "ready" }>
+  >();
+  let requiredUuidCount = 0;
+  const forbiddenUuids = new Set<string>();
+  snapshot.state.projects.forEach((project) => {
+    collectProjectConfirmationProvenanceIds(project.confirmationProvenance).forEach((value) => forbiddenUuids.add(value));
+  });
+
+  for (const candidate of normalized.projects) {
+    const current = baselineById.get(candidate.identity.id);
+    const originalCandidate = originalProjects.get(candidate.identity.id) ?? candidate;
+    if (!current) {
+      if (!intentAllowsAddition(intent, candidate.identity.id)) {
+        setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+        return false;
+      }
+      const validation = validateProjectConfirmationProvenance(originalCandidate.confirmationProvenance, {
+        projectId: candidate.identity.id,
+        applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(candidate.intake.appType)
+      });
+      if (validation.outcome !== "valid" || validation.provenance.confirmationEvents.length !== 0) {
+        setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+        return false;
+      }
+      candidate.confirmationProvenance = validation.provenance;
+      continue;
+    }
+
+    const quarantine = snapshot.quarantines.get(current.identity.id);
+    if (quarantine) {
+      if (
+        current.intake.appType !== candidate.intake.appType ||
+        !registeredConfirmationValuesEqual(current, candidate) ||
+        originalCandidate.confirmationProvenance !== undefined
+      ) {
+        setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+        return false;
+      }
+      delete candidate.confirmationProvenance;
+      continue;
+    }
+
+    if (!provenanceStructurallyEqual(current.confirmationProvenance, originalCandidate.confirmationProvenance)) {
+      setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+      return false;
+    }
+    const analysis = analyzeProjectConfirmationRevisionReconciliation(current, candidate);
+    if (analysis.outcome === "blocked") {
+      setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+      return false;
+    }
+    analyses.set(candidate.identity.id, analysis);
+    requiredUuidCount += analysis.requiredUuidCount;
+  }
+
+  const allocation = allocateProjectConfirmationUuids(requiredUuidCount, runtime, forbiddenUuids);
+  if (allocation.outcome === "blocked") {
+    setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+    return false;
+  }
+
+  let allocationIndex = 0;
+  for (const candidate of normalized.projects) {
+    const analysis = analyses.get(candidate.identity.id);
+    const current = baselineById.get(candidate.identity.id);
+    if (!analysis || !current?.confirmationProvenance) continue;
+    const revisionIds = allocation.values.slice(
+      allocationIndex,
+      allocationIndex + analysis.requiredUuidCount
+    );
+    allocationIndex += analysis.requiredUuidCount;
+    const materialized = materializeProjectConfirmationRevisionReconciliation(
+      current.confirmationProvenance,
+      analysis,
+      revisionIds
+    );
+    if (materialized.outcome === "blocked") {
+      setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+      return false;
+    }
+    candidate.confirmationProvenance = materialized.provenance;
+  }
+
+  const nonQuarantinedState: StorageState = { ...normalized, projects: normalized.projects };
+  for (const project of nonQuarantinedState.projects) {
+    if (snapshot.quarantines.has(project.identity.id)) continue;
+    const validation = validateProjectConfirmationProvenance(project.confirmationProvenance, {
+      projectId: project.identity.id,
+      applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(project.intake.appType)
+    });
+    if (validation.outcome !== "valid") {
+      setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+      return false;
+    }
+  }
+
+  const serialized = serializeStateWithQuarantines(nonQuarantinedState, snapshot, runtime);
+  if (serialized.outcome === "blocked") {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return false;
+  }
+
+  const currentGuard = readStorageValue(storage, STORAGE_KEY);
+  if (currentGuard.outcome === "blocked" || currentGuard.value !== snapshot.rawCurrentStorage) {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return false;
+  }
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(synchronizeStorageState(migrateStorageState(state))));
+    storage.setItem(STORAGE_KEY, serialized.value);
     setPersistenceWarning(null);
     return true;
   } catch {
@@ -256,79 +869,31 @@ function writeCurrentStorageState(state: StorageState, storage: StorageAdapter):
   }
 }
 
-function migratePreviousVersionedState(storage: StorageAdapter): StorageState | null {
-  const previousStored = storage.getItem(PREVIOUS_STORAGE_KEY);
-  if (!previousStored) return null;
-
-  let migrated: StorageState;
-  try {
-    migrated = synchronizeStorageState(migrateStorageState(JSON.parse(previousStored)));
-  } catch {
-    return null;
-  }
-
-  const wroteCurrentKey = writeCurrentStorageState(migrated, storage);
-  if (wroteCurrentKey) {
-    storage.removeItem(PREVIOUS_STORAGE_KEY);
-  }
-
-  return migrated;
+export function getRepositoryReadStatus(
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
+): RepositoryReadStatus {
+  const snapshot = readRepositorySnapshot(storage, runtime);
+  return {
+    writeMode: snapshot.writeMode,
+    issueCodes: snapshot.issueCodes,
+    quarantinedProjectIds: snapshot.quarantinedProjectIds
+  };
 }
 
-function migrateLegacyProject(storage: StorageAdapter): StorageState | null {
-  const legacy = storage.getItem(LEGACY_STORAGE_KEY);
-  if (!legacy) return null;
-  try {
-    const parsed = JSON.parse(legacy) as {
-      intake?: Record<string, string>;
-      metadata?: { id?: string; status?: ProjectRecord["status"]; reviewStatus?: ProjectRecord["reviewStatus"]; lastUpdated?: string };
-    };
-    if (!parsed.intake) return null;
-    const { appName = "", clientName = "", businessName = "", ...intake } = parsed.intake;
-    const project = createProjectRecord({
-      identity: { id: parsed.metadata?.id, projectName: appName },
-      client: { clientName, businessName },
-      intake,
-      status: parsed.metadata?.status,
-      reviewStatus: parsed.metadata?.reviewStatus,
-      now: parsed.metadata?.lastUpdated
-    });
-    const state: StorageState = {
-      version: EMPTY_STORAGE_STATE.version,
-      activeProjectId: project.identity.id,
-      projects: [project]
-    };
-    const migrated = synchronizeStorageState(migrateStorageState(state));
-    const wroteCurrentKey = writeCurrentStorageState(migrated, storage);
-    if (wroteCurrentKey) {
-      storage.removeItem(LEGACY_STORAGE_KEY);
-    }
-    return migrated;
-  } catch {
-    storage.removeItem(LEGACY_STORAGE_KEY);
-    return null;
-  }
+export function loadStorageState(
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
+): StorageState {
+  return readRepositorySnapshot(storage, runtime).state;
 }
 
-export function loadStorageState(storage: StorageAdapter = browserStorage()): StorageState {
-  const currentStored = storage.getItem(STORAGE_KEY);
-  if (currentStored) {
-    try {
-      return synchronizeStorageState(migrateStorageState(JSON.parse(currentStored)));
-    } catch {
-      // Corrupt current storage returns a safe empty state. We do not auto-fallback to older keys in the same load.
-      return { ...EMPTY_STORAGE_STATE, projects: [] };
-    }
-  }
-
-  const previousMigrated = migratePreviousVersionedState(storage);
-  if (previousMigrated) return previousMigrated;
-
-  return migrateLegacyProject(storage) ?? { ...EMPTY_STORAGE_STATE, projects: [] };
-}
-
-export function saveStorageState(state: StorageState, storage: StorageAdapter = browserStorage()): void {
-  writeCurrentStorageState(state, storage);
+export function saveStorageState(
+  state: StorageState,
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
+): void {
+  writeCurrentStorageState(state, storage, { kind: "generic" }, runtime);
 }
 
 export function listProjects(storage: StorageAdapter = browserStorage()): ProjectRecord[] {
@@ -341,29 +906,46 @@ export function getProjectById(id: string, storage: StorageAdapter = browserStor
 
 export function createProject(
   options: CreateProjectOptions = {},
-  storage: StorageAdapter = browserStorage()
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
 ): ProjectRecord {
-  const state = loadStorageState(storage);
-  const project = synchronizeDerivedFields(createProjectRecord(options));
-  saveStorageState({
+  const state = loadStorageState(storage, runtime);
+  const draft = synchronizeDerivedFields(createProjectRecord(options));
+  const applicableCount = applicableProjectConfirmationSourceFieldIds(draft.intake.appType).length;
+  const allocation = allocateProjectConfirmationUuids(applicableCount, runtime);
+  if (allocation.outcome === "blocked") {
+    setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+    throw new Error("Project creation was blocked because confirmation provenance could not be initialized.");
+  }
+  const initialized = createInitialProjectConfirmationProvenance(draft.intake.appType, allocation.values);
+  if (initialized.outcome === "blocked") {
+    setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+    throw new Error("Project creation was blocked because confirmation provenance could not be initialized.");
+  }
+  const project = { ...draft, confirmationProvenance: initialized.provenance };
+  const wrote = writeCurrentStorageState({
     ...state,
+    version: CURRENT_STORAGE_VERSION,
     activeProjectId: project.identity.id,
     projects: [...state.projects, project]
-  }, storage);
+  }, storage, { kind: "create", projectId: project.identity.id }, runtime);
+  if (!wrote) throw new Error("Project creation could not be persisted.");
   return project;
 }
 
 export function duplicateProject(
   id: string,
   storage: StorageAdapter = browserStorage(),
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
+  runtime: RepositoryPersistenceRuntime = {}
 ): ProjectRecord | null {
-  const state = loadStorageState(storage);
+  const snapshot = readRepositorySnapshot(storage, runtime);
+  const state = snapshot.state;
   const source = state.projects.find((project) => project.identity.id === id);
   if (!source) return null;
 
   const projectName = source.identity.projectName.trim() || "Untitled Project";
-  const duplicate = synchronizeDerivedFields(createProjectRecord({
+  const duplicateDraft = synchronizeDerivedFields(createProjectRecord({
     identity: { projectName: `${projectName} Copy` },
     client: { ...source.client },
     intake: { ...source.intake },
@@ -377,16 +959,36 @@ export function duplicateProject(
     powerPlatform: duplicatePowerPlatformForProject(source.powerPlatform, source.intake.appType),
     now
   }));
+  const forbidden = new Set(collectProjectConfirmationProvenanceIds(source.confirmationProvenance));
+  collectCanonicalUuidsFromParsedJson(snapshot.quarantines.get(id)?.rawProvenance)
+    .forEach((value) => forbidden.add(value));
+  const applicableCount = applicableProjectConfirmationSourceFieldIds(duplicateDraft.intake.appType).length;
+  const allocation = allocateProjectConfirmationUuids(applicableCount, runtime, forbidden);
+  if (allocation.outcome === "blocked") {
+    setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+    return null;
+  }
+  const initialized = createInitialProjectConfirmationProvenance(duplicateDraft.intake.appType, allocation.values);
+  if (initialized.outcome === "blocked") {
+    setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+    return null;
+  }
+  const duplicate = { ...duplicateDraft, confirmationProvenance: initialized.provenance };
   const duplicateWithPlanning = {
     ...duplicate,
     planning: createEmptyProjectPlanningState()
   };
-  saveStorageState({
+  const wrote = writeCurrentStorageState({
     ...state,
+    version: CURRENT_STORAGE_VERSION,
     activeProjectId: duplicateWithPlanning.identity.id,
     projects: [...state.projects, duplicateWithPlanning]
-  }, storage);
-  return duplicateWithPlanning;
+  }, storage, {
+    kind: "duplicate",
+    projectId: duplicateWithPlanning.identity.id,
+    sourceProjectId: source.identity.id
+  }, runtime);
+  return wrote ? duplicateWithPlanning : null;
 }
 
 export type ProjectUpdate =
@@ -396,9 +998,10 @@ export type ProjectUpdate =
 export function updateProject(
   id: string,
   update: ProjectUpdate,
-  storage: StorageAdapter = browserStorage()
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
 ): ProjectRecord | null {
-  const state = loadStorageState(storage);
+  const state = loadStorageState(storage, runtime);
   const current = state.projects.find((project) => project.identity.id === id);
   if (!current) return null;
 
@@ -419,17 +1022,18 @@ export function updateProject(
     createdAt: current.createdAt,
     updatedAt: new Date().toISOString()
   });
-  saveStorageState({
+  const wrote = writeCurrentStorageState({
     ...state,
     projects: state.projects.map((project) => project.identity.id === id ? updated : project)
-  }, storage);
-  return updated;
+  }, storage, { kind: "ordinaryUpdate", projectId: id }, runtime);
+  return wrote ? getProjectById(id, storage) : null;
 }
 
 export function updateProjectFields(
   id: string,
   changes: Partial<Record<ProjectInputField, string>>,
-  storage: StorageAdapter = browserStorage()
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
 ): ProjectRecord | null {
   return updateProject(id, (project) => {
     const updated = applyProjectFieldChanges(project, changes);
@@ -439,13 +1043,14 @@ export function updateProjectFields(
       reviewStatus: "Review needed",
       status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
     };
-  }, storage);
+  }, storage, runtime);
 }
 
 export function updateProjectPowerPlatform(
   id: string,
   updater: (current: PowerPlatformProjectData | undefined, project: ProjectRecord) => PowerPlatformProjectData | undefined,
-  storage: StorageAdapter = browserStorage()
+  storage: StorageAdapter = browserStorage(),
+  runtime: RepositoryPersistenceRuntime = {}
 ): ProjectRecord | null {
   return updateProject(id, (project) => {
     const nextPowerPlatform = updater(project.powerPlatform, project);
@@ -456,7 +1061,7 @@ export function updateProjectPowerPlatform(
       reviewStatus: "Review needed",
       status: project.generatedDocuments.length > 0 ? "Needs Review" : "Intake Started"
     };
-  }, storage);
+  }, storage, runtime);
 }
 
 export function saveGeneratedDocuments(
@@ -517,8 +1122,8 @@ export function deleteProject(id: string, storage: StorageAdapter = browserStora
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.identity.id ?? null
     : state.activeProjectId;
   const next = { ...state, activeProjectId, projects };
-  saveStorageState(next, storage);
-  return next;
+  const wrote = writeCurrentStorageState(next, storage, { kind: "delete", projectId: id });
+  return wrote ? next : state;
 }
 
 export function archiveProject(
@@ -537,8 +1142,12 @@ export function archiveProject(
       .filter((project) => !project.archivedAt)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.identity.id ?? null
     : state.activeProjectId;
-  saveStorageState({ ...state, activeProjectId, projects }, storage);
-  return archived;
+  const wrote = writeCurrentStorageState(
+    { ...state, activeProjectId, projects },
+    storage,
+    { kind: "archiveRestore", projectId: id }
+  );
+  return wrote ? archived : null;
 }
 
 export function restoreProject(
@@ -551,19 +1160,23 @@ export function restoreProject(
   if (!current) return null;
 
   const restored = { ...current, archivedAt: null, updatedAt: now };
-  saveStorageState({
+  const wrote = writeCurrentStorageState({
     ...state,
     projects: state.projects.map((project) => project.identity.id === id ? restored : project)
-  }, storage);
-  return restored;
+  }, storage, { kind: "archiveRestore", projectId: id });
+  return wrote ? restored : null;
 }
 
 export function setActiveProject(id: string, storage: StorageAdapter = browserStorage()): ProjectRecord | null {
   const state = loadStorageState(storage);
   const project = state.projects.find((candidate) => candidate.identity.id === id);
   if (!project) return null;
-  saveStorageState({ ...state, activeProjectId: id }, storage);
-  return project;
+  const wrote = writeCurrentStorageState(
+    { ...state, activeProjectId: id },
+    storage,
+    { kind: "activeProjectOnly" }
+  );
+  return wrote ? project : null;
 }
 
 export function getActiveProject(storage: StorageAdapter = browserStorage()): ProjectRecord | null {
@@ -625,7 +1238,7 @@ export async function materializeProjectPlanningClarifications(
   const wrote = writeCurrentStorageState({
     ...latestState,
     projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
-  }, storage);
+  }, storage, { kind: "planning", projectId });
   return wrote ? finalized.result : persistenceFailedResult(projectId);
 }
 
@@ -683,7 +1296,7 @@ export async function materializeProjectPlanningClarificationStaleTransitions(
   const wrote = writeCurrentStorageState({
     ...latestState,
     projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
-  }, storage);
+  }, storage, { kind: "planning", projectId });
   return wrote ? finalized.result : persistenceFailedStaleResult(projectId);
 }
 
@@ -741,7 +1354,7 @@ export async function materializeProjectPlanningClarificationReplacements(
   const wrote = writeCurrentStorageState({
     ...latestState,
     projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
-  }, storage);
+  }, storage, { kind: "planning", projectId });
   return wrote ? finalized.result : persistenceFailedReplacementResult(projectId);
 }
 
@@ -800,7 +1413,7 @@ export async function materializeProjectPlanningClarificationHumanDecision(
   const wrote = writeCurrentStorageState({
     ...latestState,
     projects: latestState.projects.map((project) => project.identity.id === projectId ? updatedProject : project)
-  }, storage);
+  }, storage, { kind: "planning", projectId });
   return wrote ? finalized.result : persistenceFailedDecisionResult(projectId);
 }
 
@@ -1138,7 +1751,8 @@ function isPlainRecord(input: unknown): input is Record<string, unknown> {
 
 function writeControlledCurrentStorageState(
   state: StorageState,
-  storage: StorageAdapter
+  storage: StorageAdapter,
+  projectId: string
 ): ControlledWriteResult {
   if (storage === unavailableStorage) {
     setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
@@ -1148,16 +1762,10 @@ function writeControlledCurrentStorageState(
     };
   }
 
-  let serialized: string;
   try {
-    const candidate = JSON.stringify(state);
-    if (typeof candidate !== "string") {
-      return {
-        outcome: "blocked",
-        issue: controlledIssue("writeSerializationFailed", "Controlled Apply could not serialize the final repository state.")
-      };
+    if (typeof JSON.stringify(state) !== "string") {
+      throw new Error("Controlled Apply state serialization returned no value.");
     }
-    serialized = candidate;
   } catch {
     return {
       outcome: "blocked",
@@ -1165,17 +1773,12 @@ function writeControlledCurrentStorageState(
     };
   }
 
-  try {
-    storage.setItem(STORAGE_KEY, serialized);
-    setPersistenceWarning(null);
-    return { outcome: "written" };
-  } catch {
-    setPersistenceWarning(STORAGE_WRITE_WARNING);
-    return {
-      outcome: "persistenceFailed",
-      issue: controlledIssue("persistenceFailed", "Controlled Apply could not persist the repository transaction.")
-    };
-  }
+  return writeCurrentStorageState(state, storage, { kind: "controlledApply", projectId })
+    ? { outcome: "written" }
+    : {
+        outcome: "persistenceFailed",
+        issue: controlledIssue("persistenceFailed", "Controlled Apply could not persist the repository transaction.")
+      };
 }
 
 export function applyConfirmedPlanningProposal(
@@ -1380,7 +1983,7 @@ export function applyConfirmedPlanningProposal(
     ));
   }
 
-  const write = writeControlledCurrentStorageState(finalState, storage);
+  const write = writeControlledCurrentStorageState(finalState, storage, projectId);
   if (write.outcome === "blocked") return controlledBlocked(write.issue);
   if (write.outcome === "persistenceFailed") {
     return { outcome: "persistenceFailed", issues: [write.issue] };
