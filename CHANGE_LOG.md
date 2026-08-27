@@ -1,5 +1,51 @@
 # Change Log
 
+## 2026-08-27 - Phase 5C.3C.3J.6B.4 - Confirmation Provenance Contract and Source Registry Foundation
+
+### Summary
+
+- Added the non-persistent `phase-5c.3c.3j.6b.3r` confirmation-provenance contract, immutable event/revision/actor shapes, bounded quarantine results, exact stored-string normalization, and strict canonical lowercase UUID validation.
+- Added the static immutable seven-field Canvas YAML confirmation-source registry with bounded accessor identities and exact `powerAppsCanvas` applicability.
+- Added pure exact-applicable-source-set and source-applicability helpers that fail closed for unknown contract versions and project types.
+- Added strict pure provenance validation that distinguishes known historical non-applicable events from malformed unknown sources without granting authority.
+
+### Files created
+
+- `src/lib/projectConfirmationProvenance.ts` - non-persistent provenance contracts and pure validation helpers.
+- `src/lib/projectConfirmationSourceRegistry.ts` - immutable seven-field source registry and applicability resolution.
+- `src/tests/projectConfirmationProvenance.test.ts` - contract, quarantine, UUID, event, action, and supersession coverage.
+- `src/tests/projectConfirmationSourceRegistry.test.ts` - registry, applicability, immutability, exclusion, and persistence-isolation coverage.
+
+### Files updated
+
+- `CHANGE_LOG.md` - records the approved implementation foundation and preserved boundaries.
+- `TEST_PLAN.md` - records the contract and registry verification matrix.
+
+### Scope boundaries preserved
+
+- `ProjectRecord`, `StorageState`, `CURRENT_STORAGE_VERSION`, migrations, repository persistence, backup, restore, duplication, Guided Intake, Planning lifecycle, mapping registry, Phase Gates, Controlled Apply, and output generation are unchanged.
+- The modules create no runtime revisions, confirmation events, Planning sources, canonical-fact bindings, projectors, readiness authority, projection authority, Apply authority, or output authority.
+- Storage remains Version 6. YAML remains `partialProjection` with one existing canonical-fact binding, zero `exactFromAnswer`, zero `exactByCanonicalMerge`, zero merge paths, and zero projectors.
+- `yamlStatus` and `validationResponsibility` are absent from the new registry. TTI remains Draft with all 15 blockers.
+
+### Testing completed
+
+- The two focused suites passed 20 tests.
+- The nine-file affected contract/source/mapping/evidence/project-type/Power Platform/repository matrix passed 293 tests.
+- Full and coverage validation each passed 80 unit/integration files with 2,895 tests and 7 UI files with 74 tests, for 87 files and 2,969 tests total.
+- Coverage passed at 89.88% statements, 82.64% branches, 95.09% functions, and 93.61% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 138 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development/tooling audit reported 25 findings (2 moderate, 23 high); no remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory-only development audit reports 25 findings; production dependencies report 0 vulnerabilities and remediation is outside scope.
+
+### Remaining work
+
+- Independent GPT Architect review is required before integration. Storage 7, persistence wiring, revision mutation, confirmation actions, UI, confirmedIntake source materialization, and candidate derivation remain unauthorized.
+
 ## 2026-08-25 - Phase 5C.3C.3J.6A - Derived Canonical-Fact Evidence Candidate Foundation
 
 ### Summary

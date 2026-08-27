@@ -1,5 +1,28 @@
 # Test Plan
 
+## 2026-08-27 Phase 5C.3C.3J.6B.4 confirmation provenance contract and source registry foundation
+
+1. Verify the confirmation contract version is exactly `phase-5c.3c.3j.6b.3r` and no independent registry version exists.
+2. Verify the source registry contains exactly the seven approved Canvas YAML source IDs and bounded accessor IDs in deterministic order.
+3. Verify every registry entry is deeply immutable and carries only `powerAppsCanvas`, text, `normalized-project-string-v1`, `canonical-text-json-v1`, and `sha256-v1` metadata.
+4. Verify every one of the 17 current `ProjectType` values resolves deterministically: Canvas receives seven sources and every other type receives zero.
+5. Verify unknown project types and unknown confirmation contract versions fail closed with empty non-authoritative results.
+6. Verify `yamlStatus`, `validationResponsibility`, callbacks, projectors, free-form paths, executable traversal, and authority metadata are absent.
+7. Verify exact stored strings are preserved without trim, case folding, status interpretation, coercion, parsing, or default derivation.
+8. Verify canonical lowercase UUID validation accepts approved UUID syntax and rejects uppercase, malformed, unsupported-version, fallback, and non-UUID identifiers.
+9. Verify Canvas provenance requires exactly seven current revision keys and non-Canvas provenance requires exactly zero Canvas revision keys.
+10. Verify missing, unexpected, unknown, malformed, or duplicate revision identities quarantine provenance and block provenance writes.
+11. Verify valid immutable events require exact project, source, revision, version, fingerprint, action, timestamp, actor-assurance, and optional supersession fields.
+12. Verify event fields contain no persisted currentness, authority, readiness, projection, Apply, destination, rule, or raw-value properties.
+13. Verify known historical Canvas events remain structurally valid when the current project type is non-Canvas, while unknown source IDs are malformed.
+14. Verify repeated action IDs require consistent batch metadata and unique source fields, and supersession remains same-project, same-source, non-branching lineage.
+15. Verify missing, unknown-version, or malformed provenance returns only bounded redacted quarantine issue codes and preserve-or-block write disposition.
+16. Verify no production module outside the contract/registry pair consumes the new foundation and no ProjectRecord, Storage, repository, UI, Planning, mapping, readiness, Apply, or output integration exists.
+17. Regress Planning source reconciliation, readiness mapping contract/registry, canonical-fact evidence, all current project types, Power Platform normalization, Storage/repository behavior, duplication, and archive/restore.
+18. Run ESLint, app TypeScript checking, focused suites, the affected regression matrix, full tests, coverage, production build, production/advisory audits, diff/scope/storage gates, one review commit, and remote review-SHA verification.
+
+Validation result: focused suites passed 20 tests and the nine-file affected matrix passed 293 tests. Full and coverage validation each passed 80 unit/integration files with 2,895 tests and 7 UI files with 74 tests, for 87 files and 2,969 tests total. Coverage passed at 89.88% statements, 82.64% branches, 95.09% functions, and 93.61% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 138 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development/tooling audit reported 25 findings (2 moderate, 23 high); no remediation was performed.
+
 ## 2026-08-25 Phase 5C.3C.3J.6A derived canonical-fact evidence candidate foundation
 
 1. Verify the production registry contains exactly one canonical-fact evidence binding and all ten unrelated mappings contain zero bindings.
