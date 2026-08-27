@@ -69,7 +69,7 @@ function yamlAnswer(validationResponsibility = VALIDATION_VALUE): PlanningPropos
 
 function persist(storage: StorageAdapter, project: ProjectRecord): void {
   saveStorageState({
-    version: CURRENT_STORAGE_VERSION,
+    version: 6,
     activeProjectId: project.identity.id,
     projects: [project]
   }, storage);
@@ -426,7 +426,7 @@ describe("derived Planning canonical-fact evidence", () => {
     expect(mapping.notApplicableProjectionAuthorized).toBe(false);
     expect(isPlanningStatusReadinessEligible("Confirmed")).toBe(false);
     expect(isPlanningStatusReadinessEligible("Not Applicable")).toBe(false);
-    expect(CURRENT_STORAGE_VERSION).toBe(6);
+    expect(CURRENT_STORAGE_VERSION).toBe(7);
   });
 
   it("has no repository, storage, UI, gate, output, clock, UUID, or logging capability", () => {

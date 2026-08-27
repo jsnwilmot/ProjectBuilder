@@ -25,11 +25,11 @@ import {
 import { getActivePlanningRulesForProjectType } from "../lib/planningRules";
 import {
   getProjectById,
+  loadStorageState,
   materializeProjectPlanningClarificationHumanDecision,
   saveStorageState,
   type StorageAdapter
 } from "../lib/projectRepository";
-import { CURRENT_STORAGE_VERSION } from "../lib/storageVersion";
 import type { ProjectRecord } from "../types/project";
 
 const projectId = "readiness-evidence-project";
@@ -91,10 +91,15 @@ function sharePointBackendAnswer(): PlanningProposalValue {
 }
 
 function persist(storage: StorageAdapter, project: ProjectRecord): void {
+  const current = loadStorageState(storage);
+  const currentProject = current.projects.find((candidate) => candidate.identity.id === project.identity.id);
   saveStorageState({
-    version: CURRENT_STORAGE_VERSION,
+    version: currentProject ? 7 : 6,
     activeProjectId: project.identity.id,
-    projects: [project]
+    projects: [{
+      ...project,
+      ...(currentProject ? { confirmationProvenance: currentProject.confirmationProvenance } : {})
+    }]
   }, storage);
 }
 

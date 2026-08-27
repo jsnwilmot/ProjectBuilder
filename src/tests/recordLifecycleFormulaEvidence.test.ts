@@ -87,7 +87,7 @@ describe("record lifecycle formula evidence", () => {
   it("defaults new Canvas projects to empty evidence and keeps non-Canvas projects without Canvas data", () => {
     const canvas = createProject({ intake: { appType: "powerAppsCanvas" } });
     const website = createProject({ intake: { appType: "businessWebsite" } });
-    expect(CURRENT_STORAGE_VERSION).toBe(6);
+    expect(CURRENT_STORAGE_VERSION).toBe(7);
     expect(STORAGE_KEY).toBe("gpt-project-builder.storage.v2");
     expect(RECORD_LIFECYCLE_FORMULA_EVIDENCE_ASSET_ID).toBe(RECORD_LIFECYCLE_POWER_FX_ASSET_ID);
     expect(canvas.powerPlatform?.canvas?.recordLifecycleFormulaReviewEvidence).toEqual([]);

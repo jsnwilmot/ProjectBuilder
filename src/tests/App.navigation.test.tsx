@@ -37,7 +37,6 @@ import {
   type ProjectPlanningState
 } from "../lib/planningProposals";
 import { getPlanningRuleById } from "../lib/planningRules";
-import { CURRENT_STORAGE_VERSION } from "../lib/storageVersion";
 import {
   calculateModelDrivenExternalConnectorSelectionGate,
   calculateModelDrivenSecurityArchitectureGate
@@ -163,7 +162,7 @@ function planningAnswerProject(includeSecondProposal = false): ProjectRecord {
 function seedPlanningAnswerApp(includeSecondProposal = false) {
   const project = planningAnswerProject(includeSecondProposal);
   saveStorageState({
-    version: CURRENT_STORAGE_VERSION,
+    version: 6,
     activeProjectId: project.identity.id,
     projects: [project]
   });

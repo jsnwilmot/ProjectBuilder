@@ -155,7 +155,7 @@ describe("project confirmation source registry", () => {
     )).toBe(false);
   });
 
-  it("introduces no production persistence or authority consumer", () => {
+  it("limits production consumers to the approved Storage 7 persistence boundary", () => {
     const excluded = new Set([
       "projectConfirmationProvenance.ts",
       "projectConfirmationSourceRegistry.ts"
@@ -167,13 +167,22 @@ describe("project confirmation source registry", () => {
         return source.includes("projectConfirmationProvenance") ||
           source.includes("projectConfirmationSourceRegistry");
       });
-    expect(consumers).toEqual([]);
+    expect(consumers.sort()).toEqual([
+      "createProject.ts",
+      "projectConfirmationQuarantine.ts",
+      "projectConfirmationRevisionReconciliation.ts",
+      "projectConfirmationRuntime.ts",
+      "projectConfirmationSourceAccessors.ts",
+      "projectRepository.ts",
+      "storageVersion.ts"
+    ]);
 
     const projectTypes = readFileSync("src/types/project.ts", "utf8");
     const storage = readFileSync("src/lib/storageVersion.ts", "utf8");
     const repository = readFileSync("src/lib/projectRepository.ts", "utf8");
-    expect(projectTypes).not.toContain("confirmationProvenance");
-    expect(storage).not.toContain("confirmationProvenance");
-    expect(repository).not.toContain("confirmationProvenance");
+    expect(projectTypes).toContain("confirmationProvenance");
+    expect(storage).toContain("confirmationProvenance");
+    expect(repository).toContain("confirmationProvenance");
+    expect(consumers.some((fileName: string) => /planning|readiness|mapping/i.test(fileName))).toBe(false);
   });
 });

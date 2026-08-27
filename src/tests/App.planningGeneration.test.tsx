@@ -34,7 +34,6 @@ vi.mock("../components/MissionControl/MissionControl", () => ({ MissionControl: 
 import { App } from "../app/App";
 import { createProject } from "../lib/createProject";
 import { loadStorageState, saveStorageState } from "../lib/projectRepository";
-import { CURRENT_STORAGE_VERSION } from "../lib/storageVersion";
 import type { ProjectRecord } from "../types/project";
 
 const projectId = "app-planning-generation-project";
@@ -52,7 +51,7 @@ function canvasProject(): ProjectRecord {
 
 function seed(project = canvasProject()) {
   saveStorageState({
-    version: CURRENT_STORAGE_VERSION,
+    version: 6,
     activeProjectId: project.identity.id,
     projects: [project]
   });

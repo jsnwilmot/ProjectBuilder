@@ -16,6 +16,10 @@ import {
 } from "../lib/planningProposals";
 import { getPlanningRuleById } from "../lib/planningRules";
 import {
+  applicableProjectConfirmationSourceFieldIds,
+  createInitialProjectConfirmationProvenance
+} from "../lib/projectConfirmationRevisionReconciliation";
+import {
   applyConfirmedPlanningProposal,
   clearPersistenceWarning,
   getPersistenceWarning,
@@ -235,7 +239,19 @@ function canonicalState(
   projects: ProjectRecord[],
   activeProjectId: string | null = projects[0]?.identity.id ?? null
 ): StorageState {
-  const state = migrateStorageState({ version: CURRENT_STORAGE_VERSION, activeProjectId, projects });
+  const canonicalProjects = projects.map((project, projectIndex) => {
+    const revisionIds = applicableProjectConfirmationSourceFieldIds(project.intake.appType).map(
+      (_, fieldIndex) => `00000000-0000-4000-8000-${(projectIndex * 100 + fieldIndex + 1).toString(16).padStart(12, "0")}`
+    );
+    const initialized = createInitialProjectConfirmationProvenance(project.intake.appType, revisionIds);
+    if (initialized.outcome === "blocked") throw new Error("Expected valid test confirmation provenance.");
+    return { ...project, confirmationProvenance: initialized.provenance };
+  });
+  const state = migrateStorageState({
+    version: CURRENT_STORAGE_VERSION,
+    activeProjectId,
+    projects: canonicalProjects
+  });
   expect(migrateStorageState(state)).toEqual(state);
   return state;
 }
@@ -344,7 +360,7 @@ describe("controlled apply repository reader and baseline", () => {
       }
     });
     expect(Object.isFrozen(result.outcome === "appliedChanged" ? result.evidence : null)).toBe(true);
-    expect(storage.reads).toBe(4);
+    expect(storage.reads).toBe(6);
     expect(storage.writes).toBe(1);
     expect(controlledRuntime.now).toHaveBeenCalledTimes(1);
     expect(controlledRuntime.uuid).toHaveBeenCalledTimes(1);

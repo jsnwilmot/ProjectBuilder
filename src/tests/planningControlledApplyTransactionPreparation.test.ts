@@ -535,7 +535,7 @@ describe("planning controlled apply transaction preparation", () => {
     expect(sourceText).not.toMatch(/randomUUID|crypto|Math\.random|Date\.now|\bnew Date\b|appliedAt|actor/);
     expect(sourceText).not.toMatch(/generateProjectPackage|exportProjectPackage|readinessConfirmations|reviewStatus|packageGeneratedAt|PowerFx|Power Fx|YAML generation|fetch\(|XMLHttpRequest|openai|wrangler|cloudflare|React|tsx/i);
     expect(sourceText).not.toMatch(/StorageVersion|CURRENT_STORAGE_VERSION|PLANNING_SCHEMA_VERSION|PLANNING_RULE_SET_VERSION|PLANNING_DECISION_ACTIONS/);
-    expect(CURRENT_STORAGE_VERSION).toBe(6);
+    expect(CURRENT_STORAGE_VERSION).toBe(7);
     expect(PLANNING_SCHEMA_VERSION).toBe("phase-5c.1.1");
     expect(PLANNING_RULE_SET_VERSION).toBe("phase-5c.1.1");
   });

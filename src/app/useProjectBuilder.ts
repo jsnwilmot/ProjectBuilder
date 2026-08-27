@@ -123,10 +123,14 @@ export function useProjectBuilder() {
     refresh();
   };
 
-  const createNewProject = (): ProjectRecord => {
-    const created = createProject();
-    refresh();
-    return created;
+  const createNewProject = (): ProjectRecord | null => {
+    try {
+      return createProject();
+    } catch {
+      return null;
+    } finally {
+      refresh();
+    }
   };
 
   const setActiveProject = (projectId: string) => {

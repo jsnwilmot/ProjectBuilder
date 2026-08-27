@@ -33,7 +33,6 @@ import {
 } from "../lib/planningProposals";
 import { loadStorageState, saveStorageState } from "../lib/projectRepository";
 import { getPlanningRuleById } from "../lib/planningRules";
-import { CURRENT_STORAGE_VERSION } from "../lib/storageVersion";
 import type { ProjectRecord } from "../types/project";
 
 const projectId = "planning-decisions-project";
@@ -117,7 +116,7 @@ describe("App - planning decisions", () => {
     const remove = vi.spyOn(window, "removeEventListener");
     const inputProject = planningProject();
     saveStorageState({
-      version: CURRENT_STORAGE_VERSION,
+      version: 6,
       activeProjectId: inputProject.identity.id,
       projects: [inputProject]
     });
@@ -242,7 +241,7 @@ describe("App - planning decisions", () => {
     const user = userEvent.setup();
     const inputProject = planningProject();
     saveStorageState({
-      version: CURRENT_STORAGE_VERSION,
+      version: 6,
       activeProjectId: inputProject.identity.id,
       projects: [inputProject]
     });
@@ -269,7 +268,7 @@ describe("App - planning decisions", () => {
     const user = userEvent.setup();
     const inputProject = planningProject("pp.canvas.schema.confirmation");
     saveStorageState({
-      version: CURRENT_STORAGE_VERSION,
+      version: 6,
       activeProjectId: inputProject.identity.id,
       projects: [inputProject]
     });
@@ -297,7 +296,7 @@ describe("App - planning decisions", () => {
     inputProject.powerPlatform!.canvas!.primaryDataSourceType = "sharePointList";
     inputProject.powerPlatform!.canvas!.selectedDataSourceTypes = [];
     saveStorageState({
-      version: CURRENT_STORAGE_VERSION,
+      version: 6,
       activeProjectId: inputProject.identity.id,
       projects: [inputProject]
     });

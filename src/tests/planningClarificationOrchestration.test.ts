@@ -6,11 +6,11 @@ import * as phaseGates from "../lib/phaseGates";
 import { runPlanningClarificationGeneration } from "../lib/planningClarificationOrchestration";
 import {
   getProjectById,
+  loadStorageState,
   materializeProjectPlanningClarificationHumanDecision,
   saveStorageState,
   type StorageAdapter
 } from "../lib/projectRepository";
-import { CURRENT_STORAGE_VERSION } from "../lib/storageVersion";
 import type { ProjectRecord } from "../types/project";
 
 const projectId = "planning-orchestration-project";
@@ -38,7 +38,20 @@ function canvasProject(id = projectId): ProjectRecord {
 }
 
 function persist(storage: StorageAdapter, projects: ProjectRecord[], activeProjectId = projects[0]?.identity.id ?? null) {
-  saveStorageState({ version: CURRENT_STORAGE_VERSION, activeProjectId, projects }, storage);
+  const current = loadStorageState(storage);
+  if (current.projects.length === 0) {
+    saveStorageState({ version: 6, activeProjectId, projects }, storage);
+    return;
+  }
+  const currentById = new Map(current.projects.map((project) => [project.identity.id, project]));
+  saveStorageState({
+    version: 7,
+    activeProjectId,
+    projects: projects.map((project) => ({
+      ...project,
+      confirmationProvenance: currentById.get(project.identity.id)?.confirmationProvenance
+    }))
+  }, storage);
 }
 
 function yamlAnswer() {
