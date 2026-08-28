@@ -9,11 +9,15 @@ import {
 } from "../lib/projectConfirmationProvenance";
 import { createInitialProjectConfirmationProvenance } from "../lib/projectConfirmationRevisionReconciliation";
 import {
+  LEGACY_STORAGE_KEY,
+  PREVIOUS_STORAGE_KEY,
   STORAGE_KEY,
   archiveProject,
+  clearPersistenceWarning,
   createProject,
   deleteProject,
   duplicateProject,
+  getPersistenceWarning,
   getProjectById,
   getRepositoryReadStatus,
   loadStorageState,
@@ -29,7 +33,7 @@ import {
   type RepositoryPersistenceRuntime,
   type StorageAdapter
 } from "../lib/projectRepository";
-import type { PowerPlatformCanvasData, ProjectRecord, ProjectType, StorageVersion } from "../types/project";
+import type { PowerPlatformCanvasData, ProjectRecord, StorageVersion } from "../types/project";
 
 class MemoryStorage implements StorageAdapter {
   protected readonly values = new Map<string, string>();
@@ -43,6 +47,44 @@ class FailingWriteStorage extends MemoryStorage {
   override setItem(key: string, value: string): void {
     if (this.failWrites && key === STORAGE_KEY) throw new Error("quota");
     super.setItem(key, value);
+  }
+}
+
+class ControlledReadStorage extends MemoryStorage {
+  private readonly readCounts = new Map<string, number>();
+  readonly removedKeys: string[] = [];
+  readonly writtenKeys: string[] = [];
+  onRead: ((key: string, count: number, storage: ControlledReadStorage) => void) | null = null;
+
+  override getItem(key: string): string | null {
+    const count = (this.readCounts.get(key) ?? 0) + 1;
+    this.readCounts.set(key, count);
+    this.onRead?.(key, count, this);
+    return super.getItem(key);
+  }
+
+  override setItem(key: string, value: string): void {
+    this.writtenKeys.push(key);
+    super.setItem(key, value);
+  }
+
+  override removeItem(key: string): void {
+    this.removedKeys.push(key);
+    super.removeItem(key);
+  }
+
+  replaceValue(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+
+  rawValue(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  resetObservations(): void {
+    this.readCounts.clear();
+    this.removedKeys.length = 0;
+    this.writtenKeys.length = 0;
   }
 }
 
@@ -271,6 +313,112 @@ describe("Storage 7 migration and persistence", () => {
     });
     expect(invalidProjectStorage.getItem(STORAGE_KEY)).toBe(original);
   });
+
+  it("blocks current-key migration when its prepared source changes before commit", () => {
+    const storage = new ControlledReadStorage();
+    const project = createProjectRecord({ identity: { id: "current-stale" }, intake: { appType: "webApplication" } });
+    const original = seedLegacy(storage, 6, [project]);
+    const newer = JSON.stringify({ version: 6, activeProjectId: null, projects: [] });
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key === STORAGE_KEY && count === 2) controlled.replaceValue(key, newer);
+    };
+
+    expect(getRepositoryReadStatus(storage)).toMatchObject({
+      writeMode: "blocked",
+      issueCodes: ["storageChangedDuringMigration"]
+    });
+    expect(original).not.toBe(newer);
+    expect(storage.rawValue(STORAGE_KEY)).toBe(newer);
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.removedKeys).toEqual([]);
+  });
+
+  it("blocks previous-key migration when the source changes before commit", () => {
+    const storage = new ControlledReadStorage();
+    const project = createProjectRecord({ identity: { id: "previous-stale" }, intake: { appType: "webApplication" } });
+    const original = JSON.stringify({ version: 6, activeProjectId: project.identity.id, projects: [project] });
+    const newer = JSON.stringify({ version: 6, activeProjectId: null, projects: [] });
+    storage.setItem(PREVIOUS_STORAGE_KEY, original);
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key === PREVIOUS_STORAGE_KEY && count === 2) controlled.replaceValue(key, newer);
+    };
+
+    expect(getRepositoryReadStatus(storage)).toMatchObject({
+      writeMode: "blocked",
+      issueCodes: ["storageChangedDuringMigration"]
+    });
+    expect(storage.rawValue(PREVIOUS_STORAGE_KEY)).toBe(newer);
+    expect(storage.rawValue(STORAGE_KEY)).toBeNull();
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.removedKeys).toEqual([]);
+  });
+
+  it("blocks previous-key migration when the current target appears before commit", () => {
+    const storage = new ControlledReadStorage();
+    const sourceProject = createProjectRecord({ identity: { id: "previous-target" }, intake: { appType: "webApplication" } });
+    const targetProject = canonicalProject("webApplication", "new-current", 20);
+    const source = JSON.stringify({ version: 6, activeProjectId: sourceProject.identity.id, projects: [sourceProject] });
+    const target = JSON.stringify({ version: 7, activeProjectId: targetProject.identity.id, projects: [targetProject] });
+    storage.setItem(PREVIOUS_STORAGE_KEY, source);
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key === STORAGE_KEY && count === 2) controlled.replaceValue(key, target);
+    };
+
+    expect(getRepositoryReadStatus(storage)).toMatchObject({
+      writeMode: "blocked",
+      issueCodes: ["storageChangedDuringMigration"]
+    });
+    expect(storage.rawValue(STORAGE_KEY)).toBe(target);
+    expect(storage.rawValue(PREVIOUS_STORAGE_KEY)).toBe(source);
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.removedKeys).toEqual([]);
+  });
+
+  it("blocks single-project legacy migration when its source changes before commit", () => {
+    const storage = new ControlledReadStorage();
+    const original = JSON.stringify({
+      metadata: { id: "legacy-stale" },
+      intake: { appName: "Legacy", appType: "webApplication" }
+    });
+    const newer = JSON.stringify({
+      metadata: { id: "legacy-newer" },
+      intake: { appName: "Newer", appType: "webApplication" }
+    });
+    storage.setItem(LEGACY_STORAGE_KEY, original);
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key === LEGACY_STORAGE_KEY && count === 2) controlled.replaceValue(key, newer);
+    };
+
+    expect(getRepositoryReadStatus(storage)).toMatchObject({
+      writeMode: "blocked",
+      issueCodes: ["storageChangedDuringMigration"]
+    });
+    expect(storage.rawValue(LEGACY_STORAGE_KEY)).toBe(newer);
+    expect(storage.rawValue(STORAGE_KEY)).toBeNull();
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.removedKeys).toEqual([]);
+  });
+
+  it("continues to migrate an unchanged previous-key source and removes it after commit", () => {
+    const storage = new ControlledReadStorage();
+    const project = createProjectRecord({ identity: { id: "previous-normal" }, intake: { appType: "webApplication" } });
+    storage.setItem(PREVIOUS_STORAGE_KEY, JSON.stringify({
+      version: 6,
+      activeProjectId: project.identity.id,
+      projects: [project]
+    }));
+    storage.resetObservations();
+
+    expect(loadStorageState(storage).version).toBe(7);
+    expect(JSON.parse(storage.rawValue(STORAGE_KEY)!).version).toBe(7);
+    expect(storage.rawValue(PREVIOUS_STORAGE_KEY)).toBeNull();
+    expect(storage.writtenKeys).toEqual([STORAGE_KEY]);
+    expect(storage.removedKeys).toEqual([PREVIOUS_STORAGE_KEY]);
+  });
 });
 
 describe("Storage 7 creation, duplication, and revisions", () => {
@@ -302,6 +450,19 @@ describe("Storage 7 creation, duplication, and revisions", () => {
     expect(storage.getItem(STORAGE_KEY)).toBeNull();
   });
 
+  it("blocks Canvas creation when allocation collides with another valid project", () => {
+    const storage = new MemoryStorage();
+    const existing = canonicalProject("powerAppsCanvas", "existing-create", 1);
+    const original = seedStorage7(storage, [existing]);
+
+    expect(() => createProject(
+      { intake: { appType: "powerAppsCanvas" } },
+      storage,
+      { uuid: () => uuid(1) }
+    )).toThrow(/blocked/);
+    expect(storage.getItem(STORAGE_KEY)).toBe(original);
+  });
+
   it("duplicates with fresh revisions, no events, and no inherited authority", () => {
     const storage = new MemoryStorage();
     const source = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
@@ -312,6 +473,18 @@ describe("Storage 7 creation, duplication, and revisions", () => {
     expect(duplicateIds.some((value) => sourceIds.includes(value))).toBe(false);
     expect(duplicate.confirmationProvenance!.confirmationEvents).toEqual([]);
     expect(getProjectById(source.identity.id, storage)!.confirmationProvenance).toEqual(source.confirmationProvenance);
+  });
+
+  it("blocks duplication when allocation collides with an unrelated valid project", () => {
+    const storage = new MemoryStorage();
+    const source = canonicalProject("powerAppsCanvas", "duplicate-source", 1);
+    const unrelated = canonicalProject("powerAppsCanvas", "duplicate-unrelated", 20);
+    const original = seedStorage7(storage, [source, unrelated], source.identity.id);
+
+    expect(duplicateProject(source.identity.id, storage, "2026-08-27T12:00:00.000Z", {
+      uuid: () => uuid(20)
+    })).toBeNull();
+    expect(storage.getItem(STORAGE_KEY)).toBe(original);
   });
 
   it.each(registeredFields)("rotates only $field and does not rotate a same-value write", ({ field, sourceId }) => {
@@ -447,6 +620,23 @@ describe("Storage 7 creation, duplication, and revisions", () => {
     expect(updateProjectFields(project.identity.id, { appPurpose: "Not persisted" }, storage)).toBeNull();
     expect(storage.getItem(STORAGE_KEY)).toBe(before);
   });
+
+  it("retains a failed-write warning across reads and clears it after a successful write", () => {
+    const storage = new FailingWriteStorage();
+    const project = createProject({ intake: { appType: "webApplication" } }, storage);
+    storage.failWrites = true;
+
+    expect(updateProjectFields(project.identity.id, { appPurpose: "Not persisted" }, storage)).toBeNull();
+    const warning = getPersistenceWarning();
+    expect(warning).toMatch(/could not save/i);
+    expect(loadStorageState(storage).projects[0].intake.appPurpose).not.toBe("Not persisted");
+    expect(getPersistenceWarning()).toBe(warning);
+
+    storage.failWrites = false;
+    expect(updateProjectFields(project.identity.id, { appPurpose: "Persisted" }, storage)).not.toBeNull();
+    expect(getPersistenceWarning()).toBeNull();
+    clearPersistenceWarning();
+  });
 });
 
 describe("Storage 7 quarantine", () => {
@@ -572,6 +762,92 @@ describe("Storage 7 quarantine", () => {
       uuid: () => uuid(70)
     })).toBeNull();
     expect(storage.getItem(STORAGE_KEY)).toBe(original);
+  });
+
+  it("blocks creation when allocation collides with another quarantined raw provenance subtree", () => {
+    const storage = new MemoryStorage();
+    const quarantined = createProjectRecord({ identity: { id: "quarantine-create" }, intake: { appType: "powerAppsCanvas" } });
+    const malformed = { contractVersion: "bad", nested: { reserved: uuid(80) } };
+    const original = seedStorage7(storage, [
+      { ...quarantined, confirmationProvenance: malformed as unknown as ProjectConfirmationProvenance }
+    ]);
+
+    expect(() => createProject(
+      { intake: { appType: "powerAppsCanvas" } },
+      storage,
+      { uuid: () => uuid(80) }
+    )).toThrow(/blocked/);
+    expect(storage.getItem(STORAGE_KEY)).toBe(original);
+  });
+
+  it("blocks existing revision rotation against another quarantined raw provenance subtree", () => {
+    const storage = new MemoryStorage();
+    const valid = canonicalProject("powerAppsCanvas", "rotation-valid", 1);
+    const quarantined = createProjectRecord({ identity: { id: "rotation-quarantine" }, intake: { appType: "powerAppsCanvas" } });
+    const malformed = { contractVersion: "bad", nested: { reserved: uuid(80) } };
+    const original = seedStorage7(storage, [
+      valid,
+      { ...quarantined, confirmationProvenance: malformed as unknown as ProjectConfirmationProvenance }
+    ], valid.identity.id);
+
+    expect(updateProjectPowerPlatform(valid.identity.id, (current) => ({
+      ...current!,
+      canvas: { ...current!.canvas!, fullScreenYamlRequired: "B" }
+    }), storage, { uuid: () => uuid(80) })).toBeNull();
+    expect(storage.getItem(STORAGE_KEY)).toBe(original);
+  });
+
+  it("rechecks added provenance against the central writer's latest quarantine snapshot", () => {
+    const storage = new ControlledReadStorage();
+    const quarantined = createProjectRecord({ identity: { id: "central-defense" }, intake: { appType: "powerAppsCanvas" } });
+    seedStorage7(storage, [{
+      ...quarantined,
+      confirmationProvenance: { contractVersion: "bad", nested: { reserved: uuid(80) } } as unknown as ProjectConfirmationProvenance
+    }]);
+    let allocationCount = 0;
+    let concurrentRaw = "";
+    const runtime: RepositoryPersistenceRuntime = {
+      uuid: () => {
+        allocationCount += 1;
+        if (allocationCount === 1) {
+          const parsed = JSON.parse(storage.rawValue(STORAGE_KEY)!) as { projects: Array<Record<string, unknown>> };
+          parsed.projects[0].confirmationProvenance = {
+            contractVersion: "bad",
+            nested: { concurrentlyReserved: uuid(90) }
+          };
+          concurrentRaw = JSON.stringify(parsed);
+          storage.replaceValue(STORAGE_KEY, concurrentRaw);
+        }
+        return uuid(89 + allocationCount);
+      }
+    };
+
+    expect(() => createProject({ intake: { appType: "powerAppsCanvas" } }, storage, runtime)).toThrow(/persisted/);
+    expect(allocationCount).toBe(7);
+    expect(storage.rawValue(STORAGE_KEY)).toBe(concurrentRaw);
+  });
+
+  it("keeps quarantine rejection warnings through refresh and clears them after a successful write", () => {
+    const storage = new MemoryStorage();
+    const project = createProjectRecord({ identity: { id: "quarantine-warning" }, intake: { appType: "powerAppsCanvas" } });
+    const malformed = { contractVersion: "bad", nested: { unchanged: true } };
+    const original = seedStorage7(storage, [
+      { ...project, confirmationProvenance: malformed as unknown as ProjectConfirmationProvenance }
+    ]);
+
+    expect(updateProjectPowerPlatform(project.identity.id, (current) => ({
+      ...current!,
+      canvas: { ...current!.canvas!, fullScreenYamlRequired: "blocked" }
+    }), storage)).toBeNull();
+    const warning = getPersistenceWarning();
+    expect(warning).toMatch(/confirmation provenance/i);
+    expect(storage.getItem(STORAGE_KEY)).toBe(original);
+    expect(loadStorageState(storage).projects[0].powerPlatform?.canvas?.fullScreenYamlRequired).not.toBe("blocked");
+    expect(getPersistenceWarning()).toBe(warning);
+
+    expect(updateProjectFields(project.identity.id, { appPurpose: "Allowed" }, storage)).not.toBeNull();
+    expect(getPersistenceWarning()).toBeNull();
+    expect(rawProvenance(storage, project.identity.id)).toEqual(malformed);
   });
 });
 

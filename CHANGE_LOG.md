@@ -1,5 +1,43 @@
 # Change Log
 
+## 2026-08-28 - Phase 5C.3C.3J.6B.6R - Storage 7 Integrity Review Correction
+
+### Summary
+
+- Enforced one repository-wide provenance UUID collision domain across Canvas creation, duplication, existing revision rotation, applicability additions, and the central repository writer.
+- Reserved every UUID represented by valid persisted confirmation provenance and every canonical UUID string recursively retained in quarantined raw provenance; collisions remain fail-closed with zero retries or fallbacks.
+- Added final compare-before-write migration guards for the current, previous, and legacy single-project storage keys with bounded `storageChangedDuringMigration` reporting and no source deletion after stale rejection.
+- Preserved transient write-failure warnings across healthy reads so React can render the existing status region, and prevented failed New Project creation from navigating to Guided Intake.
+- Removed the two reported unused imports without changing Storage 7 contracts, source registry, confirmation events, downstream authority, dependencies, Node, CI, or deployment behavior.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - global UUID reservation, central addition defense, migration stale-write guards, and warning lifetime.
+- `src/app/App.tsx` - failed-create navigation guard.
+- `src/tests/projectRepositoryStorage7.test.ts` - collision, migration concurrency, quarantine, and warning regressions.
+- `src/tests/App.persistenceRecovery.test.tsx` - failed-create navigation, count, status warning, and later-success recovery.
+- `CHANGE_LOG.md` - correction record.
+- `TEST_PLAN.md` - correction validation matrix and measured gate results.
+
+### Testing completed
+
+- Focused correction suites passed 59 tests: 56 Storage 7 repository tests and 3 persistence-recovery UI tests.
+- The 11-file affected repository, provenance, Controlled Apply, mapping, Power Platform, and project-type matrix passed 425 tests.
+- Full and coverage validation each passed 82 unit/integration files with 2,969 tests and 7 UI files with 75 tests, for 89 files and 3,044 tests combined.
+- Coverage passed at 89.81% statements, 82.70% branches, 95.20% functions, and 93.47% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 144 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 25 findings (2 moderate, 23 high); no remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory development audit reports 25 tooling findings; production dependencies report 0 vulnerabilities and dependency remediation is outside scope.
+
+### Remaining work
+
+- Phase 5C.3C.3J.6B.6 remains pending independent GPT Architect re-review. Storage 7 integration is not authorized and main remains unchanged.
+- TTI remains Draft with all 15 blockers. This correction resolves no blocker and adds no confirmation event, confirmed-intake source, readiness, projection, Apply, YAML, or output authority.
+
 ## 2026-08-27 - Phase 5C.3C.3J.6B.6 - Storage 7 Atomic Confirmation Provenance
 
 ### Summary

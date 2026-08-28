@@ -1,5 +1,25 @@
 # Test Plan
 
+## 2026-08-28 Phase 5C.3C.3J.6B.6R Storage 7 integrity review correction
+
+1. Verify Canvas creation forbids every UUID represented by valid repository provenance and every canonical UUID recursively discoverable in all quarantined raw provenance subtrees.
+2. Verify duplicate allocation uses the complete repository collision domain and blocks collisions with an unrelated project's provenance, leaving storage byte-for-byte unchanged.
+3. Verify existing registered-field rotation and non-Canvas-to-Canvas applicability additions use the same valid-plus-quarantine reserved set, while same-value and Canvas-to-non-Canvas changes allocate zero UUIDs.
+4. Verify the central writer independently rejects prepared added provenance that collides with its latest repository snapshot, even when caller-side allocation used an earlier safe snapshot.
+5. Verify collisions perform zero retries and zero fallbacks, Canvas creation allocates exactly seven fresh UUIDs, and every non-Canvas creation allocates zero provenance UUIDs.
+6. Verify current-key Storage 1-6 migration re-reads the exact source immediately before commit and returns `storageChangedDuringMigration` without writing or deleting when it changed.
+7. Verify previous-key migration requires both an unchanged source and an absent current target, preserving the newer target and retaining the previous source on either mismatch.
+8. Verify legacy single-project migration requires an unchanged source and absent current target, with no source removal after stale rejection.
+9. Verify unchanged migration still performs one Storage 7 commit and removes its legacy source only after successful persistence.
+10. Verify storage and provenance write warnings survive the immediate healthy refresh, failed mutation values are not retained, and a later successful write clears the transient warning.
+11. Verify failed New Project creation stays on Mission Control, creates no project, renders the existing status warning, and later successful creation navigates normally with one persisted project.
+12. Verify quarantine registered-field rejection preserves both the persisted field value and raw provenance structure through refresh, while a later allowed unrelated write clears the warning.
+13. Verify Storage 7, the storage key, confirmation contract, seven-entry Canvas registry, zero non-Canvas applicability, revision semantics, quarantine semantics, and zero confirmation-event creation remain unchanged.
+14. Verify zero new `confirmedIntake` materializers, Planning sources, canonical bindings, merge paths, projectors, projection/readiness/Apply/yamlStatus/output authority, dependency, Node, CI, TTI, or deployment changes.
+15. Run focused correction tests, the affected regression matrix, full unit/integration and UI tests, coverage, ESLint, app TypeScript checking, production build, production audit, advisory development audit, diff/scope checks, topology checks, preserved-stash checks, one linear correction commit, push, and remote verification.
+
+Validation result: passed. Focused correction suites passed 59 tests, and the 11-file affected matrix passed 425 tests. Full and coverage validation each passed 82 unit/integration files with 2,969 tests and 7 UI files with 75 tests, for 89 files and 3,044 tests combined. Coverage was 89.81% statements, 82.70% branches, 95.20% functions, and 93.47% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 144 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 25 findings (2 moderate, 23 high); no remediation was performed.
+
 ## 2026-08-27 Phase 5C.3C.3J.6B.6 Storage 7 atomic persistence
 
 1. Verify Storage Versions 1-6 migrate as one complete state to canonical Storage 7 through one same-key write, with seven Canvas revisions, zero non-Canvas Canvas revisions, zero events, and idempotent reloads.

@@ -76,7 +76,8 @@ export function App() {
 
   const startNewProject = () => {
     if (!confirmPlanningAnswerDiscard()) return;
-    createNewProject();
+    const created = createNewProject();
+    if (!created) return;
     setIntakeStep(0);
     setView("intake");
   };

@@ -15,7 +15,6 @@ import {
 } from "./clientReview";
 import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
 import {
-  PROJECT_CONFIRMATION_CONTRACT_VERSION,
   validateProjectConfirmationProvenance,
   type ProjectConfirmationProvenance
 } from "./projectConfirmationProvenance";
@@ -135,7 +134,8 @@ export const REPOSITORY_MIGRATION_ISSUE_CODES = Object.freeze([
   "uuidCollision",
   "migrationValidationFailed",
   "migrationSerializationFailed",
-  "migrationWriteFailed"
+  "migrationWriteFailed",
+  "storageChangedDuringMigration"
 ] as const);
 
 export type RepositoryMigrationIssueCode = (typeof REPOSITORY_MIGRATION_ISSUE_CODES)[number];
@@ -453,7 +453,6 @@ function readStorage7Snapshot(raw: string, parsed: Record<string, unknown>): Rep
     }
   }
 
-  setPersistenceWarning(null);
   return {
     state,
     writeMode: "readWrite",
@@ -468,6 +467,7 @@ function persistLegacyMigration(
   legacyInput: unknown,
   readableLegacyState: StorageState,
   rawCurrentStorage: string | null,
+  rawSourceStorage: string | null,
   sourceKey: string,
   storage: StorageAdapter,
   runtime: RepositoryPersistenceRuntime
@@ -491,6 +491,17 @@ function persistLegacyMigration(
     return blockedSnapshot(readableLegacyState, "migrationSerializationFailed", rawCurrentStorage);
   }
 
+  const guardedSource = readStorageValue(storage, sourceKey);
+  if (guardedSource.outcome === "blocked" || guardedSource.value !== rawSourceStorage) {
+    return blockedSnapshot(readableLegacyState, "storageChangedDuringMigration", rawCurrentStorage);
+  }
+  if (sourceKey !== STORAGE_KEY) {
+    const guardedTarget = readStorageValue(storage, STORAGE_KEY);
+    if (guardedTarget.outcome === "blocked" || guardedTarget.value !== null) {
+      return blockedSnapshot(readableLegacyState, "storageChangedDuringMigration", rawCurrentStorage);
+    }
+  }
+
   try {
     storage.setItem(STORAGE_KEY, serialized);
   } catch {
@@ -504,6 +515,7 @@ function persistLegacyMigration(
       // The canonical current key is authoritative; a retained legacy copy is harmless.
     }
   }
+  setPersistenceWarning(null);
   return readStorage7Snapshot(serialized, parsed);
 }
 
@@ -533,6 +545,7 @@ function readParsedStorageState(
     parsed,
     readableLegacyState,
     sourceKey === STORAGE_KEY ? raw : null,
+    raw,
     sourceKey,
     storage,
     runtime
@@ -574,7 +587,7 @@ function readLegacyProjectState(
   });
   const legacyState: StorageState = { version: 1, activeProjectId: project.identity.id, projects: [project] };
   const readable = { ...synchronizeStorageState(migrateStorageState(legacyState)), version: 1 as const };
-  return persistLegacyMigration(legacyState, readable, null, LEGACY_STORAGE_KEY, storage, runtime);
+  return persistLegacyMigration(legacyState, readable, null, raw, LEGACY_STORAGE_KEY, storage, runtime);
 }
 
 function readRepositorySnapshot(
@@ -604,8 +617,20 @@ function readRepositorySnapshot(
   }
   if (legacy.value !== null) return readLegacyProjectState(legacy.value, storage, runtime);
 
-  setPersistenceWarning(null);
   return emptySnapshot();
+}
+
+function collectRepositoryReservedProvenanceUuids(snapshot: RepositoryReadSnapshot): Set<string> {
+  const reserved = new Set<string>();
+  snapshot.state.projects.forEach((project) => {
+    collectProjectConfirmationProvenanceIds(project.confirmationProvenance)
+      .forEach((value) => reserved.add(value));
+  });
+  snapshot.quarantines.forEach((quarantine) => {
+    collectCanonicalUuidsFromParsedJson(quarantine.rawProvenance)
+      .forEach((value) => reserved.add(value));
+  });
+  return reserved;
 }
 
 function registeredConfirmationValuesEqual(current: ProjectRecord, candidate: ProjectRecord): boolean {
@@ -720,7 +745,15 @@ function writeCurrentStorageState(
       }
     }
     const readable = { ...synchronizeStorageState(migrateStorageState(state)), version: state.version };
-    const migrated = persistLegacyMigration(state, readable, current.value, STORAGE_KEY, storage, runtime);
+    const migrated = persistLegacyMigration(
+      state,
+      readable,
+      current.value,
+      current.value,
+      STORAGE_KEY,
+      storage,
+      runtime
+    );
     return migrated.writeMode === "readWrite" && migrated.rawCurrentStorage !== null;
   }
 
@@ -755,10 +788,7 @@ function writeCurrentStorageState(
     Extract<ReturnType<typeof analyzeProjectConfirmationRevisionReconciliation>, { outcome: "ready" }>
   >();
   let requiredUuidCount = 0;
-  const forbiddenUuids = new Set<string>();
-  snapshot.state.projects.forEach((project) => {
-    collectProjectConfirmationProvenanceIds(project.confirmationProvenance).forEach((value) => forbiddenUuids.add(value));
-  });
+  const forbiddenUuids = collectRepositoryReservedProvenanceUuids(snapshot);
 
   for (const candidate of normalized.projects) {
     const current = baselineById.get(candidate.identity.id);
@@ -776,6 +806,12 @@ function writeCurrentStorageState(
         setPersistenceWarning(PROVENANCE_WRITE_WARNING);
         return false;
       }
+      const preparedIds = collectProjectConfirmationProvenanceIds(validation.provenance);
+      if ([...preparedIds].some((value) => forbiddenUuids.has(value))) {
+        setPersistenceWarning(PROVENANCE_WRITE_WARNING);
+        return false;
+      }
+      preparedIds.forEach((value) => forbiddenUuids.add(value));
       candidate.confirmationProvenance = validation.provenance;
       continue;
     }
@@ -909,10 +945,18 @@ export function createProject(
   storage: StorageAdapter = browserStorage(),
   runtime: RepositoryPersistenceRuntime = {}
 ): ProjectRecord {
-  const state = loadStorageState(storage, runtime);
+  const snapshot = readRepositorySnapshot(storage, runtime);
+  if (snapshot.writeMode === "blocked") {
+    throw new Error("Project creation could not be persisted.");
+  }
+  const state = snapshot.state;
   const draft = synchronizeDerivedFields(createProjectRecord(options));
   const applicableCount = applicableProjectConfirmationSourceFieldIds(draft.intake.appType).length;
-  const allocation = allocateProjectConfirmationUuids(applicableCount, runtime);
+  const allocation = allocateProjectConfirmationUuids(
+    applicableCount,
+    runtime,
+    collectRepositoryReservedProvenanceUuids(snapshot)
+  );
   if (allocation.outcome === "blocked") {
     setPersistenceWarning(PROVENANCE_WRITE_WARNING);
     throw new Error("Project creation was blocked because confirmation provenance could not be initialized.");
@@ -959,9 +1003,7 @@ export function duplicateProject(
     powerPlatform: duplicatePowerPlatformForProject(source.powerPlatform, source.intake.appType),
     now
   }));
-  const forbidden = new Set(collectProjectConfirmationProvenanceIds(source.confirmationProvenance));
-  collectCanonicalUuidsFromParsedJson(snapshot.quarantines.get(id)?.rawProvenance)
-    .forEach((value) => forbidden.add(value));
+  const forbidden = collectRepositoryReservedProvenanceUuids(snapshot);
   const applicableCount = applicableProjectConfirmationSourceFieldIds(duplicateDraft.intake.appType).length;
   const allocation = allocateProjectConfirmationUuids(applicableCount, runtime, forbidden);
   if (allocation.outcome === "blocked") {

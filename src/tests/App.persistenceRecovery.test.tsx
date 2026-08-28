@@ -54,4 +54,26 @@ describe("App - persistence Recovery", () => {
       }
     }
   });
+
+  it("keeps the dashboard and warning after failed project creation, then clears on success", async () => {
+    const user = userEvent.setup();
+    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Create New Project" }));
+
+    expect(screen.getByRole("heading", { name: "Turn a rough project idea into a clear Codex handoff" })).toBeInTheDocument();
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(/could not save project changes/i);
+    expect(screen.queryByRole("heading", { name: "Guided Intake" })).not.toBeInTheDocument();
+
+    setItem.mockRestore();
+    await user.click(screen.getByRole("button", { name: "Create New Project" }));
+
+    expect(screen.getByRole("heading", { name: "Guided Intake" })).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY)!).projects).toHaveLength(1);
+    expect(screen.queryByText(/could not save project changes/i)).not.toBeInTheDocument();
+  });
 });
