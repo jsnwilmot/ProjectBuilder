@@ -3268,3 +3268,26 @@ The production ZIP download passed direct archive inspection and a visual Window
 18. Regress current clarification controls, Planning view/view-model, Planning decision hook, navigation, repository, client review, controlled Apply, generation, and export behavior.
 19. Verify no ProjectRecord, ProjectPlanningState, repository, local storage, migration, mapping, readiness, Apply, generation, output, dependency, Node/CI, or TTI Draft behavior changes.
 20. Run dependency install, lint, app TypeScript checking, focused and regression matrices, full tests, coverage, production build, production audit, advisory full audit, exact scope checks, and Git diff checks.
+
+## Phase 5C.3C.3J.6B.8 explicit confirmation transaction foundation validation
+
+1. Verify canonical text serialization is exactly `{"version":"canonical-text-json-v1","kind":"text","value":<exact string>}` with case, whitespace, empty strings, line endings, and Unicode preserved.
+2. Verify confirmation fingerprinting reuses the existing Web Crypto SHA-256 primitive, returns 64 lowercase hexadecimal characters, and blocks unavailable, throwing, or malformed digest results.
+3. Verify action initiation allocates exactly one canonical UUID from the existing strict allocator with a repository-supplied forbidden set, no storage access, no fallback, and no retry.
+4. Verify all seven registered Canvas fields derive current revision ID, re-derived value fingerprint, append-order lineage head or null, and bounded current evidence only when revision and fingerprint match.
+5. Verify non-Canvas projects, malformed provenance, missing applicable revisions, unavailable source values, and fingerprint failures block without mutation.
+6. Verify request parsing requires a non-empty batch, canonical action/revision/head tokens, valid fingerprint syntax, exact field shape, supported registry identity, and no duplicate field.
+7. Verify validated requests are canonicalized to static source-registry order and caller order never controls prepared fields, events, replay output, or semantic history.
+8. Verify new-action preparation compares repository-derived project, revision, fingerprint, and lineage head and reports stale revision, value, or head without silently refreshing.
+9. Verify exact completed action replay is classified before current-head comparison and reconstructs root expected head as null and non-root expected head from `supersedesConfirmationId`.
+10. Verify exact root, non-root, historical same-revision, and multi-field replay return existing action ID, timestamp, confirmation IDs, revisions, and fingerprints with zero new allocations or events.
+11. Verify replay blocks changed revision, changed value, changed field batch, changed pre-action head, cross-project action ownership, quarantine collision, non-action UUID collision, ambiguous usage, and stale unused classification.
+12. Verify first confirmation prepares null supersession; same-revision reconfirmation uses the refreshed current head; changed-revision reconfirmation preserves the prior lineage head while binding the new revision and fingerprint.
+13. Verify finalization accepts only prepared new actions, validates one canonical shared timestamp, allocates exactly N confirmation IDs, and allocates zero action or revision IDs.
+14. Verify candidate events use the fixed contract, unauthenticated-local-operator assurance, local-explicit-confirmation origin, exact prepared field data, static registry order, and omitted root supersession property.
+15. Verify the complete candidate provenance is passed through the existing provenance validator and malformed candidates, timestamp failures, UUID failures, and collisions produce no partial success.
+16. Verify preparation and finalization leave the input project, source values, field revision IDs, and existing event history unchanged.
+17. Verify current evidence, replay evidence, and finalization results explicitly retain false canonical, readiness, projection, Apply, and output authority.
+18. Verify static isolation from project repository persistence, browser storage, Guided Intake, App hooks, Planning source materialization, mapping changes, `yamlStatus`, network access, and deployment behavior.
+19. Regress confirmation provenance, registry/accessors, revision reconciliation, Storage 7, Planning fingerprinting, canonical-fact evidence, and readiness mapping contracts.
+20. Run focused tests, full unit/integration and UI suites, coverage, lint, app TypeScript checking, production build, production audit, advisory development audit, exact file-scope checks, version/authority hard gates, and Git topology checks.

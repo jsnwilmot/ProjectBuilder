@@ -173,6 +173,8 @@ describe("project confirmation source registry", () => {
       "projectConfirmationRevisionReconciliation.ts",
       "projectConfirmationRuntime.ts",
       "projectConfirmationSourceAccessors.ts",
+      "projectConfirmationTransaction.ts",
+      "projectConfirmationValueFingerprint.ts",
       "projectRepository.ts",
       "storageVersion.ts"
     ]);

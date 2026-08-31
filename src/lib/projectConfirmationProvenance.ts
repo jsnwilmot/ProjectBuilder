@@ -125,6 +125,16 @@ export function isCanonicalProjectConfirmationUuid(value: unknown): value is str
   return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
+export function isProjectConfirmationValueFingerprint(value: unknown): value is string {
+  return typeof value === "string" && FINGERPRINT_PATTERN.test(value);
+}
+
+export function isCanonicalProjectConfirmationTimestamp(value: unknown): value is string {
+  if (typeof value !== "string" || !UTC_TIMESTAMP_PATTERN.test(value)) return false;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
+}
+
 export function normalizeProjectConfirmationSourceText(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
@@ -274,7 +284,7 @@ function validateConfirmationEvent(
     input.serializationVersion !== PROJECT_CONFIRMATION_SERIALIZATION_VERSION ||
     input.fingerprintVersion !== PROJECT_CONFIRMATION_FINGERPRINT_VERSION ||
     input.actionOrigin !== PROJECT_CONFIRMATION_ACTION_ORIGIN ||
-    !isCanonicalUtcTimestamp(input.confirmedAt)
+    !isCanonicalProjectConfirmationTimestamp(input.confirmedAt)
   ) {
     issues.add("invalidEvent");
     return null;
@@ -287,7 +297,7 @@ function validateConfirmationEvent(
     issues.add("unsupportedSourceField");
     return null;
   }
-  if (typeof input.valueFingerprint !== "string" || !FINGERPRINT_PATTERN.test(input.valueFingerprint)) {
+  if (!isProjectConfirmationValueFingerprint(input.valueFingerprint)) {
     issues.add("invalidFingerprint");
     return null;
   }
@@ -392,12 +402,6 @@ function validateSupersession(
     }
     lineageHeads.set(event.sourceFieldId, event);
   }
-}
-
-function isCanonicalUtcTimestamp(value: unknown): value is string {
-  if (typeof value !== "string" || !UTC_TIMESTAMP_PATTERN.test(value)) return false;
-  const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
 }
 
 function quarantined(

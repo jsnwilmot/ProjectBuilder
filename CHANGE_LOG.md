@@ -6962,3 +6962,53 @@
 ### Remaining work
 
 - Independent GPT Architect review is required before integration or any structured editor, answer renderer, navigation guard, live Planning, Revise, readiness, mapping, Apply, output, persistence, or deployment work.
+
+## 2026-08-31 - Phase 5C.3C.3J.6B.8 - Explicit Confirmation Transaction Foundation
+
+### Summary
+
+- Added a confirmation-specific canonical text serializer and SHA-256 wrapper that preserves exact stored strings and reuses the existing Web Crypto fingerprint primitive.
+- Added bounded action initiation, current field concurrency-token derivation, current confirmation evidence, deterministic request canonicalization, replay-first transaction preparation, exact completed replay classification, and non-persistent in-memory finalization.
+- Finalization allocates one confirmation UUID per prepared field, creates one shared canonical timestamp, appends candidate events in static registry order, and validates the complete candidate through the existing provenance validator.
+- Replay reconstructs the expected pre-action head from `supersedesConfirmationId`, returns existing IDs and timestamp, and creates no timestamp, UUID, event, or persistence effect.
+
+### Files created
+
+- `src/lib/projectConfirmationValueFingerprint.ts` - canonical confirmation text serialization and bounded fingerprint result.
+- `src/lib/projectConfirmationTransaction.ts` - request, currentness, initiation, preparation, replay, and finalization foundation.
+- `src/tests/projectConfirmationValueFingerprint.test.ts` - exact serialization, Unicode, digest, and fail-closed coverage.
+- `src/tests/projectConfirmationTransaction.test.ts` - currentness, collision, replay, reconfirmation, finalization, authority, and immutability coverage.
+
+### Files updated
+
+- `src/lib/projectConfirmationProvenance.ts` - exports existing fingerprint and timestamp syntax checks without changing validation semantics.
+- `src/tests/projectConfirmationSourceRegistry.test.ts` - recognizes the two authorized bounded confirmation consumers.
+- `CHANGE_LOG.md` - records this phase.
+- `TEST_PLAN.md` - records the confirmation transaction validation matrix.
+
+### Scope boundaries preserved
+
+- No confirmation event is persisted; `projectRepository.ts`, Storage Version 7, storage key, migrations, central writer, quarantine persistence, duplication, and archive/restore behavior are unchanged.
+- No Guided Intake, hook, App, confirmation button, or other UI behavior was added.
+- No Planning source, `confirmedIntake` materializer, canonical binding, mapping classification, merge path, projector, readiness authority, Apply authority, `yamlStatus` authority, or generated-output authority was added.
+- TTI remains Draft with all 15 generated-content blockers unresolved.
+
+### Testing completed
+
+- Focused fingerprint, transaction, provenance, and source-registry tests passed (`4` files, `53` tests).
+- Confirmation, Storage 7, fingerprint, canonical-fact, and readiness-mapping regressions passed (`10` files, `213` tests).
+- Lint and app TypeScript checking passed before the full quality-gate run.
+- `npm.cmd test` passed (`84` unit/integration files, `2,990` tests; `7` UI files, `75` tests; `91` combined files, `3,065` tests).
+- `npm.cmd run test:coverage` passed with the same `3,065` combined tests and `89.84%` statements, `82.75%` branches, `95.24%` functions, and `93.50%` lines.
+- `npm.cmd run build` passed with the existing Vite large-chunk warning.
+- `npm.cmd audit --omit=dev --audit-level=high` passed with `0` vulnerabilities.
+- `npm.cmd audit --audit-level=high` reported the existing development/tooling findings (`25` vulnerabilities: `2` moderate, `23` high); no dependency remediation was performed.
+
+### Issues found
+
+- Low: the advisory development audit reports 25 tooling findings; dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent GPT Architect review is required. Confirmation persistence, repository race handling, confirmation UI, Planning materialization, downstream authority, and deployment remain unauthorized.
