@@ -329,6 +329,12 @@ export function finalizeProjectConfirmationTransaction(
   if (prepared.outcome !== "preparedNewAction" || prepared.fields.length === 0) {
     return blocked("finalValidationFailed");
   }
+  if (!isCanonicalProjectConfirmationUuid(prepared.confirmationActionId)) {
+    return blocked("invalidActionId");
+  }
+  if (forbiddenUuids.has(prepared.confirmationActionId)) {
+    return blocked("actionIdCollision");
+  }
 
   let confirmedAt: string;
   try {

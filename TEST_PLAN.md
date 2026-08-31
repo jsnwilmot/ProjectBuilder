@@ -3291,3 +3291,15 @@ The production ZIP download passed direct archive inspection and a visual Window
 18. Verify static isolation from project repository persistence, browser storage, Guided Intake, App hooks, Planning source materialization, mapping changes, `yamlStatus`, network access, and deployment behavior.
 19. Regress confirmation provenance, registry/accessors, revision reconciliation, Storage 7, Planning fingerprinting, canonical-fact evidence, and readiness mapping contracts.
 20. Run focused tests, full unit/integration and UI suites, coverage, lint, app TypeScript checking, production build, production audit, advisory development audit, exact file-scope checks, version/authority hard gates, and Git topology checks.
+
+## Phase 5C.3C.3J.6B.8R finalization action-ID collision correction
+
+1. Create a genuine prepared new action and pass a forbidden UUID set containing its action ID.
+2. Verify finalization returns `blocked / actionIdCollision` before timestamp generation or confirmation-ID allocation.
+3. Fabricate a structurally valid prepared action with a noncanonical action ID and verify `blocked / invalidActionId`.
+4. Verify malformed-action rejection also performs zero timestamp and UUID runtime calls.
+5. Verify a valid action ID absent from the forbidden set still allocates exactly N confirmation IDs, uses one timestamp, and produces validator-approved candidate provenance.
+6. Regress generated confirmation-ID collisions with the action ID, forbidden UUIDs, and same-finalization allocations with zero retry or fallback.
+7. Regress replay-first preparation, root/non-root/historical replay, same-revision reconfirmation, changed-revision reconfirmation, and all currentness tokens unchanged.
+8. Verify no field mutation, revision rotation, repository/storage write, production event write, UI, Planning source, canonical binding, mapping, or downstream authority change.
+9. Run focused confirmation/fingerprint/provenance/registry tests, Storage 7 and affected Planning regressions, full unit/integration and UI suites, coverage, lint, typecheck, build, production audit, and report-only development audit.

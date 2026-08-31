@@ -7012,3 +7012,36 @@
 ### Remaining work
 
 - Independent GPT Architect review is required. Confirmation persistence, repository race handling, confirmation UI, Planning materialization, downstream authority, and deployment remain unauthorized.
+
+## 2026-08-31 - Phase 5C.3C.3J.6B.8R - Finalization Action-ID Collision Revalidation
+
+### Summary
+
+- Finalization now revalidates the prepared action ID as a canonical confirmation UUID before any runtime call.
+- Finalization now rejects `actionIdCollision` when the repository-supplied forbidden UUID set already contains the prepared action ID.
+- Both checks execute before timestamp generation, confirmation-ID allocation, or candidate construction.
+
+### Files updated
+
+- `src/lib/projectConfirmationTransaction.ts` - adds the two ordered fail-closed action-ID checks.
+- `src/tests/projectConfirmationTransaction.test.ts` - proves stale collision and malformed prepared action IDs make zero timestamp and UUID calls.
+- `CHANGE_LOG.md` - records the correction.
+- `TEST_PLAN.md` - records the correction validation matrix.
+
+### Scope boundaries preserved
+
+- Replay preparation, currentness, request contracts, finalization output, repository persistence, Storage 7, migrations, UI, Planning, mappings, downstream authority, dependencies, Node, and CI remain unchanged.
+- TTI remains Draft with all 15 blockers unresolved.
+
+### Testing completed
+
+- Corrected transaction tests passed (`1` file, `19` tests).
+- Focused and affected regression tests passed (`10` files, `215` tests).
+- Full unit/integration tests passed (`84` files, `2,992` tests); UI tests passed (`7` files, `75` tests); combined total: `91` files and `3,067` tests.
+- Unit coverage passed: statements `89.84%` (`13,687/15,234`), branches `82.76%` (`13,675/16,523`), functions `95.24%` (`3,342/3,509`), and lines `93.50%` (`11,928/12,756`).
+- Lint, app TypeScript checking, and the production build passed. The build retained the existing advisory large-chunk warning.
+- Production dependency audit passed with `0` vulnerabilities. The report-only full development audit retained `25` findings (`2` moderate, `23` high); dependency remediation remains outside this correction.
+
+### Remaining work
+
+- Independent GPT Architect re-review is required before integration or any persistence/UI/downstream phase.

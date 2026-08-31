@@ -481,6 +481,41 @@ describe("project confirmation transaction foundation", () => {
     })).toEqual({ outcome: "blocked", issueCode: "finalValidationFailed" });
   });
 
+  it("rejects a newly forbidden prepared action ID before clock or UUID access", async () => {
+    const project = canvasProject();
+    const prepared = await prepareNew(
+      project,
+      await requestFor(project, ACTION_A, [PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0]])
+    );
+    const now = vi.fn(() => TIMESTAMP_A);
+    const uuidRuntime = vi.fn(() => uuid(200));
+
+    expect(finalizeProjectConfirmationTransaction(prepared, new Set([ACTION_A]), {
+      now,
+      uuid: uuidRuntime
+    })).toEqual({ outcome: "blocked", issueCode: "actionIdCollision" });
+    expect(now).not.toHaveBeenCalled();
+    expect(uuidRuntime).not.toHaveBeenCalled();
+  });
+
+  it("rejects a fabricated noncanonical prepared action ID before clock or UUID access", async () => {
+    const project = canvasProject();
+    const prepared = await prepareNew(
+      project,
+      await requestFor(project, ACTION_A, [PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0]])
+    );
+    const malformed = { ...prepared, confirmationActionId: "not-a-canonical-uuid" };
+    const now = vi.fn(() => TIMESTAMP_A);
+    const uuidRuntime = vi.fn(() => uuid(200));
+
+    expect(finalizeProjectConfirmationTransaction(malformed, new Set(), {
+      now,
+      uuid: uuidRuntime
+    })).toEqual({ outcome: "blocked", issueCode: "invalidActionId" });
+    expect(now).not.toHaveBeenCalled();
+    expect(uuidRuntime).not.toHaveBeenCalled();
+  });
+
   it("preserves project values, revisions, and history through preparation and finalization", async () => {
     const project = canvasProject();
     const before = structuredClone(project);
