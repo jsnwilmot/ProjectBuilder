@@ -1,5 +1,43 @@
 # Change Log
 
+## 2026-09-01 - Phase 5C.3C.3J.6C.2 - Canvas Core Extraction Golden Reference
+
+### Summary
+
+- Added a focused Canvas golden-reference suite for future Project Builder Core extraction.
+- Froze the current project-type inventory, seven-field Canvas confirmation registry, text-only confirmation value contract, Storage 7 identity, repository confirmation deltas, replay/race/archive/quarantine boundaries, and zero downstream authority.
+- Preserved production behavior: core extraction is not implemented, Storage remains 7, confirmation UI remains unauthorized, `confirmedIntake` materialization remains 0, and project-type expansion remains unauthorized.
+
+### Files updated
+
+- `src/tests/projectBuilderCoreExtractionGolden.test.ts` - new cross-module golden contract for Canvas extraction safety.
+- `src/tests/helpers/projectBuilderCoreExtractionGolden.ts` - deterministic Storage 7, UUID, timestamp, project, and request helpers for the golden suite.
+- `CHANGE_LOG.md` - phase record.
+- `TEST_PLAN.md` - golden-reference validation matrix.
+- `APP_BLUEPRINT.md` - Canvas golden-reference boundary note.
+- `CODEX_INSTRUCTIONS.md` - core-extraction golden guardrail.
+- `NEXT_STEPS.md` - review-branch and extraction boundary update.
+
+### Testing completed
+
+- Focused Canvas golden-reference suite passed 10 tests.
+- The 27-file affected matrix passed 1,018 tests.
+- Full validation passed 85 unit/integration files with 3,018 tests and 7 UI files with 75 tests, for 92 files and 3,093 tests combined.
+- Coverage validation passed the same 92 combined files and 3,093 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 146 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
+### Issues found
+
+- None in the focused golden suite.
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory development audit reports 7 tooling findings; production dependencies report 0 vulnerabilities and dependency remediation is outside scope.
+
+### Remaining work
+
+- GPT Architect review is required before any core extraction, Canvas production refactor, generic core module, second-domain implementation, confirmation UI, `confirmedIntake` materialization, Storage schema change, or project-type expansion.
+- TTI remains Draft with all 15 blockers. This phase resolves no TTI blocker.
+
 ## 2026-09-01 - Phase 5C.3C.3J.6B.10R - Full Serialization Integrity Correction
 
 ### Summary

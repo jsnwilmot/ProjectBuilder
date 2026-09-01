@@ -28,3 +28,9 @@ Do not add authentication, a database, analytics, billing, paid services, or ext
 - Never repair malformed provenance during normalization or grant it confirmation, Planning, readiness, projection, Apply, YAML, package, or output authority.
 - Keep the confirmation source registry closed to the approved seven Canvas strings until the Architect approves a later phase.
 - After Storage 7 production adoption, do not deploy a Storage-6-only rollback or hotfix against the production key; rollback code must remain Storage-7-aware.
+
+## Core extraction golden guardrail
+
+- The Canvas golden-reference suite in `src/tests/projectBuilderCoreExtractionGolden.test.ts` freezes the current extraction safety contract. Core extraction is not yet implemented.
+- Future extraction must preserve equivalent Canvas behavior across the seven-field confirmation registry, text-only confirmation contract, Storage 7 persistence/replay/race/quarantine semantics, Planning zero-authority boundaries, generated-output exclusion, and lifecycle behavior.
+- Do not add generic core production modules, domain registries, domain adapters, second-domain confirmation behavior, confirmation UI, `confirmedIntake` source materialization, canonical-fact bindings, readiness/projection/Apply/output authority, Storage 8, migrations, or project-type expansion without explicit GPT Architect approval.

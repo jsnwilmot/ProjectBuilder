@@ -1,5 +1,24 @@
 # Test Plan
 
+## 2026-09-01 Phase 5C.3C.3J.6C.2 Canvas core extraction golden reference
+
+1. Verify the extraction baseline remains 17 typed project presets, 16 selectable presets, and one legacy nonselectable `microsoft365` preset.
+2. Verify `powerAppsCanvas` remains the deep reference implementation and all current non-Canvas project types have zero applicable confirmation source fields.
+3. Verify the Canvas confirmation registry remains exactly seven source IDs and seven closed accessor IDs, with text-only value kind, current normalization, canonical text JSON serialization, SHA-256 fingerprinting, and unchanged confirmation contract identity.
+4. Verify Planning source authority vocabulary remains `confirmed`, `approved`, and `informational`, and Planning proposal value kinds do not authorize broader confirmation value kinds.
+5. Verify new Canvas projects receive seven current confirmation revisions and non-Canvas projects receive zero, with Canvas-to-non-Canvas removal, non-Canvas-to-Canvas fresh addition, and no silent revival of old revisions.
+6. Verify registered Canvas value changes rotate exactly the affected revision, unchanged registered values do not rotate, `A -> B -> A` creates fresh identities, and confirmation persistence itself does not rotate revisions.
+7. Verify one-field first confirmation, seven-field batch confirmation, same-revision reconfirmation, changed-revision reconfirmation, linear supersession, exact replay, stale-head rejection, action-reuse mismatch rejection, and UUID/timestamp/write counts.
+8. Verify repository persistence keeps ordinary project values unchanged except existing empty Planning normalization, appends only authorized confirmation events, guards raw Storage 7 races, performs no automatic write retry, allows archived exact replay, blocks new archived confirmation, preserves unrelated quarantine, and keeps serializer full-state identity.
+9. Verify duplication creates fresh current revision IDs with zero event transfer, and archive/restore preserve existing provenance without adding events.
+10. Verify canonical-fact bindings remain exactly one, `confirmedIntake` materializers remain zero, automatic Planning source materialization remains zero, mapping exact/projector/authority counts remain zero, YAML remains `partialProjection`, and `yamlStatus` receives zero confirmation/readiness/projection authority.
+11. Verify confirmation provenance does not leak into generated package content and does not independently grant generated document, package, output, readiness, projection, or Controlled Apply authority.
+12. Verify no confirmation UI wiring, generic core production module, domain registry, domain adapter, Canvas adapter, second-domain adapter, Storage schema, migration, dependency, Node, CI, Wrangler, or deployment change is introduced.
+13. Regress confirmation registry/accessors/provenance/fingerprint/transaction/revision reconciliation, Storage 7 repository persistence, Planning proposals/rules/mappings, canonical-fact evidence, Controlled Apply, Canvas target validation, Canvas traceability, generated documents/export, and lifecycle/duplication.
+14. Run the focused golden suite, affected regression matrix, full unit/integration suite, UI suite, combined test runner, coverage, ESLint, app TypeScript build, production audit, advisory development audit report-only, exact-scope checks, topology checks, preserved-stash checks, one review commit, push, and remote verification.
+
+Validation result: passed. Focused Canvas golden-reference suite passed 10 tests. The 27-file affected matrix passed 1,018 tests. Full validation passed 85 unit/integration files with 3,018 tests and 7 UI files with 75 tests, for 92 files and 3,093 tests combined. Coverage validation passed the same 92 combined files and 3,093 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 146 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
 ## 2026-09-01 Phase 5C.3C.3J.6B.10R full serialization integrity correction
 
 1. Verify `serializeStateWithQuarantines` builds the complete expected Storage 7 JSON data model after quarantine reinsertion and before invoking the injectable serializer.

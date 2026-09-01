@@ -28,6 +28,12 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - Explicit confirmation events are persisted only by the repository-owned `confirmProjectFields` transaction, using append-only validation, exact replay, guarded race recovery, and full Storage 7 serializer round-trip structural identity after quarantine reinsertion.
 - Confirmation evidence grants no Planning, readiness, projection, Apply, YAML, package, or output authority.
 
+### Canvas golden reference
+
+- `src/tests/projectBuilderCoreExtractionGolden.test.ts` establishes the current Power Apps Canvas golden reference for future Project Builder Core extraction.
+- Core extraction is not yet implemented; the suite protects equivalent Canvas behavior before production modules are moved or generalized.
+- Project-type expansion, second-domain confirmation behavior, generic domain registries, confirmation UI, `confirmedIntake` materialization, new canonical-fact bindings, readiness authority, Controlled Apply expansion, Storage schema changes, and migrations remain unauthorized.
+
 - React components own display and user interaction.
 - `useProjectBuilder` coordinates the active record with the versioned project repository.
 - `createProject.ts` creates complete records with safe defaults.
@@ -38,7 +44,7 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - `exportManifest.ts` creates stable Markdown and JSON export diagnostics.
 - `exportProjectPackage.ts` writes verified folders, core files, and manifests in deterministic order.
 - `src/data/intakeStages.ts` is the single source for intake fields, stages, and progress metadata.
-- `src/data/projectTypes.ts` defines the 15 typed project presets, recommended platforms, conditional modules, structured branding questions, and project-specific fields.
+- `src/data/projectTypes.ts` defines the 17 typed project presets, including 16 selectable presets and one legacy nonselectable preset, with recommended platforms, conditional modules, structured branding questions, and project-specific fields.
 - `src/data/packageGuidance.ts` is the shared source for the post-generation Architect/Codex workflow used by the UI and generated documents.
 - `src/types/project.ts` is the single source for project and review status values.
 - `src/data/generatedFiles.ts` derives the generated-file list from the canonical folder mapping.
