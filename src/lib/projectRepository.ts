@@ -923,7 +923,6 @@ function serializeStateWithQuarantines(
     return { outcome: "blocked" };
   }
   const projects = Array.isArray(serializable.projects) ? serializable.projects : [];
-  const expectedProjects = projects.map((project) => cloneParsedJsonValue(project));
 
   for (const quarantine of snapshot.quarantines.values()) {
     const project = projects.find((candidate) =>
@@ -936,6 +935,7 @@ function serializeStateWithQuarantines(
       delete project.confirmationProvenance;
     }
   }
+  const expectedSerializedDataModel = cloneParsedJsonValue(serializable);
 
   let value: string;
   let roundTrip: unknown;
@@ -948,30 +948,7 @@ function serializeStateWithQuarantines(
   if (!isRecord(roundTrip) || roundTrip.version !== CURRENT_STORAGE_VERSION || !Array.isArray(roundTrip.projects)) {
     return { outcome: "blocked" };
   }
-
-  for (const expectedProject of expectedProjects) {
-    if (!isRecord(expectedProject) || !isRecord(expectedProject.identity)) return { outcome: "blocked" };
-    const projectId = expectedProject.identity.id;
-    if (typeof projectId !== "string" || snapshot.quarantines.has(projectId)) continue;
-    const matches = roundTrip.projects.filter((candidate) =>
-      isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === projectId
-    );
-    if (matches.length !== 1 || !parsedJsonStructurallyEqual(matches[0], expectedProject)) {
-      return { outcome: "blocked" };
-    }
-  }
-
-  for (const quarantine of snapshot.quarantines.values()) {
-    const project = roundTrip.projects.find((candidate) =>
-      isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === quarantine.projectId
-    );
-    if (!project || !isRecord(project)) continue;
-    const present = Object.prototype.hasOwnProperty.call(project, "confirmationProvenance");
-    if (present !== quarantine.rawProvenancePropertyPresent) return { outcome: "blocked" };
-    if (present && !parsedJsonStructurallyEqual(project.confirmationProvenance, quarantine.rawProvenance)) {
-      return { outcome: "blocked" };
-    }
-  }
+  if (!parsedJsonStructurallyEqual(roundTrip, expectedSerializedDataModel)) return { outcome: "blocked" };
   return { outcome: "serialized", value };
 }
 

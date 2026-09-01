@@ -1,5 +1,22 @@
 # Test Plan
 
+## 2026-09-01 Phase 5C.3C.3J.6B.10R full serialization integrity correction
+
+1. Verify `serializeStateWithQuarantines` builds the complete expected Storage 7 JSON data model after quarantine reinsertion and before invoking the injectable serializer.
+2. Verify the parsed serializer output must be structurally identical to the complete expected data model, including version, `activeProjectId`, project array length, ordering, membership, all healthy fields, all quarantined ordinary fields, raw quarantined provenance, null/missing distinctions, nested objects, nested arrays, and unknown parsed JSON properties.
+3. Verify serializer-level unexpected project insertion blocks before storage write and leaves raw storage unchanged.
+4. Verify serializer-level `activeProjectId` mutation blocks before storage write and leaves the persisted active project unchanged.
+5. Verify serializer-level ordinary-field mutation on an unrelated quarantined project blocks while preserving its exact raw malformed `confirmationProvenance`.
+6. Verify serializer-level project array reordering blocks because confirmation persistence authorizes no repository-array ordering changes.
+7. Verify the existing unauthorized confirmation-event append tamper regression remains blocked with zero storage writes.
+8. Verify ordinary JSON serialization still allows first confirmation, seven-field batch confirmation, reconfirmation, exact replay, race recovery, and quarantine preservation.
+9. Verify `confirmProjectFields` API, action-context derivation, preparation, replay, archived behavior, finalization, append-only validator, candidate construction, private `confirmationCommit` intent, raw-storage race guard, one read-only recovery pass, and zero automatic write retries remain unchanged.
+10. Verify zero confirmation UI, repository action-initiation API, current-token repository API, single-flight, `confirmedIntake` sources, canonical bindings, readiness/projection/Apply/yamlStatus/generated-output authority, new confirmation registries, Storage schema, migration, dependency, Node, CI, Wrangler, or deployment changes.
+11. Regress confirmation persistence, confirmation transaction/provenance/fingerprint/runtime, Storage 7, quarantine, CRUD/lifecycle, Power Platform revisions, Planning materialization, Controlled Apply, canonical-fact evidence, and generated-output/export paths.
+12. Run focused Storage 7 tests, the affected regression matrix, full unit/integration and UI tests, coverage, ESLint, app TypeScript checking, production build, production audit, advisory development audit, diff/scope checks, topology checks, preserved-stash checks, one linear correction commit, push, and remote verification.
+
+Validation result: passed. Focused Storage 7 repository persistence passed 72 tests. The 22-file affected matrix passed 678 tests. Full validation passed 84 unit/integration files with 3,008 tests and 7 UI files with 75 tests, for 91 files and 3,083 tests combined. Coverage validation passed the same 91 files and 3,083 tests, with 89.68% statements, 82.63% branches, 95.27% functions, and 93.33% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 146 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 6 findings (2 moderate, 4 high); no remediation was performed.
+
 ## 2026-09-01 Phase 5C.3C.3J.6B.10 explicit confirmation repository persistence
 
 1. Verify `confirmProjectFields(request, storage?, runtime?)` is the only repository API added for explicit confirmation persistence and writes only Storage 7 projects.

@@ -1006,10 +1006,12 @@ describe("Storage 7 explicit confirmation repository persistence", () => {
   });
 
   it("blocks serializer-level append-only tampering without persisting a partial confirmation", async () => {
-    const storage = new MemoryStorage();
+    const storage = new ControlledReadStorage();
     const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
     const request = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A);
+    storage.resetObservations();
     const before = storage.getItem(STORAGE_KEY);
+    storage.resetObservations();
     const runtime = {
       ...confirmationRuntime(405, TIMESTAMP_A),
       serialize: (value: unknown) => {
@@ -1023,7 +1025,114 @@ describe("Storage 7 explicit confirmation repository persistence", () => {
 
     const result = await confirmProjectFields(request, storage, runtime);
     expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageBlocked" }] });
+    expect(storage.writtenKeys).toEqual([]);
     expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("blocks serializer-level unexpected project insertion before storage write", async () => {
+    const storage = new ControlledReadStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const request = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A);
+    storage.resetObservations();
+    const before = storage.getItem(STORAGE_KEY);
+    storage.resetObservations();
+
+    const result = await confirmProjectFields(request, storage, {
+      ...confirmationRuntime(410, TIMESTAMP_A),
+      serialize: (value: unknown) => {
+        const parsed = JSON.parse(JSON.stringify(value)) as { projects?: ProjectRecord[] };
+        parsed.projects?.push(canonicalProject("webApplication", "serializer-added-project", 700));
+        return JSON.stringify(parsed);
+      }
+    });
+
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageBlocked" }] });
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("blocks serializer-level active project tampering before storage write", async () => {
+    const storage = new ControlledReadStorage();
+    const target = canonicalProject("powerAppsCanvas", "active-tamper-target", 720);
+    const other = canonicalProject("webApplication", "active-tamper-other", 740);
+    seedStorage7(storage, [target, other], target.identity.id);
+    const request = await confirmationRequestFor(target, ACTION_A);
+    storage.resetObservations();
+    const before = storage.getItem(STORAGE_KEY);
+    storage.resetObservations();
+
+    const result = await confirmProjectFields(request, storage, {
+      ...confirmationRuntime(420, TIMESTAMP_A),
+      serialize: (value: unknown) => {
+        const parsed = JSON.parse(JSON.stringify(value)) as { activeProjectId?: string };
+        parsed.activeProjectId = other.identity.id;
+        return JSON.stringify(parsed);
+      }
+    });
+
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageBlocked" }] });
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    expect(persistedState(storage).activeProjectId).toBe(target.identity.id);
+  });
+
+  it("blocks serializer-level ordinary-field tampering on an unrelated quarantined project", async () => {
+    const storage = new ControlledReadStorage();
+    const healthy = canonicalProject("powerAppsCanvas", "quarantine-tamper-target", 760);
+    const quarantined = createProjectRecord({
+      identity: { id: "quarantine-tamper-other", projectName: "Original Quarantined" },
+      intake: { appType: "powerAppsCanvas" }
+    });
+    const malformed = { contractVersion: "bad", nested: { preserved: uuid(780) } };
+    seedStorage7(storage, [
+      healthy,
+      { ...quarantined, confirmationProvenance: malformed as unknown as ProjectConfirmationProvenance }
+    ], healthy.identity.id);
+    const request = await confirmationRequestFor(healthy, ACTION_A);
+    storage.resetObservations();
+    const before = storage.getItem(STORAGE_KEY);
+    storage.resetObservations();
+
+    const result = await confirmProjectFields(request, storage, {
+      ...confirmationRuntime(430, TIMESTAMP_A),
+      serialize: (value: unknown) => {
+        const parsed = JSON.parse(JSON.stringify(value)) as { projects?: ProjectRecord[] };
+        const target = parsed.projects?.find((candidate) => candidate.identity.id === quarantined.identity.id);
+        if (target) target.identity.projectName = "Tampered Quarantined";
+        return JSON.stringify(parsed);
+      }
+    });
+
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageBlocked" }] });
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    expect(rawProvenance(storage, quarantined.identity.id)).toEqual(malformed);
+  });
+
+  it("blocks serializer-level project array reordering before storage write", async () => {
+    const storage = new ControlledReadStorage();
+    const target = canonicalProject("powerAppsCanvas", "order-tamper-target", 800);
+    const other = canonicalProject("webApplication", "order-tamper-other", 820);
+    seedStorage7(storage, [target, other], target.identity.id);
+    const request = await confirmationRequestFor(target, ACTION_A);
+    storage.resetObservations();
+    const before = storage.getItem(STORAGE_KEY);
+    storage.resetObservations();
+
+    const result = await confirmProjectFields(request, storage, {
+      ...confirmationRuntime(440, TIMESTAMP_A),
+      serialize: (value: unknown) => {
+        const parsed = JSON.parse(JSON.stringify(value)) as { projects?: ProjectRecord[] };
+        parsed.projects?.reverse();
+        return JSON.stringify(parsed);
+      }
+    });
+
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageBlocked" }] });
+    expect(storage.writtenKeys).toEqual([]);
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    expect(persistedState(storage).projects.map((candidate) => candidate.identity.id))
+      .toEqual([target.identity.id, other.identity.id]);
   });
 
   it("preserves generic provenance bypass defenses and unrelated quarantined raw provenance", async () => {
