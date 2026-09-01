@@ -569,7 +569,7 @@ describe("Project Builder Core extraction Canvas golden reference", () => {
     expect(JSON.parse(storage.getItem(STORAGE_KEY)!)).toEqual(state);
   });
 
-  it("documents source-level architectural zeros for UI, generic core, second domain, and materialization boundaries", () => {
+  it("documents source-level behavioral zeros for UI, second domain, and materialization boundaries", () => {
     const productionFiles = listProductionFiles("src");
     const appAndComponentSource = productionFiles
       .filter((file) => file.startsWith("src/app/") || file.startsWith("src/components/"))
@@ -577,8 +577,6 @@ describe("Project Builder Core extraction Canvas golden reference", () => {
       .join("\n");
     expect(appAndComponentSource).not.toContain("confirmProjectFields");
 
-    expect(productionFiles.some((file) => /src\/(?:core|lib\/core)\//.test(file))).toBe(false);
-    expect(productionFiles.some((file) => /domain(?:Registry|Adapter)|Domain(?:Registry|Adapter)/.test(file))).toBe(false);
     expect(productionFiles.some((file) => /webApplication.*confirmation|confirmation.*webApplication/i.test(readFileSync(file, "utf8"))))
       .toBe(false);
 

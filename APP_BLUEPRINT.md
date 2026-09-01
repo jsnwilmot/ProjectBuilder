@@ -32,6 +32,7 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 
 - `src/tests/projectBuilderCoreExtractionGolden.test.ts` establishes the current Power Apps Canvas golden reference for future Project Builder Core extraction.
 - Core extraction is not yet implemented; the suite protects equivalent Canvas behavior before production modules are moved or generalized.
+- The golden reference freezes semantic behavior, persisted data compatibility, authority boundaries, Canvas source identities, confirmation semantics, replay/idempotency, revision semantics, Storage 7 behavior, quarantine, generated-output exclusion, and downstream zero-authority boundaries. It does not freeze the absence of future approved core directories, domain registries, domain adapters, or Canvas adapters as file topology.
 - Project-type expansion, second-domain confirmation behavior, generic domain registries, confirmation UI, `confirmedIntake` materialization, new canonical-fact bindings, readiness authority, Controlled Apply expansion, Storage schema changes, and migrations remain unauthorized.
 
 - React components own display and user interaction.

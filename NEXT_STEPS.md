@@ -3,10 +3,11 @@
 ## Phase 5C.3C.3J.6C.2 review boundary
 
 1. Keep `review/phase-5c3c3j6c2-canvas-golden-reference` for independent GPT Architect review.
-2. Treat the Canvas golden-reference suite as the extraction safety contract before any Project Builder Core refactor.
+2. Treat the Canvas golden-reference suite as the behavioral extraction safety contract before any Project Builder Core refactor.
 3. Do not refactor or move Canvas-derived production architecture until GPT Architect approves the extraction phase.
 4. Keep Storage 7 unchanged and keep confirmation UI, `confirmedIntake` materialization, second reference-domain implementation, and project-type expansion unauthorized.
 5. TTI remains Draft with 15 blockers; the golden-reference tests resolve none of those project-specific blockers.
+6. Do not treat future approved core directories, domain registries, domain adapters, or Canvas adapters as golden-reference failures when the exercised Canvas contracts remain equivalent.
 
 ## Storage 7 release boundary
 

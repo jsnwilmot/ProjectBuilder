@@ -1,5 +1,15 @@
 # Test Plan
 
+## 2026-09-01 Phase 5C.3C.3J.6C.2R Canvas golden reference topology-neutral correction
+
+1. Verify the Canvas golden-reference suite removes source topology bans for `src/core`, `src/lib/core`, `DomainRegistry`, and `DomainAdapter`.
+2. Verify the corrected suite still protects project-type baseline, seven Canvas confirmation sources, seven accessors, text-only value kind, revision reconciliation, semantic revision rotation, confirmation persistence, reconfirmation, supersession, replay, stale-head rejection, action-reuse safety, UUID rules, race recovery, archive behavior, quarantine behavior, duplication behavior, serializer full-state identity, canonical binding baseline, Planning/readiness zero-authority, generated-output exclusion, and Storage 7 structural behavior.
+3. Verify current no-UI wiring, `confirmedIntake` materializer absence, second-domain confirmation absence, and zero canonical/readiness/projection/Apply/output/yamlStatus authority remain covered as behavior and authority boundaries.
+4. Verify no production source files, runtime behavior, Storage schema, migrations, confirmation contract, registry widening, dependencies, Node, CI, Wrangler, or deployment changes are introduced.
+5. Run the corrected golden suite, affected regression matrix, full unit/integration suite, UI suite, combined test runner, coverage, ESLint, app TypeScript build, production audit, advisory development audit report-only, exact-scope checks, preserved-stash checks, one linear correction commit, push, and remote verification.
+
+Validation result: passed. Corrected Canvas golden-reference suite passed 10 tests. The 27-file affected confirmation, Storage 7, Planning, Controlled Apply, Canvas validation, lifecycle, generation, and export matrix passed 1,018 tests. Full validation passed 85 unit/integration files with 3,018 tests and 7 UI files with 75 tests, for 92 files and 3,093 tests combined. Coverage validation passed the same 92 combined files and 3,093 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 146 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
 ## 2026-09-01 Phase 5C.3C.3J.6C.2 Canvas core extraction golden reference
 
 1. Verify the extraction baseline remains 17 typed project presets, 16 selectable presets, and one legacy nonselectable `microsoft365` preset.
@@ -13,7 +23,7 @@
 9. Verify duplication creates fresh current revision IDs with zero event transfer, and archive/restore preserve existing provenance without adding events.
 10. Verify canonical-fact bindings remain exactly one, `confirmedIntake` materializers remain zero, automatic Planning source materialization remains zero, mapping exact/projector/authority counts remain zero, YAML remains `partialProjection`, and `yamlStatus` receives zero confirmation/readiness/projection authority.
 11. Verify confirmation provenance does not leak into generated package content and does not independently grant generated document, package, output, readiness, projection, or Controlled Apply authority.
-12. Verify no confirmation UI wiring, generic core production module, domain registry, domain adapter, Canvas adapter, second-domain adapter, Storage schema, migration, dependency, Node, CI, Wrangler, or deployment change is introduced.
+12. Verify no confirmation UI wiring, second-domain adapter, Storage schema, migration, dependency, Node, CI, Wrangler, or deployment change is introduced; generic core production module, domain registry, domain adapter, and Canvas adapter absence remain current scope facts, not permanent golden behavioral assertions.
 13. Regress confirmation registry/accessors/provenance/fingerprint/transaction/revision reconciliation, Storage 7 repository persistence, Planning proposals/rules/mappings, canonical-fact evidence, Controlled Apply, Canvas target validation, Canvas traceability, generated documents/export, and lifecycle/duplication.
 14. Run the focused golden suite, affected regression matrix, full unit/integration suite, UI suite, combined test runner, coverage, ESLint, app TypeScript build, production audit, advisory development audit report-only, exact-scope checks, topology checks, preserved-stash checks, one review commit, push, and remote verification.
 

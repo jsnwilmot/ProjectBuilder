@@ -1,5 +1,40 @@
 # Change Log
 
+## 2026-09-01 - Phase 5C.3C.3J.6C.2R - Canvas Golden Reference Topology-Neutral Correction
+
+### Summary
+
+- Removed the Canvas golden-reference assertions that permanently banned future `src/core` or `src/lib/core` directories and `DomainRegistry` or `DomainAdapter` names.
+- Kept the golden suite focused on behavior and authority boundaries: Canvas source identities, text-only confirmation semantics, replay/idempotency, revision behavior, Storage 7 persistence, quarantine, generated-output exclusion, no confirmation UI wiring, `confirmedIntake` materialization zero, second-domain zero, and downstream zero-authority assertions.
+- Preserved production behavior: core extraction is still not implemented, Storage remains 7, confirmation UI remains unauthorized, `confirmedIntake` materialization remains 0, and project-type expansion remains unauthorized.
+
+### Files updated
+
+- `src/tests/projectBuilderCoreExtractionGolden.test.ts` - removes topology-coupled assertions while retaining behavior and authority-source scans.
+- `CHANGE_LOG.md` - correction record.
+- `TEST_PLAN.md` - topology-neutral correction validation matrix.
+- `APP_BLUEPRINT.md` - clarifies the golden reference freezes behavior, not future core file topology.
+- `CODEX_INSTRUCTIONS.md` - clarifies future approved topology must not fail the golden suite solely by file or name presence.
+- `NEXT_STEPS.md` - clarifies the extraction safety contract is behavioral.
+
+### Testing completed
+
+- Corrected Canvas golden-reference suite passed 10 tests.
+- The 27-file affected confirmation, Storage 7, Planning, Controlled Apply, Canvas validation, lifecycle, generation, and export matrix passed 1,018 tests.
+- Full validation passed 85 unit/integration files with 3,018 tests and 7 UI files with 75 tests, for 92 files and 3,093 tests combined.
+- Coverage validation passed the same 92 combined files and 3,093 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 146 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
+### Issues found
+
+- High: the rejected 6C.2 golden suite encoded temporary implementation topology as permanent behavior by banning core directories and domain registry/adapter names.
+
+### Remaining work
+
+- Commit exactly one linear correction commit, push only `review/phase-5c3c3j6c2-canvas-golden-reference`, and return to GPT Architect for independent re-review.
+- TTI remains Draft with all 15 blockers. This correction resolves no TTI blocker and adds no confirmation UI, `confirmedIntake` Planning source materialization, canonical bindings, readiness consumer, projection, Apply, YAML, output authority, dependency, Node, CI, or deployment change.
+
 ## 2026-09-01 - Phase 5C.3C.3J.6C.2 - Canvas Core Extraction Golden Reference
 
 ### Summary

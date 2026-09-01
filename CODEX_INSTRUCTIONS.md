@@ -33,4 +33,5 @@ Do not add authentication, a database, analytics, billing, paid services, or ext
 
 - The Canvas golden-reference suite in `src/tests/projectBuilderCoreExtractionGolden.test.ts` freezes the current extraction safety contract. Core extraction is not yet implemented.
 - Future extraction must preserve equivalent Canvas behavior across the seven-field confirmation registry, text-only confirmation contract, Storage 7 persistence/replay/race/quarantine semantics, Planning zero-authority boundaries, generated-output exclusion, and lifecycle behavior.
+- The golden suite must remain topology-neutral for future approved extraction: creating core directories, domain registries, domain adapters, or Canvas adapters must not fail the suite solely because those files or names exist.
 - Do not add generic core production modules, domain registries, domain adapters, second-domain confirmation behavior, confirmation UI, `confirmedIntake` source materialization, canonical-fact bindings, readiness/projection/Apply/output authority, Storage 8, migrations, or project-type expansion without explicit GPT Architect approval.
