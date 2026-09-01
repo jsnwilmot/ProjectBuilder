@@ -2,11 +2,11 @@
 
 ## Storage 7 release boundary
 
-1. Keep Phase 5C.3C.3J.6B.6 on its review branch until independent GPT Architect approval.
-2. Integrate Storage 7 only as the complete atomic migration, provenance, reconciliation, central-writer, and quarantine unit.
+1. Keep Phase 5C.3C.3J.6B.10 on its review branch until independent GPT Architect approval.
+2. Integrate Storage 7 and explicit confirmation persistence only as the complete atomic migration, provenance, reconciliation, central-writer, quarantine, confirmation-commit, replay, and race-recovery unit.
 3. Once Storage 7 is written in production, never redeploy a Storage-6-only build against `gpt-project-builder.storage.v2`.
 4. Any rollback or emergency hotfix after production Storage 7 adoption must remain Storage-7-aware; backward writes are not supported.
-5. Do not add confirmation actions/UI, `confirmedIntake` sources, readiness/output authority, or resolve TTI blockers without a later explicit Architect phase.
+5. Do not add confirmation UI, `confirmedIntake` sources, readiness/output authority, or resolve TTI blockers without a later explicit Architect phase.
 
 ## Use This Project Package
 

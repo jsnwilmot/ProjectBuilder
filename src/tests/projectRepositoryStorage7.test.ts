@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ALL_PROJECT_TYPE_VALUES } from "../data/projectTypes";
 import { createProject as createProjectRecord } from "../lib/createProject";
 import {
   PROJECT_CONFIRMATION_CONTRACT_VERSION,
   PROJECT_CONFIRMATION_SOURCE_FIELD_IDS,
   type ProjectConfirmationProvenance,
-  type ProjectConfirmationSourceFieldId
+  type ProjectConfirmationSourceFieldId,
+  type ProjectFieldConfirmationEvent
 } from "../lib/projectConfirmationProvenance";
 import { createInitialProjectConfirmationProvenance } from "../lib/projectConfirmationRevisionReconciliation";
 import {
@@ -14,6 +15,7 @@ import {
   STORAGE_KEY,
   archiveProject,
   clearPersistenceWarning,
+  confirmProjectFields,
   createProject,
   deleteProject,
   duplicateProject,
@@ -30,9 +32,14 @@ import {
   updateProjectPowerPlatform,
   updateReadinessConfirmation,
   updateReviewItem,
+  type ProjectConfirmationRepositoryRuntime,
   type RepositoryPersistenceRuntime,
   type StorageAdapter
 } from "../lib/projectRepository";
+import {
+  deriveProjectConfirmationCurrentFields,
+  type ProjectConfirmationRequest
+} from "../lib/projectConfirmationTransaction";
 import type { PowerPlatformCanvasData, ProjectRecord, StorageVersion } from "../types/project";
 
 class MemoryStorage implements StorageAdapter {
@@ -182,6 +189,93 @@ function validEvent(
     },
     ...overrides
   };
+}
+
+const ACTION_A = uuid(300);
+const ACTION_B = uuid(301);
+const ACTION_C = uuid(302);
+const TIMESTAMP_A = "2026-08-31T12:00:00.000Z";
+const TIMESTAMP_B = "2026-08-31T12:05:00.000Z";
+let testCryptoUuidIndex = 900;
+const testCrypto = {
+  randomUUID: () => uuid(testCryptoUuidIndex++),
+  subtle: {
+    digest: async (_algorithm: string, data: BufferSource): Promise<ArrayBuffer> => {
+      const bytes = data instanceof ArrayBuffer
+        ? new Uint8Array(data)
+        : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+      const output = new Uint8Array(32);
+      bytes.forEach((byte, index) => {
+        output[index % output.length] = (output[index % output.length] + byte + index) % 256;
+      });
+      return output.buffer;
+    }
+  }
+} as Crypto;
+
+beforeEach(() => {
+  testCryptoUuidIndex = 900;
+  vi.stubGlobal("crypto", testCrypto);
+});
+
+function confirmationRuntime(
+  start: number,
+  timestamp = TIMESTAMP_A
+): ProjectConfirmationRepositoryRuntime & { uuidCalls: () => number; timestampCalls: () => number } {
+  let index = start;
+  let uuids = 0;
+  let timestamps = 0;
+  return {
+    uuid: () => {
+      uuids += 1;
+      return uuid(index++);
+    },
+    now: () => {
+      timestamps += 1;
+      return timestamp;
+    },
+    uuidCalls: () => uuids,
+    timestampCalls: () => timestamps
+  };
+}
+
+async function confirmationRequestFor(
+  project: ProjectRecord,
+  actionId = ACTION_A,
+  sourceIds: readonly ProjectConfirmationSourceFieldId[] = [PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0]]
+): Promise<ProjectConfirmationRequest> {
+  const current = await deriveProjectConfirmationCurrentFields(project);
+  if (current.outcome !== "derived") throw new Error(`Current fields failed: ${current.issueCode}`);
+  const currentById = new Map(current.fields.map((field) => [field.sourceFieldId, field] as const));
+  const fields = sourceIds.map((sourceFieldId) => {
+    const field = currentById.get(sourceFieldId);
+    if (!field) throw new Error(`Missing field ${sourceFieldId}`);
+    return {
+      sourceFieldId,
+      expectedRevisionId: field.currentRevisionId,
+      expectedValueFingerprint: field.currentValueFingerprint,
+      expectedConfirmationHeadId: field.currentConfirmationHeadId
+    };
+  });
+  return {
+    projectId: project.identity.id,
+    confirmationActionId: actionId,
+    fields: fields as [ProjectConfirmationRequest["fields"][number], ...ProjectConfirmationRequest["fields"][number][]]
+  };
+}
+
+function persistedState(storage: StorageAdapter): { version: number; activeProjectId: string | null; projects: ProjectRecord[] } {
+  return JSON.parse(storage.getItem(STORAGE_KEY)!) as { version: number; activeProjectId: string | null; projects: ProjectRecord[] };
+}
+
+function persistedProject(storage: StorageAdapter, projectId: string): ProjectRecord {
+  const project = persistedState(storage).projects.find((candidate) => candidate.identity.id === projectId);
+  if (!project) throw new Error(`Missing persisted project ${projectId}`);
+  return project;
+}
+
+function eventsFor(storage: StorageAdapter, projectId: string): readonly ProjectFieldConfirmationEvent[] {
+  return persistedProject(storage, projectId).confirmationProvenance!.confirmationEvents;
 }
 
 describe("Storage 7 migration and persistence", () => {
@@ -636,6 +730,337 @@ describe("Storage 7 creation, duplication, and revisions", () => {
     expect(updateProjectFields(project.identity.id, { appPurpose: "Persisted" }, storage)).not.toBeNull();
     expect(getPersistenceWarning()).toBeNull();
     clearPersistenceWarning();
+  });
+});
+
+describe("Storage 7 explicit confirmation repository persistence", () => {
+  it("persists a first one-field confirmation with zero downstream authority and no ordinary field mutation", async () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const before = structuredClone(persistedProject(storage, project.identity.id));
+    const request = await confirmationRequestFor(before, ACTION_A, [PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0]]);
+    const result = await confirmProjectFields(request, storage, confirmationRuntime(200, TIMESTAMP_A));
+
+    expect(result.outcome).toBe("persistedNewAction");
+    if (result.outcome !== "persistedNewAction") return;
+    expect(result.evidence).toMatchObject({
+      projectId: project.identity.id,
+      confirmationActionId: ACTION_A,
+      confirmedAt: TIMESTAMP_A,
+      canonicalAuthority: false,
+      readinessAuthority: false,
+      projectionAuthority: false,
+      applyAuthority: false,
+      outputAuthority: false
+    });
+    const after = persistedProject(storage, project.identity.id);
+    expect(after.confirmationProvenance!.confirmationEvents).toHaveLength(1);
+    expect(after.confirmationProvenance!.confirmationEvents[0]).toMatchObject({
+      sourceFieldId: PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0],
+      sourceFieldRevisionId: request.fields[0].expectedRevisionId,
+      valueFingerprint: request.fields[0].expectedValueFingerprint,
+      confirmationActionId: ACTION_A,
+      confirmedAt: TIMESTAMP_A
+    });
+    expect(after.confirmationProvenance!.fieldRevisions).toEqual(before.confirmationProvenance!.fieldRevisions);
+    const { confirmationProvenance: _afterProvenance, planning: afterPlanning, ...afterWithoutConfirmation } = after;
+    const { confirmationProvenance: _beforeProvenance, planning: _beforePlanning, ...beforeWithoutConfirmation } = before;
+    expect(afterWithoutConfirmation).toEqual(beforeWithoutConfirmation);
+    expect(afterPlanning?.sources ?? []).toEqual([]);
+  });
+
+  it("persists a seven-field batch atomically in registry order with one action ID and timestamp", async () => {
+    const storage = new ControlledReadStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    storage.resetObservations();
+    const request = await confirmationRequestFor(
+      persistedProject(storage, project.identity.id),
+      ACTION_A,
+      [...PROJECT_CONFIRMATION_SOURCE_FIELD_IDS].reverse()
+    );
+    const runtime = confirmationRuntime(220, TIMESTAMP_A);
+    const result = await confirmProjectFields(request, storage, runtime);
+
+    expect(result.outcome).toBe("persistedNewAction");
+    expect(runtime.uuidCalls()).toBe(7);
+    expect(runtime.timestampCalls()).toBe(1);
+    expect(storage.writtenKeys).toEqual([STORAGE_KEY]);
+    const events = eventsFor(storage, project.identity.id);
+    expect(events).toHaveLength(7);
+    expect(events.map((event) => event.sourceFieldId)).toEqual(PROJECT_CONFIRMATION_SOURCE_FIELD_IDS);
+    expect(new Set(events.map((event) => event.confirmationActionId))).toEqual(new Set([ACTION_A]));
+    expect(new Set(events.map((event) => event.confirmedAt))).toEqual(new Set([TIMESTAMP_A]));
+  });
+
+  it("persists same-revision and changed-revision reconfirmations as linear supersession with new actions", async () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const sourceId = PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0];
+    const firstRequest = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A, [sourceId]);
+    const first = await confirmProjectFields(firstRequest, storage, confirmationRuntime(240, TIMESTAMP_A));
+    expect(first.outcome).toBe("persistedNewAction");
+    if (first.outcome !== "persistedNewAction") return;
+
+    const sameRevisionRequest = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_B, [sourceId]);
+    const sameRevision = await confirmProjectFields(sameRevisionRequest, storage, confirmationRuntime(250, TIMESTAMP_B));
+    expect(sameRevision.outcome).toBe("persistedNewAction");
+    if (sameRevision.outcome !== "persistedNewAction") return;
+    expect(eventsFor(storage, project.identity.id)[1].supersedesConfirmationId).toBe(first.evidence.fields[0].confirmationId);
+
+    const changed = updateProjectPowerPlatform(project.identity.id, (current) => ({
+      ...current!,
+      canvas: { ...current!.canvas!, fullScreenYamlRequired: "Changed for reconfirmation" }
+    }), storage, sequenceRuntime(260))!;
+    const changedRequest = await confirmationRequestFor(changed, ACTION_C, [sourceId]);
+    const changedRevision = await confirmProjectFields(changedRequest, storage, confirmationRuntime(270, TIMESTAMP_B));
+    expect(changedRevision.outcome).toBe("persistedNewAction");
+    expect(eventsFor(storage, project.identity.id)).toHaveLength(3);
+    expect(eventsFor(storage, project.identity.id)[2].supersedesConfirmationId).toBe(sameRevision.evidence.fields[0].confirmationId);
+  });
+
+  it("returns exact sequential replay and response-lost retry without UUIDs, timestamps, or writes", async () => {
+    const storage = new ControlledReadStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const request = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A);
+    const first = await confirmProjectFields(request, storage, confirmationRuntime(280, TIMESTAMP_A));
+    expect(first.outcome).toBe("persistedNewAction");
+    storage.resetObservations();
+
+    const replay = await confirmProjectFields(request, storage, {
+      uuid: () => { throw new Error("replay must not allocate"); },
+      now: () => { throw new Error("replay must not timestamp"); }
+    });
+
+    expect(replay.outcome).toBe("replayedExistingAction");
+    expect(storage.writtenKeys).toEqual([]);
+    expect(eventsFor(storage, project.identity.id)).toHaveLength(1);
+    if (first.outcome === "persistedNewAction" && replay.outcome === "replayedExistingAction") {
+      expect(replay.evidence).toEqual(first.evidence);
+    }
+  });
+
+  it("recovers a same-action race loser as replay without a second persisted action group", async () => {
+    const base = canonicalProject("powerAppsCanvas", "race-source", 1);
+    const request = await confirmationRequestFor(base, ACTION_A);
+    const winnerStorage = new MemoryStorage();
+    seedStorage7(winnerStorage, [structuredClone(base)]);
+    const winner = await confirmProjectFields(request, winnerStorage, confirmationRuntime(430, TIMESTAMP_A));
+    expect(winner.outcome).toBe("persistedNewAction");
+    const winnerRaw = winnerStorage.getItem(STORAGE_KEY)!;
+
+    const storage = new ControlledReadStorage();
+    seedStorage7(storage, [structuredClone(base)]);
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key === STORAGE_KEY && count === 2) controlled.replaceValue(STORAGE_KEY, winnerRaw);
+    };
+    const runtime = confirmationRuntime(310, TIMESTAMP_B);
+    const result = await confirmProjectFields(request, storage, runtime);
+
+    expect(result.outcome).toBe("replayedExistingAction");
+    expect(storage.writtenKeys).toEqual([]);
+    expect(runtime.uuidCalls()).toBe(1);
+    expect(runtime.timestampCalls()).toBe(1);
+    expect(eventsFor(storage, base.identity.id)).toHaveLength(1);
+    expect(new Set(eventsFor(storage, base.identity.id).map((event) => event.confirmationActionId))).toEqual(new Set([ACTION_A]));
+  });
+
+  it("blocks unrelated raw-storage mismatch without optimistic merge or retry write", async () => {
+    const target = canonicalProject("powerAppsCanvas", "raw-target", 1);
+    const other = canonicalProject("webApplication", "raw-other", 20);
+    const request = await confirmationRequestFor(target, ACTION_A);
+    const storage = new ControlledReadStorage();
+    seedStorage7(storage, [target, other], target.identity.id);
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key !== STORAGE_KEY || count !== 2) return;
+      const parsed = JSON.parse(controlled.rawValue(STORAGE_KEY)!) as ReturnType<typeof persistedState>;
+      controlled.replaceValue(STORAGE_KEY, JSON.stringify({ ...parsed, activeProjectId: other.identity.id }));
+    };
+    const result = await confirmProjectFields(request, storage, confirmationRuntime(320, TIMESTAMP_A));
+
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageChangedBeforeWrite" }] });
+    expect(storage.writtenKeys).toEqual([]);
+    expect(eventsFor(storage, target.identity.id)).toHaveLength(0);
+  });
+
+  it("blocks new actions on archived projects but allows archived exact replay", async () => {
+    const storage = new ControlledReadStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const request = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A);
+    const first = await confirmProjectFields(request, storage, confirmationRuntime(330, TIMESTAMP_A));
+    expect(first.outcome).toBe("persistedNewAction");
+    archiveProject(project.identity.id, storage, TIMESTAMP_B);
+    storage.resetObservations();
+
+    const replay = await confirmProjectFields(request, storage, {
+      uuid: () => { throw new Error("archived replay must not allocate"); },
+      now: () => { throw new Error("archived replay must not timestamp"); }
+    });
+    expect(replay.outcome).toBe("replayedExistingAction");
+    expect(storage.writtenKeys).toEqual([]);
+
+    const freshArchivedRequest = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_B);
+    const runtime = confirmationRuntime(340, TIMESTAMP_A);
+    const blocked = await confirmProjectFields(freshArchivedRequest, storage, runtime);
+    expect(blocked).toMatchObject({ outcome: "blocked", issues: [{ code: "projectArchived" }] });
+    expect(runtime.uuidCalls()).toBe(0);
+    expect(runtime.timestampCalls()).toBe(0);
+
+    restoreProject(project.identity.id, storage, TIMESTAMP_B);
+    const restoredRequest = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_C);
+    await expect(confirmProjectFields(restoredRequest, storage, confirmationRuntime(350, TIMESTAMP_B)))
+      .resolves.toMatchObject({ outcome: "persistedNewAction" });
+  });
+
+  it("fails closed for delete, project-type, quarantine, archive, and active-project races", async () => {
+    const base = canonicalProject("powerAppsCanvas", "race-target", 1);
+    const request = await confirmationRequestFor(base, ACTION_A);
+    const raceCases: Array<[string, (project: ProjectRecord) => ProjectRecord | null, string]> = [
+      ["delete", () => null, "projectNotFound"],
+      ["type", (project) => ({
+        ...project,
+        intake: { ...project.intake, appType: "webApplication" },
+        confirmationProvenance: initialProvenance("webApplication", 500)
+      }), "unsupportedProjectType"],
+      ["quarantine", (project) => ({ ...project, confirmationProvenance: { invalid: true } as unknown as ProjectConfirmationProvenance }), "quarantinedProject"],
+      ["archive", (project) => ({ ...project, archivedAt: TIMESTAMP_A }), "projectArchived"]
+    ];
+
+    for (const [, mutate, code] of raceCases) {
+      const storage = new ControlledReadStorage();
+      seedStorage7(storage, [structuredClone(base)]);
+      storage.resetObservations();
+      storage.onRead = (key, count, controlled) => {
+        if (key !== STORAGE_KEY || count !== 2) return;
+        const nextProject = mutate(structuredClone(base));
+        controlled.replaceValue(STORAGE_KEY, JSON.stringify({
+          version: 7,
+          activeProjectId: nextProject?.identity.id ?? null,
+          projects: nextProject ? [nextProject] : []
+        }));
+      };
+      const result = await confirmProjectFields(request, storage, confirmationRuntime(360, TIMESTAMP_A));
+      expect(result).toMatchObject({ outcome: "blocked", issues: [{ code }] });
+      expect(storage.writtenKeys).toEqual([]);
+    }
+
+    const storage = new ControlledReadStorage();
+    const other = canonicalProject("webApplication", "active-other", 40);
+    seedStorage7(storage, [structuredClone(base), other], base.identity.id);
+    storage.resetObservations();
+    storage.onRead = (key, count, controlled) => {
+      if (key === STORAGE_KEY && count === 2) {
+        const parsed = JSON.parse(controlled.rawValue(STORAGE_KEY)!) as ReturnType<typeof persistedState>;
+        controlled.replaceValue(STORAGE_KEY, JSON.stringify({ ...parsed, activeProjectId: other.identity.id }));
+      }
+    };
+    await expect(confirmProjectFields(request, storage, confirmationRuntime(370, TIMESTAMP_A)))
+      .resolves.toMatchObject({ outcome: "blocked", issues: [{ code: "storageChangedBeforeWrite" }] });
+    expect(storage.writtenKeys).toEqual([]);
+  });
+
+  it("blocks action, UUID, timestamp, and quarantine UUID collisions without partial persistence", async () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const persisted = persistedProject(storage, project.identity.id);
+    const existingRevisionId = persisted.confirmationProvenance!.fieldRevisions[PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0]]!.revisionId;
+    const collidingActionRequest = await confirmationRequestFor(persisted, existingRevisionId, [PROJECT_CONFIRMATION_SOURCE_FIELD_IDS[0]]);
+    await expect(confirmProjectFields(collidingActionRequest, storage, confirmationRuntime(380, TIMESTAMP_A)))
+      .resolves.toMatchObject({ outcome: "blocked", issues: [{ code: "actionIdCollision" }] });
+
+    const request = await confirmationRequestFor(persisted, ACTION_A);
+    for (const [runtime, code] of [
+      [{ uuid: () => existingRevisionId, now: () => TIMESTAMP_A }, "uuidCollision"],
+      [{ uuid: () => "not-a-uuid", now: () => TIMESTAMP_A }, "uuidInvalid"],
+      [{ uuid: () => { throw new Error("missing"); }, now: () => TIMESTAMP_A }, "uuidUnavailable"],
+      [{ uuid: () => uuid(390), now: () => { throw new Error("clock"); } }, "timestampUnavailable"],
+      [{ uuid: () => uuid(391), now: () => "not-a-time" }, "timestampInvalid"]
+    ] as const) {
+      const before = storage.getItem(STORAGE_KEY);
+      await expect(confirmProjectFields(request, storage, runtime)).resolves
+        .toMatchObject({ outcome: "blocked", issues: [{ code }] });
+      expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    }
+
+    const quarantined = createProjectRecord({ identity: { id: "quarantine-collision" }, intake: { appType: "powerAppsCanvas" } });
+    seedStorage7(storage, [
+      persistedProject(storage, project.identity.id),
+      { ...quarantined, confirmationProvenance: { invalid: uuid(392) } as unknown as ProjectConfirmationProvenance }
+    ], project.identity.id);
+    await expect(confirmProjectFields(request, storage, { uuid: () => uuid(392), now: () => TIMESTAMP_A }))
+      .resolves.toMatchObject({ outcome: "blocked", issues: [{ code: "uuidCollision" }] });
+  });
+
+  it("returns persistenceFailed and preserves storage when setItem throws", async () => {
+    const storage = new FailingWriteStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const request = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A);
+    const before = storage.getItem(STORAGE_KEY);
+    storage.failWrites = true;
+
+    const result = await confirmProjectFields(request, storage, confirmationRuntime(400, TIMESTAMP_A));
+    expect(result).toMatchObject({ outcome: "persistenceFailed", issues: [{ code: "persistenceFailed" }] });
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+    expect(getPersistenceWarning()).toMatch(/could not save/i);
+  });
+
+  it("blocks serializer-level append-only tampering without persisting a partial confirmation", async () => {
+    const storage = new MemoryStorage();
+    const project = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const request = await confirmationRequestFor(persistedProject(storage, project.identity.id), ACTION_A);
+    const before = storage.getItem(STORAGE_KEY);
+    const runtime = {
+      ...confirmationRuntime(405, TIMESTAMP_A),
+      serialize: (value: unknown) => {
+        const parsed = JSON.parse(JSON.stringify(value)) as { projects?: ProjectRecord[] };
+        const target = parsed.projects?.find((candidate) => candidate.identity.id === project.identity.id);
+        const events = target?.confirmationProvenance?.confirmationEvents as ProjectFieldConfirmationEvent[] | undefined;
+        events?.push(validEvent(uuid(406), ACTION_B) as unknown as ProjectFieldConfirmationEvent);
+        return JSON.stringify(parsed);
+      }
+    };
+
+    const result = await confirmProjectFields(request, storage, runtime);
+    expect(result).toMatchObject({ outcome: "blocked", issues: [{ code: "storageBlocked" }] });
+    expect(storage.getItem(STORAGE_KEY)).toBe(before);
+  });
+
+  it("preserves generic provenance bypass defenses and unrelated quarantined raw provenance", async () => {
+    const storage = new MemoryStorage();
+    const healthy = createProject({ intake: { appType: "powerAppsCanvas" } }, storage, sequenceRuntime(1));
+    const quarantined = createProjectRecord({ identity: { id: "confirmation-quarantine" }, intake: { appType: "powerAppsCanvas" } });
+    const malformed = { contractVersion: "bad", nested: { reserved: uuid(410) } };
+    seedStorage7(storage, [
+      persistedProject(storage, healthy.identity.id),
+      { ...quarantined, confirmationProvenance: malformed as unknown as ProjectConfirmationProvenance }
+    ], healthy.identity.id);
+
+    const request = await confirmationRequestFor(persistedProject(storage, healthy.identity.id), ACTION_A);
+    await expect(confirmProjectFields(request, storage, confirmationRuntime(420, TIMESTAMP_A)))
+      .resolves.toMatchObject({ outcome: "persistedNewAction" });
+    expect(rawProvenance(storage, quarantined.identity.id)).toEqual(malformed);
+    const afterConfirmation = storage.getItem(STORAGE_KEY);
+
+    expect(updateProject(healthy.identity.id, (current) => ({
+      ...current,
+      confirmationProvenance: {
+        ...current.confirmationProvenance!,
+        fieldRevisions: {}
+      }
+    }), storage)).toBeNull();
+    expect(storage.getItem(STORAGE_KEY)).toBe(afterConfirmation);
+
+    const state = loadStorageState(storage);
+    state.projects[0] = {
+      ...state.projects[0],
+      confirmationProvenance: {
+        ...state.projects[0].confirmationProvenance!,
+        confirmationEvents: []
+      }
+    };
+    saveStorageState(state, storage);
+    expect(storage.getItem(STORAGE_KEY)).toBe(afterConfirmation);
   });
 });
 

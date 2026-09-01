@@ -25,7 +25,8 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - Every canonical Storage 7 project has valid `confirmationProvenance`; Storage 1-6 records migrate atomically before writes are enabled.
 - Repository transactions alone allocate strict `globalThis.crypto.randomUUID()` provenance IDs and reconcile the seven registered Canvas source revisions.
 - Malformed provenance is non-authoritative and held only in bounded, non-persisted quarantine metadata. Unrelated writes must preserve its parsed JSON structure exactly or fail closed.
-- Confirmation events are not created in this phase. Provenance supplies revision identity only and grants no Planning, readiness, projection, Apply, YAML, package, or output authority.
+- Explicit confirmation events are persisted only by the repository-owned `confirmProjectFields` transaction, using append-only validation, exact replay, and guarded race recovery.
+- Confirmation evidence grants no Planning, readiness, projection, Apply, YAML, package, or output authority.
 
 - React components own display and user interaction.
 - `useProjectBuilder` coordinates the active record with the versioned project repository.

@@ -1,5 +1,42 @@
 # Change Log
 
+## 2026-09-01 - Phase 5C.3C.3J.6B.10 - Explicit Confirmation Repository Persistence
+
+### Summary
+
+- Added the repository-owned `confirmProjectFields(request, storage?, runtime?)` transaction for Storage 7 explicit confirmation persistence.
+- Persisted new confirmation actions only through a bounded private `confirmationCommit` intent with compare-before-write storage guards, append-only provenance validation, one read-only recovery pass, exact replay, and idempotent same-action retry behavior.
+- Preserved malformed provenance quarantine structure for unrelated projects and kept confirmation evidence non-authoritative for Planning, readiness, projection, Apply, YAML, package, and generated output.
+
+### Files updated
+
+- `src/lib/projectRepository.ts` - confirmation repository transaction, replay/recovery handling, confirmation commit write path, append-only validation, and serialization integrity guards.
+- `src/tests/projectRepositoryStorage7.test.ts` - first confirmation, seven-field batch, reconfirmation, replay, response-lost retry, race, archive, collision, write failure, bypass, and quarantine preservation coverage.
+- `CHANGE_LOG.md` - implementation record.
+- `TEST_PLAN.md` - validation matrix and measured gate results.
+- `APP_BLUEPRINT.md` - Storage 7 runtime boundary update.
+- `CODEX_INSTRUCTIONS.md` - Storage 7 confirmation persistence boundary update.
+- `NEXT_STEPS.md` - review-branch boundary update.
+
+### Testing completed
+
+- Focused Storage 7 repository suite passed 68 tests.
+- The 11-file affected repository, confirmation, Planning-boundary, and Power Platform regression matrix passed 389 tests.
+- Full validation passed 84 unit/integration files with 3,004 tests and 7 UI files with 75 tests, for 91 files and 3,079 tests combined.
+- Coverage validation passed the same 91 files and 3,079 tests, with 89.67% statements, 82.63% branches, 95.27% functions, and 93.33% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 146 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 6 findings (2 moderate, 4 high); no remediation was performed.
+
+### Issues found
+
+- Low: the existing Vite large-chunk warning remains unchanged.
+- Low: the advisory development audit reports 6 tooling findings; production dependencies report 0 vulnerabilities and dependency remediation is outside scope.
+
+### Remaining work
+
+- Phase 5C.3C.3J.6B.10 remains pending independent GPT Architect review. Main remains unchanged and this review branch must not be merged without Architect approval.
+- TTI remains Draft with all 15 blockers. This phase adds no confirmation UI, `confirmedIntake` Planning source materialization, canonical bindings, readiness consumer, projection, Apply, YAML, output authority, dependency, Node, CI, or deployment change.
+
 ## 2026-08-28 - Phase 5C.3C.3J.6B.6R - Storage 7 Integrity Review Correction
 
 ### Summary

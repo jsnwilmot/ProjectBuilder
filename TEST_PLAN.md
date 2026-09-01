@@ -1,5 +1,25 @@
 # Test Plan
 
+## 2026-09-01 Phase 5C.3C.3J.6B.10 explicit confirmation repository persistence
+
+1. Verify `confirmProjectFields(request, storage?, runtime?)` is the only repository API added for explicit confirmation persistence and writes only Storage 7 projects.
+2. Verify first confirmation persists immutable confirmation events for selected Canvas source fields without changing field revisions, registered field values, generated output, readiness, Apply, projection, or Planning source authority.
+3. Verify seven-field batch confirmation is atomic, sorted by the fixed registry order, uses exactly one action ID, one timestamp, and one confirmation ID per field.
+4. Verify same-revision and changed-revision reconfirmation append linear supersession events without rewriting prior events.
+5. Verify exact sequential replay and response-lost retry return persisted action evidence without UUID allocation, timestamp allocation, or storage writes.
+6. Verify same-action races recover by one read-only replay pass when the winning write is already persisted.
+7. Verify unrelated raw-storage mismatch, active-project race, delete race, project-type race, quarantine race, and archive race fail closed without optimistic merge or retry write.
+8. Verify archived projects allow exact replay but block new confirmation actions until restored.
+9. Verify action ID collisions, confirmation UUID collisions, quarantine UUID collisions, invalid UUIDs, unavailable UUIDs, invalid timestamps, unavailable timestamps, and final validation failures leave storage unchanged.
+10. Verify `setItem` failure returns bounded `persistenceFailed`, preserves storage, and exposes the existing persistence warning.
+11. Verify malformed unrelated provenance remains quarantined and structurally preserved through confirmation writes, while generic provenance bypass attempts remain blocked.
+12. Verify serialization integrity blocks mutated healthy project data and confirmation commit writes are routed through the bounded private `confirmationCommit` intent.
+13. Verify zero confirmation UI, `confirmedIntake` Planning source materialization, canonical binding, readiness consumer, Phase Gate, Controlled Apply expansion, YAML status, generated-output authority, schema, migration, dependency, Node, CI, Wrangler, or deployment changes.
+14. Regress confirmation transaction/provenance/runtime/fingerprint, Storage 7 repository behavior, repository CRUD, Power Platform revision reconciliation, canonical-fact evidence isolation, and Controlled Apply boundaries.
+15. Run focused Storage 7 tests, the affected regression matrix, full unit/integration and UI tests, coverage, ESLint, app TypeScript checking, production build, production audit, advisory development audit, diff/scope checks, topology checks, preserved-stash checks, one review commit, push, and remote verification.
+
+Validation result: passed. Focused Storage 7 repository persistence passed 68 tests. The 11-file affected matrix passed 389 tests. Full validation passed 84 unit/integration files with 3,004 tests and 7 UI files with 75 tests, for 91 files and 3,079 tests combined. Coverage validation passed the same 91 files and 3,079 tests, with 89.67% statements, 82.63% branches, 95.27% functions, and 93.33% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 146 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 6 findings (2 moderate, 4 high); no remediation was performed.
+
 ## 2026-08-28 Phase 5C.3C.3J.6B.6R Storage 7 integrity review correction
 
 1. Verify Canvas creation forbids every UUID represented by valid repository provenance and every canonical UUID recursively discoverable in all quarantined raw provenance subtrees.

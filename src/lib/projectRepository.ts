@@ -15,9 +15,20 @@ import {
 } from "./clientReview";
 import { duplicatePowerPlatformForProject, normalizePowerPlatformData } from "./powerPlatform";
 import {
+  isCanonicalProjectConfirmationUuid,
   validateProjectConfirmationProvenance,
-  type ProjectConfirmationProvenance
+  type ProjectConfirmationProvenance,
+  type ProjectFieldConfirmationEvent
 } from "./projectConfirmationProvenance";
+import {
+  finalizeProjectConfirmationTransaction,
+  prepareProjectConfirmationTransaction,
+  type ProjectConfirmationActionEvidence,
+  type ProjectConfirmationActionIdContext,
+  type ProjectConfirmationFinalizationRuntime,
+  type ProjectConfirmationRequest,
+  type ProjectConfirmationTransactionIssueCode
+} from "./projectConfirmationTransaction";
 import {
   analyzeProjectConfirmationRevisionReconciliation,
   applicableProjectConfirmationSourceFieldIds,
@@ -156,6 +167,17 @@ interface RepositoryReadSnapshot extends RepositoryReadStatus {
   readonly quarantines: ReadonlyMap<string, ProjectConfirmationQuarantineSidecar>;
 }
 
+type ProjectConfirmationResolution =
+  | { readonly outcome: "found"; readonly project: ProjectRecord }
+  | { readonly outcome: "missing" }
+  | { readonly outcome: "ambiguous" };
+
+type PreciseStorageWriteResult =
+  | { readonly outcome: "written" }
+  | { readonly outcome: "blocked" }
+  | { readonly outcome: "storageChangedBeforeWrite" }
+  | { readonly outcome: "persistenceFailed" };
+
 type RepositoryWriteIntent =
   | { readonly kind: "generic" }
   | { readonly kind: "create"; readonly projectId: string }
@@ -165,7 +187,48 @@ type RepositoryWriteIntent =
   | { readonly kind: "archiveRestore"; readonly projectId: string }
   | { readonly kind: "activeProjectOnly" }
   | { readonly kind: "planning"; readonly projectId: string }
+  | { readonly kind: "confirmationCommit"; readonly projectId: string; readonly confirmationActionId: string }
   | { readonly kind: "controlledApply"; readonly projectId: string };
+
+export type ProjectConfirmationRepositoryIssueCode =
+  | ProjectConfirmationTransactionIssueCode
+  | "storageBlocked"
+  | "projectNotFound"
+  | "ambiguousProject"
+  | "quarantinedProject"
+  | "projectArchived"
+  | "storageChangedBeforeWrite"
+  | "persistenceFailed";
+
+export interface ProjectConfirmationRepositoryIssue {
+  readonly code: ProjectConfirmationRepositoryIssueCode;
+  readonly message: string;
+}
+
+export type ProjectConfirmationRepositoryResult =
+  | {
+      readonly outcome: "persistedNewAction";
+      readonly issues: readonly [];
+      readonly evidence: ProjectConfirmationActionEvidence;
+    }
+  | {
+      readonly outcome: "replayedExistingAction";
+      readonly issues: readonly [];
+      readonly evidence: ProjectConfirmationActionEvidence;
+    }
+  | {
+      readonly outcome: "blocked";
+      readonly issues: readonly ProjectConfirmationRepositoryIssue[];
+      readonly evidence?: undefined;
+    }
+  | {
+      readonly outcome: "persistenceFailed";
+      readonly issues: readonly ProjectConfirmationRepositoryIssue[];
+      readonly evidence?: undefined;
+    };
+
+export interface ProjectConfirmationRepositoryRuntime
+  extends RepositoryPersistenceRuntime, ProjectConfirmationFinalizationRuntime {}
 
 export type PlanningControlledApplyRepositoryIssueCode =
   | "invalidProjectId"
@@ -633,6 +696,194 @@ function collectRepositoryReservedProvenanceUuids(snapshot: RepositoryReadSnapsh
   return reserved;
 }
 
+function confirmationIssue(
+  code: ProjectConfirmationRepositoryIssueCode,
+  message = confirmationIssueMessage(code)
+): ProjectConfirmationRepositoryIssue {
+  return Object.freeze({ code, message });
+}
+
+function confirmationBlocked(
+  code: ProjectConfirmationRepositoryIssueCode,
+  message?: string
+): ProjectConfirmationRepositoryResult {
+  return deepFreeze({ outcome: "blocked", issues: [confirmationIssue(code, message)] });
+}
+
+function confirmationPersistenceFailed(): ProjectConfirmationRepositoryResult {
+  return deepFreeze({
+    outcome: "persistenceFailed",
+    issues: [confirmationIssue("persistenceFailed")]
+  });
+}
+
+function confirmationIssueMessage(code: ProjectConfirmationRepositoryIssueCode): string {
+  switch (code) {
+    case "invalidRequest": return "Explicit confirmation requires a valid request.";
+    case "invalidProjectId": return "Explicit confirmation requires a valid project ID.";
+    case "invalidActionId": return "Explicit confirmation requires a valid confirmation action ID.";
+    case "emptyBatch": return "Explicit confirmation requires at least one field.";
+    case "duplicateSourceField": return "Explicit confirmation cannot confirm the same source field twice in one action.";
+    case "unsupportedProjectType": return "Explicit confirmation is supported only for Power Apps Canvas projects.";
+    case "unsupportedSourceField": return "Explicit confirmation requires a supported source field.";
+    case "sourceNotApplicable": return "Explicit confirmation source field is not applicable to this project.";
+    case "sourceValueUnavailable": return "Explicit confirmation source value is unavailable.";
+    case "invalidProvenance": return "Explicit confirmation requires valid confirmation provenance.";
+    case "missingRevision": return "Explicit confirmation requires a current source revision.";
+    case "fingerprintUnavailable": return "Explicit confirmation could not fingerprint the current field value.";
+    case "fingerprintInvalid": return "Explicit confirmation produced an invalid value fingerprint.";
+    case "storageBlocked": return "Explicit confirmation cannot write while repository storage is blocked.";
+    case "projectNotFound": return "Explicit confirmation requires the target project to exist.";
+    case "ambiguousProject": return "Explicit confirmation requires the target project ID to resolve exactly once.";
+    case "quarantinedProject": return "Explicit confirmation is blocked because the target confirmation provenance is quarantined.";
+    case "projectArchived": return "Explicit confirmation cannot create a new action for an archived project.";
+    case "actionIdCollision": return "Explicit confirmation action ID is already reserved for another purpose.";
+    case "actionReplayMismatch": return "Explicit confirmation retry does not match the persisted action.";
+    case "revisionChanged": return "Explicit confirmation was based on a stale field revision.";
+    case "valueChanged": return "Explicit confirmation was based on a stale field value.";
+    case "confirmationHeadChanged": return "Explicit confirmation was based on a stale confirmation lineage head.";
+    case "uuidUnavailable": return "Explicit confirmation could not allocate required confirmation IDs.";
+    case "uuidInvalid": return "Explicit confirmation generated an invalid confirmation ID.";
+    case "uuidCollision": return "Explicit confirmation generated a duplicate confirmation ID.";
+    case "timestampUnavailable": return "Explicit confirmation could not obtain a confirmation timestamp.";
+    case "timestampInvalid": return "Explicit confirmation generated an invalid confirmation timestamp.";
+    case "finalValidationFailed": return "Explicit confirmation failed final provenance validation.";
+    case "storageChangedBeforeWrite": return "Repository storage changed before explicit confirmation could be persisted.";
+    case "persistenceFailed": return "Explicit confirmation could not be persisted.";
+    default: return "Explicit confirmation was blocked by transaction validation.";
+  }
+}
+
+function resolveProjectForConfirmation(
+  state: StorageState,
+  projectId: string
+): ProjectConfirmationResolution {
+  const matches = state.projects.filter((project) => project.identity.id === projectId);
+  if (matches.length === 0) return { outcome: "missing" };
+  if (matches.length !== 1) return { outcome: "ambiguous" };
+  return { outcome: "found", project: matches[0] };
+}
+
+function deriveProjectConfirmationActionIdContext(
+  snapshot: RepositoryReadSnapshot,
+  confirmationActionId: string
+): ProjectConfirmationActionIdContext {
+  const actionProjects = new Set<string>();
+  let nonActionUse = false;
+  let quarantinedUse = false;
+
+  for (const project of snapshot.state.projects) {
+    if (snapshot.quarantines.has(project.identity.id)) continue;
+    const validation = validateProjectConfirmationProvenance(project.confirmationProvenance, {
+      projectId: project.identity.id,
+      applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(project.intake.appType)
+    });
+    if (validation.outcome !== "valid") continue;
+
+    Object.values(validation.provenance.fieldRevisions).forEach((revision) => {
+      if (revision?.revisionId === confirmationActionId) nonActionUse = true;
+    });
+    validation.provenance.confirmationEvents.forEach((event) => {
+      if (event.confirmationActionId === confirmationActionId) actionProjects.add(project.identity.id);
+      if (
+        event.confirmationId === confirmationActionId ||
+        event.sourceFieldRevisionId === confirmationActionId
+      ) {
+        nonActionUse = true;
+      }
+    });
+  }
+
+  snapshot.quarantines.forEach((quarantine) => {
+    if (collectCanonicalUuidsFromParsedJson(quarantine.rawProvenance).has(confirmationActionId)) {
+      quarantinedUse = true;
+    }
+  });
+
+  const categoryCount = (actionProjects.size > 0 ? 1 : 0) + (nonActionUse ? 1 : 0) + (quarantinedUse ? 1 : 0);
+  if (actionProjects.size === 0 && !nonActionUse && !quarantinedUse) {
+    return { confirmationActionId, usage: { kind: "unused" } };
+  }
+  if (actionProjects.size === 1 && categoryCount === 1) {
+    return { confirmationActionId, usage: { kind: "validAction", projectId: [...actionProjects][0] } };
+  }
+  if (actionProjects.size === 0 && nonActionUse && !quarantinedUse) {
+    return { confirmationActionId, usage: { kind: "validNonActionUuid" } };
+  }
+  if (actionProjects.size === 0 && !nonActionUse && quarantinedUse) {
+    return { confirmationActionId, usage: { kind: "quarantinedUuid" } };
+  }
+  return { confirmationActionId, usage: { kind: "ambiguous" } };
+}
+
+function validateConfirmationCommitAppendOnly(
+  current: ProjectConfirmationProvenance,
+  candidate: ProjectConfirmationProvenance,
+  finalizedEvents: readonly ProjectFieldConfirmationEvent[]
+): boolean {
+  if (current.contractVersion !== candidate.contractVersion) return false;
+  if (!parsedJsonStructurallyEqual(current.fieldRevisions, candidate.fieldRevisions)) return false;
+  if (current.confirmationEvents.length > candidate.confirmationEvents.length) return false;
+  if (!current.confirmationEvents.every((event, index) =>
+    parsedJsonStructurallyEqual(event, candidate.confirmationEvents[index])
+  )) {
+    return false;
+  }
+
+  const appended = candidate.confirmationEvents.slice(current.confirmationEvents.length);
+  return appended.length === finalizedEvents.length &&
+    appended.every((event, index) => parsedJsonStructurallyEqual(event, finalizedEvents[index]));
+}
+
+function writePreparedStorage7State(
+  state: StorageState,
+  snapshot: RepositoryReadSnapshot,
+  storage: StorageAdapter,
+  runtime: RepositoryPersistenceRuntime,
+  warnOnStorageChanged: boolean
+): PreciseStorageWriteResult {
+  if (storage === unavailableStorage) {
+    setPersistenceWarning(STORAGE_UNAVAILABLE_WARNING);
+    return { outcome: "blocked" };
+  }
+  if (state.version !== CURRENT_STORAGE_VERSION) {
+    setPersistenceWarning(STORAGE_MIGRATION_WARNING);
+    return { outcome: "blocked" };
+  }
+
+  const serialized = serializeStateWithQuarantines(state, snapshot, runtime);
+  if (serialized.outcome === "blocked") {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return { outcome: "blocked" };
+  }
+
+  const currentGuard = readStorageValue(storage, STORAGE_KEY);
+  if (currentGuard.outcome === "blocked") {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return { outcome: "blocked" };
+  }
+  if (currentGuard.value !== snapshot.rawCurrentStorage) {
+    if (warnOnStorageChanged) setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return { outcome: "storageChangedBeforeWrite" };
+  }
+
+  try {
+    storage.setItem(STORAGE_KEY, serialized.value);
+    setPersistenceWarning(null);
+    return { outcome: "written" };
+  } catch {
+    setPersistenceWarning(STORAGE_WRITE_WARNING);
+    return { outcome: "persistenceFailed" };
+  }
+}
+
+function deepFreeze<T>(input: T): T {
+  if (typeof input !== "object" || input === null || Object.isFrozen(input)) return input;
+  Object.freeze(input);
+  Object.values(input).forEach((value) => deepFreeze(value));
+  return input;
+}
+
 function registeredConfirmationValuesEqual(current: ProjectRecord, candidate: ProjectRecord): boolean {
   const currentCanvas = current.powerPlatform?.canvas;
   const candidateCanvas = candidate.powerPlatform?.canvas;
@@ -672,6 +923,7 @@ function serializeStateWithQuarantines(
     return { outcome: "blocked" };
   }
   const projects = Array.isArray(serializable.projects) ? serializable.projects : [];
+  const expectedProjects = projects.map((project) => cloneParsedJsonValue(project));
 
   for (const quarantine of snapshot.quarantines.values()) {
     const project = projects.find((candidate) =>
@@ -697,6 +949,18 @@ function serializeStateWithQuarantines(
     return { outcome: "blocked" };
   }
 
+  for (const expectedProject of expectedProjects) {
+    if (!isRecord(expectedProject) || !isRecord(expectedProject.identity)) return { outcome: "blocked" };
+    const projectId = expectedProject.identity.id;
+    if (typeof projectId !== "string" || snapshot.quarantines.has(projectId)) continue;
+    const matches = roundTrip.projects.filter((candidate) =>
+      isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === projectId
+    );
+    if (matches.length !== 1 || !parsedJsonStructurallyEqual(matches[0], expectedProject)) {
+      return { outcome: "blocked" };
+    }
+  }
+
   for (const quarantine of snapshot.quarantines.values()) {
     const project = roundTrip.projects.find((candidate) =>
       isRecord(candidate) && isRecord(candidate.identity) && candidate.identity.id === quarantine.projectId
@@ -709,6 +973,38 @@ function serializeStateWithQuarantines(
     }
   }
   return { outcome: "serialized", value };
+}
+
+function writeConfirmationStorage7State(
+  state: StorageState,
+  snapshot: RepositoryReadSnapshot,
+  storage: StorageAdapter,
+  runtime: RepositoryPersistenceRuntime,
+  intent: Extract<RepositoryWriteIntent, { readonly kind: "confirmationCommit" }>
+): PreciseStorageWriteResult {
+  if (intent.projectId.length === 0 || !isCanonicalProjectConfirmationUuid(intent.confirmationActionId)) {
+    return { outcome: "blocked" };
+  }
+
+  const targetProjects = state.projects.filter((project) => project.identity.id === intent.projectId);
+  if (targetProjects.length !== 1 || snapshot.quarantines.has(intent.projectId)) {
+    return { outcome: "blocked" };
+  }
+
+  const targetProject = targetProjects[0];
+  const validation = validateProjectConfirmationProvenance(targetProject.confirmationProvenance, {
+    projectId: targetProject.identity.id,
+    applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(targetProject.intake.appType)
+  });
+  if (validation.outcome !== "valid") return { outcome: "blocked" };
+
+  if (!validation.provenance.confirmationEvents.some((event) =>
+    event.confirmationActionId === intent.confirmationActionId
+  )) {
+    return { outcome: "blocked" };
+  }
+
+  return writePreparedStorage7State(state, snapshot, storage, runtime, false);
 }
 
 function writeCurrentStorageState(
@@ -884,25 +1180,7 @@ function writeCurrentStorageState(
     }
   }
 
-  const serialized = serializeStateWithQuarantines(nonQuarantinedState, snapshot, runtime);
-  if (serialized.outcome === "blocked") {
-    setPersistenceWarning(STORAGE_WRITE_WARNING);
-    return false;
-  }
-
-  const currentGuard = readStorageValue(storage, STORAGE_KEY);
-  if (currentGuard.outcome === "blocked" || currentGuard.value !== snapshot.rawCurrentStorage) {
-    setPersistenceWarning(STORAGE_WRITE_WARNING);
-    return false;
-  }
-  try {
-    storage.setItem(STORAGE_KEY, serialized.value);
-    setPersistenceWarning(null);
-    return true;
-  } catch {
-    setPersistenceWarning(STORAGE_WRITE_WARNING);
-    return false;
-  }
+  return writePreparedStorage7State(nonQuarantinedState, snapshot, storage, runtime, true).outcome === "written";
 }
 
 export function getRepositoryReadStatus(
@@ -1224,6 +1502,188 @@ export function setActiveProject(id: string, storage: StorageAdapter = browserSt
 export function getActiveProject(storage: StorageAdapter = browserStorage()): ProjectRecord | null {
   const state = loadStorageState(storage);
   return state.projects.find((project) => project.identity.id === state.activeProjectId) ?? null;
+}
+
+async function prepareConfirmationFromSnapshot(
+  snapshot: RepositoryReadSnapshot,
+  request: ProjectConfirmationRequest
+): Promise<
+  | {
+      readonly outcome: "prepared";
+      readonly project: ProjectRecord;
+      readonly preparation: Awaited<ReturnType<typeof prepareProjectConfirmationTransaction>>;
+    }
+  | ProjectConfirmationRepositoryResult
+> {
+  const resolution = resolveProjectForConfirmation(snapshot.state, request.projectId);
+  if (resolution.outcome === "missing") return confirmationBlocked("projectNotFound");
+  if (resolution.outcome === "ambiguous") return confirmationBlocked("ambiguousProject");
+  if (snapshot.quarantines.has(request.projectId)) return confirmationBlocked("quarantinedProject");
+
+  const actionContext = deriveProjectConfirmationActionIdContext(snapshot, request.confirmationActionId);
+  const preparation = await prepareProjectConfirmationTransaction(
+    resolution.project,
+    request,
+    actionContext
+  );
+  return { outcome: "prepared", project: resolution.project, preparation };
+}
+
+function replayedConfirmation(
+  evidence: ProjectConfirmationActionEvidence
+): ProjectConfirmationRepositoryResult {
+  return deepFreeze({ outcome: "replayedExistingAction", issues: [], evidence });
+}
+
+function persistedConfirmation(
+  evidence: ProjectConfirmationActionEvidence
+): ProjectConfirmationRepositoryResult {
+  return deepFreeze({ outcome: "persistedNewAction", issues: [], evidence });
+}
+
+function finalizedActionEvidence(
+  finalized: Extract<
+    ReturnType<typeof finalizeProjectConfirmationTransaction>,
+    { readonly outcome: "finalizedNewAction" }
+  >
+): ProjectConfirmationActionEvidence {
+  return deepFreeze({
+    projectId: finalized.projectId,
+    confirmationActionId: finalized.confirmationActionId,
+    confirmedAt: finalized.confirmedAt,
+    fields: finalized.fields,
+    canonicalAuthority: false,
+    readinessAuthority: false,
+    projectionAuthority: false,
+    applyAuthority: false,
+    outputAuthority: false
+  });
+}
+
+function readRawStorageForConfirmationGuard(
+  storage: StorageAdapter
+): { readonly outcome: "read"; readonly value: string | null } | { readonly outcome: "blocked" } {
+  const current = readStorageValue(storage, STORAGE_KEY);
+  if (current.outcome === "blocked") setPersistenceWarning(STORAGE_WRITE_WARNING);
+  return current;
+}
+
+async function recoverProjectConfirmationReplay(
+  request: ProjectConfirmationRequest,
+  storage: StorageAdapter,
+  runtime: ProjectConfirmationRepositoryRuntime
+): Promise<ProjectConfirmationRepositoryResult> {
+  const snapshot = readRepositorySnapshot(storage, runtime);
+  if (snapshot.writeMode === "blocked") return confirmationBlocked("storageBlocked");
+
+  const prepared = await prepareConfirmationFromSnapshot(snapshot, request);
+  if (prepared.outcome !== "prepared") return prepared;
+
+  if (prepared.preparation.outcome === "preparedReplay") {
+    const guard = readRawStorageForConfirmationGuard(storage);
+    if (guard.outcome === "blocked") return confirmationBlocked("storageBlocked");
+    return guard.value === snapshot.rawCurrentStorage
+      ? replayedConfirmation(prepared.preparation.evidence)
+      : confirmationBlocked("storageChangedBeforeWrite");
+  }
+
+  if (prepared.preparation.outcome === "preparedNewAction") {
+    return prepared.project.archivedAt
+      ? confirmationBlocked("projectArchived")
+      : confirmationBlocked("storageChangedBeforeWrite");
+  }
+
+  return confirmationBlocked(prepared.preparation.issueCode);
+}
+
+export async function confirmProjectFields(
+  request: ProjectConfirmationRequest,
+  storage: StorageAdapter = browserStorage(),
+  runtime: ProjectConfirmationRepositoryRuntime = {}
+): Promise<ProjectConfirmationRepositoryResult> {
+  if (!isRecord(request)) return confirmationBlocked("invalidRequest");
+  if (typeof request.projectId !== "string" || request.projectId.length === 0) {
+    return confirmationBlocked("invalidProjectId");
+  }
+  if (!isCanonicalProjectConfirmationUuid(request.confirmationActionId)) {
+    return confirmationBlocked("invalidActionId");
+  }
+
+  const snapshot = readRepositorySnapshot(storage, runtime);
+  if (snapshot.writeMode === "blocked") return confirmationBlocked("storageBlocked");
+
+  const prepared = await prepareConfirmationFromSnapshot(snapshot, request);
+  if (prepared.outcome !== "prepared") return prepared;
+
+  if (prepared.preparation.outcome === "blocked") {
+    return confirmationBlocked(prepared.preparation.issueCode);
+  }
+
+  if (prepared.preparation.outcome === "preparedReplay") {
+    const guard = readRawStorageForConfirmationGuard(storage);
+    if (guard.outcome === "blocked") return confirmationBlocked("storageBlocked");
+    return guard.value === snapshot.rawCurrentStorage
+      ? replayedConfirmation(prepared.preparation.evidence)
+      : recoverProjectConfirmationReplay(request, storage, runtime);
+  }
+
+  if (prepared.project.archivedAt) return confirmationBlocked("projectArchived");
+
+  const finalized = finalizeProjectConfirmationTransaction(
+    prepared.preparation,
+    collectRepositoryReservedProvenanceUuids(snapshot),
+    runtime
+  );
+  if (finalized.outcome === "blocked") return confirmationBlocked(finalized.issueCode);
+
+  if (!validateConfirmationCommitAppendOnly(
+    prepared.preparation.baseProvenance,
+    finalized.candidateProvenance,
+    finalized.newEvents
+  )) {
+    return confirmationBlocked("finalValidationFailed");
+  }
+
+  const finalValidation = validateProjectConfirmationProvenance(finalized.candidateProvenance, {
+    projectId: prepared.project.identity.id,
+    applicableSourceFieldIds: applicableProjectConfirmationSourceFieldIds(prepared.project.intake.appType)
+  });
+  if (finalValidation.outcome !== "valid") return confirmationBlocked("finalValidationFailed");
+
+  const candidateProject: ProjectRecord = {
+    ...prepared.project,
+    confirmationProvenance: finalValidation.provenance
+  };
+  let replacementCount = 0;
+  const finalState: StorageState = {
+    ...snapshot.state,
+    projects: snapshot.state.projects.map((project) => {
+      if (project.identity.id !== request.projectId) return project;
+      replacementCount += 1;
+      return candidateProject;
+    })
+  };
+  if (replacementCount !== 1 || finalState.version !== CURRENT_STORAGE_VERSION) {
+    return confirmationBlocked("finalValidationFailed");
+  }
+
+  const write = writeConfirmationStorage7State(
+    finalState,
+    snapshot,
+    storage,
+    runtime,
+    {
+      kind: "confirmationCommit",
+      projectId: request.projectId,
+      confirmationActionId: request.confirmationActionId
+    }
+  );
+  if (write.outcome === "written") return persistedConfirmation(finalizedActionEvidence(finalized));
+  if (write.outcome === "storageChangedBeforeWrite") {
+    return recoverProjectConfirmationReplay(request, storage, runtime);
+  }
+  if (write.outcome === "persistenceFailed") return confirmationPersistenceFailed();
+  return confirmationBlocked("storageBlocked");
 }
 
 export async function materializeProjectPlanningClarifications(
