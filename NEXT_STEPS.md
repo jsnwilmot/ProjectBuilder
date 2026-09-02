@@ -1,5 +1,13 @@
 # Next Steps
 
+## Phase 5C.3C.3J.6C.3 review boundary
+
+1. Keep `review/phase-5c3c3j6c3-core-sha256-primitive` for independent GPT Architect review.
+2. Treat `src/core/sha256Fingerprint.ts` as a narrow domain-neutral primitive only; it does not authorize broader Project Builder Core extraction.
+3. Preserve the Planning compatibility wrapper and keep Confirmation value serialization in the Confirmation boundary.
+4. Do not extract repository behavior, confirmation provenance, transaction contracts, source authority, registries, adapters, UI, `confirmedIntake` materialization, readiness authority, Controlled Apply behavior, Storage schemas, migrations, or project-type behavior without a later approved phase.
+5. TTI remains Draft with 15 blockers; this core primitive resolves none of those project-specific blockers.
+
 ## Phase 5C.3C.3J.6C.2 review boundary
 
 1. Keep `review/phase-5c3c3j6c2-canvas-golden-reference` for independent GPT Architect review.

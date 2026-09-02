@@ -19,6 +19,14 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 
 ## Runtime boundaries
 
+### Core SHA-256 primitive
+
+- `src/core/sha256Fingerprint.ts` is the first domain-neutral Project Builder Core primitive.
+- It owns only conversion from JavaScript strings to UTF-8 bytes, `globalThis.crypto.subtle.digest("SHA-256", ...)`, and lowercase two-character-per-byte hexadecimal formatting.
+- Planning keeps its public fingerprint helper as a compatibility wrapper around the core primitive. Confirmation value fingerprinting depends directly on the core primitive while keeping confirmation text serialization in the Confirmation boundary.
+- The primitive imports no Planning, Confirmation, Canvas, Power Platform, repository, registry, adapter, persistence, authority, canonical-fact, readiness, projection, Apply, YAML, package, or generated-output modules.
+- The primitive grants no canonical, Planning, confirmation, readiness, projection, Apply, YAML, package, or output authority.
+
 ### Storage 7 confirmation provenance
 
 - Storage Version 7 is the canonical repository format and retains the `gpt-project-builder.storage.v2` key.
@@ -31,7 +39,7 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 ### Canvas golden reference
 
 - `src/tests/projectBuilderCoreExtractionGolden.test.ts` establishes the current Power Apps Canvas golden reference for future Project Builder Core extraction.
-- Core extraction is not yet implemented; the suite protects equivalent Canvas behavior before production modules are moved or generalized.
+- Broad Project Builder Core extraction is not yet implemented; the suite protects equivalent Canvas behavior before additional production modules are moved or generalized.
 - The golden reference freezes semantic behavior, persisted data compatibility, authority boundaries, Canvas source identities, confirmation semantics, replay/idempotency, revision semantics, Storage 7 behavior, quarantine, generated-output exclusion, and downstream zero-authority boundaries. It does not freeze the absence of future approved core directories, domain registries, domain adapters, or Canvas adapters as file topology.
 - Project-type expansion, second-domain confirmation behavior, generic domain registries, confirmation UI, `confirmedIntake` materialization, new canonical-fact bindings, readiness authority, Controlled Apply expansion, Storage schema changes, and migrations remain unauthorized.
 

@@ -7,6 +7,7 @@ import {
   PLANNING_RULE_SET_VERSION,
   PLANNING_SCHEMA_VERSION
 } from "./planningProposals";
+import { computeSha256Hex } from "../core/sha256Fingerprint";
 import { getPlanningRuleById } from "./planningRules";
 
 export interface PlanningClarificationFingerprintGenerationInput {
@@ -106,12 +107,7 @@ const PERSISTED_IDENTITY_FIELDS = [
 ] as const;
 
 export async function computePlanningSha256Fingerprint(canonicalInput: string): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(canonicalInput)
-  );
-  const bytes = new Uint8Array(digest);
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return computeSha256Hex(canonicalInput);
 }
 
 export async function generatePlanningClarificationFingerprints(

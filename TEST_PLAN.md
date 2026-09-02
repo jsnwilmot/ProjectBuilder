@@ -1,5 +1,19 @@
 # Test Plan
 
+## 2026-09-02 Phase 5C.3C.3J.6C.3 domain-neutral SHA-256 core primitive
+
+1. Verify `src/core/sha256Fingerprint.ts` exposes `computeSha256Hex(input: string): Promise<string>` and owns only UTF-8 encoding, Web Crypto SHA-256 digesting, and lowercase two-character hex encoding.
+2. Verify the core primitive imports no Planning, Confirmation, Canvas, Power Platform, project repository, registry, adapter, persistence, authority, canonical-fact, readiness, projection, Apply, YAML, or generated-output modules.
+3. Verify known SHA-256 outputs for empty string, ASCII input, and non-ASCII UTF-8 input, and verify every digest is lowercase 64-character hex.
+4. Verify the existing Planning helper remains available as a thin compatibility wrapper and preserves unavailable-crypto and rejected-digest classifications as `hashUnavailable` and `hashFailure`.
+5. Verify Confirmation value fingerprinting no longer depends on the Planning helper, keeps `serializeProjectConfirmationTextValue` domain-owned, preserves text-only value kind and `sha256-v1`, and classifies unavailable or rejected crypto as `fingerprintUnavailable`.
+6. Verify Planning and Confirmation equivalence against the new core primitive for current canonical inputs.
+7. Verify Canvas golden-reference behavior remains unchanged, including current source identities, accessors, revision behavior, replay/idempotency, Storage 7 persistence, quarantine, generated-output exclusion, and downstream zero-authority boundaries.
+8. Verify `src/lib/projectRepository.ts`, Storage schemas, migrations, UI, project-type registry, domain registries, domain adapters, Canvas adapters, second-domain behavior, dependencies, Node, CI, Wrangler, deployment, TTI, and external services remain unchanged.
+9. Run focused core, Planning fingerprint, Confirmation fingerprint, Confirmation transaction, Confirmation provenance, Canvas golden-reference, Storage 7, Planning generation/rules, canonical fact evidence, readiness mapping, Controlled Apply, full unit/integration, UI, coverage, ESLint, app TypeScript build, production audit, advisory development audit report-only, exact-scope checks, preserved-stash checks, one linear implementation commit, push, and remote verification.
+
+Validation result: passed. New core SHA-256 suite passed 4 tests. Focused Planning and Confirmation fingerprint suites passed 15 tests. The 19-file affected matrix passed 529 tests across core SHA-256, Planning fingerprints, Confirmation fingerprints, Confirmation transaction, Confirmation provenance, Canvas golden reference, Storage 7 persistence, Planning generation/rules, canonical fact evidence, readiness mapping, and Controlled Apply. Full validation passed 86 unit/integration files with 3,022 tests and 7 UI files with 75 tests, for 93 files and 3,097 tests combined. Coverage validation passed the same 93 combined files and 3,097 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 147 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
 ## 2026-09-01 Phase 5C.3C.3J.6C.2R Canvas golden reference topology-neutral correction
 
 1. Verify the Canvas golden-reference suite removes source topology bans for `src/core`, `src/lib/core`, `DomainRegistry`, and `DomainAdapter`.

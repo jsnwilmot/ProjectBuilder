@@ -1,5 +1,46 @@
 # Change Log
 
+## 2026-09-02 - Phase 5C.3C.3J.6C.3 - Domain-Neutral SHA-256 Core Primitive
+
+### Summary
+
+- Extracted the first Project Builder Core primitive as `computeSha256Hex(input: string): Promise<string>`.
+- Kept the primitive domain-neutral: it owns only UTF-8 encoding, Web Crypto SHA-256 digesting, and lowercase two-character hex encoding.
+- Preserved Planning fingerprint compatibility through the existing Planning wrapper, and changed Confirmation value fingerprinting to depend directly on the core primitive instead of the Planning helper.
+- Preserved text-only confirmation values, `sha256-v1` confirmation fingerprint identity, Storage 7, repository behavior, authority boundaries, Canvas behavior, and generated-output behavior.
+
+### Files updated
+
+- `src/core/sha256Fingerprint.ts` - new domain-neutral SHA-256 UTF-8 to lowercase hex primitive.
+- `src/lib/planningClarificationFingerprints.ts` - delegates the existing Planning SHA-256 helper to the core primitive.
+- `src/lib/projectConfirmationValueFingerprint.ts` - computes confirmation value fingerprints through the core primitive while keeping confirmation serialization domain-owned.
+- `src/tests/coreSha256Fingerprint.test.ts` - verifies known hashes, lowercase hex formatting, domain-neutral imports, Planning equivalence, and Confirmation equivalence.
+- `src/tests/projectConfirmationValueFingerprint.test.ts` - adds exact empty-string and UTF-8 confirmation digest coverage.
+- `CHANGE_LOG.md` - phase record.
+- `TEST_PLAN.md` - core primitive validation matrix.
+- `APP_BLUEPRINT.md` - core primitive runtime-boundary note.
+- `CODEX_INSTRUCTIONS.md` - core primitive guardrail.
+- `NEXT_STEPS.md` - review-branch and extraction boundary update.
+
+### Testing completed
+
+- New core SHA-256 suite passed 4 tests.
+- Focused Planning and Confirmation fingerprint suites passed 15 tests.
+- The 19-file affected matrix passed 529 tests across core SHA-256, Planning fingerprints, Confirmation fingerprints, Confirmation transaction, Confirmation provenance, Canvas golden reference, Storage 7 persistence, Planning generation/rules, canonical fact evidence, readiness mapping, and Controlled Apply.
+- Full validation passed 86 unit/integration files with 3,022 tests and 7 UI files with 75 tests, for 93 files and 3,097 tests combined.
+- Coverage validation passed the same 93 combined files and 3,097 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 147 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
+### Issues found
+
+- None at implementation time.
+
+### Remaining work
+
+- Commit exactly one linear implementation commit, push only `review/phase-5c3c3j6c3-core-sha256-primitive`, and return to GPT Architect for independent review.
+- TTI remains Draft with all 15 blockers. This phase resolves no TTI blocker and adds no confirmation UI, `confirmedIntake` materialization, canonical bindings, readiness consumer, projection, Apply, YAML, output authority, dependency, Node, CI, or deployment change.
+
 ## 2026-09-01 - Phase 5C.3C.3J.6C.2R - Canvas Golden Reference Topology-Neutral Correction
 
 ### Summary

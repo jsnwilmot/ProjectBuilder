@@ -31,7 +31,9 @@ Do not add authentication, a database, analytics, billing, paid services, or ext
 
 ## Core extraction golden guardrail
 
-- The Canvas golden-reference suite in `src/tests/projectBuilderCoreExtractionGolden.test.ts` freezes the current extraction safety contract. Core extraction is not yet implemented.
+- Keep `src/core/sha256Fingerprint.ts` domain-neutral. It may own only UTF-8 encoding, Web Crypto SHA-256 digesting, and lowercase hex formatting, and it must not import Planning, Confirmation, Canvas, Power Platform, repository, registry, adapter, persistence, authority, canonical-fact, readiness, projection, Apply, YAML, package, or generated-output modules.
+- Preserve `computePlanningSha256Fingerprint` as the Planning compatibility wrapper around the core primitive. Confirmation value serialization remains in the Confirmation boundary, and Confirmation value fingerprinting must not depend on the Planning helper.
+- The Canvas golden-reference suite in `src/tests/projectBuilderCoreExtractionGolden.test.ts` freezes the current extraction safety contract. Broad Project Builder Core extraction beyond the approved SHA-256 primitive is not yet implemented.
 - Future extraction must preserve equivalent Canvas behavior across the seven-field confirmation registry, text-only confirmation contract, Storage 7 persistence/replay/race/quarantine semantics, Planning zero-authority boundaries, generated-output exclusion, and lifecycle behavior.
 - The golden suite must remain topology-neutral for future approved extraction: creating core directories, domain registries, domain adapters, or Canvas adapters must not fail the suite solely because those files or names exist.
-- Do not add generic core production modules, domain registries, domain adapters, second-domain confirmation behavior, confirmation UI, `confirmedIntake` source materialization, canonical-fact bindings, readiness/projection/Apply/output authority, Storage 8, migrations, or project-type expansion without explicit GPT Architect approval.
+- Do not add additional generic core production modules, domain registries, domain adapters, second-domain confirmation behavior, confirmation UI, `confirmedIntake` source materialization, canonical-fact bindings, readiness/projection/Apply/output authority, Storage 8, migrations, or project-type expansion without explicit GPT Architect approval.

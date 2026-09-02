@@ -33,6 +33,14 @@ describe("project confirmation value fingerprint", () => {
     expect(new Set(fingerprints.map((result) =>
       result.outcome === "fingerprinted" ? result.fingerprint : result.issueCode
     )).size).toBe(values.length);
+    expect(fingerprints[0]).toEqual({
+      outcome: "fingerprinted",
+      fingerprint: "795e7f04509dd3e39f342a9551946b27f02dbd17c39fd4ac84c4f35f3ce559f5"
+    });
+    expect(fingerprints[4]).toEqual({
+      outcome: "fingerprinted",
+      fingerprint: "0840d879add0a4208c4b9ebdf536720273d9ed598bd8aff2e28a4c413b016720"
+    });
     expect(await computeProjectConfirmationValueFingerprint("Café 東京")).toEqual(fingerprints[4]);
   });
 

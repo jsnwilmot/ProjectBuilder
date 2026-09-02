@@ -1,4 +1,4 @@
-import { computePlanningSha256Fingerprint } from "./planningClarificationFingerprints";
+import { computeSha256Hex } from "../core/sha256Fingerprint";
 import {
   PROJECT_CONFIRMATION_SERIALIZATION_VERSION,
   isProjectConfirmationValueFingerprint
@@ -25,7 +25,7 @@ export async function computeProjectConfirmationValueFingerprint(
 
   let fingerprint: string;
   try {
-    fingerprint = await computePlanningSha256Fingerprint(
+    fingerprint = await computeSha256Hex(
       serializeProjectConfirmationTextValue(normalizedValue)
     );
   } catch {
