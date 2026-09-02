@@ -1,4 +1,5 @@
 import { isCanonicalUuid } from "../core/canonicalUuid";
+import { isSha256Hex } from "../core/sha256Fingerprint";
 
 export const PROJECT_CONFIRMATION_CONTRACT_VERSION = "phase-5c.3c.3j.6b.3r" as const;
 export const PROJECT_CONFIRMATION_VALUE_KIND = "text" as const;
@@ -99,7 +100,6 @@ export interface ProjectConfirmationProvenanceValidationContext {
   readonly applicableSourceFieldIds: readonly ProjectConfirmationSourceFieldId[];
 }
 
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const sourceFieldIdSet = new Set<string>(PROJECT_CONFIRMATION_SOURCE_FIELD_IDS);
 const STATE_FIELDS = ["contractVersion", "fieldRevisions", "confirmationEvents"] as const;
@@ -127,7 +127,7 @@ export function isCanonicalProjectConfirmationUuid(value: unknown): value is str
 }
 
 export function isProjectConfirmationValueFingerprint(value: unknown): value is string {
-  return typeof value === "string" && FINGERPRINT_PATTERN.test(value);
+  return isSha256Hex(value);
 }
 
 export function isCanonicalProjectConfirmationTimestamp(value: unknown): value is string {

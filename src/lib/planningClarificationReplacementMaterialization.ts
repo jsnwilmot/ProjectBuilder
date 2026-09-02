@@ -1,3 +1,4 @@
+import { isSha256Hex } from "../core/sha256Fingerprint";
 import type {
   PlanningClarificationProposalBlueprint,
   PlanningClarificationSourceBlueprint
@@ -119,7 +120,6 @@ export type PlanningClarificationReplacementMaterializationPreparation =
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 
 export async function preparePlanningClarificationReplacementMaterialization(
   projectId: string,
@@ -219,7 +219,7 @@ export async function preparePlanningClarificationReplacementMaterialization(
     const generatedProposal = proposalBlueprintsByKey.values.get(replacement.proposalKey);
     const fingerprint = fingerprintsByKey.values.get(replacement.proposalKey);
     const predecessor = planningProposalsById.get(replacement.staleProposalId);
-    if (!generatedProposal || !fingerprint || fingerprint.fingerprint !== replacement.generatedFingerprint || !FINGERPRINT_PATTERN.test(fingerprint.fingerprint)) {
+    if (!generatedProposal || !fingerprint || fingerprint.fingerprint !== replacement.generatedFingerprint || !isSha256Hex(fingerprint.fingerprint)) {
       issues.push(issue("replacementBindingFailure", "Replacement proposal must bind exactly to one generated blueprint and fingerprint.", undefined, replacement.proposalKey, replacement.staleProposalId, "fingerprint"));
       continue;
     }

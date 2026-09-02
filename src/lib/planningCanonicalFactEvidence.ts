@@ -1,4 +1,5 @@
 import type { ProjectRecord } from "../types/project";
+import { isSha256Hex } from "../core/sha256Fingerprint";
 import { validatePlanningClarificationAnswer } from "./planningClarificationAnswerSchema";
 import {
   buildPlanningClarificationAnswerSchemaContext,
@@ -104,8 +105,6 @@ export type PlanningCanonicalFactEvidenceResult =
 
 const YAML_RULE_ID = "pp.canvas.yamlplanning.confirmation";
 const YAML_RULE_VERSION = "1.0.0";
-const VALUE_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
-
 export async function derivePlanningCanonicalFactEvidenceCandidates(
   project: ProjectRecord
 ): Promise<PlanningCanonicalFactEvidenceResult> {
@@ -217,7 +216,7 @@ export async function derivePlanningCanonicalFactEvidenceCandidates(
   } catch {
     return noCandidate(projectId, "fingerprintFailure");
   }
-  if (!VALUE_FINGERPRINT_PATTERN.test(valueFingerprint)) {
+  if (!isSha256Hex(valueFingerprint)) {
     return noCandidate(projectId, "fingerprintFailure");
   }
 

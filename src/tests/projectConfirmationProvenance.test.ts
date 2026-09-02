@@ -10,6 +10,7 @@ import {
   PROJECT_CONFIRMATION_SOURCE_FIELD_IDS,
   PROJECT_CONFIRMATION_VALUE_KIND,
   isCanonicalProjectConfirmationUuid,
+  isProjectConfirmationValueFingerprint,
   normalizeProjectConfirmationSourceText,
   validateProjectConfirmationProvenance,
   type ProjectConfirmationSourceFieldId,
@@ -103,6 +104,14 @@ describe("project confirmation provenance contract", () => {
       "",
       null
     ]) expect(isCanonicalProjectConfirmationUuid(value)).toBe(false);
+  });
+
+  it("preserves direct non-normalizing confirmation fingerprint validation", () => {
+    const fingerprint = "0123456789abcdef".repeat(4);
+    expect(isProjectConfirmationValueFingerprint(fingerprint)).toBe(true);
+    expect(isProjectConfirmationValueFingerprint(fingerprint.toUpperCase())).toBe(false);
+    expect(isProjectConfirmationValueFingerprint(` ${fingerprint}`)).toBe(false);
+    expect(isProjectConfirmationValueFingerprint(`${fingerprint} `)).toBe(false);
   });
 
   it("preserves exact stored string semantics without coercion", () => {

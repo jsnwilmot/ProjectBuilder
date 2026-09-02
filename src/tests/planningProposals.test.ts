@@ -222,6 +222,47 @@ describe("planning proposal normalization", () => {
     expect(result.planning.proposals[0].fingerprint).toBe(fingerprint);
   });
 
+  it("preserves caller-owned fingerprint normalization before canonical syntax validation", () => {
+    const canonicalFingerprint = "0123456789abcdef".repeat(4);
+    const accepted = [
+      canonicalFingerprint,
+      canonicalFingerprint.toUpperCase(),
+      "0123456789abCDef".repeat(4),
+      ` ${canonicalFingerprint}`,
+      `${canonicalFingerprint} `,
+      `\r\n${canonicalFingerprint}\r\n`,
+      `\n${canonicalFingerprint}\n`
+    ];
+
+    for (const rawFingerprint of accepted) {
+      const result = normalizeProjectPlanningState(
+        planning({ proposals: [proposal({ fingerprint: rawFingerprint })] }),
+        projectId
+      );
+      expect(result.planning.proposals).toHaveLength(1);
+      expect(result.planning.proposals[0].fingerprint).toBe(canonicalFingerprint);
+    }
+  });
+
+  it("preserves Planning fingerprint rejection after caller-owned normalization", () => {
+    const rejected: unknown[] = [
+      `${"a".repeat(31)} ${"a".repeat(32)}`,
+      `${"a".repeat(32)}\n${"a".repeat(32)}`,
+      "a".repeat(63),
+      "a".repeat(65),
+      `${"a".repeat(63)}g`,
+      64
+    ];
+
+    for (const rawFingerprint of rejected) {
+      const result = normalizeProjectPlanningState(
+        planning({ proposals: [proposal({ fingerprint: rawFingerprint as string })] }),
+        projectId
+      );
+      expect(result.planning.proposals).toHaveLength(0);
+    }
+  });
+
   it("accepts every approved category, status, uncertainty, restriction, source type, and source availability", () => {
     const sources = PLANNING_SOURCE_TYPES.map((sourceType, index) =>
       source({

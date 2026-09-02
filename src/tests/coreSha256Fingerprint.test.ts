@@ -3,7 +3,7 @@ import { webcrypto } from "node:crypto";
 // @ts-expect-error -- Vitest runs this static source isolation assertion in Node; the app tsconfig intentionally excludes Node ambient types.
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { computeSha256Hex } from "../core/sha256Fingerprint";
+import { computeSha256Hex, isSha256Hex } from "../core/sha256Fingerprint";
 import { computePlanningSha256Fingerprint } from "../lib/planningClarificationFingerprints";
 import {
   computeProjectConfirmationValueFingerprint,
@@ -19,6 +19,36 @@ afterEach(() => {
 });
 
 describe("domain-neutral SHA-256 fingerprint primitive", () => {
+  it("recognizes only already-canonical lowercase SHA-256 hexadecimal syntax", () => {
+    const mixedLowercaseHex = "0123456789abcdef".repeat(4);
+    expect(isSha256Hex("a".repeat(64))).toBe(true);
+    expect(isSha256Hex("0".repeat(64))).toBe(true);
+    expect(isSha256Hex(mixedLowercaseHex)).toBe(true);
+
+    for (const value of [
+      undefined,
+      null,
+      64,
+      "",
+      "A".repeat(64),
+      `${"a".repeat(63)}F`,
+      ` ${"a".repeat(64)}`,
+      `${"a".repeat(64)} `,
+      `\n${"a".repeat(64)}\n`,
+      `${"a".repeat(32)}\n${"a".repeat(32)}`,
+      "a".repeat(63),
+      "a".repeat(65),
+      "g".repeat(64),
+      `${"a".repeat(63)}g`
+    ]) {
+      expect(isSha256Hex(value)).toBe(false);
+    }
+
+    const candidate: unknown = mixedLowercaseHex;
+    if (!isSha256Hex(candidate)) throw new Error("Expected a canonical SHA-256 value.");
+    expect(candidate.length).toBe(64);
+  });
+
   it("computes exact lowercase hexadecimal SHA-256 digests for UTF-8 strings", async () => {
     await expect(computeSha256Hex("")).resolves.toBe(
       "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

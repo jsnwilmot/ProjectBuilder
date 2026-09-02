@@ -1,5 +1,55 @@
 # Change Log
 
+## 2026-09-02 - Phase 5C.3C.3J.6C.6 - Canonical SHA-256 Hex Syntax Core Predicate
+
+### Summary
+
+- Added `isSha256Hex(value: unknown): value is string` beside `computeSha256Hex(...)` in the existing SHA-256 Core module.
+- Replaced seven local lowercase 64-hex SHA-256 regexes with the Core predicate while preserving caller-owned issue codes, versions, serialization, persistence, and authority semantics.
+- Preserved Planning's complete line-ending normalization, trim, length, single-line, control, safe-text, and lowercase pipeline before Core syntax validation.
+- Preserved direct non-normalizing validation for Confirmation, canonical-fact evidence, fingerprint generation, materialization, replacement materialization, and reconciliation.
+
+### Files updated
+
+- `src/core/sha256Fingerprint.ts` - adds the domain-neutral canonical SHA-256 hexadecimal syntax predicate.
+- `src/lib/planningCanonicalFactEvidence.ts` - delegates generated digest syntax validation while preserving `fingerprintFailure`.
+- `src/lib/planningClarificationFingerprints.ts` - delegates generated digest syntax validation while preserving hash and collision issues.
+- `src/lib/planningClarificationMaterialization.ts` - delegates bound fingerprint syntax validation without changing transaction behavior.
+- `src/lib/planningClarificationReplacementMaterialization.ts` - delegates replacement fingerprint syntax validation after existing reconciliation.
+- `src/lib/planningClarificationReconciliation.ts` - delegates supplied fingerprint syntax validation before exact comparison.
+- `src/lib/planningProposals.ts` - delegates only the final syntax check after the existing normalization pipeline.
+- `src/lib/projectConfirmationProvenance.ts` - preserves the public Confirmation wrapper while delegating syntax validation.
+- `src/tests/coreSha256Fingerprint.test.ts` - locks the complete canonical predicate acceptance and rejection matrix.
+- `src/tests/planningProposals.test.ts` - locks normalized acceptance and rejection behavior for case, whitespace, line endings, length, non-hex, and non-string input.
+- `src/tests/projectConfirmationProvenance.test.ts` - locks direct non-normalizing Confirmation behavior.
+- `CHANGE_LOG.md` - records this phase.
+
+### Scope boundaries preserved
+
+- Confirmation and canonical-fact fingerprint version `sha256-v1` and serialization version `canonical-text-json-v1` are unchanged.
+- Storage 7, the storage key, migrations, `projectRepository.ts`, SHA computation, UUID Core, timestamps, object/collection utilities, UI, domain registries/adapters, second-domain behavior, and dependencies are unchanged.
+- Planning source additions, `confirmedIntake` materializers, readiness, projection, Apply, YAML, and output authority remain zero; the total canonical binding count remains one.
+- TTI remains Draft with all 15 generated-content blockers unresolved.
+
+### Testing completed
+
+- Focused Core, Planning, Confirmation, and canonical-fact tests passed (`4` files, `104` tests).
+- The affected Core, Planning, Confirmation, Storage 7, readiness, Controlled Apply, and Canvas golden matrix passed (`20` files, `552` tests).
+- Full unit/integration tests passed (`87` files, `3,030` tests); UI tests passed (`7` files, `75` tests); combined total: `94` files and `3,105` tests.
+- Coverage passed the same `3,105` tests with `89.71%` statements, `82.64%` branches, `95.26%` functions, and `93.36%` lines.
+- ESLint, standalone app TypeScript checking, and the production build passed. The existing Vite large-chunk warning remains.
+- Production dependencies reported `0` vulnerabilities. The report-only development audit reported `30` findings (`2` moderate, `28` high); no remediation was performed.
+
+### Issues found
+
+- Low: the canonical-fact malformed generated-digest branch cannot be isolated through the existing Web Crypto seam because malformed hashing first invalidates Planning upstream. No production test hook or visibility change was added.
+- Low: the advisory development audit reports 30 tooling findings; dependency remediation is outside this phase.
+- Low: the existing Vite large-chunk warning remains unchanged.
+
+### Remaining work
+
+- Independent GPT Architect review is required before integration. Do not merge or begin Confirmation/Evidence Core architecture, domain registries/adapters, UI, second-domain, Storage, migration, authority, dependency, Node/CI, or deployment work.
+
 ## 2026-09-02 - Phase 5C.3C.3J.6C.4 - Canonical UUID Syntax Core Primitive
 
 ### Summary

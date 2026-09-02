@@ -1,3 +1,4 @@
+import { isSha256Hex } from "../core/sha256Fingerprint";
 import type {
   PlanningClarificationProposalBlueprint,
   PlanningClarificationSourceBlueprint
@@ -99,7 +100,6 @@ const NON_TERMINAL_STATUSES = [
   "Blocked",
   "Needs Clarification"
 ] as const satisfies readonly PlanningProposalStatus[];
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 
 export async function reconcilePlanningClarifications(
   input: unknown
@@ -302,8 +302,7 @@ function validateSuppliedFingerprints(
     if (
       typeof rawRecord.proposalKey !== "string" ||
       typeof rawRecord.fingerprintInput !== "string" ||
-      typeof rawRecord.fingerprint !== "string" ||
-      !FINGERPRINT_PATTERN.test(rawRecord.fingerprint)
+      !isSha256Hex(rawRecord.fingerprint)
     ) {
       issues.push(issue("invalidFingerprints", "Fingerprint record must contain proposalKey, fingerprintInput, and a valid lowercase SHA-256 fingerprint.", proposalKey, undefined, "fingerprints"));
       continue;

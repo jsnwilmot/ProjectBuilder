@@ -1,3 +1,4 @@
+import { isSha256Hex } from "../core/sha256Fingerprint";
 import type {
   PlanningClarificationProposalBlueprint,
   PlanningClarificationSourceBlueprint
@@ -102,7 +103,6 @@ export type PlanningClarificationMaterializationPreparation =
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 
 export async function preparePlanningClarificationMaterialization(
   projectId: string,
@@ -283,7 +283,7 @@ export function finalizePlanningClarificationMaterialization(
   const createdProposalRecords: PlanningProposalRecord[] = [];
   for (const proposal of preparation.newProposals) {
     const fingerprint = preparation.fingerprintsByProposalKey.get(proposal.proposalKey);
-    if (!fingerprint || !FINGERPRINT_PATTERN.test(fingerprint.fingerprint)) {
+    if (!fingerprint || !isSha256Hex(fingerprint.fingerprint)) {
       return {
         result: blockedResult(preparation.projectId, [
           issue("materializationBindingFailure", "A new proposal could not be bound to one validated fingerprint.", undefined, proposal.proposalKey, undefined, "fingerprint")
@@ -430,7 +430,7 @@ function buildFingerprintMap(
       return { fingerprintsByProposalKey: byKey, issues: [issue("materializationBindingFailure", "Fingerprint records must be objects with proposal keys.", undefined, undefined, undefined, "fingerprints")] };
     }
     counts.set(fingerprint.proposalKey, (counts.get(fingerprint.proposalKey) ?? 0) + 1);
-    if (typeof fingerprint.fingerprintInput === "string" && typeof fingerprint.fingerprint === "string" && FINGERPRINT_PATTERN.test(fingerprint.fingerprint)) {
+    if (typeof fingerprint.fingerprintInput === "string" && isSha256Hex(fingerprint.fingerprint)) {
       byKey.set(fingerprint.proposalKey, {
         proposalKey: fingerprint.proposalKey,
         fingerprintInput: fingerprint.fingerprintInput,

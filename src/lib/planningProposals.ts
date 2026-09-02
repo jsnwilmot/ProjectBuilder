@@ -1,3 +1,4 @@
+import { isSha256Hex } from "../core/sha256Fingerprint";
 import type { ProjectType } from "../types/project";
 
 export const PLANNING_SCHEMA_VERSION = "phase-5c.1.1";
@@ -399,7 +400,6 @@ export interface ProjectPlanningNormalizationResult {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 const ISO_WITH_TIMEZONE_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2})$/;
 
@@ -1413,7 +1413,7 @@ function optionalUuid(input: unknown): string | undefined | null {
 
 function normalizeFingerprint(input: unknown): string | null {
   const value = normalizeSingleLine(input, 64)?.toLowerCase();
-  return value && FINGERPRINT_PATTERN.test(value) ? value : null;
+  return value && isSha256Hex(value) ? value : null;
 }
 
 function normalizeProjectId(input: unknown): string | null {

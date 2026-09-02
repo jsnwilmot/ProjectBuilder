@@ -7,7 +7,7 @@ import {
   PLANNING_RULE_SET_VERSION,
   PLANNING_SCHEMA_VERSION
 } from "./planningProposals";
-import { computeSha256Hex } from "../core/sha256Fingerprint";
+import { computeSha256Hex, isSha256Hex } from "../core/sha256Fingerprint";
 import { getPlanningRuleById } from "./planningRules";
 
 export interface PlanningClarificationFingerprintGenerationInput {
@@ -59,7 +59,6 @@ export interface PlanningClarificationFingerprintGenerationResult {
 const RECOMMENDATION = "Answer the clarification question and provide the applicable confirmation source.";
 const CANVAS_PROJECT_TYPE = "powerAppsCanvas";
 const MAX_FINGERPRINT_INPUT_LENGTH = 20_000;
-const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 const TOP_LEVEL_KEYS = [
   "schemaVersion",
   "ruleSetId",
@@ -157,7 +156,7 @@ export async function generatePlanningClarificationFingerprints(
     }
     try {
       const fingerprint = await computePlanningSha256Fingerprint(proposal.fingerprintInput);
-      if (!FINGERPRINT_PATTERN.test(fingerprint)) {
+      if (!isSha256Hex(fingerprint)) {
         issues.push(issue("invalidFingerprint", "Calculated fingerprint must be 64 lowercase hexadecimal characters.", proposal.proposalKey, proposal.ruleId, undefined, "fingerprint"));
         continue;
       }
