@@ -1,5 +1,15 @@
 # Test Plan
 
+## 2026-09-02 Phase 5C.3C.3J.6C.8 authority-free domain fact descriptor foundation
+
+1. Validate the exact nine-field, text-only descriptor contract and its independent contract version.
+2. Reject non-objects, non-plain objects, missing or unexpected keys, invalid scalar metadata, invalid project-type lists, and unsupported value kinds.
+3. Verify validated descriptors and copied project-type arrays are frozen and cannot be changed through caller mutation.
+4. Reject authority, runtime value, lineage, destination, validation-contract, callback, and executable accessor injection.
+5. Validate test-only projections of all seven Canvas registry entries without changing their production runtime shape.
+6. Prove descriptors are not persisted in `ProjectRecord`, Storage state, confirmation provenance, or Planning state.
+7. Regress the existing Canvas registry, Confirmation, golden-reference, SHA-256 Core, UUID Core, full test, coverage, lint, typecheck, build, and audit gates.
+
 ## 2026-09-02 Phase 5C.3C.3J.6C.4 canonical UUID syntax core primitive
 
 1. Verify `src/core/canonicalUuid.ts` exposes `isCanonicalUuid(value: unknown): value is string` and owns only canonical lowercase UUID syntax recognition.

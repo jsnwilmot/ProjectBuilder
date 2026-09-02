@@ -31,6 +31,10 @@ Do not add authentication, a database, analytics, billing, paid services, or ext
 
 ## Core extraction golden guardrail
 
+- Keep `src/core/domainFactDescriptor.ts` as a zero-import, closed, immutable, text-only descriptor contract. It may describe only fact/domain identity, structural project-type applicability, a code-owned accessor token, and normalization/serialization/fingerprint version metadata.
+- Domain fact descriptors must contain no authority, runtime value, evidence, confirmation, lineage, destination, validation-contract, callback, persistence, or executable traversal fields. They are code-owned configuration and must never be added to project storage.
+- Keep the existing Canvas source registry and accessor runtime unchanged. Test-only descriptor projection does not authorize a generic registry, domain adapter, validation-contract identifier, Confirmation/Evidence extraction, or second-domain implementation.
+
 - Keep `src/core/sha256Fingerprint.ts` domain-neutral. It may own only UTF-8 encoding, Web Crypto SHA-256 digesting, and lowercase hex formatting, and it must not import Planning, Confirmation, Canvas, Power Platform, repository, registry, adapter, persistence, authority, canonical-fact, readiness, projection, Apply, YAML, package, or generated-output modules.
 - Preserve `computePlanningSha256Fingerprint` as the Planning compatibility wrapper around the core primitive. Confirmation value serialization remains in the Confirmation boundary, and Confirmation value fingerprinting must not depend on the Planning helper.
 - Keep `src/core/canonicalUuid.ts` domain-neutral. It may own only current-contract canonical lowercase UUID syntax recognition and must not own UUID generation, normalization, uppercase acceptance, collision handling, forbidden sets, allocation ordering, retry behavior, timestamp validation, persistence, or subsystem issue codes.

@@ -1,5 +1,13 @@
 # Next Steps
 
+## Phase 5C.3C.3J.6C.8 review boundary
+
+1. Keep `review/phase-5c3c3j6c8-domain-fact-descriptor-foundation` for independent GPT Architect review.
+2. Treat `DomainFactDescriptor` as authority-free, text-only code-owned metadata; it is not a source, value, event, canonical fact, approval, readiness result, or output contract.
+3. Keep the validation-contract identifier deferred and preserve the existing Canvas registry and accessor runtime unchanged; Canvas compatibility exists only as a test projection.
+4. Do not create a generic registry or domain adapter, extract Confirmation or Evidence contracts, modify Storage or `projectRepository`, add a second domain, or grant downstream authority without later Architect authorization.
+5. TTI remains Draft with all 15 blockers; this generic contract resolves none of them.
+
 ## Phase 5C.3C.3J.6C.4 review boundary
 
 1. Keep `review/phase-5c3c3j6c4-core-canonical-uuid` for independent GPT Architect review.

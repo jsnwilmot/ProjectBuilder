@@ -19,6 +19,13 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 
 ## Runtime boundaries
 
+### Authority-free domain fact descriptor contract
+
+- `src/core/domainFactDescriptor.ts` defines the closed, immutable, text-only metadata contract for identifying a domain fact and its code-owned accessor and representation versions.
+- The Core module has no imports, executes no accessor, validates no concrete domain or project-type membership, and returns a copied frozen descriptor or `null`.
+- Descriptors are code-owned configuration, not project data, evidence, confirmation, canonical facts, approval, readiness, or output authority.
+- The validation-contract identifier is intentionally deferred. Generic registries and domain adapters are not implemented, and the existing Canvas registry and accessor runtime remain unchanged.
+
 ### Core SHA-256 primitive
 
 - `src/core/sha256Fingerprint.ts` is the first domain-neutral Project Builder Core primitive.

@@ -1,5 +1,39 @@
 # Change Log
 
+## 2026-09-02 - Phase 5C.3C.3J.6C.8 - Authority-Free Domain Fact Descriptor Contract Foundation
+
+### Summary
+
+- Added a pure, immutable, text-only `DomainFactDescriptor` Core contract with strict exact-key, fail-closed validation.
+- Prohibited authority, runtime value, lineage, destination, validation-contract, and executable accessor fields from the closed descriptor shape.
+- Proved all seven existing Canvas registry entries can be projected into the descriptor contract in tests without changing the production registry or accessor runtime.
+
+### Files created
+
+- `src/core/domainFactDescriptor.ts` - defines the isolated descriptor contract and validator.
+- `src/tests/domainFactDescriptor.test.ts` - covers structural validation, immutability, authority rejection, persistence isolation, and test-only Canvas compatibility.
+
+### Files updated
+
+- `CHANGE_LOG.md`, `TEST_PLAN.md`, `APP_BLUEPRINT.md`, `NEXT_STEPS.md`, and `CODEX_INSTRUCTIONS.md` - record the bounded Core contract and unchanged authority, registry, adapter, Storage, and runtime boundaries.
+
+### Testing completed
+
+- Focused descriptor and regression matrix: 7 files, 81 tests passed.
+- Full unit/integration suite: 88 files, 3,040 tests passed.
+- UI suite: 7 files, 75 tests passed.
+- Combined and coverage runners: 95 files, 3,115 tests passed in each; coverage was 89.73% statements, 82.68% branches, 95.27% functions, and 93.37% lines.
+- Lint, TypeScript typecheck, production build, and `git diff --check`: passed.
+- Production dependency audit: 0 vulnerabilities. Development audit: report-only baseline of 30 findings (2 moderate, 28 high); no dependency remediation was performed.
+
+### Issues found
+
+- None.
+
+### Remaining work
+
+- Independent GPT Architect review is required before integration. The validation-contract identifier remains intentionally deferred; no generic registry, domain adapter, Confirmation/Evidence extraction, second domain, persistence, or authority expansion is implemented.
+
 ## 2026-09-02 - Phase 5C.3C.3J.6C.6 - Canonical SHA-256 Hex Syntax Core Predicate
 
 ### Summary
