@@ -1,5 +1,13 @@
 # Next Steps
 
+## Phase 5C.3C.3J.6C.4 review boundary
+
+1. Keep `review/phase-5c3c3j6c4-core-canonical-uuid` for independent GPT Architect review.
+2. Treat `src/core/canonicalUuid.ts` as a narrow syntax predicate only; it does not authorize generic identity infrastructure.
+3. Preserve UUID generation, allocation ordering, collision domains, forbidden UUID sets, retry behavior, timestamp validation, repository persistence, and subsystem issue codes inside their current subsystems.
+4. Do not extract confirmation provenance, transaction contracts, repository behavior, registries, adapters, UI, `confirmedIntake` materialization, readiness authority, Controlled Apply authority, Storage schemas, migrations, or project-type behavior without a later approved phase.
+5. TTI remains Draft with 15 blockers; this core primitive resolves none of those project-specific blockers.
+
 ## Phase 5C.3C.3J.6C.3 review boundary
 
 1. Keep `review/phase-5c3c3j6c3-core-sha256-primitive` for independent GPT Architect review.

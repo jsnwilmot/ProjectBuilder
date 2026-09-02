@@ -1,5 +1,19 @@
 # Test Plan
 
+## 2026-09-02 Phase 5C.3C.3J.6C.4 canonical UUID syntax core primitive
+
+1. Verify `src/core/canonicalUuid.ts` exposes `isCanonicalUuid(value: unknown): value is string` and owns only canonical lowercase UUID syntax recognition.
+2. Verify the core predicate imports no Planning, Confirmation, Controlled Apply, Canvas, Power Platform, repository, Storage, registry, adapter, authority, canonical-fact, readiness, projection, Apply, YAML, package, or generated-output modules.
+3. Verify accepted examples cover lowercase UUID versions 1 through 5 and variant nibbles 8, 9, a, and b.
+4. Verify rejected examples cover undefined, null, number, empty string, uppercase UUID, leading whitespace, trailing whitespace, missing hyphen, extra character, too-short value, too-long value, version nibble 0, version nibble 6, variant nibble 7, variant nibble c, and non-hexadecimal characters.
+5. Verify `isCanonicalProjectConfirmationUuid(...)` remains exported, keeps its type-predicate signature, and returns exactly the same result as the core predicate for the focused fixture matrix.
+6. Verify Controlled Apply history no longer maintains a local UUID regex and still reports invalid `applyId` values as `invalidApplyId`.
+7. Verify Controlled Apply finalization no longer maintains a local UUID regex and still reports generated malformed UUID values as `invalidUuid` and generated duplicate UUID values as `duplicateUuid`.
+8. Verify UUID generation, allocation ordering, collision domains, forbidden UUID sets, retry behavior, timestamp validation, confirmation provenance validation, transaction contracts, repository persistence, Storage 7, UI, project-type registry, dependencies, Node, CI, Wrangler, deployment, and TTI remain unchanged.
+9. Run new Core canonical UUID tests, existing Core SHA-256 tests, Confirmation provenance/runtime/transaction/repository persistence regressions, Controlled Apply history/finalization/repository regressions, Canvas golden-reference tests, Planning canonical-fact evidence, Planning readiness mapping, generated-output regressions, full unit/integration, UI suite, coverage, ESLint, app TypeScript build, production audit, advisory development audit report-only, exact-scope checks, preserved-stash checks, one linear implementation commit, push, and remote verification.
+
+Validation result: passed. New Core canonical UUID suite passed 4 tests. The 15-file affected matrix passed 376 tests across Core UUID, Core SHA-256, Confirmation provenance/revision/transaction/repository persistence, Controlled Apply history/finalization/repository, Canvas golden reference, Planning canonical-fact evidence, readiness mapping, and generated-output regressions. Full validation passed 87 unit/integration files with 3,026 tests and 7 UI files with 75 tests, for 94 files and 3,101 tests combined. Coverage validation passed the same 94 combined files and 3,101 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines. ESLint, app TypeScript checking, and the production build passed; Vite 8.1.0 built 148 modules with the existing large-chunk warning. Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
 ## 2026-09-02 Phase 5C.3C.3J.6C.3 domain-neutral SHA-256 core primitive
 
 1. Verify `src/core/sha256Fingerprint.ts` exposes `computeSha256Hex(input: string): Promise<string>` and owns only UTF-8 encoding, Web Crypto SHA-256 digesting, and lowercase two-character hex encoding.

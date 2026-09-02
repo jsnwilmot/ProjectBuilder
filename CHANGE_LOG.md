@@ -1,5 +1,45 @@
 # Change Log
 
+## 2026-09-02 - Phase 5C.3C.3J.6C.4 - Canonical UUID Syntax Core Primitive
+
+### Summary
+
+- Extracted canonical lowercase UUID syntax validation into `src/core/canonicalUuid.ts` as the second narrow Project Builder Core primitive.
+- Preserved the public Confirmation compatibility wrapper `isCanonicalProjectConfirmationUuid(...)` while delegating syntax recognition to Core.
+- Removed duplicate local UUID regexes from Controlled Apply history and transaction finalization while preserving subsystem-owned issue codes, allocation, and collision semantics.
+- Preserved Storage 7, repository behavior, confirmation provenance/event contracts, timestamp validation, authority boundaries, Canvas behavior, and generated-output behavior.
+
+### Files updated
+
+- `src/core/canonicalUuid.ts` - new domain-neutral canonical lowercase UUID syntax predicate.
+- `src/lib/projectConfirmationProvenance.ts` - delegates the existing Confirmation UUID wrapper to the core predicate.
+- `src/lib/planningControlledApplyHistory.ts` - validates `applyId` syntax through the core predicate while preserving `invalidApplyId`.
+- `src/lib/planningControlledApplyTransactionFinalization.ts` - validates generated apply UUID syntax through the core predicate while preserving `invalidUuid` and duplicate handling.
+- `src/tests/coreCanonicalUuid.test.ts` - verifies accepted/rejected UUID syntax, Confirmation wrapper equivalence, and local regex removal.
+- `CHANGE_LOG.md` - phase record.
+- `TEST_PLAN.md` - core UUID validation matrix.
+- `APP_BLUEPRINT.md` - core UUID runtime-boundary note.
+- `CODEX_INSTRUCTIONS.md` - core UUID extraction guardrail.
+- `NEXT_STEPS.md` - review-branch and extraction boundary update.
+
+### Testing completed
+
+- New Core canonical UUID suite passed 4 tests.
+- The 15-file affected matrix passed 376 tests across Core UUID, Core SHA-256, Confirmation provenance/revision/transaction/repository persistence, Controlled Apply history/finalization/repository, Canvas golden reference, Planning canonical-fact evidence, readiness mapping, and generated-output regressions.
+- Full validation passed 87 unit/integration files with 3,026 tests and 7 UI files with 75 tests, for 94 files and 3,101 tests combined.
+- Coverage validation passed the same 94 combined files and 3,101 tests, with 89.71% statements, 82.64% branches, 95.26% functions, and 93.36% lines.
+- ESLint, app TypeScript checking, and the production build passed. Vite 8.1.0 built 148 modules with the existing large-chunk warning.
+- Production dependencies reported 0 vulnerabilities. The advisory development audit reported 7 findings (2 moderate, 5 high); no remediation was performed.
+
+### Issues found
+
+- None at implementation time.
+
+### Remaining work
+
+- Commit exactly one linear implementation commit, push only `review/phase-5c3c3j6c4-core-canonical-uuid`, and return to GPT Architect for independent review.
+- TTI remains Draft with all 15 blockers. This phase resolves no TTI blocker and adds no UUID allocation extraction, collision-authority extraction, timestamp extraction, repository change, confirmation UI, `confirmedIntake` materialization, canonical bindings, readiness consumer, projection, Apply, YAML, output authority, dependency, Node, CI, or deployment change.
+
 ## 2026-09-02 - Phase 5C.3C.3J.6C.3 - Domain-Neutral SHA-256 Core Primitive
 
 ### Summary

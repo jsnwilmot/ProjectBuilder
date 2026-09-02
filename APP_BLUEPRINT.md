@@ -27,6 +27,14 @@ Provide a controlled path from rough project idea to structured, reviewable, rea
 - The primitive imports no Planning, Confirmation, Canvas, Power Platform, repository, registry, adapter, persistence, authority, canonical-fact, readiness, projection, Apply, YAML, package, or generated-output modules.
 - The primitive grants no canonical, Planning, confirmation, readiness, projection, Apply, YAML, package, or output authority.
 
+### Core canonical UUID primitive
+
+- `src/core/canonicalUuid.ts` is the second narrow domain-neutral Project Builder Core primitive.
+- It owns only current-contract canonical lowercase UUID syntax recognition: version nibbles 1 through 5 and variant nibbles 8, 9, a, or b.
+- It performs no UUID generation, normalization, trimming, uppercase acceptance, collision handling, forbidden-set construction, persistence, allocation, or retry behavior.
+- Confirmation keeps `isCanonicalProjectConfirmationUuid(...)` as the public compatibility wrapper. Controlled Apply history and finalization consume the core predicate while keeping their issue codes, allocation ordering, and collision authority subsystem-owned.
+- Timestamp validation remains unextracted. The primitive grants no canonical-fact, confirmation, Planning, readiness, projection, Apply, YAML, package, or output authority.
+
 ### Storage 7 confirmation provenance
 
 - Storage Version 7 is the canonical repository format and retains the `gpt-project-builder.storage.v2` key.

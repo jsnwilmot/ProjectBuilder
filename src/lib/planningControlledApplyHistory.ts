@@ -1,4 +1,5 @@
 import { EMPTY_PROJECT_INTAKE } from "./createProject";
+import { isCanonicalUuid } from "../core/canonicalUuid";
 import {
   normalizeProjectPlanningState,
   type PlanningDecisionRecord,
@@ -83,7 +84,6 @@ export type PlanningControlledApplyHistoryNormalizationResult =
       history?: undefined;
     };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const UTC_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/;
 const PROJECT_ID_LIMIT = 200;
 
@@ -189,7 +189,7 @@ function normalizeRecord(
   }
 
   const applyId = typeof input.applyId === "string" ? input.applyId : "";
-  if (!UUID_PATTERN.test(applyId)) {
+  if (!isCanonicalUuid(applyId)) {
     issues.push(issue("invalidApplyId", "applyId must be a canonical UUID.", index, applyId, undefined, undefined, undefined, "applyId"));
   } else if (applyIds.has(applyId)) {
     issues.push(issue("duplicateApplyId", "applyId must be unique within controlled-apply history.", index, applyId, undefined, undefined, undefined, "applyId"));

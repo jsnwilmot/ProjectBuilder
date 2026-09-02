@@ -1,3 +1,4 @@
+import { isCanonicalUuid } from "../core/canonicalUuid";
 import {
   preparePlanningControlledApplyTransaction,
   type PlanningControlledApplyTransactionPreparationIssue,
@@ -100,7 +101,6 @@ export type PlanningControlledApplyTransactionFinalizationResult =
       evidence?: undefined;
     };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const UTC_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})Z$/;
 const inputFields = new Set<string>(["project", "proposalId"]);
 const runtimeFields = new Set<string>(["now", "uuid"]);
@@ -350,7 +350,7 @@ function allocateApplyId(
   } catch {
     return { issue: issue("uuidUnavailable", "Controlled-apply UUID allocation failed.") };
   }
-  if (typeof value !== "string" || !UUID_PATTERN.test(value)) {
+  if (!isCanonicalUuid(value)) {
     return {
       issue: issue(
         "invalidUuid",

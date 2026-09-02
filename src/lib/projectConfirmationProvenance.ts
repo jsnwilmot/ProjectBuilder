@@ -1,3 +1,5 @@
+import { isCanonicalUuid } from "../core/canonicalUuid";
+
 export const PROJECT_CONFIRMATION_CONTRACT_VERSION = "phase-5c.3c.3j.6b.3r" as const;
 export const PROJECT_CONFIRMATION_VALUE_KIND = "text" as const;
 export const PROJECT_CONFIRMATION_NORMALIZATION_VERSION = "normalized-project-string-v1" as const;
@@ -97,7 +99,6 @@ export interface ProjectConfirmationProvenanceValidationContext {
   readonly applicableSourceFieldIds: readonly ProjectConfirmationSourceFieldId[];
 }
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const sourceFieldIdSet = new Set<string>(PROJECT_CONFIRMATION_SOURCE_FIELD_IDS);
@@ -122,7 +123,7 @@ const EVENT_REQUIRED_FIELDS = [
 const EVENT_FIELDS = [...EVENT_REQUIRED_FIELDS, "supersedesConfirmationId"] as const;
 
 export function isCanonicalProjectConfirmationUuid(value: unknown): value is string {
-  return typeof value === "string" && UUID_PATTERN.test(value);
+  return isCanonicalUuid(value);
 }
 
 export function isProjectConfirmationValueFingerprint(value: unknown): value is string {
