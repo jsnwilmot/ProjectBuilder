@@ -129,6 +129,46 @@ describe("authority-free domain fact descriptor contract", () => {
     }
   });
 
+  it("rejects sparse project-type arrays, explicit undefined, and inherited indexes", () => {
+    const oneElementHole = new Array<string>(1);
+    const trailingHole = ["powerAppsCanvas"];
+    trailingHole.length = 2;
+    const leadingHole = new Array<string>(2);
+    leadingHole[1] = "powerAppsCanvas";
+    const middleHole = ["powerAppsCanvas", "placeholder", "webApplication"];
+    Reflect.deleteProperty(middleHole, 1);
+    const inheritedIndex = new Array<string>(1);
+    const localArrayPrototype = Object.create(Array.prototype) as string[];
+    Object.defineProperty(localArrayPrototype, 0, { value: "powerAppsCanvas" });
+    Object.setPrototypeOf(inheritedIndex, localArrayPrototype);
+
+    for (const applicableProjectTypes of [
+      oneElementHole,
+      trailingHole,
+      leadingHole,
+      middleHole,
+      ["powerAppsCanvas", undefined],
+      inheritedIndex
+    ]) {
+      expect(validateDomainFactDescriptor({ ...validInput(), applicableProjectTypes })).toBeNull();
+    }
+  });
+
+  it("preserves valid dense project-type arrays and exact duplicate rejection", () => {
+    expect(validateDomainFactDescriptor({
+      ...validInput(),
+      applicableProjectTypes: ["powerAppsCanvas"]
+    })?.applicableProjectTypes).toEqual(["powerAppsCanvas"]);
+    expect(validateDomainFactDescriptor({
+      ...validInput(),
+      applicableProjectTypes: ["powerAppsCanvas", "webApplication"]
+    })?.applicableProjectTypes).toEqual(["powerAppsCanvas", "webApplication"]);
+    expect(validateDomainFactDescriptor({
+      ...validInput(),
+      applicableProjectTypes: ["powerAppsCanvas", "powerAppsCanvas"]
+    })).toBeNull();
+  });
+
   it("accepts only the text value kind", () => {
     for (const valueKind of [
       undefined,

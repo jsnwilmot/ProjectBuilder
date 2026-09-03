@@ -1,5 +1,37 @@
 # Change Log
 
+## 2026-09-02 - Phase 5C.3C.3J.6C.8R - Sparse Project-Type Array Rejection
+
+### Summary
+
+- Corrected `DomainFactDescriptor` project-type validation to require every array index to be an own non-empty string value.
+- Added explicit rejection coverage for one-element, trailing, leading, and middle holes, explicit `undefined`, and inherited numeric indexes without global prototype mutation.
+- Preserved dense structural project-type acceptance, exact duplicate rejection, descriptor semantics, authority boundaries, and the existing Canvas runtime shape.
+
+### Files updated
+
+- `src/core/domainFactDescriptor.ts` - rejects sparse and inherited-index project-type arrays fail-closed.
+- `src/tests/domainFactDescriptor.test.ts` - adds sparse, inherited-index, explicit-undefined, dense-array, and duplicate regression coverage.
+- `CHANGE_LOG.md` - records the narrow 6C.8R correction.
+
+### Testing completed
+
+- Focused descriptor suite: 1 file, 12 tests passed.
+- Focused descriptor and regression matrix: 7 files, 83 tests passed.
+- Full unit/integration suite: 88 files, 3,042 tests passed.
+- UI suite: 7 files, 75 tests passed.
+- Combined and coverage runners: 95 files, 3,117 tests passed in each; coverage was 89.73% statements, 82.68% branches, 95.27% functions, and 93.37% lines.
+- Lint, TypeScript typecheck, production build, and `git diff --check`: passed.
+- Production dependency audit: 0 vulnerabilities. Development audit: report-only baseline of 30 findings (2 moderate, 28 high); no dependency remediation was performed.
+
+### Issues found
+
+- Corrected the independently reported Medium sparse-array validation defect. No additional issues were found.
+
+### Remaining work
+
+- Independent GPT Architect re-review is required before integration. No other Phase 6C.8 semantics or architecture boundaries changed.
+
 ## 2026-09-02 - Phase 5C.3C.3J.6C.8 - Authority-Free Domain Fact Descriptor Contract Foundation
 
 ### Summary

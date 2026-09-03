@@ -78,8 +78,14 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function isProjectTypeList(value: unknown): value is string[] {
-  return Array.isArray(value) &&
-    value.length > 0 &&
-    value.every(isNonEmptyString) &&
-    new Set(value).size === value.length;
+  if (!Array.isArray(value) || value.length === 0) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (
+      !Object.prototype.hasOwnProperty.call(value, index) ||
+      !isNonEmptyString(value[index])
+    ) {
+      return false;
+    }
+  }
+  return new Set(value).size === value.length;
 }
