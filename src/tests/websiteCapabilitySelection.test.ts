@@ -57,6 +57,17 @@ function generated(project = createNegativeCapabilityWebsite()): ProjectRecord {
 const content = (project: ProjectRecord, name: string) => project.generatedDocuments.find((doc) => doc.fileName === name)!.content;
 const excludedRows = /Requested forms|Requested integrations|Approved analytics|Requested application data|Requested data entities|Requested access controls|Requested reports/;
 
+describe("Third P1 reproducer", () => {
+  it.each([
+    ["No contact form is approved, implement name, email, and no online form", false],
+    ["No contact form is approved, implement no contact form, and an approved booking form", true]
+  ] as const)("classifies %s with selection %s", (value, selected) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteForms = value;
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(selected);
+  });
+});
+
 describe("Compound capability exclusion and replacement", () => {
   const replacements: Array<[WebsiteCapabilityField, string, string]> = [
     ["websiteForms", "No contact form is approved, implement an approved booking form", "Requested forms"],

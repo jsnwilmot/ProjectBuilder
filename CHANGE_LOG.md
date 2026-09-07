@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-07 - PR #4 third P1 refinement
+
+- Reproduced P1 C and D with two failing tests on `937be4a05eb395b14954865d8e231561272373df`: an ordinary adjective bypassed negation, and inherited negation suppressed an explicitly approved coordinated replacement.
+- Replaced the modifier whitelist and prefix-list regex with a deterministic token scanner in `src/lib/websiteCapabilityIntent.ts`. Each capability occurrence records positive, negative or unclassified polarity. Grammar cues bound negation; explicit approval and independent positive phrases reset it without enumerating adjectives.
+- Added direct scanner and generated-package tests in `src/tests/websiteCapabilityPolarity.test.ts`, plus the two exact reproducers in `src/tests/websiteCapabilitySelection.test.ts`: 71 additional cases. Updated the maintained package-generation notes only.
+- Validation: 299 focused website tests passed. Both complete runners passed 3,407 tests / 97 files (3,329 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.09% statements / 83.27% branches / 95.48% functions / 93.48% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral and export regressions passed. The existing build-size warning remains.
+- Release gate: existing PR #4 requires new-head CI, fresh automated review and final Architect/Owner authorization. No schema, storage, UI, dependency, template or production changes are included.
+
 ## 2026-09-07 - PR #4 second P1 refinement
 
 - Reproduced both accepted review findings on `9f6afab8ae98076069bb21242e7e73e25afe1b47`. The expanded reproducer failed 37 tests before source changes: negated request subjects could select scope, while ordinary comma-separated fields could hide a positive subject.

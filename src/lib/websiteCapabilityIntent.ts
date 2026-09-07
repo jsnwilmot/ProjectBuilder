@@ -27,14 +27,7 @@ const clauseBoundary = new RegExp(
 );
 
 const requestStart = new RegExp(`^(?:${requestVerbs})\\s+`, "i");
-const modifiers = "(?:(?:a|an|any|the|approved|owner-approved|new|existing|current|replacement|customer|organization)\\s+)*";
-const capabilitySubject = `(?:${[...new Set(Object.values(subjects))].join("|")})\\b`;
-// Negation applies to the adjacent capability phrase, optionally through a list
-// of known capability phrases. Unrelated nouns end that scope ("without errors").
-const negatedPrefix = new RegExp(
-  `\\b(?:without|no|not|neither|nor|(?:do not|don't|never)\\s+(?:${requestVerbs}))\\s+(?:${modifiers}${capabilitySubject}\\s*(?:,\\s*(?:(?:and|or|nor)\\s+)?|(?:and|or|nor)\\s+))*${modifiers}$`,
-  "i"
-);
+const allSubjects = new RegExp(`\\b(?:${[...new Set(Object.values(subjects))].join("|")})\\b`, "gi");
 const negativePredicate = /^(?:\s+(?:that|which))?\s+(?:(?:is|are|remains?)\s+)?(?:not\s+(?:approved|required|needed|requested|in scope)\b|outside\b[^.!?]*\bscope\b|out of scope\b|excluded\b)/i;
 // Do not interpret a capability noun modifying a different concern as its
 // exclusion: "no data loss", "no analytics errors", etc.
@@ -54,10 +47,75 @@ const rules = Object.fromEntries(WEBSITE_CAPABILITY_FIELDS.map((field) => {
   }];
 })) as Record<WebsiteCapabilityField, { exclusion: RegExp; subject: RegExp; approval: RegExp }>;
 
-function capabilityOccurrenceNegated(clause: string, start: number, end: number): boolean {
-  const following = clause.slice(end);
-  return negativePredicate.test(following)
-    || (negatedPrefix.test(clause.slice(0, start)) && capabilityEnd.test(following));
+export type CapabilityPolarity = "positive" | "negative" | "unclassified";
+export interface CapabilityOccurrence {
+  start: number;
+  end: number;
+  polarity: CapabilityPolarity;
+}
+
+/** Scan polarity segments, not adjectives. The vocabulary below is grammar:
+ * cues and boundaries, never a list of permitted descriptive modifiers.
+ */
+export function classifyCapabilityOccurrences(field: WebsiteCapabilityField, clause: string): CapabilityOccurrence[] {
+  const request = requestStart.test(clause);
+  const baseline: CapabilityPolarity = request ? "positive" : "unclassified";
+  let polarity: CapabilityPolarity = baseline;
+  let capabilityInSegment = false;
+  let positiveReset = false;
+  let determinerReset = false;
+  const occurrences = [...clause.matchAll(rules[field].subject)];
+  const starts = new Map(occurrences.map((match) => [match.index, match]));
+  // Carry negation through actual capability lists, not unrelated field lists.
+  const capabilityEnds = new Set([...clause.matchAll(allSubjects)]
+    .filter((match) => capabilityEnd.test(clause.slice(match.index + match[0].length)))
+    .map((match) => match.index + match[0].length));
+  const result: CapabilityOccurrence[] = [];
+
+  for (const token of clause.matchAll(/[a-z]+(?:[-'][a-z]+)*|[,;:.!?]/gi)) {
+    const word = token[0].toLowerCase();
+    if (word === ",") {
+      if (!capabilityInSegment) polarity = baseline;
+      capabilityInSegment = false;
+      positiveReset = true;
+      determinerReset = false;
+    } else if (word === "and") {
+      positiveReset = true;
+      determinerReset = request;
+    } else if (word === "or") {
+      positiveReset = false;
+      determinerReset = false;
+    } else if (/^(?:no|without|not|neither|nor|never|don't)$/.test(word)) {
+      polarity = "negative";
+      positiveReset = false;
+      determinerReset = false;
+    } else if (/^(?:but|with|in|on|for|from|to|about|of|into|by|is|are|was|were|must|should|can|could|[;:.!?])$/.test(word)) {
+      polarity = baseline;
+      capabilityInSegment = false;
+      positiveReset = false;
+      determinerReset = false;
+    } else if (/^(?:approved|owner-approved|required|requested)$/.test(word)) {
+      if (polarity !== "negative" || positiveReset) polarity = "positive";
+    } else if (determinerReset && /^(?:a|an|the)$/.test(word)) {
+      polarity = "positive";
+      determinerReset = false;
+    }
+
+    const occurrence = starts.get(token.index);
+    if (occurrence) {
+      const end = occurrence.index + occurrence[0].length;
+      const following = clause.slice(end);
+      result.push({
+        start: occurrence.index, end,
+        polarity: negativePredicate.test(following) ? "negative"
+          : polarity === "negative" && !capabilityEnd.test(following) ? "unclassified" : polarity
+      });
+      positiveReset = false;
+      determinerReset = false;
+    }
+    if (capabilityEnds.has(token.index + token[0].length)) capabilityInSegment = true;
+  }
+  return result;
 }
 
 /** Request detection, subject location and local negation are separate decisions.
@@ -65,12 +123,11 @@ function capabilityOccurrenceNegated(clause: string, start: number, end: number)
  */
 function capabilityClauseIntent(field: WebsiteCapabilityField, clause: string) {
   const rule = rules[field];
-  const occurrences = [...clause.matchAll(rule.subject)].map((match) =>
-    capabilityOccurrenceNegated(clause, match.index, match.index + match[0].length));
+  const occurrences = classifyCapabilityOccurrences(field, clause);
   return {
-    excluded: rule.exclusion.test(clause) || occurrences.some((negated) => negated),
+    excluded: rule.exclusion.test(clause) || occurrences.some(({ polarity }) => polarity === "negative"),
     requested: rule.approval.test(clause)
-      || (requestStart.test(clause) && occurrences.some((negated) => !negated))
+      || occurrences.some(({ polarity }) => polarity === "positive")
   };
 }
 
