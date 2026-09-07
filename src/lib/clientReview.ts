@@ -11,6 +11,8 @@ import {
   type ReviewItemStatus
 } from "../types/project";
 import { validateIntake } from "./validateIntake";
+import { projectCapabilities } from "./projectCapabilities";
+import { isBeforeImplementationDeferral, websiteDeferredRequirements, websiteRequirement } from "./websiteRequirements";
 import { calculatePowerPlatformReadiness, formatPowerPlatformGateStatus } from "./powerPlatform";
 
 const FIELD_SECTIONS: Partial<Record<ProjectInputField, ClientReviewSection>> = {
@@ -240,7 +242,8 @@ function applicabilityDecisionIsComplete(decision: { status: string; details: st
 }
 
 function screensAreRelevant(project: ProjectRecord): boolean {
-  return project.intake.appType !== "apiBackend"
+  return projectCapabilities(project).documentFamily !== "website"
+    && project.intake.appType !== "apiBackend"
     && project.intake.appType !== "automationWorkflow";
 }
 
@@ -328,8 +331,20 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
   }
 
   const previous = new Map((project.reviewItems ?? []).map((item) => [item.id, item]));
+  if (projectCapabilities(project).documentFamily === "website") {
+    for (const deferred of websiteDeferredRequirements(project)) {
+      const item = makeItem(deferred.field, deferred.label, "Recorded future decision.", "weak", now);
+      item.status = "Deferred";
+      item.deferredReason = deferred.reason;
+      item.blocking = deferred.blocksImplementation;
+      item.allowDeferred = !deferred.blocksImplementation;
+      derived.set(item.id, item);
+    }
+  }
   const reconciled = [...derived.values()].map((item) => {
     const stored = previous.get(item.id);
+    if (projectCapabilities(project).documentFamily === "website"
+      && stored?.status === "Answered" && ["missing", "deferred"].includes(websiteRequirement(project, item.fieldKey).status)) return item;
     return stored
       ? {
           ...item,
@@ -360,7 +375,7 @@ export function reviewItemBlocksReadiness(item: ReviewItem): boolean {
   if (item.status === "Answered") return false;
   if (item.status === "Not applicable") return !item.notApplicableReason.trim();
   if (item.status === "Deferred") {
-    return !item.deferredReason.trim() || item.blocking || !item.allowDeferred;
+    return !item.deferredReason.trim() || item.blocking || !item.allowDeferred || isBeforeImplementationDeferral(item.deferredReason);
   }
   return true;
 }

@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-09-06 - Business Website package generation applicability
+
+- Added centralized website capabilities and typed requirement-state interpretation, plus a website template family for Business Website and Static Website. All 19 standard documents and existing application/Power Platform generation paths are preserved.
+- Replaced website deployment reads of `powerPlatform.common.*` with the existing hosting/domain/platform/constraint answers. Client test plans, acceptance criteria and implementation prompts now concern the website.
+- Respected explicit N/A decisions, optional blanks and deferred decisions, including the supplied contact TBD due before implementation. Genuine required gaps and manual review gates remain blocking.
+- Corrected website marker provenance and exact-input navigation; historical platform markers request regeneration instead of linking to hidden controls.
+- Added generic and synthetic umbrella-site regression fixtures, cross-type generation, storage/export integrity and browser UI coverage. Client-identifying fixture details remain in local verification only. See [correction details and validation](docs/business-website-package-generation.md).
+- Baseline passed 3,105 tests across 94 files, lint, TypeScript and build. Owner authorized documenting the pre-existing development-tooling audit (28 high / 2 moderate dependency entries; production-only audit zero) without dependency changes.
+- Final full coverage/UI validation passed 3,158 tests across 95 files (3,080 unit/integration + 78 UI). Coverage thresholds, lint, TypeScript, build and production-only audit passed. Local review of all 19 umbrella-site documents confirmed zero missing markers/content blockers/export errors, with contact deferred and manual reviews preserved.
+
 ## 2026-09-02 - Phase 5C.3C.3J.6C.6 - Canonical SHA-256 Hex Syntax Core Predicate
 
 ### Summary

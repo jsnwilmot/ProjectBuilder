@@ -15,6 +15,8 @@ import type {
   ValidationWarning
 } from "../types/project";
 import { getProjectFieldValue } from "./projectFields";
+import { projectCapabilities } from "./projectCapabilities";
+import { validateWebsiteIntake, websiteRequirement } from "./websiteRequirements";
 import {
   calculateCanvasDataverseSchemaGate,
   calculateConnectorClassificationGate,
@@ -634,6 +636,7 @@ function sectionResult(project: ProjectRecord, stageIndex: number): ValidationSe
 }
 
 export function validateIntake(project: ProjectRecord): IntakeValidationResult {
+  if (projectCapabilities(project).documentFamily === "website") return validateWebsiteIntake(project);
   const missingFieldsFromStages: ValidationIssue[] = INTAKE_STAGES.flatMap((stage) => {
     const fieldIssues = stage.requiredFields.flatMap((field) => {
       const value = getProjectFieldValue(project, field).trim();
@@ -670,6 +673,11 @@ export function validateIntake(project: ProjectRecord): IntakeValidationResult {
 }
 
 export function getOutstandingFields(project: ProjectRecord): ProjectInputField[] {
+  if (projectCapabilities(project).documentFamily === "website") {
+    return INTAKE_STAGES.flatMap((stage) => [...stage.fields, ...getProjectTypeFields(project.intake.appType, project.intake.audienceVisibility, stage.id)])
+      .map((field) => field.name).filter((field, index, fields) => fields.indexOf(field) === index)
+      .filter((field) => websiteRequirement(project, field).status === "missing");
+  }
   return INTAKE_STAGES
     .flatMap((step) => [
       ...step.fields.map((field) => field.name),

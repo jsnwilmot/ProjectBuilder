@@ -1,5 +1,11 @@
 # Next Steps
 
+## Business Website generation review boundary
+
+1. Have the Project Owner and GPT Architect review `fix/business-website-package-generation`, its generated website behavior and [regression evidence](docs/business-website-package-generation.md).
+2. Review the documented development-tooling advisories separately; the owner authorized this generation fix without dependency remediation.
+3. After a separately approved merge and deployment, regenerate the affected production website draft and verify its actual saved intake. Preserve its three manual review gates and contact decision due before implementation. Do not approve or implement the website merely because missing markers are corrected.
+
 ## Phase 5C.3C.3J.6C.4 review boundary
 
 1. Keep `review/phase-5c3c3j6c4-core-canonical-uuid` for independent GPT Architect review.

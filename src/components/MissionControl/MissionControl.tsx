@@ -11,6 +11,8 @@ import {
   getProjectDisplayStatus
 } from "../../lib/projectSelectors";
 import { getFirstIncompleteStep } from "../../lib/validateIntake";
+import { projectCapabilities } from "../../lib/projectCapabilities";
+import { validateWebsiteIntake, websiteDeferredRequirements } from "../../lib/websiteRequirements";
 import type { ProjectRecord } from "../../types/project";
 import { ChevronRight, Users } from "../ui/Icons";
 import { WorkflowOverview } from "../Onboarding/WorkflowOverview";
@@ -38,6 +40,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
 
 function getStatusExplanations(project: ProjectRecord) {
   const readiness = getClientReviewReadiness(project);
+  const isWebsite = projectCapabilities(project).documentFamily === "website";
   const explanations: Array<{ label: string; description: string }> = [];
 
   if (getGeneratedFileCount(project) > 0) {
@@ -48,14 +51,24 @@ function getStatusExplanations(project: ProjectRecord) {
         }
       : {
           label: "Draft",
-          description: "The package can be reviewed, but required information is still missing."
+          description: isWebsite && validateWebsiteIntake(project).isValid
+            ? "The package can be reviewed; required decisions or review approvals remain."
+            : "The package can be reviewed, but required information is still missing."
         });
   }
 
-  if (readiness.unresolvedItems.length > 0) {
+  if (getOutstandingQuestionCount(project) > 0) {
     explanations.push({
       label: "Client Questions Pending",
       description: "Some client questions still need answers before the project can be Ready for Codex."
+    });
+  }
+
+  if (isWebsite) {
+    const deferred = websiteDeferredRequirements(project);
+    if (deferred.length) explanations.push({
+      label: "Deferred decisions",
+      description: deferred.map((item) => `${item.label}: ${item.reason}${item.blocksImplementation ? " Resolve before implementation readiness." : " Track as a future action."}`).join(" ")
     });
   }
 
@@ -260,7 +273,7 @@ export function MissionControl({
             <div className="summary-number">
               <small>Outstanding questions</small>
               <strong className={outstandingCount ? "warning-number" : ""}>{outstandingCount}</strong>
-              <span>Questions need your input</span>
+              <span>{projectCapabilities(project).documentFamily === "website" && outstandingCount === 0 ? "No unanswered intake questions" : "Questions need your input"}</span>
             </div>
             <div className="summary-number">
               <small>Generated documents</small>

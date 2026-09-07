@@ -8,6 +8,7 @@ import { MissionControl } from "../components/MissionControl/MissionControl";
 import { PlanningView } from "../components/Planning/PlanningView";
 import { GENERATE_STAGE_INDEX, INTAKE_STAGES, REVIEW_STAGE_INDEX } from "../data/intakeStages";
 import { useProjectBuilder } from "./useProjectBuilder";
+import type { ProjectInputField } from "../types/project";
 
 export function App() {
   const [view, setView] = useState<AppView>("dashboard");
@@ -66,11 +67,11 @@ export function App() {
     return () => window.removeEventListener("beforeunload", preventUnload);
   }, [meaningfulPlanningAnswerDrafts.size]);
 
-  const openIntake = (step = 0) => {
+  const openIntake = (step = 0, field?: ProjectInputField) => {
     setIntakeStep(step);
     setView("intake");
     window.setTimeout(() => {
-      document.getElementById("main-content")?.focus();
+      (field ? document.getElementById(`field-${field}`) : document.getElementById("main-content"))?.focus();
     }, 0);
   };
 
@@ -170,9 +171,9 @@ export function App() {
           <DocumentViewer
             project={project}
             projectPackage={generatedPackage}
-            onReturnToIntake={(stageId) => {
+            onReturnToIntake={(stageId, field) => {
               const stageIndex = stageId ? INTAKE_STAGES.findIndex((stage) => stage.id === stageId) : -1;
-              openIntake(stageIndex >= 0 ? stageIndex : 0);
+              openIntake(stageIndex >= 0 ? stageIndex : 0, field);
             }}
           />
         ) : null}

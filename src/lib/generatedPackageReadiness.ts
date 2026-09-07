@@ -16,6 +16,8 @@ export interface GeneratedPackageReadiness {
   duplicateExpectedPathCount: number;
   missingTemplateCount: number;
   orphanMarkerCount: number;
+  /** Generation/platform/target failures, separate from client review diagnostics. */
+  contentBlockers: string[];
   blockers: string[];
 }
 
@@ -58,9 +60,7 @@ export function evaluateGeneratedPackageReadiness(
   const canvasTargets = validateCanvasTargets(project);
   const orphanMarkerCount = orphanMissingMarkers(project, documents).length;
 
-  const blockers = [
-    ...clientReview.blockers,
-    ...(!clientReview.isReady ? ["Client Review readiness is not complete."] : []),
+  const contentBlockers = [
     ...(!powerPlatform.isReadyForCodex ? [powerPlatform.nextBlockingAction || "Power Platform readiness gates are not complete."] : []),
     ...canvasTargets.blockers,
     ...(missingDocumentCount > 0 ? [`${missingDocumentCount} applicable document(s) are missing.`] : []),
@@ -70,6 +70,11 @@ export function evaluateGeneratedPackageReadiness(
     ...(prohibitedContentCount > 0 ? [`${prohibitedContentCount} prohibited generated-content marker(s) remain.`] : []),
     ...(duplicateExpectedPathCount > 0 ? [`${duplicateExpectedPathCount} duplicate expected document path(s) are registered.`] : []),
     ...(missingTemplateFiles.length > 0 ? [`${missingTemplateFiles.length} applicable document template(s) are missing.`] : [])
+  ];
+  const blockers = [
+    ...clientReview.blockers,
+    ...(!clientReview.isReady ? ["Client Review readiness is not complete."] : []),
+    ...contentBlockers
   ];
 
   return {
@@ -83,6 +88,7 @@ export function evaluateGeneratedPackageReadiness(
     duplicateExpectedPathCount,
     missingTemplateCount: missingTemplateFiles.length,
     orphanMarkerCount,
+    contentBlockers: unique(contentBlockers),
     blockers: unique(blockers)
   };
 }

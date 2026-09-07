@@ -1,5 +1,18 @@
 # Test Plan
 
+## Business Website package applicability regression
+
+Run `npm test` (unit/integration plus all seven UI legs), `npm run lint` and `npm run build` (includes application TypeScript checking).
+
+- `businessWebsitePackage.test.ts`: generic and sanitized umbrella-site fixtures; both hosting/source-control/repository/generator combinations; N/A and invalid review reasons; optional blanks; selected forms/integrations/analytics/data/access; client tests/acceptance; website Architect/Codex/phases; no-database/no-authentication output; page sections; structured and prose deferrals; genuine missing values and editable sources; stale Answered decisions; three manual gates; regeneration; storage compatibility; all other selectable types; 19-document ZIP paths, manifests and tamper rejection.
+- `App.documentsExport.test.tsx`: a website marker opens and focuses its visible field; historical deployment markers explain the problem without offering navigation to hidden fields; Mission Control distinguishes the deferred contact decision from unanswered intake.
+- `clientReview.test.ts`: website pages replace application screens for website review; application screen requirements are still derived.
+- Manual local regression: use a local static umbrella-site reproduction, inspect all 19 documents, keep contact deferred before implementation and the three manual gates unresolved, and inspect the actual local application preview. Keep client-identifying fixture data out of the public repository and do not edit production projects.
+
+Baseline: 3,105 passing tests across 94 files; lint, app TypeScript and build passed. See [validation evidence, root cause and known limitations](docs/business-website-package-generation.md).
+
+Final: the complete coverage runner passed 3,080 tests in 88 unit/integration files and 78 tests in all 7 UI files: 3,158 tests / 95 files. Coverage passed at 90.02% statements, 83.21% branches, 95.43% functions and 93.44% lines. Lint, app TypeScript, production build and production-only audit passed. The local umbrella-site fixture retained the contact deferral and three manual gates with 19 documents and no missing markers, content errors or export-integrity errors.
+
 ## 2026-09-02 Phase 5C.3C.3J.6C.4 canonical UUID syntax core primitive
 
 1. Verify `src/core/canonicalUuid.ts` exposes `isCanonicalUuid(value: unknown): value is string` and owns only canonical lowercase UUID syntax recognition.
