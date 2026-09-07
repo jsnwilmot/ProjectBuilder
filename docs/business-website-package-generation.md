@@ -1,5 +1,44 @@
 # Business Website package generation correction
 
+## Follow-up: negative capability selection
+
+Production review after the first fix found zero missing/content/export errors but incorrect optional work: DATA_MODEL declared application data requested, test/acceptance tables included analytics/data/access checks, and phases included services despite explicit exclusions. The source used `websiteSelected(field) => websiteRequirement(field).status === "answered"`. Dependency validation had a similar nonempty-answer shortcut. A populated answer can explicitly reject a capability.
+
+`websiteCapabilitySelected(project, field)` now separates capability selection from requirement status. Its field argument is the closed `WebsiteCapabilityField` union from `websiteCapabilityIntent.ts`. It honors field visibility, structured N/A and Deferred decisions, existing whole-answer N/A values, and existing before-implementation deferral handling before applying a bounded field-specific exclusion grammar. An N/A decision without a reason still produces a missing requirement; it does not authorize a service.
+
+| Field | Capability decision |
+| --- | --- |
+| websiteForms | Form processing |
+| integrations | External systems/API integrations |
+| websiteAnalytics | Analytics/tracking |
+| dataCollections, dataEntities | Persistent application data |
+| authenticationExpectation | Authentication/access controls |
+| reportsDashboards | Reports/dashboards |
+| dataSources | Descriptive content provenance only; never activates additional services |
+
+All prior `websiteSelected` call sites activated optional work. They now use the typed selector. The services phase uses the same field registry; data/access dependencies also use the selector. Ordinary scope, branding, navigation, content and security answers continue to render through requirement states without capability classification.
+
+### Negative prose and positive protection
+
+Compatibility recognizes capability subjects in bounded exclusion clauses: for example, `No analytics are required`, `Do not add analytics`, `Authentication is outside scope`, or `Static content only; no database`. It also handles the existing analytics placeholder value `Not approved`. These answers are preserved verbatim and remain Answered, rather than being globally converted to N/A or erased.
+
+The grammar does not search for arbitrary `no`, `none` or `not` substrings. Negation must refer to the field's capability. Historical absence (`No current database exists`) and constraints on another concern (`No errors in analytics`) do not exclude the capability. An independent explicit replacement request prevents an exclusion clause from suppressing newly requested work. Structured N/A/Deferred decisions still take precedence over positive prose. Tests protect replacement analytics, newly created databases, authenticated-only users and new report requests.
+
+### Compatibility and limitations
+
+- No persisted schema, storage version, migration, intake UX, review controls or saved answers changed. Existing generated documents still require explicit regeneration after an approved release. Positive capabilities still produce their dependent requirements, checks and services phase. Application and Power Platform template families remain untouched.
+- This is bounded English legacy compatibility, not general language understanding. Unrecognized free-text descriptions retain existing selection behavior; structured N/A/Deferred controls remain the reliable way to settle ambiguous or contradictory intent. No customer name, provider name or cross-field prose inference determines selection.
+- The generated-content counter checks markers, template/structural rules and existing typed diagnostics. Zero does not prove semantic consistency. Deterministic pre-generation applicability and regression tests provide the correction; no semantic contradiction scanner was added.
+- `dataSources`, workflows, notifications, branding and ordinary page content remain descriptive in this change. Ordinary outbound navigation is already covered by the base website checks and does not require an integration-services phase when integrations are explicitly excluded.
+
+### Baseline and manual evidence
+
+Baseline main: `2b5231edd00bb7d7ba82fa30e8632c958bd9018f`. A clean checkout completed `npm ci`, `npm test` and `npm run test:coverage`: 3,080 unit/integration tests plus 78 UI tests, 3,158 total in 95 files. Coverage: 90.02% statements / 83.21% branches / 95.43% functions / 93.44% lines. Lint, app TypeScript, build and production audit passed. An initial install in an earlier checkout encountered a locked native build-tool file; verification moved to the clean checkout without terminating unrelated processes. The new reproducer failed 45 of 74 tests against unchanged main, then passed after correction; additional precedence/isolation tests were added.
+
+Manual browser reproduction used only the new fictional static umbrella-site fixture and local generator modules. It generated 19 documents without mutating the input. DATA_MODEL states no persistent application model requested and retains the negative answers. TEST_PLAN and ACCEPTANCE_CRITERIA each contain the nine base website checks, without excluded capability rows. The seven normal website phases omit Requested website services. Deployment preserves the recorded static host, Git repository, main branch, example domain and Eleventy. Architect/Codex instructions remain website-specific. Contact appears in two before-implementation deferred fields; the three manual gates remain unapproved, with seven review diagnostics overall and zero unanswered intake fields. Missing/orphan markers, content blockers and export errors are zero. No production storage was accessed.
+
+Final validation passed on the completed implementation: `npm test` and `npm run test:coverage` each ran 3,160 unit/integration tests in 89 files plus 78 UI tests in seven files, totaling 3,238 tests / 96 files. The added suite contains 80 tests; the focused website matrix passed all 130 tests. Coverage passed unchanged thresholds at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, app TypeScript, production build and diff whitespace checks passed. The production audit reported zero vulnerabilities. The report-only full audit retained seven development-tooling findings (five high, two moderate); dependencies were not changed. The build retains its existing large-chunk warning. No merge or deployment is part of this correction.
+
 ## Scope and verified root cause
 
 Business Website and Static Website now use a website document family. Other application types retain their existing templates and validation, including legitimate Canvas and model-driven requirements. The standard website package still contains all 19 documents in the existing folders.

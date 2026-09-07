@@ -1,0 +1,245 @@
+import { generateProjectPackage } from "../lib/generateProjectPackage";
+import { websiteCapabilitySelected, websiteRequirement } from "../lib/websiteRequirements";
+import type { WebsiteCapabilityField } from "../lib/websiteCapabilityIntent";
+import { createNegativeCapabilityWebsite, websiteReviewDecision, withWebsiteReviews } from "./helpers/businessWebsite";
+import { evaluateGeneratedPackageReadiness } from "../lib/generatedPackageReadiness";
+import { validateExportPackage } from "../lib/exportIntegrity";
+import { getClientReviewReadiness, deriveReviewItems } from "../lib/clientReview";
+import { getOutstandingFields, validateIntake } from "../lib/validateIntake";
+import { DOCUMENT_LOCATIONS } from "../data/folderStructure";
+import { PROJECT_TYPE_VALUES } from "../data/projectTypes";
+import { createSeedProject } from "../data/seedProject";
+import { expectedDocumentLocations } from "../lib/powerPlatform";
+import type { ProjectRecord } from "../types/project";
+
+const negativeCases: Array<[WebsiteCapabilityField, string]> = [
+  ["websiteAnalytics", "No analytics platform is approved for Version 1."],
+  ["websiteAnalytics", "No analytics are required."],
+  ["websiteAnalytics", "Analytics are outside Version 1 scope."],
+  ["websiteAnalytics", "Do not add analytics."],
+  ["websiteAnalytics", "No tracking or marketing analytics."],
+  ["dataCollections", "No database is required."],
+  ["dataCollections", "Static site only. No persistent application data or database is required."],
+  ["dataCollections", "No application data model is required."],
+  ["dataCollections", "Static content only; no database."],
+  ["dataCollections", "No data collections are required."],
+  ["dataCollections", "No database is required. Provide static metadata."],
+  ["dataEntities", "Static public content only; no database entities."],
+  ["authenticationExpectation", "No authentication is required."],
+  ["authenticationExpectation", "Public website with no login."],
+  ["authenticationExpectation", "Public website. No login or authentication is required."],
+  ["authenticationExpectation", "No user accounts."],
+  ["authenticationExpectation", "Authentication is outside scope."],
+  ["authenticationExpectation", "No access-control system is required."],
+  ["websiteForms", "No forms are required."],
+  ["websiteForms", "No contact form is approved."],
+  ["websiteForms", "Forms are outside Version 1 scope."],
+  ["integrations", "No integrations are required."],
+  ["integrations", "No third-party integrations are approved."],
+  ["integrations", "Integrations are outside Version 1 scope."],
+  ["reportsDashboards", "No reports or dashboards are required."],
+  ["reportsDashboards", "Reports and dashboards are outside Version 1 scope."]
+];
+
+const positiveCases: Array<[WebsiteCapabilityField, string, string]> = [
+  ["websiteAnalytics", "Owner-approved analytics: navigation conversion events", "Approved analytics"],
+  ["dataCollections", "Customer database: approved appointments", "Requested application data"],
+  ["dataEntities", "Bookings and customer records", "Requested data entities"],
+  ["authenticationExpectation", "Approved organization sign-in", "Requested access controls"],
+  ["integrations", "Approved booking API for availability", "Requested integrations"],
+  ["websiteForms", "Booking form: name, service and approved recipient", "Requested forms"],
+  ["reportsDashboards", "Weekly service summary for the owner", "Requested reports"]
+];
+
+function generated(project = createNegativeCapabilityWebsite()): ProjectRecord {
+  return { ...project, generatedDocuments: generateProjectPackage(project).documents, packageGeneratedAt: "2026-09-07T03:00:00.000Z" };
+}
+const content = (project: ProjectRecord, name: string) => project.generatedDocuments.find((doc) => doc.fileName === name)!.content;
+const excludedRows = /Requested forms|Requested integrations|Approved analytics|Requested application data|Requested data entities|Requested access controls|Requested reports/;
+
+describe("Website capability selection is separate from answered requirements", () => {
+  it.each(negativeCases)("does not select %s from %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteRequirement(project, field).status).toBe("answered");
+    expect(websiteCapabilitySelected(project, field)).toBe(false);
+  });
+
+  it.each(positiveCases)("selects positive %s and includes only its optional work", (field, value, row) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+    const result = generated(project);
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) {
+      expect(content(result, name)).toContain(row);
+      for (const [, , other] of positiveCases.filter(([otherField]) => otherField !== field)) expect(content(result, name)).not.toContain(other);
+    }
+    const phase = content(result, "PHASED_CODEX_PROMPTS.md").split("Requested website services")[1].split("## Phase")[0];
+    expect(phase).toContain(value);
+    expect(phase).not.toContain("No analytics platform");
+  });
+
+  it.each(["None", "N/A", "Not Applicable", "Not approved", "No"])("does not activate whole-field exclusion %s", (answer) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteAnalytics = answer;
+    expect(websiteCapabilitySelected(project, "websiteAnalytics")).toBe(false);
+  });
+
+  it.each(["Not applicable", "Deferred"] as const)("honors structured %s before positive prose", (status) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteAnalytics = "Implement approved analytics";
+    project.reviewItems = [websiteReviewDecision({ fieldKey: "websiteAnalytics", status, deferredReason: "Revisit after launch" })];
+    expect(websiteCapabilitySelected(project, "websiteAnalytics")).toBe(false);
+  });
+
+  it("does not turn a structured Answered exclusion into approval", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.reviewItems = [websiteReviewDecision({ fieldKey: "websiteAnalytics", status: "Answered" })];
+    expect(websiteRequirement(project, "websiteAnalytics").status).toBe("answered");
+    expect(websiteCapabilitySelected(project, "websiteAnalytics")).toBe(false);
+  });
+
+  it("preserves the latest non-gate decision and rejects an invalid N/A without granting scope", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteAnalytics = "Implement approved analytics";
+    project.reviewItems = [
+      websiteReviewDecision({ fieldKey: "websiteAnalytics", status: "Answered" }),
+      websiteReviewDecision({ fieldKey: "websiteAnalytics", notApplicableReason: "", updatedAt: "2026-09-08T00:00:00.000Z" }),
+      websiteReviewDecision({ fieldKey: "websiteAnalytics", status: "Answered", source: "gate", updatedAt: "2026-09-09T00:00:00.000Z" })
+    ];
+    expect(websiteRequirement(project, "websiteAnalytics").status).toBe("missing");
+    expect(websiteCapabilitySelected(project, "websiteAnalytics")).toBe(false);
+  });
+
+  it("does not select blank or inapplicable capabilities", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteAnalytics = "  ";
+    expect(websiteCapabilitySelected(project, "websiteAnalytics")).toBe(false);
+    project.intake.appType = "game";
+    project.intake.websiteForms = "Approved booking form";
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(false);
+  });
+
+  it("scopes exclusion and replacement clauses to the same capability", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteAnalytics = "No analytics are required. Implement an approved booking form.";
+    expect(websiteCapabilitySelected(project, "websiteAnalytics")).toBe(false);
+    project.intake.websiteForms = "No analytics are required. Implement an approved booking form.";
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+  });
+
+  it.each<[WebsiteCapabilityField, string]>([
+    ["authenticationExpectation", "No anonymous access; authenticated users are required."],
+    ["websiteAnalytics", "No existing analytics platform is suitable; implement the owner-approved replacement analytics service."],
+    ["dataCollections", "No current database exists; create the approved customer database."],
+    ["reportsDashboards", "None of the current reports meet the owner's needs; provide a service summary."],
+    ["websiteAnalytics", "No errors are acceptable in analytics event delivery."],
+    ["websiteAnalytics", "No analytics errors are acceptable."],
+    ["dataCollections", "No data loss is acceptable."],
+    ["reportsDashboards", "Reports must not include personal details."],
+    ["websiteForms", "No contact forms; implement an approved booking form."],
+    ["websiteAnalytics", "No analytics platform is suitable; implement the approved replacement analytics service."]
+  ])("preserves positive %s despite negative words: %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it("does not require application fields or roles for negative capability prose", () => {
+    const project = createNegativeCapabilityWebsite();
+    expect(validateIntake(project).missingFields).toEqual([]);
+    for (const field of ["fields", "keyFields", "userRoles", "permissionRules"] as const) expect(websiteRequirement(project, field).level).toBe("optional");
+  });
+
+  it("still requires dependent definitions for positively requested data and access", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.dataEntities = "Bookings";
+    project.intake.authenticationExpectation = "Organization sign-in";
+    expect(validateIntake(project).missingFields.map(({ field }) => field)).toEqual(expect.arrayContaining(["fields", "keyFields", "userRoles", "permissionRules"]));
+  });
+
+  it("retains genuine required-field markers with negative optional capabilities", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websitePages = "";
+    expect(content(generated(project), "SCREEN_MAP.md")).toContain("[MISSING: website pages]");
+    expect(validateIntake(project).isValid).toBe(false);
+  });
+});
+
+describe("Production-style negative website package regression", () => {
+  it("generates the standard contract without mutation, false markers or integrity errors", () => {
+    const project = createNegativeCapabilityWebsite();
+    const before = JSON.stringify(project);
+    const result = generated(project);
+    expect(JSON.stringify(project)).toBe(before);
+    expect(result.generatedDocuments.map(({ fileName, folder }) => ({ fileName, folder }))).toEqual(DOCUMENT_LOCATIONS);
+    const readiness = evaluateGeneratedPackageReadiness(result);
+    expect(readiness.missingMarkerCount).toBe(0);
+    expect(readiness.orphanMarkerCount).toBe(0);
+    expect(readiness.contentBlockers).toEqual([]);
+    expect(validateExportPackage(result).errors).toEqual([]);
+    expect(result.generatedDocuments.map((doc) => doc.content).join("\n")).not.toMatch(/Power Platform|Power Apps|Dataverse|Power Fx/);
+  });
+
+  it("renders no requested persistent data model while preserving the negative answers", () => {
+    const result = generated();
+    expect(content(result, "DATA_MODEL.md")).toContain("No application database or persistent business data model is requested");
+    expect(content(result, "DATA_MODEL.md")).not.toContain("Application data is requested.");
+    expect(content(result, "DATA_MODEL.md")).toContain(result.intake.dataCollections);
+  });
+
+  it.each(["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"])("omits excluded capability rows from %s", (name) => {
+    const text = content(generated(), name);
+    expect(text).not.toMatch(excludedRows);
+    expect(text).toMatch(/Navigation and page structure[\s\S]*Owner acceptance/);
+  });
+
+  it("omits the services phase when all optional services are excluded or deferred", () => {
+    const text = content(generated(), "PHASED_CODEX_PROMPTS.md");
+    expect(text).not.toContain("Requested website services");
+    expect(text.match(/^## Phase /gm)).toHaveLength(7);
+  });
+
+  it("keeps several positive capabilities without including excluded capabilities", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteAnalytics = "Approved analytics for navigation";
+    project.intake.integrations = "Approved booking API";
+    const result = generated(project);
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) {
+      expect(content(result, name)).toMatch(/Requested integrations[\s\S]*Approved analytics/);
+      expect(content(result, name)).not.toMatch(/Requested forms|Requested application data|Requested data entities|Requested access controls|Requested reports/);
+    }
+    expect(content(result, "PHASED_CODEX_PROMPTS.md")).toContain("Requested website services");
+  });
+
+  it("keeps contact deferred, manual gates unapproved, and no unanswered intake", () => {
+    const result = generated();
+    expect(getClientReviewReadiness(result).checklist.filter((item) => item.manual && !item.passed)).toHaveLength(3);
+    expect(deriveReviewItems(result).find((item) => item.fieldKey === "websiteContactMethod")?.status).toBe("Deferred");
+    expect(evaluateGeneratedPackageReadiness(withWebsiteReviews(result)).status).toBe("Draft");
+    expect(getOutstandingFields(result)).toEqual([]);
+    expect(content(result, "CLIENT_QUESTIONS.md")).toContain("No unanswered intake questions.");
+  });
+
+  it("does not activate services from descriptive sources alone", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.dataSources = "Owner's approved static content and photographs";
+    expect(content(generated(project), "PHASED_CODEX_PROMPTS.md")).not.toContain("Requested website services");
+    expect(content(generated(project), "DATA_MODEL.md")).toContain(project.intake.dataSources);
+  });
+
+  it("applies the same correction to Static Website", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.appType = "staticWebsite";
+    expect(content(generated(project), "TEST_PLAN.md")).not.toMatch(excludedRows);
+  });
+
+  it.each(PROJECT_TYPE_VALUES.filter((type) => type !== "businessWebsite" && type !== "staticWebsite"))("preserves the existing %s document family", (type) => {
+    const project = createSeedProject();
+    project.intake.appType = type;
+    const result = generated(project);
+    expect(result.generatedDocuments.map(({ fileName, folder }) => ({ fileName, folder }))).toEqual(expectedDocumentLocations(project));
+    expect(content(result, "DATA_MODEL.md")).toContain("Service requests");
+    if (type === "powerAppsCanvas" || type === "powerAppsModelDriven") expect(content(result, "CODEX_INSTRUCTIONS.md")).toMatch(/Power Fx|model-driven/i);
+  });
+});
