@@ -18,7 +18,10 @@ describe("client review workflow", () => {
     const items = deriveReviewItems(project, "2026-07-03T12:00:00.000Z");
 
     expect(items.some((item) => item.section === "Foundation" && item.fieldKey === "clientName")).toBe(true);
-    expect(items.some((item) => item.section === "Features" && item.fieldKey === "screens" && item.source === "weak")).toBe(true);
+    expect(items.some((item) => item.section === "Content" && item.fieldKey === "websitePages" && item.source === "missing")).toBe(true);
+    expect(items.some((item) => item.fieldKey === "screens")).toBe(false);
+    const application = createProject({ intake: { appType: "webApplication" } });
+    expect(deriveReviewItems(application).some((item) => item.fieldKey === "screens" && item.source === "weak")).toBe(true);
     expect(items.every((item) => item.recommendedQuestion.length > 0)).toBe(true);
   });
 

@@ -9,6 +9,8 @@ import {
 import { getProjectFieldValue } from "../../lib/projectFields";
 import { getClientReviewReadiness } from "../../lib/clientReview";
 import { getStepCompletion } from "../../lib/validateIntake";
+import { projectCapabilities } from "../../lib/projectCapabilities";
+import { websiteRequirement, websiteRequirementText } from "../../lib/websiteRequirements";
 import type {
   IntakeFieldDefinition,
   IntakeValidationResult,
@@ -70,9 +72,12 @@ export function IntakeBuilder({
     project.intake.appType,
     project.intake.audienceVisibility,
     step.id
-  );
+  ).map((field) => projectCapabilities(project).documentFamily === "website"
+    ? { ...field, required: websiteRequirement(project, field.name).level === "required" } : field);
   const coreFields = step.fields.map((field) => (
-    field.name === "audienceVisibility" && preset?.brandingRequirementLevel === "conditional"
+    projectCapabilities(project).documentFamily === "website"
+      ? { ...field, required: websiteRequirement(project, field.name).level === "required" }
+      : field.name === "audienceVisibility" && preset?.brandingRequirementLevel === "conditional"
       ? { ...field, required: true }
       : field
   ));
@@ -89,7 +94,10 @@ export function IntakeBuilder({
   const canJumpToStep = (index: number, completion: number) =>
     index <= currentStep + 1 || completion > 0 || index === GENERATE_STAGE_INDEX;
 
-  const summaryItems: Array<{ label: string; value: string }> = [
+  const summaryItems: Array<{ label: string; value: string }> = projectCapabilities(project).documentFamily === "website"
+    ? (["appName", "clientName", "appPurpose", "targetUsers", "requiredFeatures", "websitePages", "hostingStatus", "dataCollections", "authenticationExpectation", "reportsDashboards", "websiteContactMethod", "risks", "successCriteria"] as const)
+      .map((field) => ({ label: websiteRequirement(project, field).label, value: websiteRequirementText(project, field) }))
+    : [
     { label: "Project identity", value: `${project.identity.projectName || "[MISSING: app name]"} / ${project.client.clientName || "[MISSING: client name]"}` },
     { label: "Client details", value: project.client.businessName || "[MISSING: business or department]" },
     { label: "Purpose", value: project.intake.appPurpose || "[MISSING: app purpose]" },

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- shared App UI test import block keeps split suites mechanically aligned */
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { App } from "../app/App";
@@ -25,8 +25,55 @@ import { evaluatePhaseGate } from "../lib/phaseGates";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
+import { createBusinessWebsite, createUmbrellaWebsite, withWebsiteReviews } from "./helpers/businessWebsite";
 
 describe("App - documents Export", () => {
+  it("shows the contact decision as deferred and separates review blockers from content errors", async () => {
+    seedApp([createDraftGeneratedProject(createUmbrellaWebsite())]);
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByText("Deferred decisions:")).toBeVisible();
+    expect(screen.getByText(/Contact method: Contact section planned/)).toBeVisible();
+    expect(screen.getByText("No unanswered intake questions")).toBeVisible();
+    expect(screen.queryByText(/required information is still missing/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Client Questions Pending:")).not.toBeInTheDocument();
+    expect(screen.getByText("Outstanding questions").parentElement).toHaveTextContent("0");
+    expect(screen.getByText(/required decisions or review approvals remain/)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    const summary = screen.getByRole("region", { name: "Package summary" });
+    expect(within(summary).getByText("Generated-content blockers").parentElement).toHaveTextContent("0");
+    expect(within(summary).getByText("Client Review blockers").parentElement).toHaveTextContent("6");
+    expect(within(summary).getByText("Ready for Codex blockers").parentElement).toHaveTextContent("6");
+    expect(within(summary).getByText("Final readiness").parentElement).toHaveTextContent("Not ready");
+  });
+
+  it("opens and focuses the visible website field behind a generated marker", async () => {
+    const project = withWebsiteReviews();
+    project.intake.websitePages = "";
+    seedApp([createDraftGeneratedProject(project)]);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Preview SCREEN_MAP.md" }));
+    await user.click(screen.getAllByRole("button", { name: "Edit source" })[0]);
+    const field = screen.getByRole("textbox", { name: /Website pages/ });
+    expect(field).toBeVisible();
+    await waitFor(() => expect(field).toHaveFocus());
+  });
+
+  it("explains obsolete deployment requirements without routing to unavailable fields", async () => {
+    const project = createDraftGeneratedProject(createBusinessWebsite());
+    project.generatedDocuments = project.generatedDocuments.map((doc) => doc.fileName === "DEPLOYMENT_NOTES.md"
+      ? { ...doc, content: "# Deployment Notes\n\n[MISSING: deployment method]" } : doc);
+    seedApp([project]);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Documents" }));
+    await user.click(screen.getByRole("button", { name: "Preview DEPLOYMENT_NOTES.md" }));
+    expect(screen.getByText(/no directly editable source for the selected website type/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Edit source" })).not.toBeInTheDocument();
+  });
+
   it("shows generated documents without injecting HTML", async () => {
     seedApp();
     const user = userEvent.setup();

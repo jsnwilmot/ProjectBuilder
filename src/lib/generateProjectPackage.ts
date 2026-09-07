@@ -1,6 +1,8 @@
 import { PROJECT_FOLDERS } from "../data/folderStructure";
 import { missingMarker, normalizeFileName, sanitizeProjectFolderName } from "./documentHelpers";
 import { documentTemplates } from "../templates/documents";
+import { websiteDocumentTemplates } from "../templates/documents/website";
+import { projectCapabilities } from "./projectCapabilities";
 import type { GeneratedDocument, ProjectPackage, ProjectRecord } from "../types/project";
 import { deriveReviewItems } from "./clientReview";
 import { getProjectDisplayStatus } from "./projectSelectors";
@@ -19,7 +21,8 @@ export function generateProjectPackage(project: ProjectRecord): ProjectPackage {
   renderProject.status = getProjectDisplayStatus(renderProject);
   type GenerationContext = { readiness?: ReturnType<typeof evaluateGeneratedPackageReadiness>; documentStatuses?: Record<string, string> };
   const renderDocuments = (context?: GenerationContext) => expectedDocumentLocations(renderProject).map(({ fileName, folder }) => {
-    const template = documentTemplates[fileName];
+    const templates = projectCapabilities(renderProject).documentFamily === "website" ? websiteDocumentTemplates : documentTemplates;
+    const template = templates[fileName];
     if (!template) throw new Error(`No document template registered for ${fileName}.`);
     const projectForTemplate = {
       ...renderProject,

@@ -10,14 +10,15 @@ import { traceMissingMarkers } from "../../lib/canvasTraceability";
 import { DOCUMENT_STATUS_DEFINITIONS } from "../../lib/documentReview";
 import { evaluatePhaseGate } from "../../lib/phaseGates";
 import { expectedDocumentLocations } from "../../lib/powerPlatform";
+import { projectCapabilities } from "../../lib/projectCapabilities";
 import type { DocumentReviewItem } from "../../lib/documentReview";
-import type { ProjectPackage, ProjectRecord } from "../../types/project";
+import type { ProjectInputField, ProjectPackage, ProjectRecord } from "../../types/project";
 import { ArrowLeft, Check, CircleAlert, Copy, FileText, Search, X } from "../ui/Icons";
 
 interface DocumentViewerProps {
   project: ProjectRecord | null;
   projectPackage: ProjectPackage | null;
-  onReturnToIntake: (stageId?: string) => void;
+  onReturnToIntake: (stageId?: string, field?: ProjectInputField) => void;
 }
 
 export function DocumentViewer({ project, projectPackage, onReturnToIntake }: DocumentViewerProps) {
@@ -52,7 +53,9 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
     : null;
   const checklistComplete = readiness?.checklist.filter((item) => item.passed).length ?? 0;
   const finalReady = Boolean(readiness?.isReady && generatedReadiness?.status === "Ready for Codex" && integrity.isValid);
-  const finalBlockerCount = (readiness?.blockerCount ?? 0) + (generatedReadiness?.blockers.length ?? 0) + integrity.errors.length;
+  const contentBlockerCount = project && projectCapabilities(project).documentFamily === "website"
+    ? generatedReadiness?.contentBlockers.length ?? 0 : generatedReadiness?.blockers.length ?? 0;
+  const finalBlockerCount = (readiness?.blockerCount ?? 0) + contentBlockerCount + integrity.errors.length;
   const expectedCount = project ? expectedDocumentLocations(project).length : DOCUMENT_LOCATIONS.length;
   const markerTraces = useMemo(() => project ? traceMissingMarkers(project, projectPackage?.documents ?? []) : [], [project, projectPackage]);
 
@@ -101,7 +104,7 @@ export function DocumentViewer({ project, projectPackage, onReturnToIntake }: Do
           <div><dt>Documents</dt><dd>{integrity.fileCount}/{integrity.expectedFileCount}</dd></div>
           <div><dt>Missing markers</dt><dd>{integrity.manifestSummary.missingMarkerCount}</dd></div>
           <div><dt>Client Review blockers</dt><dd>{readiness?.blockerCount ?? 0}</dd></div>
-          <div><dt>Generated-content blockers</dt><dd>{generatedReadiness?.blockers.length ?? 0}</dd></div>
+          <div><dt>Generated-content blockers</dt><dd>{contentBlockerCount}</dd></div>
           <div><dt>Export-integrity blockers</dt><dd>{integrity.errors.length}</dd></div>
           <div><dt>Ready for Codex blockers</dt><dd>{finalBlockerCount}</dd></div>
           <div><dt>Readiness checklist</dt><dd>{checklistComplete}/{readiness?.checklist.length ?? 12}</dd></div>
@@ -233,7 +236,7 @@ function DocumentPreview({
   markerTraces: ReturnType<typeof traceMissingMarkers>;
   onBack: () => void;
   onCopy: () => void;
-  onEditMarkerSource: (stageId?: string) => void;
+  onEditMarkerSource: (stageId?: string, field?: ProjectInputField) => void;
 }) {
   return (
     <section className="document-review-preview" aria-labelledby="document-preview-title">
@@ -273,7 +276,7 @@ function DocumentPreview({
                 <p className="document-purpose">{trace.reasonRejected}{trace.requiredStatus ? ` ${trace.requiredStatus}` : ""}</p>
                 <div className="document-review-actions">
                   <span className={`document-status ${trace.orphan ? "needs-info" : "review-recommended"}`}>{trace.orphan ? "Orphan marker" : "Traceable"}</span>
-                  <button className="button button-secondary" type="button" onClick={() => onEditMarkerSource(trace.stageId)}>Edit source</button>
+                  {trace.canEditSource !== false && !trace.orphan ? <button className="button button-secondary" type="button" onClick={() => onEditMarkerSource(trace.stageId, trace.editableField)}>Edit source</button> : <span>Review generated requirement</span>}
                 </div>
               </article>
             ))}

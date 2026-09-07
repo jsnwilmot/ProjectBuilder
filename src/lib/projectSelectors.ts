@@ -16,6 +16,7 @@ import { getFirstIncompleteStep, validateIntake } from "./validateIntake";
 import { getClientReviewReadiness } from "./clientReview";
 import { calculatePowerPlatformReadiness } from "./powerPlatform";
 import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
+import { projectCapabilities } from "./projectCapabilities";
 
 const readinessDefinitions = [
   { id: "requirements", label: "Requirements", steps: [0, 1, 2] },
@@ -48,7 +49,9 @@ export function getReviewStatus(project: ProjectRecord): ReviewStatus {
 }
 
 export function getOutstandingQuestionCount(project: ProjectRecord): number {
-  return getClientReviewReadiness(project).unresolvedItems.length;
+  const items = getClientReviewReadiness(project).unresolvedItems;
+  return projectCapabilities(project).documentFamily === "website"
+    ? items.filter((item) => item.status !== "Deferred").length : items.length;
 }
 
 export function getGeneratedFileCount(project: ProjectRecord): number {

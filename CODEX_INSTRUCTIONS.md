@@ -1,5 +1,11 @@
 # Codex Instructions
 
+## Website generation maintenance
+
+Keep website applicability in `projectCapabilities.ts` and `websiteRequirements.ts`. Use typed field selectors in website templates; never clean generated text afterward, infer architecture from a customer name, or read hidden platform fields. Preserve valid N/A reasons and Deferred review decisions. A decision required before implementation must block Ready for Codex without masquerading as an unanswered intake field. Retain genuine missing markers, manual review gates, all 19 website documents and export-integrity checks.
+
+Preserve application and Power Platform templates when changing website behavior. Run the full test runner including UI legs; cover exact-input navigation and old saved decisions. Do not migrate or silently rewrite saved intake to compensate for template defects. See [the applicability correction](docs/business-website-package-generation.md).
+
 GPT is the Architect. Codex is the Developer.
 
 Implement only approved project scope. Keep intake state, project metadata, project type presets, validation, templates, generation, export, and display logic separate. Preserve the standard package folder structure and all 19 required generated files.

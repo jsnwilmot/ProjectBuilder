@@ -1,9 +1,12 @@
 import { INTAKE_STAGES } from "../data/intakeStages";
+import { projectCapabilities, visibleIntakeFields } from "./projectCapabilities";
+import { websiteRequirement } from "./websiteRequirements";
 import type {
   CanvasControlTarget,
   CanvasStateVariableTarget,
   GeneratedDocument,
   PowerPlatformDecisionStatus,
+  ProjectInputField,
   ProjectRecord
 } from "../types/project";
 import { validateCanvasStateVariables } from "./stateInitialization";
@@ -26,6 +29,8 @@ export interface MissingMarkerTrace {
   requiredStatus?: string;
   orphan: boolean;
   occurrence: number;
+  editableField?: ProjectInputField;
+  canEditSource?: boolean;
 }
 
 type TraceSource = Omit<MissingMarkerTrace, "document" | "marker" | "orphan" | "occurrence">;
@@ -432,6 +437,7 @@ function orphanSource(): TraceSource {
     subsection: "Generated marker",
     fieldLabel: "Unregistered marker",
     storedProperty: "unregistered",
+    canEditSource: false,
     reasonRejected: "No explicit traceability registration exists for this marker.",
     requiredStatus: "Register this marker source or remove the generated marker."
   };
@@ -439,6 +445,27 @@ function orphanSource(): TraceSource {
 
 function markerSource(project: ProjectRecord, marker: string): TraceSource {
   const normalized = normalizeMarker(marker);
+  if (projectCapabilities(project).documentFamily === "website") {
+    const field = visibleIntakeFields(project).find((entry) => normalizeMarker(entry.label).toLowerCase() === normalized.toLowerCase());
+    if (field) {
+      const state = websiteRequirement(project, field.name);
+      return {
+        stageId: field.stageId, stageLabel: field.stageLabel, subsection: "Website intake",
+        fieldLabel: field.label,
+        storedProperty: field.name === "appName" ? "project.identity.projectName"
+          : field.name === "clientName" || field.name === "businessName" ? `project.client.${field.name}` : `project.intake.${field.name}`,
+        editableField: field.name, canEditSource: state.status === "missing",
+        reasonRejected: state.status === "missing" ? (state.reason || `Required website field ${field.label} is unanswered.`)
+          : "The current intake or review decision resolves this requirement. Regenerate the package to replace this stale marker."
+      };
+    }
+    // Historical/derived markers must never route a website owner to hidden platform fields.
+    const obsolete = exactMarkerSources[normalized]?.(project)
+      ?? dynamicMarkerSources.find((registration) => registration.pattern.test(normalized))?.source(normalized, project);
+    if (obsolete) return { ...obsolete, canEditSource: false,
+      reasonRejected: "This generated requirement has no directly editable source for the selected website type. Regenerate the package; if it remains, request a template/applicability review." };
+    return orphanSource();
+  }
   const exactSource = exactMarkerSources[normalized];
   if (exactSource) return exactSource(project);
   const dynamicSource = dynamicMarkerSources.find((registration) => registration.pattern.test(normalized));
