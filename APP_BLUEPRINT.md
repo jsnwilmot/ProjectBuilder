@@ -2,6 +2,8 @@
 
 ## Website package applicability
 
+Optional capability activation is separate from answered requirement state. `websiteCapabilitySelected` in `websiteRequirements.ts` uses the typed field registry and bounded legacy exclusion rules in `websiteCapabilityIntent.ts`. Data/access dependency validation, DATA_MODEL applicability, optional test/acceptance rows and the services phase share that selector. Descriptive `dataSources` content does not activate services. Negative prose remains recorded as Answered; no storage or review-state rewrite is performed.
+
 `projectCapabilities.ts` selects website or existing application templates and supplies visible field metadata. `websiteRequirements.ts` owns website Required/Optional/Inapplicable policy and Answered/Missing/Not Applicable/Deferred interpretation. Validation, review projection, intake summaries and marker sources consume that policy; `templates/documents/website.ts` renders the unchanged 19-document contract. The generator retains its readiness convergence and export contracts.
 
 Business Website and Static Website use website content, client tests, acceptance and phases. Application data/access are opt-in. Deployment uses the existing combined hosting answer plus domain, target platform and constraints. Storage models and saved records are preserved. See [design, compatibility and limitations](docs/business-website-package-generation.md).

@@ -3,6 +3,7 @@ import type { IntakeValidationResult, ProjectInputField, ProjectRecord } from ".
 import { missingMarker } from "./documentHelpers";
 import { getProjectFieldValue } from "./projectFields";
 import { visibleIntakeFields, websiteRequiredFields } from "./projectCapabilities";
+import { isExcludedWebsiteCapability, type WebsiteCapabilityField } from "./websiteCapabilityIntent";
 
 export type RequirementLevel = "required" | "optional" | "inapplicable";
 export type RequirementStatus = "answered" | "missing" | "optional" | "notApplicable" | "deferred";
@@ -32,24 +33,28 @@ function recordedDecision(project: ProjectRecord, field: ProjectInputField) {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 }
 
-function hasSelectedCapability(project: ProjectRecord, field: ProjectInputField): boolean {
+/** Answered is a requirement state, not approval of an optional capability. */
+export function websiteCapabilitySelected(project: ProjectRecord, field: WebsiteCapabilityField): boolean {
+  if (!visibleIntakeFields(project).some((entry) => entry.name === field)) return false;
   const decision = recordedDecision(project, field);
-  if (decision?.status === "Not applicable" && decision.notApplicableReason.trim()) return false;
+  // An invalid N/A reason remains a requirement error; it cannot grant scope.
+  if (decision?.status === "Not applicable") return false;
   if (decision?.status === "Deferred") return false;
   const value = getProjectFieldValue(project, field).trim();
-  return Boolean(value) && !isExplicitNotApplicable(value) && !isBeforeImplementationDeferral(value);
+  return Boolean(value) && !isExplicitNotApplicable(value) && !isBeforeImplementationDeferral(value)
+    && !isExcludedWebsiteCapability(field, value);
 }
 
 export function websiteRequirement(project: ProjectRecord, field: ProjectInputField): WebsiteRequirement {
   const definition = visibleIntakeFields(project).find((entry) => entry.name === field);
   const required = websiteRequiredFields();
-  // Existing structured application answers can opt the website into real data or
-  // access requirements. No inference from project name, hosting provider, or prose scope.
-  if (hasSelectedCapability(project, "dataCollections") || hasSelectedCapability(project, "dataEntities")) {
+  // Dependency validation and document generation share capability selection.
+  // Negative answers stay Answered without requiring unwanted schema/access detail.
+  if (websiteCapabilitySelected(project, "dataCollections") || websiteCapabilitySelected(project, "dataEntities")) {
     required.add("fields");
     required.add("keyFields");
   }
-  if (hasSelectedCapability(project, "authenticationExpectation")) {
+  if (websiteCapabilitySelected(project, "authenticationExpectation")) {
     required.add("userRoles");
     required.add("permissionRules");
   }
@@ -86,10 +91,6 @@ export function websiteRequirementText(project: ProjectRecord, field: ProjectInp
     case "notApplicable": return `Not applicable — ${state.reason}`;
     case "deferred": return `Deferred — ${state.reason}${state.blocksImplementation ? " Resolve before implementation readiness." : " Track as a future action; not approved implementation scope."}`;
   }
-}
-
-export function websiteSelected(project: ProjectRecord, field: ProjectInputField): boolean {
-  return websiteRequirement(project, field).status === "answered";
 }
 
 export function websiteDeferredRequirements(project: ProjectRecord): WebsiteRequirement[] {

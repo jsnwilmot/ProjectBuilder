@@ -1,5 +1,15 @@
 # Test Plan
 
+## Business Website negative capability selection regression
+
+Final result: both full runners passed 3,238 tests / 96 files (3,160 unit/integration plus 78 UI tests); the new suite passed 80 tests and the focused website matrix passed 130. Coverage was 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines, above unchanged thresholds. Lint, app TypeScript, build, production audit and diff checks passed. Production dependencies have zero vulnerabilities; seven existing development-tooling audit findings remain report-only.
+
+- Run `websiteCapabilitySelection.test.ts` together with all existing `businessWebsitePackage.test.ts` cases. The added suite covers structured decisions (including precedence and invalid reasons), whole-answer exclusions, capability-specific negative prose, positive requests and replacements containing negative words, cross-field isolation, negative data/access dependency validation, and genuine required markers.
+- Generate the additional fictional umbrella-site fixture with realistic static-content and negative capability answers. Check all 19 locations, unchanged source data, zero false/orphan markers, zero content/export errors, no excluded optional check rows, no application-data declaration, and no unnecessary services phase. Keep the manual reviews and before-implementation contact deferrals blocking readiness.
+- Positive single-service and multi-service cases must retain only selected work. Descriptive data sources must not activate services. Regress Static Website, both Power Platform types and every other selectable application family. Existing ZIP/storage/navigation tests remain mandatory.
+- Run `npm test`, `npm run test:coverage`, `npm run lint`, application TypeScript, production build, production audit and `git diff --check`. The existing coverage thresholds remain unchanged. Marker/content counters are syntactic diagnostics, not proof that prose is semantically consistent.
+- Manual local reproduction: generate all 19 documents from `createNegativeCapabilityWebsite` and inspect DATA_MODEL, TEST_PLAN, ACCEPTANCE_CRITERIA, PHASED_CODEX_PROMPTS, DEPLOYMENT_NOTES, CODEX_INSTRUCTIONS and ARCHITECT_INSTRUCTIONS. See [follow-up evidence](docs/business-website-package-generation.md#follow-up-negative-capability-selection).
+
 ## Business Website package applicability regression
 
 Run `npm test` (unit/integration plus all seven UI legs), `npm run lint` and `npm run build` (includes application TypeScript checking).

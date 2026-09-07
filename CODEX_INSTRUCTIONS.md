@@ -2,6 +2,8 @@
 
 ## Website generation maintenance
 
+Use `websiteCapabilitySelected` for optional capability activation, never `status === "answered"`. Its typed fields and exclusion grammar live in `websiteCapabilityIntent.ts`; requirement text remains the original recorded answer. Keep structured N/A/Deferred decisions ahead of free-text interpretation. Add negative-prose and positive-replacement regressions whenever changing these rules. Do not infer services from descriptive content sources or create a general natural-language contradiction scanner.
+
 Keep website applicability in `projectCapabilities.ts` and `websiteRequirements.ts`. Use typed field selectors in website templates; never clean generated text afterward, infer architecture from a customer name, or read hidden platform fields. Preserve valid N/A reasons and Deferred review decisions. A decision required before implementation must block Ready for Codex without masquerading as an unanswered intake field. Retain genuine missing markers, manual review gates, all 19 website documents and export-integrity checks.
 
 Preserve application and Power Platform templates when changing website behavior. Run the full test runner including UI legs; cover exact-input navigation and old saved decisions. Do not migrate or silently rewrite saved intake to compensate for template defects. See [the applicability correction](docs/business-website-package-generation.md).

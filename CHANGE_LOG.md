@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-09-07 - Business Website optional capability selection
+
+- Final validation: 3,238 tests / 96 files passed in both full runners, including all 78 UI tests and 80 added capability tests. Coverage passed at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, app TypeScript, build, production audit (zero vulnerabilities) and diff checks passed. Seven existing development-tooling findings (five high, two moderate) and the existing build chunk warning remain documented without dependency changes.
+
+- Corrected the follow-up production defect where answered negative prose selected application data, analytics, access checks and a website-services phase. Verified both the document `websiteSelected` shortcut and the similar dependency-validation shortcut on merged main `2b5231edd00bb7d7ba82fa30e8632c958bd9018f`.
+- Added `websiteCapabilityIntent.ts` and the typed `websiteCapabilitySelected` entry point; updated `websiteRequirements.ts` and `templates/documents/website.ts` to share selection. Negative answers remain Answered while explicit N/A and Deferred decisions retain their existing requirement states.
+- Added `websiteCapabilitySelection.test.ts` and an additional fictional negative-prose umbrella fixture without replacing existing fixtures. Updated APP_BLUEPRINT, CODEX_INSTRUCTIONS, NEXT_STEPS, TEST_PLAN and the detailed applicability report. No dependencies, storage/schema, intake UX, production project or deployment settings changed.
+- Baseline: clean `npm ci`; 3,158 tests / 95 files in both complete runners; coverage 90.02% statements, 83.21% branches, 95.43% functions, 93.44% lines; lint, TypeScript/build and production audit passed. The new reproducer initially failed 45 of 74 tests before the correction. Additional precedence/isolation cases were then added.
+- Manual synthetic review confirmed 19 documents, no application-data contradiction, nine website test/acceptance checks, seven phases without services, recorded deployment, and deferred contact with manual gates intact. See [final validation and limitations](docs/business-website-package-generation.md#follow-up-negative-capability-selection).
+
 ## 2026-09-06 - Business Website package generation applicability
 
 - Added centralized website capabilities and typed requirement-state interpretation, plus a website template family for Business Website and Static Website. All 19 standard documents and existing application/Power Platform generation paths are preserved.

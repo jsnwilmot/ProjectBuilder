@@ -3,7 +3,8 @@ import { getProjectTypePreset } from "../../data/projectTypes";
 import { deriveReviewItems, getClientReviewReadiness } from "../../lib/clientReview";
 import { markdownList, markdownTable } from "../../lib/documentHelpers";
 import { visibleIntakeFields } from "../../lib/projectCapabilities";
-import { websiteDeferredRequirements, websiteRequirement, websiteRequirementText, websiteSelected } from "../../lib/websiteRequirements";
+import { websiteDeferredRequirements, websiteRequirement, websiteRequirementText, websiteCapabilitySelected } from "../../lib/websiteRequirements";
+import { WEBSITE_CAPABILITY_FIELDS } from "../../lib/websiteCapabilityIntent";
 import type { ProjectInputField, ProjectRecord } from "../../types/project";
 
 type TemplateProject = ProjectRecord & {
@@ -109,7 +110,7 @@ function checks(project: ProjectRecord): WebsiteCheck[] {
     ["authenticationExpectation", "Requested access controls", "Verify the recorded sign-in, authorization and role boundaries."],
     ["reportsDashboards", "Requested reports", "Verify each recorded report's data, audience and expected result."]
   ] as const) {
-    if (websiteSelected(project, field)) result.push({ id: `WEB-${result.length + 1}`, source: field, name, expected });
+    if (websiteCapabilitySelected(project, field)) result.push({ id: `WEB-${result.length + 1}`, source: field, name, expected });
   }
   return result;
 }
@@ -127,8 +128,7 @@ const phases: Array<{ name: string; objective: string; files: string; fields: Pr
 ];
 
 function phasedPrompts(project: ProjectRecord): string {
-  const requested = ["websiteForms", "integrations", "websiteAnalytics", "dataCollections", "dataEntities", "authenticationExpectation", "reportsDashboards"] as const;
-  const applicable = requested.filter((field) => websiteSelected(project, field));
+  const applicable = WEBSITE_CAPABILITY_FIELDS.filter((field) => websiteCapabilitySelected(project, field));
   const selectedPhases = [...phases];
   if (applicable.length) selectedPhases.splice(4, 0, {
     name: "Requested website services", objective: "Implement only the services explicitly recorded in intake, using their approved architecture and data boundaries.",
@@ -171,7 +171,7 @@ const bodies: Record<string, { title: string; render: Template }> = {
   "PROJECT_SCOPE.md": { title: "Project Scope", render: (p) => `${scope(p)}\n\n## Website content\n\n${sections(p, contentFields)}\n\n${reviewSummary(p)}` },
   "CLIENT_REQUIREMENTS.md": { title: "Client Requirements", render: (p) => `${scope(p)}\n\n## Content and structure\n\n${sections(p, contentFields)}\n\n## Data and requested integrations\n\n${sections(p, dataFields)}\n\n## Journeys and requested forms\n\n${sections(p, journeyFields)}\n\n## Security and accessibility\n\n${sections(p, [...securityFields, "accessibilityNotes"])}\n\n${deployment(p)}\n\n${reviewSummary(p)}` },
   "APP_BLUEPRINT.md": { title: "Website Blueprint", render: (p) => `## Purpose and boundaries\n\n${scope(p)}\n\n## Architecture decisions\n\n${sections(p, ["targetPlatform", "hostingStatus", "domainStatus", "dataSources", "authenticationExpectation"])}\n\n## Page and section structure\n\n${sections(p, ["websitePages", "screens"])}\n\n## Content, services and assets\n\n${sections(p, [...contentFields, "approvedAssets", "websiteForms", "integrations", "websiteAnalytics"])}\n\n${reviewSummary(p)}` },
-  "DATA_MODEL.md": { title: "Data Model", render: (p) => `## Applicability\n\n${websiteSelected(p, "dataCollections") || websiteSelected(p, "dataEntities") ? "Application data is requested. Implement the recorded entities and their required field and key definitions." : "No application database or persistent business data model is requested in the data-entity answers. Static content and assets do not require invented tables or record-save workflows."}\n\n## Recorded data and integration decisions\n\n${sections(p, dataFields)}` },
+  "DATA_MODEL.md": { title: "Data Model", render: (p) => `## Applicability\n\n${websiteCapabilitySelected(p, "dataCollections") || websiteCapabilitySelected(p, "dataEntities") ? "Application data is requested. Implement the recorded entities and their required field and key definitions." : "No application database or persistent business data model is requested in the data-entity answers. Static content and assets do not require invented tables or record-save workflows."}\n\n## Recorded data and integration decisions\n\n${sections(p, dataFields)}` },
   "SCREEN_MAP.md": { title: "Pages and Section Map", render: (p) => `## Website structure\n\n${sections(p, ["websitePages", "screens"])}\n\nA single page may use named sections as navigation targets. Implement the recorded structure and destinations.\n\n## Content and visitor journeys\n\n${sections(p, [...contentFields, "requiredFeatures", "featureDescription", "workflows"])}\n\n## Responsive and accessible navigation\n\n${sections(p, ["targetPlatform", "accessibilityNotes", "accessibilityContrastNotes"])}\n\nCheck links, anchors, keyboard focus and readable layouts against the client TEST_PLAN.` },
   "WORKFLOW_MAP.md": { title: "Visitor Journeys and Workflows", render: (p) => `## Applicability\n\nWebsite navigation may be the entire visitor journey. Application workflows, notifications and form processing require explicit scope.\n\n## Recorded journeys\n\n${sections(p, ["websitePages", "requiredFeatures", "featureDescription", ...journeyFields, "websiteContactMethod"])}\n\n## Future decisions\n\n${deferred(p)}` },
   "SECURITY_MODEL.md": { title: "Website Security", render: (p) => `## Recorded security and access decisions\n\n${sections(p, securityFields)}\n\n## Website implementation safeguards\n\nUse HTTPS, keep secrets out of browser code, review dependencies, and use safe external links. Review CSP and other security headers supported by the selected host against the actual asset and integration needs. Apply the recorded data-handling rules. Authentication, application roles and audit storage are implemented only when requested.\n\n## Requested external services\n\n${sections(p, ["websiteForms", "integrations", "websiteAnalytics"])}\n\n## Hosting constraints\n\n${sections(p, ["hostingStatus", "constraints"])}` },

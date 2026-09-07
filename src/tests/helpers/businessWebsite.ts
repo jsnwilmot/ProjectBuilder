@@ -107,3 +107,21 @@ export function createUmbrellaWebsite(): ProjectRecord {
   project.reviewItems = [websiteReviewDecision({ notApplicableReason: "Reports and dashboards are outside Version 1 scope." })];
   return project;
 }
+
+/** Legacy prose exclusions, with static content descriptions rather than empty fields. */
+export function createNegativeCapabilityWebsite(): ProjectRecord {
+  const project = createUmbrellaWebsite();
+  Object.assign(project.intake, {
+    dataSources: "Owner-provided approved copy, official logos and layout reference only. No external data feeds required.",
+    dataCollections: "No database, application records or user data collections. Static source content for four brand cards may use templating; this is not a CMS or persistent application datastore.",
+    dataEntities: "Static umbrella brand and four division content items only; no database entities.",
+    authenticationExpectation: "No authentication required or in scope for the public site.",
+    integrations: "No API, database, SaaS or other data-exchange integration approved. Four ordinary outbound division links are required. Use the recorded static host and Git repository; no backend or third-party contact processor.",
+    websiteAnalytics: "No analytics platform, tracking, advertising, cookies, marketing pixels or consent platform approved. Revisit only if later approved functionality requires them.",
+    websiteForms: "No contact form is approved. Contact method and business contact details TBD by Project Owner before implementation.",
+    reportsDashboards: "Reports and dashboards are outside Version 1 scope."
+  });
+  // Exercise prose compatibility without masking it with a structured N/A decision.
+  project.reviewItems = [];
+  return project;
+}
