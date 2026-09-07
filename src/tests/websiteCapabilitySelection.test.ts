@@ -137,6 +137,119 @@ describe("Compound capability exclusion and replacement", () => {
   });
 });
 
+describe("Request subjects, local negation and ordinary field lists", () => {
+  const requested: Array<[WebsiteCapabilityField, string]> = [
+    ["websiteForms", "No contact form is approved, implement name, email, and an approved booking form"],
+    ["websiteForms", "No contact form is approved, implement name, email, phone, and a booking form"],
+    ["websiteAnalytics", "No analytics platform is approved, implement page views, CTA events, and the approved replacement analytics service"],
+    ["dataCollections", "No current database exists, create customer name, email, status, and the approved customer database"],
+    ["dataEntities", "No database entities are required, create name, email, and the approved customer records"],
+    ["reportsDashboards", "No reports are required, except provide totals, status, and the approved monthly service summary"],
+    ["authenticationExpectation", "No login is approved, implement the approved organization authentication"],
+    ["integrations", "No integrations are approved, enable the approved booking API"],
+    ["websiteForms", "Implement name, email, phone, message, and an approved booking form"],
+    ["websiteForms", "Implement an approved booking form without analytics"],
+    ["websiteForms", "Implement neither analytics nor reports, but implement an approved booking form"],
+    ["websiteForms", "Implement a booking form without a contact form"],
+    ["websiteForms", "Implement no contact form, but keep an approved booking form"],
+    ["websiteForms", "Implement no contact form, with an approved booking form"],
+    ["websiteForms", "No analytics are required, implement name, email, and an approved booking form."],
+    ["websiteForms", "Implement a booking form, do not add analytics"],
+    ["websiteAnalytics", "Implement analytics without errors in event delivery"],
+    ["dataCollections", "Create the customer database without data loss"],
+    ["reportsDashboards", "Provide reports without personal information"],
+    ["authenticationExpectation", "Implement authentication without anonymous access"],
+    ["websiteAnalytics", "No errors are acceptable in analytics event delivery"],
+    ["dataCollections", "No data loss is acceptable"],
+    ["reportsDashboards", "Reports must not include personal information"],
+    ["authenticationExpectation", "Authentication must not allow anonymous users"],
+    ["authenticationExpectation", "No anonymous access; authenticated users are required"]
+  ];
+  const excluded: Array<[WebsiteCapabilityField, string]> = [
+    ["websiteForms", "No contact form is approved, implement the booking flow without a form"],
+    ["websiteForms", "No contact form is approved, implement the flow with no form"],
+    ["websiteForms", "No contact form is approved, implement the workflow without any forms"],
+    ["websiteForms", "No contact form is approved, implement neither a contact form nor a booking form"],
+    ["websiteForms", "No contact form is approved, implement the process but not a booking form"],
+    ["websiteForms", "No contact form is approved, implement static navigation, no booking form is approved"],
+    ["websiteAnalytics", "No analytics are required, implement navigation without analytics"],
+    ["dataCollections", "No database is required, implement static content without persistent data"],
+    ["dataEntities", "Implement static content without database entities"],
+    ["integrations", "Implement availability without an API"],
+    ["authenticationExpectation", "Implement public navigation without authentication"],
+    ["reportsDashboards", "Implement the workflow without reports or dashboards"],
+    ["websiteForms", "implement the booking flow without a form"],
+    ["websiteForms", "implement the flow with no form"],
+    ["websiteForms", "implement the workflow without any contact form"],
+    ["websiteForms", "implement neither a contact form nor a booking form"],
+    ["websiteForms", "implement the process, but not a booking form"],
+    ["websiteForms", "implement static navigation, no booking form is approved"],
+    ["websiteForms", "Implement not a booking form"],
+    ["websiteForms", "Implement static navigation, do not add a booking form"],
+    ["websiteForms", "Implement static navigation, don't use a booking form"],
+    ["websiteForms", "Implement static navigation, never enable a booking form"],
+    ["websiteForms", "Implement a booking form that is not approved"],
+    ["websiteForms", "No forms are approved, including contact forms, booking forms, and enquiry forms"],
+    ["websiteAnalytics", "No analytics are required, implement name, email, and an approved booking form."],
+    ["websiteAnalytics", "Implement navigation without forms or analytics"],
+    ["websiteForms", "Implement neither analytics nor a booking form"],
+    ["websiteForms", "Implement the booking workflow without a form, a contact form, or a booking form"]
+  ];
+
+  it.each(requested)("selects %s from its non-negated requirement: %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each(excluded)("does not select locally negated %s: %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(false);
+  });
+
+  it.each(positiveCases)("renders only selected %s for a request with ordinary commas", (field, _, row) => {
+    const project = createNegativeCapabilityWebsite();
+    const value = requested.find(([candidate]) => candidate === field)![1];
+    Object.assign(project.intake, { [field]: value });
+    const before = JSON.stringify(project);
+    const result = generated(project);
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) {
+      expect(content(result, name)).toContain(row);
+      for (const [, , other] of positiveCases.filter(([otherField]) => otherField !== field)) expect(content(result, name)).not.toContain(other);
+    }
+    const phase = content(result, "PHASED_CODEX_PROMPTS.md").split("Requested website services")[1].split("## Phase")[0];
+    expect(phase).toContain(value);
+    expect(result.generatedDocuments.map(({ fileName, folder }) => ({ fileName, folder }))).toEqual(DOCUMENT_LOCATIONS);
+    expect(validateExportPackage(result).errors).toEqual([]);
+    expect(JSON.stringify(project)).toBe(before);
+    if (field === "dataCollections" || field === "dataEntities") {
+      expect(content(result, "DATA_MODEL.md")).toContain("Application data is requested.");
+      expect(websiteRequirement(project, "fields").level).toBe("required");
+      expect(websiteRequirement(project, "keyFields").level).toBe("required");
+    }
+  });
+
+  it.each(positiveCases)("omits implementation work for locally negated %s", (field) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: excluded.find(([candidate]) => candidate === field)![1] });
+    const result = generated(project);
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) expect(content(result, name)).not.toMatch(excludedRows);
+    expect(content(result, "PHASED_CODEX_PROMPTS.md")).not.toContain("Requested website services");
+    expect(content(result, "DATA_MODEL.md")).toContain("No application database or persistent business data model is requested");
+    expect(validateIntake(project).missingFields).toEqual([]);
+    expect(validateExportPackage(result).errors).toEqual([]);
+  });
+
+  it.each(["Not applicable", "Deferred"] as const)("preserves structured %s before a comma-list request", (status) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteForms = requested[0][1];
+    project.reviewItems = [websiteReviewDecision({ fieldKey: "websiteForms", status, deferredReason: "Revisit after launch" })];
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(false);
+    expect(content(generated(project), "PHASED_CODEX_PROMPTS.md")).not.toContain("Requested website services");
+  });
+});
+
 describe("Website capability selection is separate from answered requirements", () => {
   it.each(negativeCases)("does not select %s from %s", (field, value) => {
     const project = createNegativeCapabilityWebsite();

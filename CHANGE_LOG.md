@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-07 - PR #4 second P1 refinement
+
+- Reproduced both accepted review findings on `9f6afab8ae98076069bb21242e7e73e25afe1b47`. The expanded reproducer failed 37 tests before source changes: negated request subjects could select scope, while ordinary comma-separated fields could hide a positive subject.
+- Refactored `src/lib/websiteCapabilityIntent.ts` into separate request-start, subject-occurrence and local-negation decisions. Ordinary list commas remain inside requests. Each known capability occurrence receives its own negation decision; at least one non-negated requested occurrence preserves selection.
+- Added 69 regression cases in `src/tests/websiteCapabilitySelection.test.ts` and corrected the maintained package-generation notes. All seven fields, structured decisions, negative commands, lists, cross-field isolation and generated output are covered. No schema, storage, dependency, UI or template changes.
+- Validation: focused website matrix passed 228 tests. Both complete runners passed 3,336 tests / 96 files (3,258 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.06% statements / 83.24% branches / 95.48% functions / 93.46% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. Existing Power Platform, Static Website, other project families, marker/gate/contact and export regressions passed. The existing build-size warning remains.
+- Release gate: updated PR #4 requires fresh automated review and successful CI for the new head before any merge authorization; CI #94 is insufficient.
+
 ## 2026-09-07 - P1 compound capability replacement
 
 - Reproduced the comma-connected replacement defect on main `f2c506e98a0835f5bad22a29e6d42f24d225d1f9`: 15 failing tests before changing the parser, including a booking form omitted from generated checks.
