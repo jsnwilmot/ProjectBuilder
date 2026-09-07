@@ -1,5 +1,15 @@
 # Business Website package generation correction
 
+## P1 follow-up: compound exclusion and replacement
+
+Validation: 159 focused website tests passed. Both full runners passed 3,267 tests across 96 files, including all 78 UI tests. Coverage passed unchanged thresholds at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The existing build-size warning remains; dependencies were not changed.
+
+Merged main `f2c506e98a0835f5bad22a29e6d42f24d225d1f9` still excluded `No contact form is approved, implement an approved booking form`: the comma left the request inside a clause beginning with an exclusion, while positive requests were anchored to a separate clause. The new reproducer had 15 failing tests before the parser change.
+
+The parser now recognizes a comma (optionally followed by and/except/instead), or an and/except/instead conjunction, as a boundary only when followed by a known imperative request verb. It does not split ordinary comma lists. Request matching stops at remaining commas so an unrelated request cannot borrow a capability noun from a later exclusion. The same bounded rule applies to all seven existing capability fields; the field-specific subject match and structured N/A/Deferred decisions still control selection. Answers remain verbatim, including the exclusion of the original form.
+
+The 29 added cases cover all four reported examples, replacement output across all seven fields, negative-only prose, unrelated negative wording, comma lists, cross-field isolation, explicit negative requests, structured decisions, and Static Website export/contact deferral. Existing project-family and 19-document contract tests remain mandatory. This extends the existing bounded English grammar; it introduces no general NLP, schema or storage migration, dependency change or production modification.
+
 ## Follow-up: negative capability selection
 
 Production review after the first fix found zero missing/content/export errors but incorrect optional work: DATA_MODEL declared application data requested, test/acceptance tables included analytics/data/access checks, and phases included services despite explicit exclusions. The source used `websiteSelected(field) => websiteRequirement(field).status === "answered"`. Dependency validation had a similar nonempty-answer shortcut. A populated answer can explicitly reject a capability.

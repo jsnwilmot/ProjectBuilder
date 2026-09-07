@@ -57,6 +57,86 @@ function generated(project = createNegativeCapabilityWebsite()): ProjectRecord {
 const content = (project: ProjectRecord, name: string) => project.generatedDocuments.find((doc) => doc.fileName === name)!.content;
 const excludedRows = /Requested forms|Requested integrations|Approved analytics|Requested application data|Requested data entities|Requested access controls|Requested reports/;
 
+describe("Compound capability exclusion and replacement", () => {
+  const replacements: Array<[WebsiteCapabilityField, string, string]> = [
+    ["websiteForms", "No contact form is approved, implement an approved booking form", "Requested forms"],
+    ["websiteAnalytics", "No analytics platform is approved, implement the approved replacement analytics service", "Approved analytics"],
+    ["dataCollections", "No current database exists, create the approved customer database", "Requested application data"],
+    ["dataCollections", "No database is required, create the approved customer database", "Requested application data"],
+    ["reportsDashboards", "No reports are required, except provide the approved monthly service summary", "Requested reports"],
+    ["integrations", "No integrations are approved, enable the approved booking API", "Requested integrations"],
+    ["dataEntities", "No database entities are required, create approved customer records", "Requested data entities"],
+    ["authenticationExpectation", "No login is approved, implement approved organization authentication", "Requested access controls"]
+  ];
+
+  it.each(replacements)("retains requested %s in compound prose: %s", (field, value, row) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+    expect(websiteRequirement(project, field).status).toBe("answered");
+    const result = generated(project);
+    expect(result.generatedDocuments.map(({ fileName, folder }) => ({ fileName, folder }))).toEqual(DOCUMENT_LOCATIONS);
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) {
+      expect(content(result, name)).toContain(row);
+      for (const [, , other] of positiveCases.filter(([otherField]) => otherField !== field)) expect(content(result, name)).not.toContain(other);
+    }
+    const phase = content(result, "PHASED_CODEX_PROMPTS.md").split("Requested website services")[1].split("## Phase")[0];
+    expect(phase).toContain(value);
+    expect(project.intake[field]).toBe(value);
+  });
+
+  it.each([", ", ", and ", ", except ", ", instead ", " and ", " except ", " instead "])(
+    "recognizes an explicit replacement after %s", (connector) => {
+      const project = createNegativeCapabilityWebsite();
+      project.intake.websiteForms = `No contact form is approved${connector}implement an approved booking form`;
+      expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+    }
+  );
+
+  it.each<[WebsiteCapabilityField, string]>([
+    ["websiteForms", "No contact form is approved."],
+    ["websiteAnalytics", "No analytics are required."],
+    ["dataCollections", "No database is required."],
+    ["websiteForms", "No forms are approved, including contact forms, booking forms, and enquiry forms."],
+    ["websiteAnalytics", "No analytics are required, implement an approved booking form."],
+    ["websiteForms", "No contact form is approved, do not implement a booking form."],
+    ["websiteForms", "No contact form is approved, except provide no booking form."],
+    ["websiteForms", "No contact form is approved, implement static navigation, no booking form is approved."],
+    ["dataCollections", "No database is required, provide static metadata."]
+  ])("retains exclusion of %s without a positive replacement: %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(false);
+  });
+
+  it.each<[WebsiteCapabilityField, string]>([
+    ["websiteAnalytics", "No errors are acceptable in analytics event delivery."],
+    ["dataCollections", "No data loss is acceptable."]
+  ])("does not treat unrelated negative wording as exclusion of %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each(["Not applicable", "Deferred"] as const)("keeps structured %s authoritative over compound replacement", (status) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteForms = replacements[0][1];
+    project.reviewItems = [websiteReviewDecision({ fieldKey: "websiteForms", status, deferredReason: "Revisit after launch" })];
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(false);
+  });
+
+  it("preserves Static Website export integrity and contact deferral with a replacement form", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.appType = "staticWebsite";
+    project.intake.websiteForms = replacements[0][1];
+    const result = generated(project);
+    expect(content(result, "TEST_PLAN.md")).toContain("Requested forms");
+    expect(validateExportPackage(result).errors).toEqual([]);
+    expect(deriveReviewItems(result).find((item) => item.fieldKey === "websiteContactMethod")?.status).toBe("Deferred");
+    expect(evaluateGeneratedPackageReadiness(withWebsiteReviews(result)).status).toBe("Draft");
+  });
+});
+
 describe("Website capability selection is separate from answered requirements", () => {
   it.each(negativeCases)("does not select %s from %s", (field, value) => {
     const project = createNegativeCapabilityWebsite();

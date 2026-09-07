@@ -18,6 +18,14 @@ const subjects: Record<WebsiteCapabilityField, string> = {
   reportsDashboards: "(?:reports?|dashboards?|reporting|(?:service\\s+)?summar(?:y|ies))"
 };
 
+const requestVerbs = "implement|create|add|provide|use|enable|require|retain|keep";
+// Commas and conjunctions are boundaries only before explicit request verbs.
+// Keep ordinary lists together; do not infer intent from arbitrary comma text.
+const clauseBoundary = new RegExp(
+  `[.;!?\\n]+|\\s+but\\s+|(?:,\\s*(?:(?:and|except|instead)\\s+)?|\\s+(?:and|except|instead)\\s+)(?=(?:${requestVerbs})\\s+)`,
+  "i"
+);
+
 // A small, field-scoped compatibility grammar, not a general prose classifier.
 // Match the capability itself as the negated subject, never arbitrary "no" words
 // elsewhere ("no errors in analytics", "no existing database", etc.).
@@ -27,7 +35,7 @@ const rules = Object.fromEntries(WEBSITE_CAPABILITY_FIELDS.map((field) => {
   const scopeEnd = "(?=$|\\s*(?:[,/:]|and\\b|or\\b|is\\b|are\\b|required\\b|approved\\b|requested\\b|needed\\b|for\\b|in\\b|outside\\b))";
   return [field, {
     exclusion: new RegExp(`^(?:(?:(?:public|static)\\s+(?:website|site)\\s+(?:with\\s+)?)?(?:no|without)\\s+${subject}${scopeEnd}|(?:do not|don't|never)\\s+(?:add|use|implement|enable|create|include|introduce|configure)\\s+${subject}${scopeEnd}|${subject}(?:\\s+(?:and|or)\\s+${subject})*\\s+(?:(?:is|are|remains?)\\s+)?(?:not\\s+(?:approved|required|needed|requested|in scope)\\b|outside\\b[^.!?]*\\bscope\\b|out of scope\\b|excluded\\b))`, "i"),
-    request: new RegExp(`^(?:(?:implement|create|add|provide|use|enable|require|retain|keep)\\s+(?!no\\b)[^.!?]*\\b${subjects[field]}\\b|${subject}\\s+(?:is|are)\\s+(?:required|approved|requested|needed)\\b)`, "i")
+    request: new RegExp(`^(?:(?:${requestVerbs})\\s+(?!no\\b)[^,.!?]*\\b${subjects[field]}\\b|${subject}\\s+(?:is|are)\\s+(?:required|approved|requested|needed)\\b)`, "i")
   }];
 })) as Record<WebsiteCapabilityField, { exclusion: RegExp; request: RegExp }>;
 
@@ -38,7 +46,7 @@ const rules = Object.fromEntries(WEBSITE_CAPABILITY_FIELDS.map((field) => {
  */
 export function isExcludedWebsiteCapability(field: WebsiteCapabilityField, value: string): boolean {
   if (/^(?:no|not approved|excluded|out of scope|outside scope)[.!]?$/i.test(value.trim())) return true;
-  const clauses = value.split(/[.;!?\n]+|\s+but\s+/i).map((clause) => clause.trim()).filter(Boolean);
+  const clauses = value.split(clauseBoundary).map((clause) => clause.trim()).filter(Boolean);
   const rule = rules[field];
   return clauses.some((clause) => rule.exclusion.test(clause))
     && !clauses.some((clause) => !rule.exclusion.test(clause) && rule.request.test(clause));

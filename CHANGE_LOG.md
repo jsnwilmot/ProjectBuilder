@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-07 - P1 compound capability replacement
+
+- Reproduced the comma-connected replacement defect on main `f2c506e98a0835f5bad22a29e6d42f24d225d1f9`: 15 failing tests before changing the parser, including a booking form omitted from generated checks.
+- Updated `src/lib/websiteCapabilityIntent.ts` to recognize comma/conjunction boundaries only before known request verbs and keep request matching inside comma text. Field-specific subjects and structured N/A/Deferred precedence remain unchanged.
+- Added 29 regression cases in `src/tests/websiteCapabilitySelection.test.ts`; updated the detailed package-generation notes and NEXT_STEPS review boundary. No schema, storage, dependency, template or production changes.
+- Validation: focused website matrix passed 159 tests. Both full runners passed 3,267 tests / 96 files (3,189 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. Power Platform, Static Website, other project families, the 19-document contract, contact deferral and export integrity remain green. The existing build-size warning remains.
+- Remaining work: Architect/Owner PR review; merge, deployment and production regeneration require separate authorization.
+
 ## 2026-09-07 - Business Website optional capability selection
 
 - Final validation: 3,238 tests / 96 files passed in both full runners, including all 78 UI tests and 80 added capability tests. Coverage passed at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, app TypeScript, build, production audit (zero vulnerabilities) and diff checks passed. Seven existing development-tooling findings (five high, two moderate) and the existing build chunk warning remain documented without dependency changes.
