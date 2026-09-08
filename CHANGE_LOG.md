@@ -1,5 +1,53 @@
 # Change Log
 
+## 2026-09-08 - PR #4 final bounded P1 correction
+
+- Reproduced P1 I with one failing test on `a47a3a3cff60a5d577a1e847d620880eaaecb350`: leading punctuation allowed an unrelated exclusion to bind backward to a requested capability.
+- Tightened only trailing-predicate subject binding. Direct predicates may follow whitespace with an optional unpunctuated relative marker. A comma or opening parenthesis now requires explicit `that` or `which` before the supported positive or negative predicate; explicit negative predicates retain precedence.
+- Added 27 direct-classifier and generated-package regressions in `src/tests/websiteCapabilityPolarity.test.ts`, covering unrelated following material, direct predicates, punctuated same-subject relatives, all seven capability fields, selected-only output and export integrity.
+- Validation: 462 focused website tests passed. Both complete runners passed 3,570 tests / 97 files (3,492 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.10% statements / 83.29% branches / 95.49% functions / 93.49% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral, Client Review gates, unchanged input and export integrity remain green. The existing build-size warning remains.
+- Release gate: CI #98 validates the prior head only. The final bounded head requires successful CI and fresh automated review before final Architect/Owner merge authorization. No further grammar expansion, schema, storage, intake, template, dependency or production changes are included.
+
+## 2026-09-08 - PR #4 fifth P1 refinement
+
+- Reproduced P1 G and H with four failing tests on `3dde579bd6487b29911165dfde9ba55ce77b20c8`: a coordinated capability phrase inside a larger concern prevented negative-scope termination, and punctuation before a trailing relative approval prevented positive classification.
+- Preserved the occurrence scanner. At a supported relationship, scope now depends on substantive text after the final capability occurrence, rather than treating any earlier occurrence followed by coordination as completing the phrase. Positive and negative trailing predicates accept bounded comma/parenthesis punctuation with explicit negative precedence unchanged.
+- Added 56 direct-classifier and generated-package regressions in `src/tests/websiteCapabilityPolarity.test.ts`, covering the exact reproducers, all requested contrasts, all seven fields, direct negative coordination, punctuated predicate parity, selected-only output and the continuing bounded-English limitation.
+- Validation: 435 focused website tests passed. Both complete runners passed 3,543 tests / 97 files (3,465 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.09% statements / 83.29% branches / 95.48% functions / 93.49% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral, Client Review gates, unchanged input and export integrity remain green. The existing build-size warning remains.
+- Release gate: CI #97 validates the prior head only. The fifth head requires successful CI and fresh automated review before final Architect/Owner merge authorization. This is the final authorized bounded grammar expansion; no schema, storage, intake, template, dependency or production changes.
+
+## 2026-09-07 - PR #4 fourth P1 refinement
+
+- Reproduced P1 E and F with four failing tests on `29e332ce874aa49985ecc0e5e51832924a3477ee`: unrelated negation reached a later capability, and a trailing positive predicate did not update the preceding occurrence.
+- Preserved the occurrence scanner. A bounded relationship boundary ends negative scope after an intervening non-capability concern, using the existing capability vocabulary and noun-completion checks rather than concern/adjective lists. A trailing positive predicate determines occurrence polarity before recording it; direct negative cues and trailing negative predicates retain precedence.
+- Added 80 regressions in `src/tests/websiteCapabilityPolarity.test.ts`, covering the exact reproducers, all seven fields, relationship locality, all eight is/are positive predicates, negative predicates and selected-only generated output. Necessary package-generation notes record the continuing bounded-English limitation.
+- Validation: 379 focused tests passed. Both complete runners passed 3,487 tests / 97 files (3,409 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.09% statements / 83.28% branches / 95.48% functions / 93.49% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral, Client Review gates, unchanged input and export integrity remain green. The existing build-size warning remains.
+- Release gate: CI #96 validates the prior head only. The fourth head requires successful CI and fresh automated review before final Architect/Owner merge authorization. No schema, storage, intake, template, dependency or production changes.
+
+## 2026-09-07 - PR #4 third P1 refinement
+
+- Reproduced P1 C and D with two failing tests on `937be4a05eb395b14954865d8e231561272373df`: an ordinary adjective bypassed negation, and inherited negation suppressed an explicitly approved coordinated replacement.
+- Replaced the modifier whitelist and prefix-list regex with a deterministic token scanner in `src/lib/websiteCapabilityIntent.ts`. Each capability occurrence records positive, negative or unclassified polarity. Grammar cues bound negation; explicit approval and independent positive phrases reset it without enumerating adjectives.
+- Added direct scanner and generated-package tests in `src/tests/websiteCapabilityPolarity.test.ts`, plus the two exact reproducers in `src/tests/websiteCapabilitySelection.test.ts`: 71 additional cases. Updated the maintained package-generation notes only.
+- Validation: 299 focused website tests passed. Both complete runners passed 3,407 tests / 97 files (3,329 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.09% statements / 83.27% branches / 95.48% functions / 93.48% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral and export regressions passed. The existing build-size warning remains.
+- Release gate: existing PR #4 requires new-head CI, fresh automated review and final Architect/Owner authorization. No schema, storage, UI, dependency, template or production changes are included.
+
+## 2026-09-07 - PR #4 second P1 refinement
+
+- Reproduced both accepted review findings on `9f6afab8ae98076069bb21242e7e73e25afe1b47`. The expanded reproducer failed 37 tests before source changes: negated request subjects could select scope, while ordinary comma-separated fields could hide a positive subject.
+- Refactored `src/lib/websiteCapabilityIntent.ts` into separate request-start, subject-occurrence and local-negation decisions. Ordinary list commas remain inside requests. Each known capability occurrence receives its own negation decision; at least one non-negated requested occurrence preserves selection.
+- Added 69 regression cases in `src/tests/websiteCapabilitySelection.test.ts` and corrected the maintained package-generation notes. All seven fields, structured decisions, negative commands, lists, cross-field isolation and generated output are covered. No schema, storage, dependency, UI or template changes.
+- Validation: focused website matrix passed 228 tests. Both complete runners passed 3,336 tests / 96 files (3,258 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.06% statements / 83.24% branches / 95.48% functions / 93.46% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. Existing Power Platform, Static Website, other project families, marker/gate/contact and export regressions passed. The existing build-size warning remains.
+- Release gate: updated PR #4 requires fresh automated review and successful CI for the new head before any merge authorization; CI #94 is insufficient.
+
+## 2026-09-07 - P1 compound capability replacement
+
+- Reproduced the comma-connected replacement defect on main `f2c506e98a0835f5bad22a29e6d42f24d225d1f9`: 15 failing tests before changing the parser, including a booking form omitted from generated checks.
+- Updated `src/lib/websiteCapabilityIntent.ts` to recognize comma/conjunction boundaries only before known request verbs and keep request matching inside comma text. Field-specific subjects and structured N/A/Deferred precedence remain unchanged.
+- Added 29 regression cases in `src/tests/websiteCapabilitySelection.test.ts`; updated the detailed package-generation notes and NEXT_STEPS review boundary. No schema, storage, dependency, template or production changes.
+- Validation: focused website matrix passed 159 tests. Both full runners passed 3,267 tests / 96 files (3,189 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. Power Platform, Static Website, other project families, the 19-document contract, contact deferral and export integrity remain green. The existing build-size warning remains.
+- Remaining work: Architect/Owner PR review; merge, deployment and production regeneration require separate authorization.
+
 ## 2026-09-07 - Business Website optional capability selection
 
 - Final validation: 3,238 tests / 96 files passed in both full runners, including all 78 UI tests and 80 added capability tests. Coverage passed at 90.05% statements / 83.24% branches / 95.47% functions / 93.45% lines. Lint, app TypeScript, build, production audit (zero vulnerabilities) and diff checks passed. Seven existing development-tooling findings (five high, two moderate) and the existing build chunk warning remain documented without dependency changes.

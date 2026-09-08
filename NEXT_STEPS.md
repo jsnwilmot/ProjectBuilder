@@ -2,7 +2,7 @@
 
 ## Business Website generation review boundary
 
-1. Have the Project Owner and GPT Architect review `fix/business-website-capability-selection`, the follow-up to the merged website-family fix. Review the distinction between answered requirements and selected capabilities and the [negative-prose regression evidence](docs/business-website-package-generation.md#follow-up-negative-capability-selection).
+1. Have the Project Owner and GPT Architect review `fix/compound-capability-replacement`, the P1 follow-up to merged PR #3. Review the [compound replacement correction and regression evidence](docs/business-website-package-generation.md#p1-follow-up-compound-exclusion-and-replacement).
 2. Review the documented development-tooling advisories separately; the owner authorized this generation fix without dependency remediation.
 3. After a separately approved merge and deployment, regenerate the affected production website draft and verify its actual saved intake. Preserve its three manual review gates and contact decision due before implementation. Do not approve or implement the website merely because missing markers are corrected.
 
