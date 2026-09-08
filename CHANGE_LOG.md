@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-08 - PR #4 fifth P1 refinement
+
+- Reproduced P1 G and H with four failing tests on `3dde579bd6487b29911165dfde9ba55ce77b20c8`: a coordinated capability phrase inside a larger concern prevented negative-scope termination, and punctuation before a trailing relative approval prevented positive classification.
+- Preserved the occurrence scanner. At a supported relationship, scope now depends on substantive text after the final capability occurrence, rather than treating any earlier occurrence followed by coordination as completing the phrase. Positive and negative trailing predicates accept bounded comma/parenthesis punctuation with explicit negative precedence unchanged.
+- Added 56 direct-classifier and generated-package regressions in `src/tests/websiteCapabilityPolarity.test.ts`, covering the exact reproducers, all requested contrasts, all seven fields, direct negative coordination, punctuated predicate parity, selected-only output and the continuing bounded-English limitation.
+- Validation: 435 focused website tests passed. Both complete runners passed 3,543 tests / 97 files (3,465 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.09% statements / 83.29% branches / 95.48% functions / 93.49% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral, Client Review gates, unchanged input and export integrity remain green. The existing build-size warning remains.
+- Release gate: CI #97 validates the prior head only. The fifth head requires successful CI and fresh automated review before final Architect/Owner merge authorization. This is the final authorized bounded grammar expansion; no schema, storage, intake, template, dependency or production changes.
+
 ## 2026-09-07 - PR #4 fourth P1 refinement
 
 - Reproduced P1 E and F with four failing tests on `29e332ce874aa49985ecc0e5e51832924a3477ee`: unrelated negation reached a later capability, and a trailing positive predicate did not update the preceding occurrence.

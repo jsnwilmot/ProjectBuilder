@@ -27,6 +27,16 @@ const fourthFamilies: Array<[WebsiteCapabilityField, string, string]> = [
   ["reportsDashboards", "Provide a workflow with no personal information in reports", "Provide no legacy report, and monthly service summary is required"]
 ];
 
+const fifthFamilies: Array<[WebsiteCapabilityField, string, string, string]> = [
+  ["websiteForms", "Implement a workflow with no login or authentication errors affecting the booking form", "Implement no contact form, and booking form, which is approved", "Requested forms"],
+  ["integrations", "Enable a workflow with no report or dashboard failures affecting the external API", "Implement no legacy integration, and external API, which is approved", "Requested integrations"],
+  ["websiteAnalytics", "Implement a workflow with no database or data issues affecting analytics", "Implement no legacy analytics, and replacement analytics, which is requested", "Approved analytics"],
+  ["dataCollections", "Create a workflow with no report or dashboard failures affecting the customer database", "Create no legacy database, and customer database, which is approved", "Requested application data"],
+  ["dataEntities", "Create a workflow with no login or authentication issues affecting customer records", "Create no legacy records, and customer records, which are needed", "Requested data entities"],
+  ["authenticationExpectation", "Implement a workflow with no API or integration failures affecting authentication", "Implement no legacy login, and authentication, which is required", "Requested access controls"],
+  ["reportsDashboards", "Provide a workflow with no database or data issues affecting reports", "Provide no legacy report, and monthly service summary, which is approved", "Requested reports"]
+];
+
 describe("Fourth P1 reproducers", () => {
   it.each([
     "Implement a workflow with no errors affecting the booking form",
@@ -37,6 +47,82 @@ describe("Fourth P1 reproducers", () => {
     const project = createNegativeCapabilityWebsite();
     project.intake.websiteForms = value;
     expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+  });
+});
+
+describe("Fifth P1 reproducers", () => {
+  it.each([
+    "Implement a workflow with no login or authentication errors affecting the booking form",
+    "No contact form is approved, implement a workflow with no login or authentication errors affecting the booking form",
+    "Implement no contact form, and booking form, which is approved",
+    "No contact form is approved, implement no contact form, and booking form, which is required"
+  ])("selects forms: %s", (value) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteForms = value;
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+  });
+});
+
+describe("Coordinated concern scope and punctuated predicates", () => {
+  it.each(fifthFamilies)("ends coordinated unrelated concern scope for %s", (field, value) => {
+    expect(polarities(field, value)).toEqual(["positive"]);
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each(fifthFamilies)("applies a punctuated trailing predicate for %s", (field, _, value) => {
+    expect(polarities(field, value)).toEqual(["negative", "positive"]);
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each([
+    "Implement a workflow with no login or authentication errors affecting the booking form",
+    "Implement a workflow with no API or integration failures affecting the booking form",
+    "Implement a workflow with no analytics or tracking issues affecting the booking form",
+    "Implement a workflow with no database or data problems affecting the booking form",
+    "Implement a workflow with no report or dashboard failures affecting the booking form"
+  ])("does not extend a coordinated concern into forms: %s", (value) => {
+    expect(polarities("websiteForms", value)).toEqual(["positive"]);
+  });
+
+  it.each<[WebsiteCapabilityField, string]>([
+    ["authenticationExpectation", "Implement no login or authentication"],
+    ["authenticationExpectation", "Implement neither login nor authentication"],
+    ["authenticationExpectation", "Implement without login or authentication"],
+    ["authenticationExpectation", "No login or authentication is approved"],
+    ["integrations", "Implement no API or integration"],
+    ["reportsDashboards", "Implement neither reports nor dashboards"],
+    ["dataCollections", "Create no database or persistent data"]
+  ])("preserves direct coordinated negation for %s: %s", (field, value) => {
+    expect(polarities(field, value).every((polarity) => polarity === "negative")).toBe(true);
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(false);
+  });
+
+  it.each([
+    "Implement no contact form, and booking form is approved",
+    "Implement no contact form, and booking form, which is approved",
+    "Implement no contact form, and booking form, which is required",
+    "Implement no contact form, and booking form, which is requested",
+    "Implement no contact form, and booking form, which is needed",
+    "Implement no contact form, and booking form (which is approved)"
+  ])("recognizes a bounded trailing positive predicate: %s", (value) => {
+    expect(polarities("websiteForms", value)).toEqual(["negative", "positive"]);
+  });
+
+  it.each([
+    "Booking form is not approved",
+    "Booking form, which is not approved",
+    "Booking form is excluded",
+    "Booking form, which is excluded",
+    "Booking form is outside scope",
+    "Booking form (which is not approved)"
+  ])("recognizes a bounded trailing negative predicate: %s", (value) => {
+    expect(polarities("websiteForms", value)).toEqual(["negative"]);
   });
 });
 
@@ -210,7 +296,9 @@ describe("Occurrence polarity in generated website packages", () => {
   const selectedCases = [
     ...families,
     ...fourthFamilies.flatMap(([field, unrelated, trailing]) =>
-      [unrelated, trailing].map((value): typeof families[number] => [field, "", value, families.find(([family]) => family === field)![3]]))
+      [unrelated, trailing].map((value): typeof families[number] => [field, "", value, families.find(([family]) => family === field)![3]])),
+    ...fifthFamilies.flatMap(([field, unrelated, trailing, row]) =>
+      [unrelated, trailing].map((value): typeof families[number] => [field, "", value, row]))
   ];
   it.each(selectedCases)("generates only the selected %s replacement with unchanged intake: %s %s", (field, _, replacement, row) => {
     const project = createNegativeCapabilityWebsite();

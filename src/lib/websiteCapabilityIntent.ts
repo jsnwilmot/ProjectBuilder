@@ -28,8 +28,8 @@ const clauseBoundary = new RegExp(
 
 const requestStart = new RegExp(`^(?:${requestVerbs})\\s+`, "i");
 const allSubjects = new RegExp(`\\b(?:${[...new Set(Object.values(subjects))].join("|")})\\b`, "gi");
-const negativePredicate = /^(?:\s+(?:that|which))?\s+(?:(?:is|are|remains?)\s+)?(?:not\s+(?:approved|required|needed|requested|in scope)\b|outside\b[^.!?]*\bscope\b|out of scope\b|excluded\b)/i;
-const positivePredicate = /^(?:\s+(?:that|which))?\s+(?:is|are)\s+(?:approved|required|requested|needed)\b/i;
+const negativePredicate = /^[\s,(]*(?:(?:that|which)\s+)?(?:(?:is|are|remains?)\s+)?(?:not\s+(?:approved|required|needed|requested|in scope)\b|outside\b[^.!?]*\bscope\b|out of scope\b|excluded\b)/i;
+const positivePredicate = /^[\s,(]*(?:(?:that|which)\s+)?(?:is|are)\s+(?:approved|required|requested|needed)\b/i;
 const relationshipStart = /^(?:affecting|regarding|concerning|in|on|through|via|within|(?:related|relating)\s+to)\b/i;
 // Do not interpret a capability noun modifying a different concern as its
 // exclusion: "no data loss", "no analytics errors", etc.
@@ -64,8 +64,12 @@ export interface CapabilityOccurrence {
 function hasInterveningConcern(clause: string, cueEnd: number, boundary: number): boolean {
   const phrase = clause.slice(cueEnd, boundary).trim();
   if (!phrase.replace(/\b(?:a|an|the|any)\b/gi, "").trim()) return false;
-  return ![...phrase.matchAll(allSubjects)].some((match) =>
-    completesCapabilityNoun(phrase.slice(match.index + match[0].length)));
+  const lastCapability = [...phrase.matchAll(allSubjects)].at(-1);
+  if (!lastCapability) return true;
+  const trailing = phrase.slice(lastCapability.index + lastCapability[0].length)
+    .replace(/\b(?:a|an|the|any|and|or|nor)\b/gi, "")
+    .replace(/[\s,;:()[\]{}-]/g, "");
+  return trailing.length > 0;
 }
 
 /** Scan polarity segments, not adjectives. The vocabulary below is grammar:
