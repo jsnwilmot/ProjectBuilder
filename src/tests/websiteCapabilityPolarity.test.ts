@@ -17,6 +17,108 @@ const families: Array<[WebsiteCapabilityField, string, string, string]> = [
 const polarities = (field: WebsiteCapabilityField, value: string) =>
   classifyCapabilityOccurrences(field, value).map(({ polarity }) => polarity);
 
+const fourthFamilies: Array<[WebsiteCapabilityField, string, string]> = [
+  ["websiteForms", "Implement a workflow with no errors affecting the booking form", "Implement no contact form, and booking form is approved"],
+  ["integrations", "Enable a workflow with no failures related to the API", "Implement no legacy integration, and external API is approved"],
+  ["websiteAnalytics", "Implement a workflow with no faults concerning analytics", "Implement no legacy analytics, and replacement analytics is approved"],
+  ["dataCollections", "Create a workflow with no data loss in the database", "Create no legacy database, and customer database is approved"],
+  ["dataEntities", "Create a workflow with no discrepancies within customer records", "Create no legacy records, and customer records are needed"],
+  ["authenticationExpectation", "Implement a workflow with no anonymous access through authentication", "Implement no legacy login, and authentication is required"],
+  ["reportsDashboards", "Provide a workflow with no personal information in reports", "Provide no legacy report, and monthly service summary is required"]
+];
+
+describe("Fourth P1 reproducers", () => {
+  it.each([
+    "Implement a workflow with no errors affecting the booking form",
+    "No contact form is approved, implement a workflow with no errors affecting an approved booking form",
+    "Implement no contact form, and booking form is approved",
+    "No contact form is approved, implement no contact form, and booking form is required"
+  ])("selects forms: %s", (value) => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteForms = value;
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+  });
+});
+
+describe("Local relationships and trailing predicates", () => {
+  it.each(fourthFamilies)("ends unrelated negative scope for %s", (field, value) => {
+    const occurrences = classifyCapabilityOccurrences(field, value);
+    const last = occurrences.at(-1)!;
+    expect(last.polarity).toBe("positive");
+    expect(last.end).toBe(value.length);
+    expect(value.slice(last.start, last.end)).not.toBe("");
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each(fourthFamilies)("applies a trailing positive predicate for %s", (field, _, value) => {
+    const occurrences = classifyCapabilityOccurrences(field, value);
+    expect(occurrences.map(({ polarity }) => polarity)).toEqual(["negative", "positive"]);
+    expect(value.slice(occurrences[1].end)).toMatch(/^ (?:is|are) (?:approved|required|requested|needed)$/);
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each(["affecting", "related to", "relating to", "regarding", "concerning", "in", "on", "through", "via", "within"])(
+    "uses a relationship boundary after an intervening concern: %s", (relationship) => {
+      expect(polarities("websiteForms", `Implement a workflow with no operational difficulties ${relationship} the booking form`)).toEqual(["positive"]);
+    }
+  );
+
+  it.each(["is approved", "is required", "is requested", "is needed", "are approved", "are required", "are requested", "are needed"])(
+    "classifies trailing %s before recording the occurrence", (predicate) => {
+      expect(polarities("websiteForms", `Implement no contact form, and booking forms ${predicate}`)).toEqual(["negative", "positive"]);
+    }
+  );
+
+  it.each<[WebsiteCapabilityField, string]>([
+    ["websiteForms", "Implement the booking form with no validation errors"],
+    ["websiteForms", "Implement the booking form with no errors in submission"],
+    ["websiteForms", "Implement a workflow with no failures related to the booking form"],
+    ["websiteForms", "Implement a workflow with no errors affecting an approved booking form"],
+    ["websiteForms", "Implement the booking form without errors"],
+    ["websiteAnalytics", "Implement analytics without errors"],
+    ["dataCollections", "Create the customer database without data loss"],
+    ["reportsDashboards", "Provide reports without personal information"],
+    ["authenticationExpectation", "Implement authentication without anonymous access"],
+    ["integrations", "Enable the API with no transmission errors"]
+  ])("preserves positive %s despite an unrelated concern: %s", (field, value) => {
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+  });
+
+  it.each<[WebsiteCapabilityField, string]>([
+    ["websiteForms", "Implement no online booking form"],
+    ["websiteForms", "Implement no modern accessible booking form"],
+    ["websiteForms", "Implement no modern accessible online booking form"],
+    ["integrations", "Implement without an external API"],
+    ["dataCollections", "Create no persistent customer database"],
+    ["authenticationExpectation", "Implement no organization authentication"],
+    ["reportsDashboards", "Provide no monthly management report"],
+    ["dataCollections", "Implement without persistent data in production"],
+    ["websiteForms", "Booking form is not approved"],
+    ["websiteForms", "Booking form is not required"],
+    ["websiteForms", "Booking form is excluded"],
+    ["websiteForms", "Booking form is outside scope"],
+    ["websiteAnalytics", "Analytics are not approved"],
+    ["dataCollections", "Customer database is not required"],
+    ["websiteForms", "Implement no contact form, and no booking form is approved"],
+    ["websiteForms", "Implement no contact form or booking form is approved"],
+    ["websiteForms", "Implement no contact form, and booking form is not approved"],
+    ["websiteForms", "No contact form is approved"],
+    ["websiteForms", "Implement without a form regarding submissions"],
+    ["websiteForms", "Implement without a form affecting submissions"]
+  ])("preserves stronger direct or trailing negation for %s: %s", (field, value) => {
+    expect(polarities(field, value).every((polarity) => polarity === "negative")).toBe(true);
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    expect(websiteCapabilitySelected(project, field)).toBe(false);
+  });
+});
+
 describe("Deterministic capability occurrence polarity", () => {
   it.each(families)("classifies adjectival negation for %s", (field, negative) => {
     expect(polarities(field, negative)).toEqual(["negative"]);
@@ -105,7 +207,12 @@ describe("Deterministic capability occurrence polarity", () => {
 });
 
 describe("Occurrence polarity in generated website packages", () => {
-  it.each(families)("generates only the selected %s replacement with unchanged intake", (field, _, replacement, row) => {
+  const selectedCases = [
+    ...families,
+    ...fourthFamilies.flatMap(([field, unrelated, trailing]) =>
+      [unrelated, trailing].map((value): typeof families[number] => [field, "", value, families.find(([family]) => family === field)![3]]))
+  ];
+  it.each(selectedCases)("generates only the selected %s replacement with unchanged intake: %s %s", (field, _, replacement, row) => {
     const project = createNegativeCapabilityWebsite();
     Object.assign(project.intake, { [field]: replacement });
     const before = JSON.stringify(project);

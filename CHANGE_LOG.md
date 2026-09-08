@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-07 - PR #4 fourth P1 refinement
+
+- Reproduced P1 E and F with four failing tests on `29e332ce874aa49985ecc0e5e51832924a3477ee`: unrelated negation reached a later capability, and a trailing positive predicate did not update the preceding occurrence.
+- Preserved the occurrence scanner. A bounded relationship boundary ends negative scope after an intervening non-capability concern, using the existing capability vocabulary and noun-completion checks rather than concern/adjective lists. A trailing positive predicate determines occurrence polarity before recording it; direct negative cues and trailing negative predicates retain precedence.
+- Added 80 regressions in `src/tests/websiteCapabilityPolarity.test.ts`, covering the exact reproducers, all seven fields, relationship locality, all eight is/are positive predicates, negative predicates and selected-only generated output. Necessary package-generation notes record the continuing bounded-English limitation.
+- Validation: 379 focused tests passed. Both complete runners passed 3,487 tests / 97 files (3,409 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.09% statements / 83.28% branches / 95.48% functions / 93.49% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral, Client Review gates, unchanged input and export integrity remain green. The existing build-size warning remains.
+- Release gate: CI #96 validates the prior head only. The fourth head requires successful CI and fresh automated review before final Architect/Owner merge authorization. No schema, storage, intake, template, dependency or production changes.
+
 ## 2026-09-07 - PR #4 third P1 refinement
 
 - Reproduced P1 C and D with two failing tests on `937be4a05eb395b14954865d8e231561272373df`: an ordinary adjective bypassed negation, and inherited negation suppressed an explicitly approved coordinated replacement.

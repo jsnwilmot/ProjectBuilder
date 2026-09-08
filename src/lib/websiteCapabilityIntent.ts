@@ -29,9 +29,13 @@ const clauseBoundary = new RegExp(
 const requestStart = new RegExp(`^(?:${requestVerbs})\\s+`, "i");
 const allSubjects = new RegExp(`\\b(?:${[...new Set(Object.values(subjects))].join("|")})\\b`, "gi");
 const negativePredicate = /^(?:\s+(?:that|which))?\s+(?:(?:is|are|remains?)\s+)?(?:not\s+(?:approved|required|needed|requested|in scope)\b|outside\b[^.!?]*\bscope\b|out of scope\b|excluded\b)/i;
+const positivePredicate = /^(?:\s+(?:that|which))?\s+(?:is|are)\s+(?:approved|required|requested|needed)\b/i;
+const relationshipStart = /^(?:affecting|regarding|concerning|in|on|through|via|within|(?:related|relating)\s+to)\b/i;
 // Do not interpret a capability noun modifying a different concern as its
 // exclusion: "no data loss", "no analytics errors", etc.
 const capabilityEnd = /^(?:$|\s*[,/:]|\s+(?:and|or|nor|is|are|required|approved|requested|needed|allowed|for|in|outside|with|without|that|which)\b)/i;
+const completesCapabilityNoun = (following: string) =>
+  capabilityEnd.test(following) || relationshipStart.test(following.trimStart());
 
 // A small, field-scoped compatibility grammar, not a general prose classifier.
 // Match the capability itself as the negated subject, never arbitrary "no" words
@@ -54,6 +58,16 @@ export interface CapabilityOccurrence {
   polarity: CapabilityPolarity;
 }
 
+/** A relationship after an intervening concern starts a separate noun phrase.
+ * Use capability noun completion, not a dictionary of concerns or adjectives.
+ */
+function hasInterveningConcern(clause: string, cueEnd: number, boundary: number): boolean {
+  const phrase = clause.slice(cueEnd, boundary).trim();
+  if (!phrase.replace(/\b(?:a|an|the|any)\b/gi, "").trim()) return false;
+  return ![...phrase.matchAll(allSubjects)].some((match) =>
+    completesCapabilityNoun(phrase.slice(match.index + match[0].length)));
+}
+
 /** Scan polarity segments, not adjectives. The vocabulary below is grammar:
  * cues and boundaries, never a list of permitted descriptive modifiers.
  */
@@ -64,11 +78,12 @@ export function classifyCapabilityOccurrences(field: WebsiteCapabilityField, cla
   let capabilityInSegment = false;
   let positiveReset = false;
   let determinerReset = false;
+  let negativeCueEnd: number | undefined;
   const occurrences = [...clause.matchAll(rules[field].subject)];
   const starts = new Map(occurrences.map((match) => [match.index, match]));
   // Carry negation through actual capability lists, not unrelated field lists.
   const capabilityEnds = new Set([...clause.matchAll(allSubjects)]
-    .filter((match) => capabilityEnd.test(clause.slice(match.index + match[0].length)))
+    .filter((match) => completesCapabilityNoun(clause.slice(match.index + match[0].length)))
     .map((match) => match.index + match[0].length));
   const result: CapabilityOccurrence[] = [];
 
@@ -87,10 +102,21 @@ export function classifyCapabilityOccurrences(field: WebsiteCapabilityField, cla
       determinerReset = false;
     } else if (/^(?:no|without|not|neither|nor|never|don't)$/.test(word)) {
       polarity = "negative";
+      negativeCueEnd = token.index + token[0].length;
       positiveReset = false;
       determinerReset = false;
-    } else if (/^(?:but|with|in|on|for|from|to|about|of|into|by|is|are|was|were|must|should|can|could|[;:.!?])$/.test(word)) {
+    } else if (relationshipStart.test(clause.slice(token.index))) {
+      if (polarity === "negative" && negativeCueEnd !== undefined
+        && hasInterveningConcern(clause, negativeCueEnd, token.index)) {
+        polarity = baseline;
+        negativeCueEnd = undefined;
+        capabilityInSegment = false;
+        positiveReset = false;
+        determinerReset = false;
+      }
+    } else if (/^(?:but|with|for|from|to|about|of|into|by|is|are|was|were|must|should|can|could|[;:.!?])$/.test(word)) {
       polarity = baseline;
+      negativeCueEnd = undefined;
       capabilityInSegment = false;
       positiveReset = false;
       determinerReset = false;
@@ -108,7 +134,8 @@ export function classifyCapabilityOccurrences(field: WebsiteCapabilityField, cla
       result.push({
         start: occurrence.index, end,
         polarity: negativePredicate.test(following) ? "negative"
-          : polarity === "negative" && !capabilityEnd.test(following) ? "unclassified" : polarity
+          : positivePredicate.test(following) && (polarity !== "negative" || positiveReset) ? "positive"
+          : polarity === "negative" && !completesCapabilityNoun(following) ? "unclassified" : polarity
       });
       positiveReset = false;
       determinerReset = false;
