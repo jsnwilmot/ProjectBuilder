@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-08 - PR #4 final bounded P1 correction
+
+- Reproduced P1 I with one failing test on `a47a3a3cff60a5d577a1e847d620880eaaecb350`: leading punctuation allowed an unrelated exclusion to bind backward to a requested capability.
+- Tightened only trailing-predicate subject binding. Direct predicates may follow whitespace with an optional unpunctuated relative marker. A comma or opening parenthesis now requires explicit `that` or `which` before the supported positive or negative predicate; explicit negative predicates retain precedence.
+- Added 27 direct-classifier and generated-package regressions in `src/tests/websiteCapabilityPolarity.test.ts`, covering unrelated following material, direct predicates, punctuated same-subject relatives, all seven capability fields, selected-only output and export integrity.
+- Validation: 462 focused website tests passed. Both complete runners passed 3,570 tests / 97 files (3,492 unit/integration plus 78 UI). Coverage passed unchanged thresholds at 90.10% statements / 83.29% branches / 95.49% functions / 93.49% lines. Lint, TypeScript/build, production audit (zero vulnerabilities) and diff checks passed. The 19-document contract, Power Platform, Static Website, other project families, contact deferral, Client Review gates, unchanged input and export integrity remain green. The existing build-size warning remains.
+- Release gate: CI #98 validates the prior head only. The final bounded head requires successful CI and fresh automated review before final Architect/Owner merge authorization. No further grammar expansion, schema, storage, intake, template, dependency or production changes are included.
+
 ## 2026-09-08 - PR #4 fifth P1 refinement
 
 - Reproduced P1 G and H with four failing tests on `3dde579bd6487b29911165dfde9ba55ce77b20c8`: a coordinated capability phrase inside a larger concern prevented negative-scope termination, and punctuation before a trailing relative approval prevented positive classification.

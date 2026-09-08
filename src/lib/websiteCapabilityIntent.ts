@@ -28,8 +28,16 @@ const clauseBoundary = new RegExp(
 
 const requestStart = new RegExp(`^(?:${requestVerbs})\\s+`, "i");
 const allSubjects = new RegExp(`\\b(?:${[...new Set(Object.values(subjects))].join("|")})\\b`, "gi");
-const negativePredicate = /^[\s,(]*(?:(?:that|which)\s+)?(?:(?:is|are|remains?)\s+)?(?:not\s+(?:approved|required|needed|requested|in scope)\b|outside\b[^.!?]*\bscope\b|out of scope\b|excluded\b)/i;
-const positivePredicate = /^[\s,(]*(?:(?:that|which)\s+)?(?:is|are)\s+(?:approved|required|requested|needed)\b/i;
+const negativePredicateBody = "(?:(?:is|are|remains?)\\s+)?(?:not\\s+(?:approved|required|needed|requested|in scope)\\b|outside\\b[^.!?]*\\bscope\\b|out of scope\\b|excluded\\b)";
+const positivePredicateBody = "(?:is|are)\\s+(?:approved|required|requested|needed)\\b";
+const predicatePatterns = (body: string) => [
+  new RegExp(`^\\s+(?:(?:that|which)\\s+)?${body}`, "i"),
+  new RegExp(`^\\s*(?:,|\\()\\s*(?:that|which)\\s+${body}`, "i")
+];
+const negativePredicates = predicatePatterns(negativePredicateBody);
+const positivePredicates = predicatePatterns(positivePredicateBody);
+const matchesPredicate = (patterns: RegExp[], following: string) =>
+  patterns.some((pattern) => pattern.test(following));
 const relationshipStart = /^(?:affecting|regarding|concerning|in|on|through|via|within|(?:related|relating)\s+to)\b/i;
 // Do not interpret a capability noun modifying a different concern as its
 // exclusion: "no data loss", "no analytics errors", etc.
@@ -137,8 +145,8 @@ export function classifyCapabilityOccurrences(field: WebsiteCapabilityField, cla
       const following = clause.slice(end);
       result.push({
         start: occurrence.index, end,
-        polarity: negativePredicate.test(following) ? "negative"
-          : positivePredicate.test(following) && (polarity !== "negative" || positiveReset) ? "positive"
+        polarity: matchesPredicate(negativePredicates, following) ? "negative"
+          : matchesPredicate(positivePredicates, following) && (polarity !== "negative" || positiveReset) ? "positive"
           : polarity === "negative" && !completesCapabilityNoun(following) ? "unclassified" : polarity
       });
       positiveReset = false;

@@ -37,6 +37,16 @@ const fifthFamilies: Array<[WebsiteCapabilityField, string, string, string]> = [
   ["reportsDashboards", "Provide a workflow with no database or data issues affecting reports", "Provide no legacy report, and monthly service summary, which is approved", "Requested reports"]
 ];
 
+const predicateBindingFamilies: Array<[WebsiteCapabilityField, string, string]> = [
+  ["websiteForms", "Implement the booking form, excluded integrations remain out of scope", "Requested forms"],
+  ["integrations", "Enable the external API, excluded analytics remain out of scope", "Requested integrations"],
+  ["websiteAnalytics", "Implement analytics, excluded reports remain out of scope", "Approved analytics"],
+  ["dataCollections", "Create the customer database, excluded reports remain out of scope", "Requested application data"],
+  ["dataEntities", "Create customer records, excluded integrations remain out of scope", "Requested data entities"],
+  ["authenticationExpectation", "Implement authentication, excluded reports remain out of scope", "Requested access controls"],
+  ["reportsDashboards", "Provide reports, excluded analytics remain out of scope", "Requested reports"]
+];
+
 describe("Fourth P1 reproducers", () => {
   it.each([
     "Implement a workflow with no errors affecting the booking form",
@@ -60,6 +70,60 @@ describe("Fifth P1 reproducers", () => {
     const project = createNegativeCapabilityWebsite();
     project.intake.websiteForms = value;
     expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+  });
+});
+
+describe("Final bounded P1 reproducer", () => {
+  it("does not bind a punctuated unrelated exclusion to the requested form", () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.websiteForms = "Implement the booking form, excluded integrations remain out of scope";
+    expect(websiteCapabilitySelected(project, "websiteForms")).toBe(true);
+  });
+});
+
+describe("Trailing predicate subject binding", () => {
+  it.each(predicateBindingFamilies)("does not bind unrelated punctuation to %s", (field, value, row) => {
+    expect(polarities(field, value)).toEqual(["positive"]);
+    const project = createNegativeCapabilityWebsite();
+    Object.assign(project.intake, { [field]: value });
+    const before = JSON.stringify(project);
+    expect(websiteCapabilitySelected(project, field)).toBe(true);
+    const result = { ...project, generatedDocuments: generateProjectPackage(project).documents };
+    const text = (name: string) => result.generatedDocuments.find((doc) => doc.fileName === name)!.content;
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) {
+      expect(text(name)).toContain(row);
+      for (const [otherField, , , otherRow] of families) if (otherField !== field) expect(text(name)).not.toContain(otherRow);
+    }
+    expect(text("PHASED_CODEX_PROMPTS.md")).toContain("Requested website services");
+    if (field === "dataCollections" || field === "dataEntities") expect(text("DATA_MODEL.md")).toContain("Application data is requested.");
+    expect(JSON.stringify(project)).toBe(before);
+    expect(validateExportPackage(result).errors).toEqual([]);
+  });
+
+  it.each(["is approved", "is required", "is requested", "is needed"])(
+    "retains a direct positive predicate: %s", (predicate) => {
+      expect(polarities("websiteForms", `booking form ${predicate}`)).toEqual(["positive"]);
+    }
+  );
+
+  it.each(["is not approved", "is not required", "is excluded", "is outside scope"])(
+    "retains a direct negative predicate: %s", (predicate) => {
+      expect(polarities("websiteForms", `booking form ${predicate}`)).toEqual(["negative"]);
+    }
+  );
+
+  it.each([
+    ", which is approved", ", which is required", ", which is requested", ", which is needed",
+    " (which is approved)", ", that is approved"
+  ])("requires a relative marker for a punctuated positive predicate: %s", (predicate) => {
+    expect(polarities("websiteForms", `booking form${predicate}`)).toEqual(["positive"]);
+  });
+
+  it.each([
+    ", which is not approved", ", which is not required", ", which is excluded",
+    " (which is not approved)", ", that is excluded"
+  ])("requires a relative marker for a punctuated negative predicate: %s", (predicate) => {
+    expect(polarities("websiteForms", `booking form${predicate}`)).toEqual(["negative"]);
   });
 });
 
