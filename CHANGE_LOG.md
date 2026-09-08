@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-09-08 - Readiness blocker count consistency
+
+- Reproduced the production defect on main `11057eaf60b4e39cacbc334248ca29ee77801401`: a Rose-like Business Website had eight actionable Client Review blockers and zero content blockers, while generated readiness, Export diagnostics and the Export manifest counted a ninth synthetic `Client Review readiness is not complete.` blocker. The desired regression matrix failed five of seven focused tests before the source correction.
+- Corrected `evaluateGeneratedPackageReadiness(...)` so blocker counts are the unique actionable union of `clientReview.blockers` and content blockers. Package status is evaluated independently: Draft when Client Review is incomplete or content blockers exist, and Ready for Codex only when Client Review is ready and content has no blockers.
+- Added seven focused unit/integration tests covering eight, one and zero Client Review blockers; zero, one and two content blockers; unique union semantics; Export warning propagation; and Export manifest propagation. Added one UI regression proving Export displays eight for the Rose-like state.
+- Validation: the focused readiness suite passed 7 tests; the focused Export UI suite passed 16 tests; the broader Client Review, Export, manifest, Business/Static Website, capability and Power Platform matrix passed 540 tests across 8 files. Both complete runners passed 3,578 tests across 98 files (3,499 unit/integration plus 79 UI). Coverage passed at 90.10% statements, 83.29% branches, 95.49% functions and 93.49% lines. Lint, TypeScript, production build, production dependency audit (zero vulnerabilities) and diff checks passed. The existing build-size warning remains.
+- Preserved Client Review gates, manual confirmations, deferred requirements, Business Website capability selection, contact deferral, missing/orphan markers, Power Platform and Canvas readiness, storage/package schemas, export structure, ZIP sanitization and the 19-document contract. No dependencies or production configuration changed.
+- Readiness invariant: blocker counts represent unique actionable blocking reasons. Aggregate state such as `Client Review readiness is not complete.` is not counted when detailed Client Review reasons already represent the incomplete state.
+- Remaining work: independent PR review, GitHub CI and fresh automated review. Merge and deployment require separate authorization.
+
 ## 2026-09-08 - PR #4 final bounded P1 correction
 
 - Reproduced P1 I with one failing test on `a47a3a3cff60a5d577a1e847d620880eaaecb350`: leading punctuation allowed an unrelated exclusion to bind backward to a requested capability.
