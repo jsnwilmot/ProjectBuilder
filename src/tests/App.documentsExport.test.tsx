@@ -25,7 +25,7 @@ import { evaluatePhaseGate } from "../lib/phaseGates";
 import type { ProjectRecord } from "../types/project";
 import { createDraftGeneratedProject, createGeneratedProject } from "./helpers/generatedProject";
 import { createReadyPreviewProject, seedApp } from "./helpers/appTestHelpers";
-import { createBusinessWebsite, createUmbrellaWebsite, withWebsiteReviews } from "./helpers/businessWebsite";
+import { createBusinessWebsite, createNegativeCapabilityWebsite, createUmbrellaWebsite, withWebsiteReviews } from "./helpers/businessWebsite";
 
 describe("App - documents Export", () => {
   it("shows the contact decision as deferred and separates review blockers from content errors", async () => {
@@ -265,6 +265,23 @@ describe("App - documents Export", () => {
     expect(screen.getByText("19/19")).toBeInTheDocument();
     expect(screen.getByText("No export errors.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Use This Project Package" })).toBeInTheDocument();
+  });
+
+  it("shows the actionable Rose-like blocker count in Export", async () => {
+    const project = createNegativeCapabilityWebsite();
+    project.intake.assumptions = "Confirmed static Version 1 direction. Contact details remain TBD by the Project Owner before implementation.";
+    project.intake.workflowDecisionPoints = "Visitors choose a division. Contact details remain TBD by the Project Owner before implementation.";
+    project.intake.websiteForms = "Contact section planned. Contact method and business contact details TBD by Project Owner before implementation.";
+    project.intake.websiteContactMethod = "Primary action: explore divisions. Contact method and actual contact data remain owner decisions; do not fabricate.";
+    seedApp([createDraftGeneratedProject(project)]);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Open export" }));
+
+    expect(screen.getByText("Package readiness is Draft because 8 readiness blocker(s) remain.")).toBeVisible();
+    expect(screen.queryByText("Package readiness is Draft because 9 readiness blocker(s) remain.")).not.toBeInTheDocument();
   });
 
   it("downloads a verified package and reports success", async () => {

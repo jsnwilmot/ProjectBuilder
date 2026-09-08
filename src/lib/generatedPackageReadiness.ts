@@ -71,14 +71,19 @@ export function evaluateGeneratedPackageReadiness(
     ...(duplicateExpectedPathCount > 0 ? [`${duplicateExpectedPathCount} duplicate expected document path(s) are registered.`] : []),
     ...(missingTemplateFiles.length > 0 ? [`${missingTemplateFiles.length} applicable document template(s) are missing.`] : [])
   ];
-  const blockers = [
+  const uniqueContentBlockers = unique(contentBlockers);
+  // Counts represent unique actionable reasons. Client Review readiness remains
+  // an independent status condition and does not add a synthetic umbrella item.
+  const blockers = unique([
     ...clientReview.blockers,
-    ...(!clientReview.isReady ? ["Client Review readiness is not complete."] : []),
-    ...contentBlockers
-  ];
+    ...uniqueContentBlockers
+  ]);
+  const status = clientReview.isReady && uniqueContentBlockers.length === 0
+    ? "Ready for Codex"
+    : "Draft";
 
   return {
-    status: blockers.length === 0 ? "Ready for Codex" : "Draft",
+    status,
     clientReviewReady: clientReview.isReady,
     powerPlatformReady: powerPlatform.isReadyForCodex,
     missingMarkerCount,
@@ -88,7 +93,7 @@ export function evaluateGeneratedPackageReadiness(
     duplicateExpectedPathCount,
     missingTemplateCount: missingTemplateFiles.length,
     orphanMarkerCount,
-    contentBlockers: unique(contentBlockers),
-    blockers: unique(blockers)
+    contentBlockers: uniqueContentBlockers,
+    blockers
   };
 }
