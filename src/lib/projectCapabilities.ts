@@ -1,5 +1,5 @@
 import { INTAKE_STAGES } from "../data/intakeStages";
-import { BRANDING_REQUIRED_FIELDS, getProjectTypeFields } from "../data/projectTypes";
+import { BRANDING_REQUIRED_FIELDS, getProjectTypeFields, getProjectTypeRequiredFields } from "../data/projectTypes";
 import type { ProjectInputField, ProjectRecord } from "../types/project";
 
 /** Template families are independent of optional capabilities selected in intake. */
@@ -40,5 +40,14 @@ export function websiteRequiredFields(): Set<ProjectInputField> {
     ...INTAKE_STAGES.flatMap((stage) => stage.requiredFields).filter((field) => !WEBSITE_OPTIONAL_FIELDS.has(field)),
     ...BRANDING_REQUIRED_FIELDS,
     "websitePages", "seoKeywords", "contentSource"
+  ]);
+}
+
+/** One requiredness contract for validation, review derivation, and document rendering. */
+export function requiredProjectFields(project: ProjectRecord): Set<ProjectInputField> {
+  if (projectCapabilities(project).documentFamily === "website") return websiteRequiredFields();
+  return new Set([
+    ...INTAKE_STAGES.flatMap((stage) => stage.requiredFields),
+    ...getProjectTypeRequiredFields(project.intake.appType, project.intake.audienceVisibility)
   ]);
 }

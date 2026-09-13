@@ -1315,6 +1315,8 @@ export interface ReviewItem {
   allowDeferred: boolean;
   source: "missing" | "warning" | "weak" | "gate";
   gateId?: string;
+  resolutionMode?: "review" | "source";
+  sourceFieldLabel?: string;
   updatedAt: string;
 }
 

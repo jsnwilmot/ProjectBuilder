@@ -5,6 +5,7 @@ import type {
   ProjectType,
   ProjectTypePreset
 } from "../types/project";
+import { ECOMMERCE_CART_SCOPES, ECOMMERCE_STOREFRONT_MODELS } from "./ecommerceOptions";
 
 const CORE_MODULES = [
   "foundation",
@@ -460,9 +461,9 @@ export function getProjectTypeFields(
 }
 
 const ECOMMERCE_FIELDS: (IntakeFieldDefinition & { stageId: string })[] = [
-  { stageId: "foundation", name: "ecommerceStorefrontModel", label: "Storefront model", description: "Choose unified storefront, multiple branded storefront contexts under one merchant, or marketplace. This does not decide cart scope.", placeholder: "Unified storefront / single merchant with multiple branded contexts / marketplace" },
+  { stageId: "foundation", name: "ecommerceStorefrontModel", label: "Storefront model", description: "Choose the persisted canonical storefront model. This does not decide cart scope.", placeholder: "Choose storefront model", inputType: "select", options: [...ECOMMERCE_STOREFRONT_MODELS] },
   { stageId: "features", name: "ecommerceRoutes", label: "Storefront routes and contexts", description: "One route per line: route | brand/theme | catalog context. Preserve approved routes and brand boundaries.", placeholder: "/route | approved brand/theme | catalog context", multiline: true },
-  { stageId: "features", name: "ecommerceCartScope", label: "Cart scope decision", description: "Explicitly state whether carts span storefront contexts, stay separate, or await a decision.", placeholder: "Shared cross-context cart / separate carts / undecided" },
+  { stageId: "features", name: "ecommerceCartScope", label: "Cart scope decision", description: "Choose the persisted canonical cart scope independently from storefront model.", placeholder: "Choose cart scope", inputType: "select", options: [...ECOMMERCE_CART_SCOPES] },
   { stageId: "security", name: "ecommerceDecisions", label: "Ecommerce decision register", description: "One record per line: ID | architecture, launch or optional | Needs answer, Deferred, Answered or Not applicable | question | reason | approved answer. Existing OQ records in Assumptions are imported as unresolved until explicitly resolved here.", placeholder: "OQ-01 | launch | Deferred | Free-shipping threshold? | Needed before launch |", multiline: true },
   { stageId: "foundation", name: "ecommerceArchitecture", label: "Approved ecommerce architecture", description: "After Architect approval use Approved: followed by semicolon/newline-separated named values: runtime, backend, database, integrations, repository. Example key syntax: runtime=approved choice. Unknown values remain open.", placeholder: "Pending Architect approval", multiline: true },
   { stageId: "foundation", name: "ecommerceDeployment", label: "Web deployment contract", description: "After approval use Approved: then semicolon/newline-separated key=value entries for environments, source control, CI, build, deployment, DNS, secrets, migrations, integrations, observability, backup, restore, rollback, smoke, responsibilities. Record secret names only. Unknown values remain open.", placeholder: "Deferred until architecture approval", multiline: true },

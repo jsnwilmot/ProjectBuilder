@@ -62,7 +62,7 @@ function normalizeReviewItems(value: unknown): ReviewItem[] {
       || !fieldKey
       || !CLIENT_REVIEW_SECTIONS.includes(section)
       || !REVIEW_ITEM_STATUSES.includes(status)
-      || !["missing", "warning", "weak"].includes(source)
+      || !["missing", "warning", "weak", "gate"].includes(source)
     ) return [];
     return [{
       id: asString(candidate.id),
@@ -77,6 +77,8 @@ function normalizeReviewItems(value: unknown): ReviewItem[] {
       blocking: candidate.blocking !== false,
       allowDeferred: candidate.allowDeferred === true,
       source,
+      resolutionMode: candidate.resolutionMode === "source" ? "source" : undefined,
+      sourceFieldLabel: asString(candidate.sourceFieldLabel) || undefined,
       updatedAt: asString(candidate.updatedAt)
     }];
   });

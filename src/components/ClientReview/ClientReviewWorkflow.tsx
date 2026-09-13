@@ -113,8 +113,16 @@ export function ClientReviewWorkflow({
                     <dt>Action</dt>
                     <dd>{item.blocking ? "Resolve before Ready for Codex." : "Confirm now or defer with a reason."}</dd>
                   </div>
+                  {item.resolutionMode === "source" ? (
+                    <div>
+                      <dt>Source field</dt>
+                      <dd>{item.sourceFieldLabel ?? item.fieldKey}</dd>
+                    </div>
+                  ) : null}
                 </dl>
-                <div className="review-item-controls">
+                {item.resolutionMode === "source" ? (
+                  <p className="review-item-controls">Update the source intake field to resolve this item.</p>
+                ) : <div className="review-item-controls">
                   <div className="form-field compact-field">
                     <label htmlFor={`review-status-${item.id}`}>Status</label>
                     <select
@@ -150,7 +158,7 @@ export function ClientReviewWorkflow({
                       {item.blocking || !item.allowDeferred ? <p>Deferral is recorded, but this item still blocks readiness.</p> : null}
                     </div>
                   ) : null}
-                </div>
+                </div>}
               </article>
             ))}
           </div>

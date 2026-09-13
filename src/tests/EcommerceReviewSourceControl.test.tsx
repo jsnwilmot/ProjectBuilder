@@ -18,6 +18,11 @@ describe("ecommerce source-controlled Client Review cards", () => {
     expect(within(card).getByText(/Cart scope decision/i)).toBeInTheDocument();
     expect(within(card).queryByRole("combobox")).not.toBeInTheDocument();
     expect(within(card).queryByRole("textbox")).not.toBeInTheDocument();
+    const deferredHeading = screen.getByRole("heading", { name: /OQ-01: What CAD order subtotal/i });
+    const deferredCard = deferredHeading.closest("article")!;
+    expect(within(deferredCard).getByText("Assumptions")).toBeInTheDocument();
+    expect(within(deferredCard).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(deferredCard).queryByRole("textbox")).not.toBeInTheDocument();
     expect(onUpdate).not.toHaveBeenCalled();
   });
 

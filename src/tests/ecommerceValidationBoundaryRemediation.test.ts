@@ -7,8 +7,10 @@ import { ecommerceDecisionState, ecommerceReviewItems, ARCHITECTURE_KEYS, DEPLOY
 import { orphanMissingMarkers } from "../lib/canvasTraceability";
 import { validateIntake } from "../lib/validateIntake";
 import { websiteRequirement } from "../lib/websiteRequirements";
+import { deriveReviewItems, updateReviewItemDecision } from "../lib/clientReview";
+import { getProjectTypeFields } from "../data/projectTypes";
 import { createEcommerceFixture } from "./helpers/ecommerce";
-import type { ProjectInputField, ProjectRecord } from "../types/project";
+import type { ProjectRecord } from "../types/project";
 
 const architecture = () => `Approved: ${ARCHITECTURE_KEYS.map(key => `${key}=approved ${key}`).join(";")}`;
 const deployment = () => `Approved: ${DEPLOYMENT_KEYS.map(key => `${key}=approved ${key}`).join(";")}`;
@@ -37,14 +39,16 @@ function document(project: ProjectRecord, fileName: string) {
 
 describe("PR #6 validation-boundary remediation regressions", () => {
   it("rejects unresolved tokens anywhere in implementation-gating configuration", () => {
-    const cases: Array<[ProjectInputField, string, string]> = [
+    const cases: Array<[keyof ProjectRecord["intake"], string, string]> = [
       ["ecommerceStorefrontModel", "TBD marketplace", "EC-STOREFRONTS"],
+      ["ecommerceStorefrontModel", "TBC marketplace", "EC-STOREFRONTS"],
       ["ecommerceStorefrontModel", "Marketplace pending", "EC-STOREFRONTS"],
       ["ecommerceCartScope", "Shared cross-context cart — unconfirmed", "EC-CART"],
       ["ecommerceCartScope", "Separate carts pending approval", "EC-CART"],
       ["ecommerceRoutes", "/tbd | Digital Designs | digital catalog", "EC-ROUTES"],
       ["ecommerceRoutes", "/apps | Pending brand | software catalog", "EC-ROUTES"],
       ["ecommerceRoutes", "/apps | Applications | TBD catalog", "EC-ROUTES"],
+      ["ecommerceRoutes", "/apps | N/A | software catalog", "EC-ROUTES"],
       ["ecommerceRoutes", "/apps | Applications | software | extra", "EC-ROUTES"],
       ["ecommerceArchitecture", architecture().replace("backend=approved backend", "backend=TBD API"), "EC-ARCHITECTURE"],
       ["ecommerceDeployment", deployment().replace("DNS=approved DNS", "DNS=production pending"), "EC-DEPLOYMENT"],
@@ -53,12 +57,33 @@ describe("PR #6 validation-boundary remediation regressions", () => {
 
     for (const [field, value, blocker] of cases) {
       const project = configured();
-      project.intake[field] = value;
+      (project.intake as unknown as Record<string, string>)[field] = value;
       expect(ecommerceDecisionState(project).implementationBlockers.map(item => item.id), `${field}: ${value}`).toContain(blocker);
     }
   });
 
+  it("clears only the blocker whose structured source becomes valid", () => {
+    const project = configured();
+    project.intake.ecommerceStorefrontModel = "TBD marketplace";
+    project.intake.ecommerceCartScope = "Separate carts pending";
+    project.intake.ecommerceRoutes = "/pending | Pending | TBD";
+    expect(ecommerceDecisionState(project).implementationBlockers.map(item => item.id)).toEqual(expect.arrayContaining([
+      "EC-STOREFRONTS", "EC-CART", "EC-ROUTES"
+    ]));
+
+    project.intake.ecommerceStorefrontModel = "Marketplace";
+    const blockers = ecommerceDecisionState(project).implementationBlockers.map(item => item.id);
+    expect(blockers).not.toContain("EC-STOREFRONTS");
+    expect(blockers).toEqual(expect.arrayContaining(["EC-CART", "EC-ROUTES"]));
+  });
+
   it("accepts only canonical storefront and cart choices and exact complete route rows", () => {
+    const foundationField = getProjectTypeFields("ecommerceSite", "Public-facing", "foundation")
+      .find(field => field.name === "ecommerceStorefrontModel");
+    const cartField = getProjectTypeFields("ecommerceSite", "Public-facing", "features")
+      .find(field => field.name === "ecommerceCartScope");
+    expect(foundationField).toMatchObject({ inputType: "select", options: ["Unified storefront", "Single merchant with multiple branded storefront contexts", "Marketplace"] });
+    expect(cartField).toMatchObject({ inputType: "select", options: ["Shared cross-context cart", "Separate carts"] });
     for (const value of ["Unified storefront", "Single merchant with multiple branded storefront contexts", "Marketplace"]) {
       const project = configured();
       project.intake.ecommerceStorefrontModel = value;
@@ -108,8 +133,8 @@ describe("PR #6 validation-boundary remediation regressions", () => {
   });
 
   it.each([
-    ["workflowSteps", "EC-FIELD-WORKFLOW-STEPS", "WORKFLOW_MAP.md", "workflow steps"],
-    ["userRoles", "EC-FIELD-USER-ROLES", "USER_ROLES.md", "user roles"],
+    ["workflowSteps", "EC-FIELD-WORKFLOW-STEPS", "WORKFLOW_MAP.md", "steps"],
+    ["userRoles", "EC-FIELD-USER-ROLES", "SECURITY_MODEL.md", "user roles"],
     ["dataCollections", "EC-FIELD-DATA-COLLECTIONS", "DATA_MODEL.md", "tables, lists, or collections"]
   ] as const)("keeps a missing required ecommerce %s field synchronized and traceable", (field, decisionId, fileName, marker) => {
     const project = configured();
@@ -147,5 +172,18 @@ describe("PR #6 validation-boundary remediation regressions", () => {
     expect(ids).not.toContain("EC-FIELD-DATA-COLLECTIONS");
     expect(ids).not.toContain("EC-FIELD-TESTIMONIALS");
     expect(websiteRequirement(project, "testimonials").status).toBe("optional");
+  });
+
+  it("cannot conceal a blank ecommerce source with stored or direct review edits", () => {
+    const project = configured();
+    project.intake.workflowSteps = "";
+    const initial = deriveReviewItems(project);
+    const ordinary = initial.find(item => item.fieldKey === "workflowSteps" && !item.id.startsWith("ecommerce-"))!;
+    project.reviewItems = initial.map(item => item.id === ordinary.id ? { ...item, status: "Answered" as const } : item);
+
+    const refreshed = deriveReviewItems(project);
+    expect(refreshed.find(item => item.id === ordinary.id)?.status).toBe("Needs answer");
+    const sourceItem = refreshed.find(item => item.gateId === "EC-FIELD-WORKFLOW-STEPS")!;
+    expect(updateReviewItemDecision(sourceItem, { status: "Answered" })).toEqual(sourceItem);
   });
 });

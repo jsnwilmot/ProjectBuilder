@@ -36,6 +36,10 @@ Final verification passed 3,597 tests across 102 files (3,518 unit/integration a
 
 PR #6 follow-up remediation adds regression coverage for placeholder-only decisions, parsed contract key/value validation, separate implementation/launch document statuses and dedicated ecommerce field test selection. The corrected full runner passes 3,603 tests across 103 files (3,524 unit/integration and 79 UI). A decision resolves only when its answer or not-applicable reason is meaningful after whitespace and punctuation normalization. Contracts reject malformed or duplicate entries and require a meaningful value for every required key. Implementation documents may advance after implementation blockers clear, while package and deployment readiness stay Draft until launch blockers clear.
 
+The next PR #6 review pass separates general decision answers from implementation-gating configuration. Structured storefront, cart, route, architecture, deployment and phase values reject unresolved tokens anywhere in the value. Storefront and cart controls persist canonical choices, and route records require exactly `route | brand/theme | catalog` with a safe unique route and meaningful context values. Duplicate explicit IDs preserve the first explicit row and create a traceable `EC-RECORD-n` blocker at the stricter affected gate.
+
+Required ecommerce fields now use the same project-level requiredness contract in intake validation, Client Review and the reused website document helpers. A blank required source creates a source-specific ecommerce decision plus markers in Client Questions and the relevant generated document; marker traceability points back to the visible intake field. Ecommerce decision cards carry typed source-resolution metadata and cannot be changed from Client Review, while ordinary saved review cards retain their existing controls. Complete verification for this pass covers 3,615 tests across 105 files (3,536 unit/integration and 79 UI).
+
 To regenerate the deterministic review artifact in PowerShell:
 
 ```powershell

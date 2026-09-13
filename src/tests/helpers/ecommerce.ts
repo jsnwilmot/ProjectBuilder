@@ -10,9 +10,9 @@ export function createEcommerceFixture() {
   Object.assign(p.intake, {
     appPurpose: "Single merchant, shared platform, multiple branded storefront contexts.",
     targetPlatform: "Responsive web browsers on desktop, tablet and mobile",
-    ecommerceStorefrontModel: "Single merchant, shared platform, multiple branded storefront contexts",
+    ecommerceStorefrontModel: "Single merchant with multiple branded storefront contexts",
     ecommerceRoutes: "/digitaldesigns | Digital Designs | digital catalog\n/3ddesigns | 3D Designs | physical/custom catalog\n/apps | Applications | software catalog\n/petapparel | Pet Apparel | apparel catalog",
-    ecommerceCartScope: "Shared cross-division cart for eligible items, explicitly approved in source requirements",
+    ecommerceCartScope: "Shared cross-context cart",
     problemStatement: "Division sites need shared commerce operations and branded shopping contexts.",
     constraints: "All four divisions and selling models at launch; CAD; Canada-wide shipping; no invented production settings.",
     outOfScope: "Outside sellers, customer accounts in release 1, native apps, cryptocurrency, Stripe, replacement division websites",

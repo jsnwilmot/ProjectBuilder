@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-09-13 - PR #6 ecommerce validation-boundary remediation
+
+- Added a separate tests-first commit reproducing embedded placeholder tokens in structured ecommerce configuration, duplicate explicit decision-ID overwrite, missing required ecommerce fields disappearing from generated artifacts, and mutable Client Review controls whose edits could not resolve source-derived decisions.
+- Added strict structured-value validation for canonical storefront/cart selections, exact route/brand/catalog rows, approved architecture/deployment values and phase contracts while preserving the general answer validator's contextual behavior. Duplicate explicit IDs now preserve the first explicit record and emit a deterministic, gate-specific `EC-RECORD-n` blocker with source-line evidence.
+- Centralized required project fields for validation and reused website-family document rendering. Missing ecommerce fields now produce source-controlled decisions, Client Questions entries and traceable document markers; populated and optional fields do not gain synthetic blockers.
+- Added typed source-resolution metadata. Ecommerce review cards show their source field without status/reason controls, stored Answered overrides cannot conceal a blank required source, and ordinary stored review cards remain editable.
+- Focused verification passed 46 tests across nine files; complete validation passed 3,615 tests across 105 files (3,536 unit/integration and 79 UI). TypeScript/production build, lint, production dependency audit and diff checks pass; the existing bundle-size warning remains.
+- No merge, production deployment, live Chrome regeneration, ZIP export or ecommerce application implementation was performed.
+
 ## 2026-09-13 - PR #6 automated review remediation
 
 - Added a separate failing regression commit reproducing all four automated review findings: placeholder-only decision answers, blank or duplicate contract values, launch-only decisions forcing implementation documents to Draft, and dedicated ecommerce fields failing to select storefront/cart tests. The focused baseline had four intended failures and two passing controls on `cc38b12`.

@@ -1,4 +1,7 @@
 import type { ProjectInputField, ProjectRecord, ReviewItem } from "../types/project";
+import { ECOMMERCE_CART_SCOPES, ECOMMERCE_STOREFRONT_MODELS } from "../data/ecommerceOptions";
+import { getProjectFieldValue } from "./projectFields";
+import { requiredProjectFields, visibleIntakeFields } from "./projectCapabilities";
 
 export interface EcommerceDecision {
   id: string;
@@ -21,6 +24,16 @@ export function hasMeaningfulResolvedValue(value: unknown): value is string {
   const normalized = value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
   return Boolean(normalized) && !unresolvedValues.has(normalized);
 }
+const unresolvedConfigurationPattern = /(?:^|\s)(?:t\s*b\s*[dc]|unknown|unanswered|pending|deferred|undecided|unconfirmed|missing|none(?:\s+yet)?|n\s+a|not\s+(?:applicable|decided|confirmed|known)|to\s+be\s+(?:determined|confirmed)|awaiting\s+(?:decision|confirmation|approval)|needs?\s+(?:decision|confirmation|approval|review)|no\s+(?:decision|confirmation|approved\s+approach))(?:\s|$)/i;
+function normalizedConfigurationValue(value: unknown): string {
+  return typeof value === "string"
+    ? value.normalize("NFKC").trim().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim()
+    : "";
+}
+export function hasMeaningfulConfigurationValue(value: unknown): value is string {
+  const normalized = normalizedConfigurationValue(value);
+  return Boolean(normalized) && hasMeaningfulResolvedValue(value) && !unresolvedConfigurationPattern.test(normalized);
+}
 export const ARCHITECTURE_KEYS = ["runtime", "backend", "database", "integrations", "repository"];
 export const DEPLOYMENT_KEYS = ["environments", "source control", "CI", "build", "deployment", "DNS", "secrets", "migrations", "integrations", "observability", "backup", "restore", "rollback", "smoke", "responsibilities"];
 function approvedContract(value: string, keys: string[]): boolean {
@@ -34,12 +47,18 @@ function approvedContract(value: string, keys: string[]): boolean {
     if (!key || entries.has(key)) return false;
     entries.set(key, match[2].trim());
   }
-  return keys.every(key => hasMeaningfulResolvedValue(entries.get(key.toLocaleLowerCase())));
+  return keys.every(key => hasMeaningfulConfigurationValue(entries.get(key.toLocaleLowerCase())));
 }
 function validRoutes(value: string): boolean {
   const rows = value.split(/\r?\n/).filter(line => line.trim()).map(line => line.split("|").map(part => part.trim()));
-  return rows.length > 0 && rows.every(([route,brand,catalog,...extra]) => /^\/[a-zA-Z0-9/-]*$/.test(route) && !route.includes("//") && brand && catalog && !extra.length)
-    && new Set(rows.map(row => row[0])).size === rows.length;
+  return rows.length > 0 && rows.every(([route, brand, catalog, ...extra]) =>
+    /^\/[a-zA-Z0-9][a-zA-Z0-9/-]*$/.test(route)
+    && !route.includes("//")
+    && hasMeaningfulConfigurationValue(route.slice(1))
+    && hasMeaningfulConfigurationValue(brand)
+    && hasMeaningfulConfigurationValue(catalog)
+    && !extra.length)
+    && new Set(rows.map(row => row[0].toLocaleLowerCase())).size === rows.length;
 }
 
 export const PHASE_KEYS = ["objective", "prerequisites", "files", "contracts", "security", "accessibility", "testCommands", "acceptanceCriteria", "evidence", "stopConditions"] as const;
@@ -48,7 +67,7 @@ export function ecommercePhases(p: ProjectRecord): EcommercePhase[] {
   try {
     const values: unknown = JSON.parse(p.intake.ecommercePhases || "[]");
     if (!Array.isArray(values) || !values.length) return [];
-    return values.every(v => v && PHASE_KEYS.every(key => hasMeaningfulResolvedValue(v[key]))) ? values : [];
+    return values.every(v => v && PHASE_KEYS.every(key => hasMeaningfulConfigurationValue(v[key]))) ? values : [];
   } catch { return []; }
 }
 
@@ -56,6 +75,7 @@ export function ecommercePhases(p: ProjectRecord): EcommercePhase[] {
 export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
   if (!isEcommerce(p)) return [];
   const records = new Map<string, EcommerceDecision>();
+  const explicitIds = new Set<string>();
   const matches = [...p.intake.assumptions.matchAll(/(?:^|\n)\s*(OQ-\d+)\s*:\s*([^\n]+)/g)];
   for (const match of matches) {
     const question = match[2].split("?")[0] + "?";
@@ -64,24 +84,60 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
   for (const [index, line] of (p.intake.ecommerceDecisions || "").split(/\r?\n/).entries()) {
     if (!line.trim()) continue;
     const [id, gate, status, question, reason = "", answer = ""] = line.split("|").map(v => v.trim());
-    const valid = /^[A-Z][A-Z0-9-]*$/.test(id) && ["architecture", "launch", "optional"].includes(gate) && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status) && Boolean(question);
+    const valid = /^[A-Z][A-Z0-9-]*$/.test(id) && !/^EC-RECORD-\d+$/.test(id) && ["architecture", "launch", "optional"].includes(gate) && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status) && Boolean(question);
     if (!valid) {
       const errorId = `EC-RECORD-${index + 1}`;
       records.set(errorId, { id: errorId, field: "ecommerceDecisions", gate: "architecture", status: "Needs answer", question: `Correct decision register line ${index + 1}`, reason: "Use the documented six-column format.", answer: "" });
       continue;
     }
+    if (explicitIds.has(id)) {
+      const errorId = `EC-RECORD-${index + 1}`;
+      const firstGate = records.get(id)?.gate;
+      const duplicateGate: EcommerceDecision["gate"] = firstGate === "architecture" || gate === "architecture"
+        ? "architecture" : firstGate === "launch" || gate === "launch" ? "launch" : "optional";
+      records.set(errorId, {
+        id: errorId,
+        field: "ecommerceDecisions",
+        gate: duplicateGate,
+        status: "Needs answer",
+        question: `Remove duplicate decision ID ${id}`,
+        reason: `Duplicate explicit decision ID ${id} on source line ${index + 1}; the first explicit record remains effective.`,
+        answer: ""
+      });
+      continue;
+    }
+    explicitIds.add(id);
     const resolved = status === "Answered" ? hasMeaningfulResolvedValue(answer) : status === "Not applicable" ? hasMeaningfulResolvedValue(reason) : false;
     records.set(id, { id, field: "ecommerceDecisions", gate: gate as EcommerceDecision["gate"], status: resolved ? status as EcommerceDecision["status"] : status === "Deferred" && reason ? "Deferred" : "Needs answer", question, reason, answer });
   }
   const require = (id: string, field: ProjectInputField, question: string, satisfied: boolean) => {
     if (!satisfied) records.set(id, { id, field, gate: "architecture", status: "Needs answer", question, reason: "Required before implementation; planning may resolve this decision.", answer: "" });
   };
-  require("EC-STOREFRONTS", "ecommerceStorefrontModel", "Confirm storefront model", /unified|single merchant|marketplace/i.test(p.intake.ecommerceStorefrontModel || "") && !/unknown|undecided|deferred/i.test(p.intake.ecommerceStorefrontModel));
+  const storefrontModel = normalizedConfigurationValue(p.intake.ecommerceStorefrontModel).toLocaleLowerCase();
+  const cartScope = normalizedConfigurationValue(p.intake.ecommerceCartScope).toLocaleLowerCase();
+  require("EC-STOREFRONTS", "ecommerceStorefrontModel", "Confirm storefront model", hasMeaningfulConfigurationValue(p.intake.ecommerceStorefrontModel)
+    && new Set(ECOMMERCE_STOREFRONT_MODELS.map(value => normalizedConfigurationValue(value).toLocaleLowerCase())).has(storefrontModel));
   require("EC-ROUTES", "ecommerceRoutes", "Confirm unique route, brand/theme and catalog context mapping", validRoutes(p.intake.ecommerceRoutes || ""));
-  require("EC-CART", "ecommerceCartScope", "Confirm shared or separate cart scope", /shared|separate/i.test(p.intake.ecommerceCartScope || "") && !/unknown|undecided|deferred/i.test(p.intake.ecommerceCartScope));
+  require("EC-CART", "ecommerceCartScope", "Confirm shared or separate cart scope", hasMeaningfulConfigurationValue(p.intake.ecommerceCartScope)
+    && new Set(ECOMMERCE_CART_SCOPES.map(value => normalizedConfigurationValue(value).toLocaleLowerCase())).has(cartScope));
   require("EC-ARCHITECTURE", "ecommerceArchitecture", "Approve runtime, backend, database, integrations and repository architecture", approvedContract(p.intake.ecommerceArchitecture || "", ARCHITECTURE_KEYS));
   require("EC-DEPLOYMENT", "ecommerceDeployment", "Approve complete web deployment contract", approvedContract(p.intake.ecommerceDeployment || "", DEPLOYMENT_KEYS));
   require("EC-PHASES", "ecommercePhases", "Approve executable implementation phase contracts", ecommercePhases(p).length > 0);
+  const fieldLabels = new Map(visibleIntakeFields(p).map(field => [field.name, field.label]));
+  for (const field of requiredProjectFields(p)) {
+    if (getProjectFieldValue(p, field).trim()) continue;
+    const id = `EC-FIELD-${field.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toUpperCase()}`;
+    const label = fieldLabels.get(field) ?? field;
+    records.set(id, {
+      id,
+      field,
+      gate: "architecture",
+      status: "Needs answer",
+      question: `Provide required ecommerce intake field: ${label}`,
+      reason: `${label} is required by the selected ecommerce project-type contract and must be completed in its source intake field.`,
+      answer: ""
+    });
+  }
   return [...records.values()];
 }
 
@@ -94,5 +150,6 @@ export function ecommerceDecisionState(p: ProjectRecord) {
 }
 
 export function ecommerceReviewItems(p: ProjectRecord, now: string): ReviewItem[] {
-  return ecommerceDecisions(p).map(d => ({ id: `ecommerce-${d.id}`, fieldKey: d.field, gateId: d.id, section: d.gate === "architecture" ? "Deployment" : "Foundation", label: `${d.id}: ${d.question}`, recommendedQuestion: `${d.id}: ${d.question}`, reason: d.reason, status: d.status, notApplicableReason: d.status === "Not applicable" ? d.reason : "", deferredReason: d.status === "Deferred" ? d.reason : "", blocking: d.gate !== "optional", allowDeferred: d.gate === "optional", source: "gate", updatedAt: now }));
+  const fieldLabels = new Map(visibleIntakeFields(p).map(field => [field.name, field.label]));
+  return ecommerceDecisions(p).map(d => ({ id: `ecommerce-${d.id}`, fieldKey: d.field, gateId: d.id, section: d.gate === "architecture" ? "Deployment" : "Foundation", label: `${d.id}: ${d.question}`, recommendedQuestion: `${d.id}: ${d.question}`, reason: d.reason, status: d.status, notApplicableReason: d.status === "Not applicable" ? d.reason : "", deferredReason: d.status === "Deferred" ? d.reason : "", blocking: d.gate !== "optional", allowDeferred: d.gate === "optional", source: "gate", resolutionMode: "source", sourceFieldLabel: fieldLabels.get(d.field) ?? d.field, updatedAt: now }));
 }

@@ -2,7 +2,7 @@ import { INTAKE_STAGES } from "../data/intakeStages";
 import type { IntakeValidationResult, ProjectInputField, ProjectRecord } from "../types/project";
 import { missingMarker } from "./documentHelpers";
 import { getProjectFieldValue } from "./projectFields";
-import { visibleIntakeFields, websiteRequiredFields } from "./projectCapabilities";
+import { requiredProjectFields, visibleIntakeFields } from "./projectCapabilities";
 import { isExcludedWebsiteCapability, type WebsiteCapabilityField } from "./websiteCapabilityIntent";
 
 export type RequirementLevel = "required" | "optional" | "inapplicable";
@@ -47,7 +47,7 @@ export function websiteCapabilitySelected(project: ProjectRecord, field: Website
 
 export function websiteRequirement(project: ProjectRecord, field: ProjectInputField): WebsiteRequirement {
   const definition = visibleIntakeFields(project).find((entry) => entry.name === field);
-  const required = websiteRequiredFields();
+  const required = requiredProjectFields(project);
   // Dependency validation and document generation share capability selection.
   // Negative answers stay Answered without requiring unwanted schema/access detail.
   if (websiteCapabilitySelected(project, "dataCollections") || websiteCapabilitySelected(project, "dataEntities")) {

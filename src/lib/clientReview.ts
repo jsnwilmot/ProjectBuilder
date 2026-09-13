@@ -12,7 +12,8 @@ import {
   type ReviewItemStatus
 } from "../types/project";
 import { validateIntake } from "./validateIntake";
-import { projectCapabilities } from "./projectCapabilities";
+import { projectCapabilities, requiredProjectFields } from "./projectCapabilities";
+import { getProjectFieldValue } from "./projectFields";
 import { isBeforeImplementationDeferral, websiteDeferredRequirements, websiteRequirement } from "./websiteRequirements";
 import { calculatePowerPlatformReadiness, formatPowerPlatformGateStatus } from "./powerPlatform";
 
@@ -346,6 +347,8 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
     const stored = previous.get(item.id);
     if (projectCapabilities(project).documentFamily === "website"
       && stored?.status === "Answered" && ["missing", "deferred"].includes(websiteRequirement(project, item.fieldKey).status)) return item;
+    if (isEcommerce(project) && stored?.status === "Answered"
+      && requiredProjectFields(project).has(item.fieldKey) && !getProjectFieldValue(project, item.fieldKey).trim()) return item;
     return stored
       ? {
           ...item,
@@ -541,6 +544,7 @@ export function updateReviewItemDecision(
   changes: Partial<Pick<ReviewItem, "status" | "notApplicableReason" | "deferredReason">>,
   now = new Date().toISOString()
 ): ReviewItem {
+  if (item.resolutionMode === "source") return item;
   const status: ReviewItemStatus = changes.status ?? item.status;
   return {
     ...item,
