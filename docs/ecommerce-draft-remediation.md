@@ -34,6 +34,8 @@ Run `npm test`, `npm run build`, `npm run lint`, `npm audit --omit=dev` and `git
 
 Final verification passed 3,597 tests across 102 files (3,518 unit/integration and 79 UI), lint, TypeScript/production build and a production dependency audit with zero vulnerabilities. The deterministic Rose & Paw artifact contains all 19 documents, all 20 OQ markers, four implementation blockers, 19 launch blockers, zero orphan markers and zero prohibited-content findings. It remains Draft because 23 source decisions are unresolved.
 
+PR #6 follow-up remediation adds regression coverage for placeholder-only decisions, parsed contract key/value validation, separate implementation/launch document statuses and dedicated ecommerce field test selection. The corrected full runner passes 3,603 tests across 103 files (3,524 unit/integration and 79 UI). A decision resolves only when its answer or not-applicable reason is meaningful after whitespace and punctuation normalization. Contracts reject malformed or duplicate entries and require a meaningful value for every required key. Implementation documents may advance after implementation blockers clear, while package and deployment readiness stay Draft until launch blockers clear.
+
 To regenerate the deterministic review artifact in PowerShell:
 
 ```powershell

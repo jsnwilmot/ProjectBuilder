@@ -25,8 +25,7 @@ function generated(project: ProjectRecord): ProjectRecord {
   return {
     ...project,
     generatedDocuments: result.documents,
-    generatedFileCount: result.documents.length,
-    packageGeneratedAt: result.generatedAt
+    generatedFileCount: result.documents.length
   };
 }
 

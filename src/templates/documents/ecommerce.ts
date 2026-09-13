@@ -56,7 +56,15 @@ const checks = [
   [".*", "Smoke testing", "After an approved deployment verify routes, catalog, guest checkout test transaction, integrations, notifications, health and rollback using approved test data."]
 ];
 function commerceChecks(p: Project) {
-  const source = [p.intake.requiredFeatures, p.intake.featureDescription, p.intake.workflows, p.intake.integrations].join("\n");
+  const source = [
+    p.intake.requiredFeatures,
+    p.intake.featureDescription,
+    p.intake.workflows,
+    p.intake.integrations,
+    p.intake.ecommerceStorefrontModel,
+    p.intake.ecommerceRoutes,
+    p.intake.ecommerceCartScope
+  ].join("\n");
   return table(["ID", "Category", "Expected result"], checks.filter(([pattern]) => new RegExp(pattern,"i").test(source)).map(([,name,expected], i) => [`EC-TEST-${i+1}`,name,expected]));
 }
 

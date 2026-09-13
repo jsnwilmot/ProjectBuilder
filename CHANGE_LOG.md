@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-13 - PR #6 automated review remediation
+
+- Added a separate failing regression commit reproducing all four automated review findings: placeholder-only decision answers, blank or duplicate contract values, launch-only decisions forcing implementation documents to Draft, and dedicated ecommerce fields failing to select storefront/cart tests. The focused baseline had four intended failures and two passing controls on `cc38b12`.
+- Added one semantic resolved-value validator with the established placeholder vocabulary and punctuation/whitespace normalization. Approved contracts now parse unique normalized key/value entries and require every named value to be meaningful.
+- Kept implementation and launch document gates separate. Ecommerce implementation documents can become Ready for Implementation or Review Required once implementation blockers clear, while deployment and package readiness remain Draft when launch decisions are unresolved.
+- Included storefront model, route mapping and cart scope in commerce-test applicability without duplicating rows. Focused verification passed 50 tests across eight files; complete validation passed 3,603 tests across 103 files (3,524 unit/integration and 79 UI). TypeScript/production build, lint, production dependency audit and diff checks pass; the existing bundle-size warning remains.
+- No merge, production deployment, live Chrome regeneration or Draft export was performed during this review-remediation pass.
+
 ## 2026-09-12 - Ecommerce Draft 1 remediation
 
 - Reproduced all seven requested generator defects with committed regression tests before production changes. Baseline: 3,499 existing unit/integration tests passed; seven new tests failed as expected.

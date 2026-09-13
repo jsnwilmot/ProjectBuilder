@@ -11,10 +11,31 @@ export interface EcommerceDecision {
 }
 export const isEcommerce = (p: ProjectRecord) => p.intake.appType === "ecommerceSite";
 const open = (d: EcommerceDecision) => d.status === "Needs answer" || d.status === "Deferred";
-const approved = (value: string) => /^Approved:\s*\S/i.test(value.trim()) && !/\b(?:TBD|unknown|unanswered|pending|deferred)\b/i.test(value);
+const unresolvedValues = new Set([
+  "deferred", "missing", "n a", "n a pending", "needs review", "no approved approach",
+  "no confirmation", "no decision yet", "none", "none yet", "not applicable", "not decided",
+  "pending", "t b d", "tbd", "to be determined", "unanswered", "unconfirmed", "unknown"
+]);
+export function hasMeaningfulResolvedValue(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const normalized = value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
+  return Boolean(normalized) && !unresolvedValues.has(normalized);
+}
 export const ARCHITECTURE_KEYS = ["runtime", "backend", "database", "integrations", "repository"];
 export const DEPLOYMENT_KEYS = ["environments", "source control", "CI", "build", "deployment", "DNS", "secrets", "migrations", "integrations", "observability", "backup", "restore", "rollback", "smoke", "responsibilities"];
-const approvedContract = (value: string, keys: string[]) => approved(value) && keys.every(key => new RegExp(`(?:^|[;\\n])\\s*${key}\\s*[:=]\\s*[^;\\n]+`, "i").test(value.replace(/^Approved:\s*/i,"")));
+function approvedContract(value: string, keys: string[]): boolean {
+  if (!/^Approved\s*:/i.test(value.trim())) return false;
+  const entries = new Map<string, string>();
+  const rows = value.trim().replace(/^Approved\s*:/i, "").split(/[;\n]/).map(row => row.trim()).filter(Boolean);
+  for (const row of rows) {
+    const match = row.match(/^([^:=]+?)\s*[:=]\s*(.*)$/);
+    if (!match) return false;
+    const key = match[1].trim().toLocaleLowerCase().replace(/\s+/g, " ");
+    if (!key || entries.has(key)) return false;
+    entries.set(key, match[2].trim());
+  }
+  return keys.every(key => hasMeaningfulResolvedValue(entries.get(key.toLocaleLowerCase())));
+}
 function validRoutes(value: string): boolean {
   const rows = value.split(/\r?\n/).filter(line => line.trim()).map(line => line.split("|").map(part => part.trim()));
   return rows.length > 0 && rows.every(([route,brand,catalog,...extra]) => /^\/[a-zA-Z0-9/-]*$/.test(route) && !route.includes("//") && brand && catalog && !extra.length)
@@ -27,7 +48,7 @@ export function ecommercePhases(p: ProjectRecord): EcommercePhase[] {
   try {
     const values: unknown = JSON.parse(p.intake.ecommercePhases || "[]");
     if (!Array.isArray(values) || !values.length) return [];
-    return values.every(v => v && PHASE_KEYS.every(key => typeof v[key] === "string" && v[key].trim() && !/\b(?:TBD|pending|unknown)\b/i.test(v[key]))) ? values : [];
+    return values.every(v => v && PHASE_KEYS.every(key => hasMeaningfulResolvedValue(v[key]))) ? values : [];
   } catch { return []; }
 }
 
@@ -49,7 +70,7 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
       records.set(errorId, { id: errorId, field: "ecommerceDecisions", gate: "architecture", status: "Needs answer", question: `Correct decision register line ${index + 1}`, reason: "Use the documented six-column format.", answer: "" });
       continue;
     }
-    const resolved = status === "Answered" ? Boolean(answer) : status === "Not applicable" ? Boolean(reason) : false;
+    const resolved = status === "Answered" ? hasMeaningfulResolvedValue(answer) : status === "Not applicable" ? hasMeaningfulResolvedValue(reason) : false;
     records.set(id, { id, field: "ecommerceDecisions", gate: gate as EcommerceDecision["gate"], status: resolved ? status as EcommerceDecision["status"] : status === "Deferred" && reason ? "Deferred" : "Needs answer", question, reason, answer });
   }
   const require = (id: string, field: ProjectInputField, question: string, satisfied: boolean) => {

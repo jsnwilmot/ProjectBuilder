@@ -99,7 +99,12 @@ export function getDocumentReviewStatus(
   project?: ProjectRecord
 ): DocumentReviewStatus {
   if (countDocumentMissingMarkers(document.content) > 0) return "Draft";
-  if (project && isEcommerce(project) && !ecommerceDecisionState(project).launchReady) return "Draft";
+  if (project && isEcommerce(project)) {
+    const state = ecommerceDecisionState(project);
+    if (!state.implementationReady) return "Draft";
+    if (document.fileName === "DEPLOYMENT_NOTES.md" && !state.launchReady) return "Draft";
+    return reviewRequiredFiles.has(document.fileName) ? "Review Required" : "Ready for Implementation";
+  }
   if (project && usesPowerPlatformDocumentGates(project)) {
     const definition = documentDefinitionByFile.get(document.fileName);
     if (definition && !definition.applicable(project)) return "Not Applicable";
