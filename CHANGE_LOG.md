@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-12 - Ecommerce Draft 1 remediation
+
+- Reproduced all seven requested generator defects with committed regression tests before production changes. Baseline: 3,499 existing unit/integration tests passed; seven new tests failed as expected.
+- Added an ecommerce template route, normalized questions and architecture/launch readiness, traceable decision markers, project-type content validation, target commerce tests and web deployment contracts. Added explicit merchant/storefront contexts, routes, cart scope and approved architecture/phase fields without replacing existing browser data or changing other template families.
+- New and updated files are documented in `docs/ecommerce-draft-remediation.md`; tests cover original regressions, cross-document/manifest contradictions, malformed inputs, approved-answer provenance, route/cart mapping, labelled inputs and storage compatibility.
+- Focused regression/website/readiness tests, build/typecheck and lint pass. Both complete runners pass 3,597 tests across 102 files (3,518 unit/integration plus 79 UI). Production dependency audit reports zero vulnerabilities. The existing large-bundle warning remains.
+- No production merge or deployment performed. User approval remains required for release; afterward resume the same Chrome project and regenerate without clearing storage. The package remains Draft while real architecture and production decisions are unresolved.
+
 ## 2026-09-08 - Readiness blocker count consistency
 
 - Reproduced the production defect on main `11057eaf60b4e39cacbc334248ca29ee77801401`: a Rose-like Business Website had eight actionable Client Review blockers and zero content blockers, while generated readiness, Export diagnostics and the Export manifest counted a ninth synthetic `Client Review readiness is not complete.` blocker. The desired regression matrix failed five of seven focused tests before the source correction.

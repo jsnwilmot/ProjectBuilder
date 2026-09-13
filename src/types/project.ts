@@ -1147,6 +1147,13 @@ export interface ClientDetails {
 }
 
 export interface ProjectIntake {
+  ecommerceStorefrontModel: string;
+  ecommerceRoutes: string;
+  ecommerceCartScope: string;
+  ecommerceDecisions: string;
+  ecommerceArchitecture: string;
+  ecommerceDeployment: string;
+  ecommercePhases: string;
   appType: ProjectType | "";
   appPurpose: string;
   problemStatement: string;

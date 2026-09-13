@@ -1,4 +1,5 @@
 import { INTAKE_STAGES } from "../data/intakeStages";
+import { ecommerceDecisions } from "./ecommerceDecisions";
 import { projectCapabilities, visibleIntakeFields } from "./projectCapabilities";
 import { websiteRequirement } from "./websiteRequirements";
 import type {
@@ -445,6 +446,10 @@ function orphanSource(): TraceSource {
 
 function markerSource(project: ProjectRecord, marker: string): TraceSource {
   const normalized = normalizeMarker(marker);
+  if (project.intake.appType === "ecommerceSite") {
+    const decision = ecommerceDecisions(project).find(d => d.id === normalized);
+    if (decision) return { stageId: decision.field === "assumptions" || decision.field === "ecommerceDecisions" ? "security" : decision.field === "ecommerceRoutes" || decision.field === "ecommerceCartScope" || decision.field === "ecommercePhases" ? "features" : "foundation", stageLabel: "Ecommerce decisions", subsection: decision.gate, fieldLabel: decision.question, storedProperty: `project.intake.${decision.field}`, editableField: decision.field, canEditSource: true, reasonRejected: decision.reason };
+  }
   if (projectCapabilities(project).documentFamily === "website") {
     const field = visibleIntakeFields(project).find((entry) => normalizeMarker(entry.label).toLowerCase() === normalized.toLowerCase());
     if (field) {

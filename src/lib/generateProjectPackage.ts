@@ -9,6 +9,8 @@ import { getProjectDisplayStatus } from "./projectSelectors";
 import { expectedDocumentLocations } from "./powerPlatform";
 import { evaluateGeneratedPackageReadiness } from "./generatedPackageReadiness";
 import { getDocumentReviewStatus } from "./documentReview";
+import { ecommerceDocumentTemplates } from "../templates/documents/ecommerce";
+import { getClientReviewReadiness } from "./clientReview";
 
 export function generateProjectPackage(project: ProjectRecord): ProjectPackage {
   const rootFolder = sanitizeProjectFolderName(project.identity.projectName);
@@ -19,9 +21,9 @@ export function generateProjectPackage(project: ProjectRecord): ProjectPackage {
     reviewItems: deriveReviewItems(project, packageGeneratedAt)
   };
   renderProject.status = getProjectDisplayStatus(renderProject);
-  type GenerationContext = { readiness?: ReturnType<typeof evaluateGeneratedPackageReadiness>; documentStatuses?: Record<string, string> };
+  type GenerationContext = { readiness?: ReturnType<typeof evaluateGeneratedPackageReadiness>; clientReview?: ReturnType<typeof getClientReviewReadiness>; documentStatuses?: Record<string, string> };
   const renderDocuments = (context?: GenerationContext) => expectedDocumentLocations(renderProject).map(({ fileName, folder }) => {
-    const templates = projectCapabilities(renderProject).documentFamily === "website" ? websiteDocumentTemplates : documentTemplates;
+    const templates = renderProject.intake.appType === "ecommerceSite" ? ecommerceDocumentTemplates : projectCapabilities(renderProject).documentFamily === "website" ? websiteDocumentTemplates : documentTemplates;
     const template = templates[fileName];
     if (!template) throw new Error(`No document template registered for ${fileName}.`);
     const projectForTemplate = {
@@ -73,11 +75,11 @@ export function generateProjectPackage(project: ProjectRecord): ProjectPackage {
     );
     const signature = evaluationSignature(readiness, documentStatuses);
     if (signature === previousSignature) {
-      context = { readiness, documentStatuses };
+      context = { readiness, documentStatuses, clientReview: getClientReviewReadiness(evaluationProject) };
       break;
     }
     previousSignature = signature;
-    context = { readiness, documentStatuses };
+    context = { readiness, documentStatuses, clientReview: getClientReviewReadiness(evaluationProject) };
     if (pass === maxPasses - 1) {
       throw new Error("Project package generation did not converge after evaluating readiness metadata.");
     }

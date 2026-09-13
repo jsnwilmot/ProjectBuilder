@@ -449,14 +449,25 @@ export function getProjectTypeFields(
   stageId: string
 ): IntakeFieldDefinition[] {
   const requiredFields = new Set(getProjectTypeRequiredFields(projectType, audienceVisibility));
-  return getActiveSpecializedModules(projectType, audienceVisibility)
+  const fields = getActiveSpecializedModules(projectType, audienceVisibility)
     .flatMap((module) => PROJECT_MODULE_FIELDS[module])
     .filter((field) => field.stageId === stageId)
     .map(({ stageId: _stageId, ...field }) => ({
       ...field,
       required: requiredFields.has(field.name)
     }));
+  return projectType === "ecommerceSite" ? [...fields, ...ECOMMERCE_FIELDS.filter(field => field.stageId === stageId)] : fields;
 }
+
+const ECOMMERCE_FIELDS: (IntakeFieldDefinition & { stageId: string })[] = [
+  { stageId: "foundation", name: "ecommerceStorefrontModel", label: "Storefront model", description: "Choose unified storefront, multiple branded storefront contexts under one merchant, or marketplace. This does not decide cart scope.", placeholder: "Unified storefront / single merchant with multiple branded contexts / marketplace" },
+  { stageId: "features", name: "ecommerceRoutes", label: "Storefront routes and contexts", description: "One route per line: route | brand/theme | catalog context. Preserve approved routes and brand boundaries.", placeholder: "/route | approved brand/theme | catalog context", multiline: true },
+  { stageId: "features", name: "ecommerceCartScope", label: "Cart scope decision", description: "Explicitly state whether carts span storefront contexts, stay separate, or await a decision.", placeholder: "Shared cross-context cart / separate carts / undecided" },
+  { stageId: "security", name: "ecommerceDecisions", label: "Ecommerce decision register", description: "One record per line: ID | architecture, launch or optional | Needs answer, Deferred, Answered or Not applicable | question | reason | approved answer. Existing OQ records in Assumptions are imported as unresolved until explicitly resolved here.", placeholder: "OQ-01 | launch | Deferred | Free-shipping threshold? | Needed before launch |", multiline: true },
+  { stageId: "foundation", name: "ecommerceArchitecture", label: "Approved ecommerce architecture", description: "After Architect approval use Approved: followed by semicolon/newline-separated named values: runtime, backend, database, integrations, repository. Example key syntax: runtime=approved choice. Unknown values remain open.", placeholder: "Pending Architect approval", multiline: true },
+  { stageId: "foundation", name: "ecommerceDeployment", label: "Web deployment contract", description: "After approval use Approved: then semicolon/newline-separated key=value entries for environments, source control, CI, build, deployment, DNS, secrets, migrations, integrations, observability, backup, restore, rollback, smoke, responsibilities. Record secret names only. Unknown values remain open.", placeholder: "Deferred until architecture approval", multiline: true },
+  { stageId: "features", name: "ecommercePhases", label: "Approved implementation phases", description: "JSON array approved by Architect. Each phase needs objective, prerequisites, files, contracts, security, accessibility, testCommands, acceptanceCriteria, evidence and stopConditions. Leave blank until architecture is approved.", placeholder: "Architect-approved phase contracts; do not invent paths or commands", multiline: true }
+];
 
 export function getProjectTypeRequiredFields(
   projectType: string,

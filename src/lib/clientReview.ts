@@ -1,4 +1,5 @@
 import { isBrandingRequired } from "../data/projectTypes";
+import { ecommerceReviewItems, isEcommerce, ecommerceDecisionState } from "./ecommerceDecisions";
 import {
   CLIENT_REVIEW_SECTIONS,
   type ClientReviewReadiness,
@@ -357,6 +358,7 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
   });
 
   for (const stored of previous.values()) {
+    if (stored.id.startsWith("ecommerce-")) continue;
     if (derived.has(stored.id)) continue;
     reconciled.push({
       ...stored,
@@ -365,7 +367,8 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
     });
   }
 
-  return reconciled.sort((a, b) => {
+  const normalized = isEcommerce(project) ? reconciled.filter(item => !item.id.startsWith("ecommerce-")).concat(ecommerceReviewItems(project, now)) : reconciled;
+  return normalized.sort((a, b) => {
     const sectionDifference = CLIENT_REVIEW_SECTIONS.indexOf(a.section) - CLIENT_REVIEW_SECTIONS.indexOf(b.section);
     return sectionDifference || a.label.localeCompare(b.label);
   });
@@ -491,11 +494,12 @@ export function getClientReviewReadiness(project: ProjectRecord): ClientReviewRe
     {
       id: "codexInstructionsReady",
       label: "Codex instructions ready",
-      passed: Boolean(project.packageGeneratedAt),
+      passed: Boolean(project.packageGeneratedAt) && (!isEcommerce(project) || (ecommerceDecisionState(project).launchReady && !project.generatedDocuments.some(d => /\[MISSING:/.test(d.content)))),
       manual: false,
       reason: "Regenerate the package after the final review decisions."
     }
   ];
+  if (isEcommerce(project)) checklist.splice(checklist.findIndex(item => item.id === "powerPlatformGatesConfirmed"), 1);
   const checklistBlockers = checklist.filter((item) => !item.passed);
   const blockers = [...new Set([
     ...unresolvedItems.map((item) => `${item.section}: ${item.label}`),

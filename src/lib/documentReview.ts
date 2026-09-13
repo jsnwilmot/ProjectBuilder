@@ -3,6 +3,7 @@ import { expectedDocumentLocations } from "./powerPlatform";
 import { evaluatePhaseGate, isPhaseGatePassing } from "./phaseGates";
 import type { PhaseGateId } from "./phaseGates";
 import type { GeneratedDocument, ProjectRecord } from "../types/project";
+import { ecommerceDecisionState, isEcommerce } from "./ecommerceDecisions";
 
 export type GeneratedDocumentStatus = "Draft" | "Review Required" | "Ready for Implementation" | "Not Applicable";
 export type DocumentReviewStatus = GeneratedDocumentStatus;
@@ -98,6 +99,7 @@ export function getDocumentReviewStatus(
   project?: ProjectRecord
 ): DocumentReviewStatus {
   if (countDocumentMissingMarkers(document.content) > 0) return "Draft";
+  if (project && isEcommerce(project) && !ecommerceDecisionState(project).launchReady) return "Draft";
   if (project && usesPowerPlatformDocumentGates(project)) {
     const definition = documentDefinitionByFile.get(document.fileName);
     if (definition && !definition.applicable(project)) return "Not Applicable";
