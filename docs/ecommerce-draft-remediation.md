@@ -18,6 +18,8 @@ ID | architecture, launch or optional | Needs answer, Deferred, Answered or Not 
 
 Answered requires an answer; Not applicable requires a reason. Malformed records block implementation. An ordinary review checkbox cannot erase an unresolved source decision. The generator shows current explicit statuses in legacy question prose without changing saved source requirements. Nonblocking optional deferrals remain visible. Architecture decisions block implementation; unresolved production decisions block launch while allowing architecture review. Production readiness is separate from approval to plan.
 
+The register parser requires exactly six unescaped fields. Use `\|` for a literal pipe and `\\` for a literal backslash inside any field; all other escape sequences fail closed with a line-specific `EC-RECORD-n` blocker. For example, `/shop \| Brand \| Catalog` is parsed as the complete answer `/shop | Brand | Catalog`. Extra unescaped columns are never joined or truncated.
+
 Every ecommerce marker is an ID with a corresponding visible decision/source field. No marker is silently stripped. Unresolved implementation configuration uses `EC-ARCHITECTURE`, `EC-DEPLOYMENT` and `EC-PHASES`; model, route and cart gaps use their own records. All generated files and the manifest use the same counts and final readiness. Manual review flags remain manual.
 
 ## Storefront and contract fields
@@ -47,6 +49,10 @@ Ecommerce test and acceptance generation now comes from a shared source-evidence
 The fifth PR #6 review pass applies the established placeholder-only vocabulary to every field returned by the ecommerce required-field contract. Intake validation, section completion, Client Review reconciliation, ecommerce decisions and reused document rendering now agree that blank, TBD, unknown, pending, unconfirmed and equivalent standalone answers remain unresolved. Meaningful prose remains valid even when a business rule contains a word such as `pending`. Optional fields do not gain implementation blockers from this required-field rule.
 
 Commerce option extraction now evaluates each matched checkout mode, currency, payment provider and MFA option in its own source clause. Explicit exclusions before or after the matched option are skipped, and matching continues to the next positive recorded choice. Negative-only and unresolved statements retain neutral scope dependencies; they never authorize a replacement choice. The same candidate-specific polarity check is also used for conditional commerce evidence such as tax, shipping, pickup and webhooks.
+
+The sixth PR #6 review pass classifies general decision values as resolved, unresolved or empty. Explicit deferral phrases such as `pending client approval`, `TBD after discovery` and `awaiting architecture decision` remain unresolved, while business rules about pending payments, unknown users or deferred jobs remain meaningful. The classifier is shared by answered decisions, not-applicable reasons and required ecommerce source fields; structured architecture, deployment, route, cart and phase configuration retains its stricter validation.
+
+Option evidence now retains the source field, source text, semantic clause and positive, negative or unresolved polarity. Commas remain inside coordinated groups, while sentence boundaries, semicolons and explicit contrast transitions separate clauses. This prevents later members of `No CAD, USD, or EUR support` from becoming positive choices and still allows `GBP` after `;` or `but`. Provider extraction preserves unambiguous multi-word names in both forward and reverse forms, including `Stripe Connect payments`, `payments via Stripe Connect` and `webhooks from Stripe Connect`, without including leading action words.
 
 To regenerate the deterministic review artifact in PowerShell:
 

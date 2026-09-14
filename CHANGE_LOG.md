@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-09-14 - PR #6 ecommerce parser remediation
+
+- Added a separate tests-first commit reproducing compound decision deferrals, destructive extra-column parsing, malformed escapes, coordinated option exclusions and truncated multi-word provider names. On reviewed head `90bfd60`, six regression groups failed and the independent MFA polarity control passed.
+- Added an explicit resolved, unresolved or empty value classifier for decision answers, not-applicable reasons and required ecommerce prose. Compound deferrals remain open while business rules about pending payments, unknown users and deferred jobs remain valid.
+- Replaced decision-register splitting with an exact six-field parser. Literal pipes use `\|`, literal backslashes use `\\`, and malformed escapes or the wrong field count create precise line-specific `EC-RECORD-n` blockers without truncating or joining source data.
+- Added typed option evidence with source and clause provenance plus positive, negative or unresolved polarity. Coordinated comma lists keep their shared negation across currencies, checkout modes and providers; hard boundaries and contrast transitions allow later approved replacements.
+- Preserved complete provider names in forward and reverse payment/webhook forms, including Stripe Connect and PayPal Commerce Platform, while negative-only and ambiguous evidence retains the provider-neutral dependency.
+- No merge, production deployment, saved Chrome regeneration, Draft export or ecommerce application implementation was performed.
+
 ## 2026-09-13 - PR #6 ecommerce source-semantics remediation
 
 - Added a separate tests-first commit reproducing placeholder-only required ecommerce fields passing validation and negated checkout/currency/provider/MFA choices becoming positive generated tests. The focused baseline had three intended failures and two passing controls on `9fb036a`.

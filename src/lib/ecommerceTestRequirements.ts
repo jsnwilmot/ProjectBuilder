@@ -59,6 +59,18 @@ interface CandidateMatch {
   length: number;
 }
 
+type EvidencePolarity = "positive" | "negative" | "unresolved";
+interface OptionEvidence {
+  value: string;
+  sourceField: EcommerceSourceField;
+  sourceText: string;
+  clause: string;
+  polarity: EvidencePolarity;
+  index: number;
+  length: number;
+}
+type CandidateMatcher = RegExp | ((text: string) => CandidateMatch[]);
+
 function candidateMatches(text: string, pattern: RegExp): CandidateMatch[] {
   const matcher = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
   return [...text.matchAll(matcher)].map(match => ({
@@ -69,29 +81,77 @@ function candidateMatches(text: string, pattern: RegExp): CandidateMatch[] {
   }));
 }
 
+function candidateClauseSpan(text: string, index: number, length: number): { start: number; end: number; text: string } {
+  let leftBoundary = 0;
+  let rightBoundary = text.length;
+  const boundaries = /[;\n.]|,\s*(?:but|however|instead)\b|\b(?:but|however|instead)\b/gi;
+  for (const boundary of text.matchAll(boundaries)) {
+    const start = boundary.index ?? 0;
+    const end = start + boundary[0].length;
+    if (end <= index) leftBoundary = end;
+    else if (start >= index + length) {
+      rightBoundary = start;
+      break;
+    }
+  }
+  const raw = text.slice(leftBoundary, rightBoundary);
+  const leadingWhitespace = raw.length - raw.trimStart().length;
+  const trailingWhitespace = raw.length - raw.trimEnd().length;
+  const start = leftBoundary + leadingWhitespace;
+  const end = rightBoundary - trailingWhitespace;
+  return { start, end, text: text.slice(start, end) };
+}
+
 function candidateClause(text: string, index: number, length: number): string {
-  const before = text.slice(0, index);
-  const leftBoundary = Math.max(before.lastIndexOf(";"), before.lastIndexOf(","), before.lastIndexOf("\n"), before.lastIndexOf("."));
-  const after = text.slice(index + length);
-  const offsets = [after.indexOf(";"), after.indexOf(","), after.indexOf("\n"), after.indexOf(".")].filter(offset => offset >= 0);
-  const rightBoundary = offsets.length ? index + length + Math.min(...offsets) : text.length;
-  return text.slice(leftBoundary + 1, rightBoundary).trim();
+  return candidateClauseSpan(text, index, length).text;
 }
 
 function isNegative(fragment: SourceFragment, candidate: CandidateMatch): boolean {
   if (fragment.field === "outOfScope") return true;
-  const clause = candidateClause(fragment.text, candidate.index, candidate.length);
+  const clauseSpan = candidateClauseSpan(fragment.text, candidate.index, candidate.length);
+  const clause = clauseSpan.text;
   const escaped = candidate.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const prefix = new RegExp(`(?:^|\\b)(?:(?:no|without|exclude(?:d)?)\\s+(?:(?!but\\b|and\\b|or\\b)[\\p{L}\\p{N}-]+\\s+){0,3}|do\\s+not\\s+(?:support|use|allow|accept|require|include|enable)\\s+(?:the\\s+)?|not\\s+(?:supporting|using|allowing|accepting|requiring|including|enabling)\\s+(?:the\\s+)?)${escaped}\\b`, "iu");
-  const postfix = new RegExp(`\\b${escaped}\\b(?:\\s+[\\p{L}\\p{N}-]+){0,3}\\s+(?:(?:is|are)\\s+)?(?:not\\s+(?:approved|required|supported|in\\s+scope|accepted|available|allowed|enabled)|disabled|excluded|unsupported|unavailable)\\b`, "iu");
-  return prefix.test(clause) || postfix.test(clause);
+  const relativeIndex = Math.max(0, candidate.index - clauseSpan.start);
+  const before = clause.slice(0, relativeIndex);
+  const after = clause.slice(relativeIndex + candidate.length);
+  const leftComma = before.lastIndexOf(",");
+  const nextComma = after.indexOf(",");
+  const localStart = leftComma + 1;
+  const localEnd = nextComma >= 0 ? relativeIndex + candidate.length + nextComma : clause.length;
+  const local = clause.slice(localStart, localEnd).trim();
+  const directPrefix = new RegExp(`(?:^|\\b)(?:(?:no|without|exclude(?:d)?)\\s+(?:(?!but\\b|and\\b|or\\b)[\\p{L}\\p{N}-]+\\s+){0,3}|do\\s+not\\s+(?:support|use|allow|accept|require|include|enable)\\s+(?:the\\s+)?|not\\s+(?:supporting|using|allowing|accepting|requiring|including|enabling)\\s+(?:the\\s+)?|rather\\s+than\\s+)${escaped}\\b`, "iu");
+  const directPostfix = new RegExp(`\\b${escaped}\\b(?:\\s+[\\p{L}\\p{N}-]+){0,3}\\s+(?:(?:is|are)\\s+)?(?:not\\s+(?:approved|required|supported|in\\s+scope|accepted|available|allowed|enabled)|disabled|excluded|unsupported|unavailable)\\b`, "iu");
+  if (directPrefix.test(local) || directPostfix.test(local)) return true;
+
+  const localPositive = new RegExp(`\\b${escaped}\\b(?:\\s+(?:is|are))?\\s+(?:only|required|accepted|supported|approved|available|allowed|enabled)\\b`, "iu").test(local);
+  if (localPositive) return false;
+
+  const leadingNegative = /^\s*(?:(?:no|without|exclude(?:d)?)\b|do\s+not\s+(?:support|use|allow|accept|require|include|enable)\b|not\s+(?:supporting|using|allowing|accepting|requiring|including|enabling)\b)/iu;
+  if (leadingNegative.test(clause) && /,|\b(?:and|or)\b/i.test(before)) return true;
+
+  const coordinatedPostfix = /\b(?:is|are)\s+not\s+(?:approved|required|supported|in\s+scope|accepted|available|allowed|enabled)\b|\b(?:disabled|excluded|unsupported|unavailable)\b/iu;
+  const postfixMatch = coordinatedPostfix.exec(after);
+  if (postfixMatch && /,|\b(?:and|or)\b/i.test(after.slice(0, postfixMatch.index))) return true;
+  return false;
+}
+
+function matchesFor(text: string, matcher: CandidateMatcher): CandidateMatch[] {
+  return matcher instanceof RegExp ? candidateMatches(text, matcher) : matcher(text);
+}
+
+function optionEvidence(fragments: SourceFragment[], matcher: CandidateMatcher): OptionEvidence[] {
+  return fragments.flatMap(fragment => matchesFor(fragment.text, matcher).map(candidate => {
+    const clause = candidateClause(fragment.text, candidate.index, candidate.length);
+    const polarity: EvidencePolarity = UNRESOLVED.test(clause)
+      ? "unresolved"
+      : isNegative(fragment, candidate) ? "negative" : "positive";
+    return { value: candidate.value, sourceField: fragment.field, sourceText: fragment.text, clause, polarity, index: candidate.index, length: candidate.length };
+  }));
 }
 
 function positiveMatches(fragment: SourceFragment, pattern: RegExp): CandidateMatch[] {
-  return candidateMatches(fragment.text, pattern).filter(candidate => {
-    const clause = candidateClause(fragment.text, candidate.index, candidate.length);
-    return !UNRESOLVED.test(clause) && !isNegative(fragment, candidate);
-  });
+  const positive = optionEvidence([fragment], pattern).filter(candidate => candidate.polarity === "positive");
+  return positive.map(candidate => ({ value: candidate.value, matchedText: candidate.value, index: candidate.index, length: candidate.length }));
 }
 
 function evidence(fragments: SourceFragment[], pattern: RegExp): SourceFragment[] {
@@ -103,25 +163,54 @@ function describeEvidence(fragments: SourceFragment[]): string {
   return fragments.slice(0, 5).map(fragment => `${fragment.label}: ${fragment.text}`).join("; ");
 }
 
-function firstPositiveMatch(fragments: SourceFragment[], pattern: RegExp): string {
-  for (const fragment of fragments) {
-    const match = positiveMatches(fragment, pattern)[0];
-    if (match) return match.value;
-  }
-  return "";
+function firstPositiveMatch(fragments: SourceFragment[], matcher: CandidateMatcher): OptionEvidence | undefined {
+  return optionEvidence(fragments, matcher).find(candidate => candidate.polarity === "positive");
 }
 
 function mentionedButUnresolved(fragments: SourceFragment[], pattern: RegExp): boolean {
-  return matching(fragments, pattern).some(fragment => candidateMatches(fragment.text, pattern)
-    .some(candidate => UNRESOLVED.test(candidateClause(fragment.text, candidate.index, candidate.length))));
+  return optionEvidence(matching(fragments, pattern), pattern).some(candidate => candidate.polarity === "unresolved");
+}
+
+const PROVIDER_LEADING_WORDS = new Set(["use", "using", "support", "supports", "supported", "recorded", "approved", "no"]);
+function providerName(value: string): string {
+  const words = value.trim().split(/\s+/);
+  while (words.length > 1 && PROVIDER_LEADING_WORDS.has(words[0].toLocaleLowerCase())) words.shift();
+  return words.join(" ");
+}
+
+function providerCandidateMatches(text: string): CandidateMatch[] {
+  const patterns = [
+    /\b([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*){0,4})\s+(?:payments?|webhooks?)\b/g,
+    /\b(?:payments?|webhooks?)\s+(?:through|via|from)\s+([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*){0,3})\b/g,
+    /\b([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*){0,3})\s+(?:is\s+)?not\s+(?:supported|approved|accepted|allowed|available|enabled)\b/g
+  ];
+  const matches = patterns.flatMap(pattern => [...text.matchAll(pattern)].map(match => {
+    const value = providerName(match[1]);
+    const captureOffset = match[0].indexOf(match[1]);
+    return { value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: match[1].length };
+  }));
+  const exclusion = text.match(/\b(?:no|do\s+not\s+use|without|exclude(?:d)?)\s+([^;.]+)/i);
+  if (exclusion) {
+    const offset = (exclusion.index ?? 0) + exclusion[0].indexOf(exclusion[1]);
+    for (const name of exclusion[1].matchAll(/\b([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*)*)\b/g)) {
+      matches.push({ value: name[1], matchedText: name[0], index: offset + (name.index ?? 0), length: name[0].length });
+    }
+  }
+  return matches
+    .filter(match => Boolean(match.value))
+    .sort((left, right) => left.index - right.index)
+    .filter((match, index, all) => !all.slice(0, index).some(previous => previous.index === match.index && previous.value === match.value));
 }
 
 /** Build verification only from universal commerce invariants and recorded intake evidence. */
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
   const fragments = sourceFragments(project);
-  const checkoutMode = firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i).toLocaleLowerCase();
-  const currency = firstPositiveMatch(fragments, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/);
-  const paymentProvider = firstPositiveMatch(fragments, /\b([A-Z][A-Za-z0-9&.-]+)\s+(?:payments?|webhooks?)\b/);
+  const checkoutEvidence = firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
+  const currencyEvidence = firstPositiveMatch(fragments, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/);
+  const providerEvidence = firstPositiveMatch(fragments, providerCandidateMatches);
+  const checkoutMode = checkoutEvidence?.value.toLocaleLowerCase() ?? "";
+  const currency = currencyEvidence?.value ?? "";
+  const paymentProvider = providerEvidence?.value ?? "";
   const tax = evidence(fragments, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i);
   const shipping = evidence(fragments, /\bshipping\b|\bcarrier\b/i);
   const pickup = evidence(fragments, /\bpickup\b|\bpick-up\b/i);
@@ -131,7 +220,7 @@ export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTest
   const lookup = evidence(fragments, /\border lookup\b|\border status\b|\bguest lookup\b/i);
   const returns = evidence(fragments, /\breturns?\b|\brefunds?\b|\bfinal[- ]sale\b/i);
   const roles = evidence(fragments, /\broles?\b|\badmin(?:istrator)?\b|\bpermissions?\b|\bprivileged\b/i);
-  const mfa = firstPositiveMatch(fragments, /\b(admin(?:istrator)? MFA)\b/i);
+  const mfa = firstPositiveMatch(fragments, /\b(admin(?:istrator)? MFA)\b/i)?.value ?? "";
   const accessibilityTarget = String(project.intake.accessibilityNotes ?? "").trim();
   const dependencies: string[] = [];
 

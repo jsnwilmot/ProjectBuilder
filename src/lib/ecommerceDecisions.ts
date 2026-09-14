@@ -19,10 +19,33 @@ const unresolvedValues = new Set([
   "no confirmation", "no decision yet", "none", "none yet", "not applicable", "not decided",
   "pending", "t b d", "tbd", "to be determined", "unanswered", "unconfirmed", "unknown"
 ]);
+export type ResolutionValueClassification = "resolved" | "unresolved" | "empty";
+const unresolvedResolutionPatterns = [
+  /^t\s*b\s*[dc](?:\s+(?:after|until|pending|awaiting|by|during|following)\b.+)?$/,
+  /^pending(?:\s+(?:client|stakeholder|architecture|architect|vendor|owner|business|security|technical))*\s+(?:approval|confirmation|decision|discovery|selection|review|response|testing)(?:\s+.*)?$/,
+  /^unknown(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
+  /^unconfirmed(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
+  /^undecided(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
+  /^awaiting\s+(?:approval|confirmation|decision|discovery|review|testing|(?:architecture|architect|client|stakeholder|vendor|owner)\s+(?:approval|confirmation|decision|response|review|selection))(?:\s+.*)?$/,
+  /^needs?\s+(?:approval|confirmation|decision|discovery|review|testing|(?:client|stakeholder|vendor|owner)\s+(?:approval|confirmation|decision|response|review|selection))(?:\s+.*)?$/,
+  /^not\s+decided(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
+  /^to\s+be\s+determined(?:\s+(?:after|until|pending|awaiting|by|during|following)\b.+)?$/,
+  /^deferred\s+(?:after|until|pending|awaiting)\b.+$/,
+  /^no\s+(?:decision\s+yet|approved\s+approach)$/
+];
+function normalizedResolutionValue(value: unknown): string {
+  return typeof value === "string"
+    ? value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim()
+    : "";
+}
+export function classifyResolutionValue(value: unknown): ResolutionValueClassification {
+  const normalized = normalizedResolutionValue(value);
+  if (!normalized) return "empty";
+  if (unresolvedValues.has(normalized) || unresolvedResolutionPatterns.some(pattern => pattern.test(normalized))) return "unresolved";
+  return "resolved";
+}
 export function hasMeaningfulResolvedValue(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const normalized = value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
-  return Boolean(normalized) && !unresolvedValues.has(normalized);
+  return typeof value === "string" && classifyResolutionValue(value) === "resolved";
 }
 export function isEcommerceRequiredSourceFieldResolved(project: ProjectRecord, field: ProjectInputField): boolean {
   return hasMeaningfulResolvedValue(getProjectFieldValue(project, field));
@@ -74,6 +97,34 @@ export function ecommercePhases(p: ProjectRecord): EcommercePhase[] {
   } catch { return []; }
 }
 
+type DecisionRegisterParseResult = { fields: [string, string, string, string, string, string] } | { error: string };
+function parseDecisionRegisterLine(line: string): DecisionRegisterParseResult {
+  const fields: string[] = [];
+  let field = "";
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === "\\") {
+      const escaped = line[index + 1];
+      if (escaped !== "\\" && escaped !== "|") {
+        return { error: "Decision register contains a malformed escape sequence. Only \\| and \\\\ are valid escapes." };
+      }
+      field += escaped;
+      index += 1;
+      continue;
+    }
+    if (character === "|") {
+      fields.push(field.trim());
+      field = "";
+      continue;
+    }
+    field += character;
+  }
+  fields.push(field.trim());
+  if (fields.length < 6) return { error: "Decision register contains fewer than six unescaped fields." };
+  if (fields.length > 6) return { error: "Decision register contains more than six unescaped fields. Escape literal pipe characters as \\|." };
+  return { fields: fields as [string, string, string, string, string, string] };
+}
+
 /** Compatibility adapter plus explicit records. No keyword occurrence becomes an answer. */
 export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
   if (!isEcommerce(p)) return [];
@@ -86,7 +137,13 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
   }
   for (const [index, line] of (p.intake.ecommerceDecisions || "").split(/\r?\n/).entries()) {
     if (!line.trim()) continue;
-    const [id, gate, status, question, reason = "", answer = ""] = line.split("|").map(v => v.trim());
+    const parsed = parseDecisionRegisterLine(line);
+    if ("error" in parsed) {
+      const errorId = `EC-RECORD-${index + 1}`;
+      records.set(errorId, { id: errorId, field: "ecommerceDecisions", gate: "architecture", status: "Needs answer", question: `Correct decision register line ${index + 1}`, reason: `Decision register line ${index + 1} ${parsed.error.slice("Decision register ".length)}`, answer: "" });
+      continue;
+    }
+    const [id, gate, status, question, reason, answer] = parsed.fields;
     const valid = /^[A-Z][A-Z0-9-]*$/.test(id) && !/^EC-RECORD-\d+$/.test(id) && ["architecture", "launch", "optional"].includes(gate) && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status) && Boolean(question);
     if (!valid) {
       const errorId = `EC-RECORD-${index + 1}`;
