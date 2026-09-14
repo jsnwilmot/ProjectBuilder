@@ -7426,3 +7426,40 @@
 ### Remaining work
 
 - Independent GPT Architect re-review is required before integration or any persistence/UI/downstream phase.
+
+## 2026-09-13 - Ecommerce PR #6 Pass 4 Review Remediation
+
+### Summary
+
+- Separated blocking architecture/launch decisions from visible, nonblocking optional ecommerce decisions.
+- Added traceable `[OPTIONAL:]` Client Questions entries that do not count as missing-information markers or block package readiness.
+- Accepted `/` as a safe canonical ecommerce route while retaining duplicate, placeholder, column and path validation.
+- Replaced the hard-coded ecommerce verification table with universal invariants plus requirements derived from recorded intake evidence.
+- Kept Rose & Paw-specific guest checkout, CAD, Square, Canadian tax, shipping, pickup, returns and security checks because the deterministic fixture records them.
+
+### Files created
+
+- `src/lib/ecommerceTestRequirements.ts` - derives ecommerce test rows and unresolved test dependencies from authoritative intake fields.
+- `src/tests/ecommercePass4Remediation.test.ts` - reproduces the three Pass 4 P1 findings and covers the required fixture matrix.
+
+### Files updated
+
+- `src/lib/ecommerceDecisions.ts` - central blocking/optional decision groups and canonical root-route validation.
+- `src/lib/clientReview.ts` - honors nonblocking source-controlled optional gates for every open status.
+- `src/templates/documents/ecommerce.ts` - renders optional records separately and consumes the source-derived test requirements.
+- `src/tests/helpers/ecommerce.ts` - records the Rose & Paw return-window evidence explicitly.
+- `docs/ecommerce-draft-remediation.md` and `CHANGE_LOG.md` - document Pass 4 behavior and validation scope.
+
+### Issues found
+
+- The reviewed generator emitted blocking markers for optional decisions, rejected `/`, and embedded Rose & Paw business choices in generic ecommerce tests.
+
+### Testing completed
+
+- Baseline Pass 4 regression run against `d9f2712`: 5 expected failures and 2 passing controls.
+- Focused Pass 4 and prior ecommerce remediation run: 40 tests passed across 5 files.
+- Ecommerce/package/export/document-status matrix: 76 tests passed across 12 files.
+
+### Remaining work
+
+- Run the complete repository, TypeScript, build, lint, production dependency audit and diff validation, then request a fresh automated Codex review. Do not merge or deploy without Architect approval.

@@ -36,7 +36,7 @@ export function createEcommerceFixture() {
     keyFields: "UUID; SKU; non-guessable order number",
     integrations: "Square; transactional email; live carrier; Canadian tax; consent-aware analytics",
     authenticationExpectation: "Guest checkout; administrator MFA",
-    acceptanceNotes: "Verify mixed-division cart, Square CAD checkout, stock, tax, shipping, pickup, guest verification, final-sale rules and WCAG 2.2 AA.",
+    acceptanceNotes: "Verify mixed-division cart, Square CAD checkout, stock, Canadian tax, live carrier shipping, pickup, guest verification, 30-day standard physical returns with recorded final-sale rules, and WCAG 2.2 AA.",
     successCriteria: "Four branded routes transact through the shared platform with secure guest checkout.",
     assumptions: [
       "What CAD order subtotal triggers free shipping",

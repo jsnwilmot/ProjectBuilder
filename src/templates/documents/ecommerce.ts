@@ -4,6 +4,7 @@ import { getClientReviewReadiness } from "../../lib/clientReview";
 import { markdownTable } from "../../lib/documentHelpers";
 import type { ProjectRecord } from "../../types/project";
 import type { GeneratedPackageReadiness } from "../../lib/generatedPackageReadiness";
+import { ecommerceTestRequirements } from "../../lib/ecommerceTestRequirements";
 
 type Project = ProjectRecord & { generationContext?: { readiness?: GeneratedPackageReadiness; clientReview?: ReturnType<typeof getClientReviewReadiness>; documentStatuses?: Record<string,string> }; currentDocumentName?: string };
 const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
@@ -32,40 +33,12 @@ function storefronts(p: Project): string {
 
 function questions(p: Project): string {
   const state = ecommerceDecisionState(p);
-  return `# Client Questions\n\n${summary(p)}\n\n## Decision records\n\n${table(["ID", "Gate", "Status", "Question", "Reason / approved answer"], state.decisions.map(d => [d.id, d.gate, d.status, d.question, d.answer || d.reason]))}\n\n## Traceable unresolved requirements\n\n${state.unresolved.map(d => `[MISSING: ${d.id}] — ${d.question}; source: ${d.field}; gate: ${d.gate}`).join("\n\n") || "None."}\n\nEach marker refers to one decision record above and its visible intake source. Edit the decision register with an approved answer; a review checkbox cannot resolve a business question.`;
+  const blocking = state.blockingUnresolvedDecisions.map(d => `[MISSING: ${d.id}] — ${d.question}; source: ${d.field}; gate: ${d.gate}`).join("\n\n") || "None.";
+  const optional = state.optionalUnresolvedDecisions.map(d => `[OPTIONAL: ${d.id}] — ${d.question}; status: ${d.status}; source: ${d.field}; ${d.reason || "No optional implementation scope is approved."}`).join("\n\n") || "None.";
+  return `# Client Questions\n\n${summary(p)}\n\n## Decision records\n\n${table(["ID", "Gate", "Status", "Question", "Reason / approved answer"], state.decisions.map(d => [d.id, d.gate, d.status, d.question, d.answer || d.reason]))}\n\n## Traceable unresolved requirements\n\n${blocking}\n\n## Optional / deferred items\n\n${optional}\n\nBlocking markers refer to decision records above and their visible intake sources. Optional items remain visible and traceable without approving scope or blocking readiness. Edit the decision register with an approved answer; a review checkbox cannot resolve a business question.`;
 }
-
-const checks = [
-  ["catalog", "Catalog/storefront", "Verify each approved branded route selects the correct theme/catalog and retains division attribution; unpublished items remain hidden."],
-  ["cart", "Cart", "Add, change and remove eligible variants; enforce the explicit cross-context or separate-cart decision; recalculate totals server-side."],
-  ["checkout|Square|payment", "Checkout/payment", "Test guest checkout in CAD, successful, declined and cancelled payments; never store card data; verify server-calculated totals."],
-  ["Square|webhook", "Webhooks/idempotency/reconciliation", "Reject invalid signatures; replay valid events without duplicate charges/orders; reconcile delayed, reordered and failed events with provider records."],
-  ["tax", "Tax", "Test approved Canadian jurisdictions, categories and rounding using confirmed registration rules; block release until tax decisions are approved."],
-  ["shipping", "Shipping", "Verify live carrier rates, unavailable rates, weights/dimensions and address errors; test free-shipping threshold boundaries and category exclusions."],
-  ["pickup", "Pickup", "Pickup is absent when disabled and appears only for eligible carts; show only approved location, timing and instructions."],
-  ["inventory|stock", "Inventory", "Test concurrent last-unit purchases, reservations, cancellation/refund adjustments and configured low-stock notifications; prevent overselling."],
-  ["digital|software", "Digital delivery", "Create entitlements only after verified payment; test expiry, access limits and authorization; prevent cross-order download or activation leakage."],
-  ["quote|upload", "Quotes/uploads", "Validate approved types/size limits, scan attachments and prevent unsafe files; test review, customer approval, payment and delivery."],
-  ["guest|lookup", "Guest lookup", "Use generic responses for matching/nonmatching order/email; require expiring email verification, rate limits and order-only authorization; reject expired/replayed codes."],
-  ["refund|return", "Refunds/returns", "Test 30-day standard physical eligibility, final-sale item snapshots, approved exceptions, Square refund failures and inventory/order reconciliation."],
-  ["role|admin|permission", "Roles", "Require admin MFA and server authorization; restrict fulfillment to assigned orders/inventory and prevent credential, role or bulk-export access."],
-  [".*", "Accessibility", "Test keyboard, focus, screen readers, labels/errors, contrast and reduced motion through browse, cart, guest checkout and order lookup against recorded WCAG target."],
-  [".*", "Security", "Verify CSRF/XSS/injection/SSRF controls, secrets isolation, signed requests, secure admin cookies, rate limits and masked logs."],
-  [".*", "Performance", "Measure catalog, cart and checkout on recorded devices; agree budgets before acceptance and report actual measurements without invented thresholds."],
-  [".*", "Backup/restore", "Restore an isolated backup and reconcile orders, inventory and entitlements; record recovery evidence and approved recovery objectives."],
-  [".*", "Smoke testing", "After an approved deployment verify routes, catalog, guest checkout test transaction, integrations, notifications, health and rollback using approved test data."]
-];
 function commerceChecks(p: Project) {
-  const source = [
-    p.intake.requiredFeatures,
-    p.intake.featureDescription,
-    p.intake.workflows,
-    p.intake.integrations,
-    p.intake.ecommerceStorefrontModel,
-    p.intake.ecommerceRoutes,
-    p.intake.ecommerceCartScope
-  ].join("\n");
-  return table(["ID", "Category", "Expected result"], checks.filter(([pattern]) => new RegExp(pattern,"i").test(source)).map(([,name,expected], i) => [`EC-TEST-${i+1}`,name,expected]));
+  return table(["ID", "Category", "Expected result"], ecommerceTestRequirements(p).map((check, index) => [`EC-TEST-${index + 1}`, check.category, check.expectedResult]));
 }
 
 function deployment(p: Project): string {

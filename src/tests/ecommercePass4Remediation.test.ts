@@ -29,7 +29,7 @@ function document(project: ProjectRecord, fileName: string): string {
 }
 
 function commerceVerification(project: ProjectRecord): string[] {
-  const testPlan = document(project, "TEST_PLAN.md").split("## Recorded acceptance evidence")[0];
+  const testPlan = `| ID | Category${document(project, "TEST_PLAN.md").split("| ID | Category")[1] ?? ""}`.split("## Recorded acceptance evidence")[0];
   const acceptance = document(project, "ACCEPTANCE_CRITERIA.md").split("## Commerce verification")[1] ?? "";
   return [testPlan, acceptance];
 }
@@ -54,7 +54,7 @@ describe("Ecommerce Pass 4 review remediation", () => {
       expect(questions).toContain("[OPTIONAL: OPT-01]");
       expect(questions).not.toContain("[MISSING: OPT-01]");
       expect(readiness.missingMarkerCount).toBe(0);
-      expect(readiness.status).toBe("Ready for Codex");
+      expect(readiness.status, readiness.blockers.join("\n")).toBe("Ready for Codex");
       expect(orphanMissingMarkers(rendered)).toEqual([]);
     }
   });
@@ -129,6 +129,11 @@ describe("Ecommerce Pass 4 review remediation", () => {
       integrations: "Stripe payment and webhook services; United States tax service.",
       authenticationExpectation: "Authenticated customer accounts and an administrator role.",
       rolePermissionsSummary: "Administrators manage orders with server-side authorization.",
+      workflowTrigger: "Authenticated checkout or return request.",
+      screens: "Catalog; cart; authenticated checkout; customer orders; administration.",
+      websitePages: "Catalog; cart; authenticated checkout; customer orders; administration.",
+      dataCollections: "Products; Orders; Payments.",
+      outOfScope: "Guest checkout, local pickup, Square, Canadian tax, live carrier shipping, 30-day returns, and MFA.",
       constraints: "USD pricing and United States sales tax.",
       fields: "UUID; SKU; USD integer minor units.",
       acceptanceNotes: "Verify authenticated checkout in USD through Stripe, United States tax, no pickup, and 14-day returns.",
@@ -156,6 +161,11 @@ describe("Ecommerce Pass 4 review remediation", () => {
       integrations: "Payment provider unresolved.",
       authenticationExpectation: "Checkout account model unresolved.",
       rolePermissionsSummary: "Privileged operations require server authorization.",
+      workflowTrigger: "Purchase initiation.",
+      screens: "Catalog; cart; checkout.",
+      websitePages: "Catalog; cart; checkout.",
+      dataCollections: "Products and orders.",
+      outOfScope: "No additional business-specific behavior is approved.",
       constraints: "Currency and tax jurisdiction unresolved.",
       fields: "Product and order identifiers.",
       acceptanceNotes: "Business-specific commerce decisions remain unresolved.",

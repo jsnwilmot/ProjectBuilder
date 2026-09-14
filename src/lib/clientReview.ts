@@ -378,6 +378,7 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
 }
 
 export function reviewItemBlocksReadiness(item: ReviewItem): boolean {
+  if (item.source === "gate" && item.resolutionMode === "source" && !item.blocking) return false;
   if (item.status === "Answered") return false;
   if (item.status === "Not applicable") return !item.notApplicableReason.trim();
   if (item.status === "Deferred") {

@@ -52,9 +52,9 @@ function approvedContract(value: string, keys: string[]): boolean {
 function validRoutes(value: string): boolean {
   const rows = value.split(/\r?\n/).filter(line => line.trim()).map(line => line.split("|").map(part => part.trim()));
   return rows.length > 0 && rows.every(([route, brand, catalog, ...extra]) =>
-    /^\/[a-zA-Z0-9][a-zA-Z0-9/-]*$/.test(route)
+    (route === "/" || /^\/[a-zA-Z0-9][a-zA-Z0-9/-]*$/.test(route))
     && !route.includes("//")
-    && hasMeaningfulConfigurationValue(route.slice(1))
+    && (route === "/" || hasMeaningfulConfigurationValue(route.slice(1)))
     && hasMeaningfulConfigurationValue(brand)
     && hasMeaningfulConfigurationValue(catalog)
     && !extra.length)
@@ -144,9 +144,11 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
 export function ecommerceDecisionState(p: ProjectRecord) {
   const decisions = ecommerceDecisions(p);
   const unresolved = decisions.filter(open);
+  const blockingUnresolvedDecisions = unresolved.filter(d => d.gate !== "optional");
+  const optionalUnresolvedDecisions = unresolved.filter(d => d.gate === "optional");
   const implementationBlockers = unresolved.filter(d => d.gate === "architecture");
   const launchBlockers = unresolved.filter(d => d.gate === "launch");
-  return { decisions, unresolved, implementationBlockers, launchBlockers, planningReady: true, implementationReady: implementationBlockers.length === 0, launchReady: implementationBlockers.length + launchBlockers.length === 0 };
+  return { decisions, unresolved, blockingUnresolvedDecisions, optionalUnresolvedDecisions, implementationBlockers, launchBlockers, planningReady: true, implementationReady: implementationBlockers.length === 0, launchReady: blockingUnresolvedDecisions.length === 0 };
 }
 
 export function ecommerceReviewItems(p: ProjectRecord, now: string): ReviewItem[] {
