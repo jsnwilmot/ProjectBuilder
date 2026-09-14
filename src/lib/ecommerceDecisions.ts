@@ -24,6 +24,9 @@ export function hasMeaningfulResolvedValue(value: unknown): value is string {
   const normalized = value.normalize("NFKC").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
   return Boolean(normalized) && !unresolvedValues.has(normalized);
 }
+export function isEcommerceRequiredSourceFieldResolved(project: ProjectRecord, field: ProjectInputField): boolean {
+  return hasMeaningfulResolvedValue(getProjectFieldValue(project, field));
+}
 const unresolvedConfigurationPattern = /(?:^|\s)(?:t\s*b\s*[dc]|unknown|unanswered|pending|deferred|undecided|unconfirmed|missing|none(?:\s+yet)?|n\s+a|not\s+(?:applicable|decided|confirmed|known)|to\s+be\s+(?:determined|confirmed)|awaiting\s+(?:decision|confirmation|approval)|needs?\s+(?:decision|confirmation|approval|review)|no\s+(?:decision|confirmation|approved\s+approach))(?:\s|$)/i;
 function normalizedConfigurationValue(value: unknown): string {
   return typeof value === "string"
@@ -125,7 +128,7 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
   require("EC-PHASES", "ecommercePhases", "Approve executable implementation phase contracts", ecommercePhases(p).length > 0);
   const fieldLabels = new Map(visibleIntakeFields(p).map(field => [field.name, field.label]));
   for (const field of requiredProjectFields(p)) {
-    if (getProjectFieldValue(p, field).trim()) continue;
+    if (isEcommerceRequiredSourceFieldResolved(p, field)) continue;
     const id = `EC-FIELD-${field.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toUpperCase()}`;
     const label = fieldLabels.get(field) ?? field;
     records.set(id, {

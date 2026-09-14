@@ -3,6 +3,7 @@ import type { IntakeValidationResult, ProjectInputField, ProjectRecord } from ".
 import { missingMarker } from "./documentHelpers";
 import { getProjectFieldValue } from "./projectFields";
 import { requiredProjectFields, visibleIntakeFields } from "./projectCapabilities";
+import { isEcommerce, isEcommerceRequiredSourceFieldResolved } from "./ecommerceDecisions";
 import { isExcludedWebsiteCapability, type WebsiteCapabilityField } from "./websiteCapabilityIntent";
 
 export type RequirementLevel = "required" | "optional" | "inapplicable";
@@ -78,7 +79,10 @@ export function websiteRequirement(project: ProjectRecord, field: ProjectInputFi
     return { ...base, status: "deferred", reason: value, blocksImplementation: true };
   }
   if (isExplicitNotApplicable(value)) return { ...base, status: "notApplicable", reason: value, blocksImplementation: false };
-  const status: RequirementStatus = value ? "answered" : level === "required" ? "missing" : "optional";
+  const sourceResolved = level === "required" && isEcommerce(project)
+    ? isEcommerceRequiredSourceFieldResolved(project, field)
+    : Boolean(value);
+  const status: RequirementStatus = sourceResolved ? "answered" : level === "required" ? "missing" : "optional";
   return { ...base, status, reason: "", blocksImplementation: status === "missing" };
 }
 

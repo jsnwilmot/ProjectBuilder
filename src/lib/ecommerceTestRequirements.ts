@@ -48,63 +48,99 @@ function sourceFragments(project: ProjectRecord): SourceFragment[] {
     .map(text => ({ field, label, text })));
 }
 
-function matching(project: ProjectRecord, pattern: RegExp): SourceFragment[] {
-  return sourceFragments(project).filter(fragment => pattern.test(fragment.text));
+function matching(fragments: SourceFragment[], pattern: RegExp): SourceFragment[] {
+  return fragments.filter(fragment => pattern.test(fragment.text));
 }
 
-function isNegative(fragment: SourceFragment, subject: string): boolean {
+interface CandidateMatch {
+  value: string;
+  matchedText: string;
+  index: number;
+  length: number;
+}
+
+function candidateMatches(text: string, pattern: RegExp): CandidateMatch[] {
+  const matcher = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  return [...text.matchAll(matcher)].map(match => ({
+    value: match[1] ?? match[0],
+    matchedText: match[0],
+    index: match.index ?? 0,
+    length: match[0].length
+  }));
+}
+
+function candidateClause(text: string, index: number, length: number): string {
+  const before = text.slice(0, index);
+  const leftBoundary = Math.max(before.lastIndexOf(";"), before.lastIndexOf(","), before.lastIndexOf("\n"), before.lastIndexOf("."));
+  const after = text.slice(index + length);
+  const offsets = [after.indexOf(";"), after.indexOf(","), after.indexOf("\n"), after.indexOf(".")].filter(offset => offset >= 0);
+  const rightBoundary = offsets.length ? index + length + Math.min(...offsets) : text.length;
+  return text.slice(leftBoundary + 1, rightBoundary).trim();
+}
+
+function isNegative(fragment: SourceFragment, candidate: CandidateMatch): boolean {
   if (fragment.field === "outOfScope") return true;
-  const escaped = subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?:^|\\b)(?:no|without|exclude(?:d)?|outside(?: the)? scope|out of scope)\\b[^.;\\n]{0,60}\\b${escaped}\\b|\\b${escaped}\\b[^.;\\n]{0,40}\\bnot (?:approved|required|supported|in scope)\\b`, "i").test(fragment.text);
+  const clause = candidateClause(fragment.text, candidate.index, candidate.length);
+  const escaped = candidate.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefix = new RegExp(`(?:^|\\b)(?:(?:no|without|exclude(?:d)?)\\s+(?:(?!but\\b|and\\b|or\\b)[\\p{L}\\p{N}-]+\\s+){0,3}|do\\s+not\\s+(?:support|use|allow|accept|require|include|enable)\\s+(?:the\\s+)?|not\\s+(?:supporting|using|allowing|accepting|requiring|including|enabling)\\s+(?:the\\s+)?)${escaped}\\b`, "iu");
+  const postfix = new RegExp(`\\b${escaped}\\b(?:\\s+[\\p{L}\\p{N}-]+){0,3}\\s+(?:(?:is|are)\\s+)?(?:not\\s+(?:approved|required|supported|in\\s+scope|accepted|available|allowed|enabled)|disabled|excluded|unsupported|unavailable)\\b`, "iu");
+  return prefix.test(clause) || postfix.test(clause);
 }
 
-function evidence(project: ProjectRecord, pattern: RegExp, subject: string): SourceFragment[] {
-  const matches = matching(project, pattern);
-  return matches.filter(fragment => !isNegative(fragment, subject) && !UNRESOLVED.test(fragment.text));
+function positiveMatches(fragment: SourceFragment, pattern: RegExp): CandidateMatch[] {
+  return candidateMatches(fragment.text, pattern).filter(candidate => {
+    const clause = candidateClause(fragment.text, candidate.index, candidate.length);
+    return !UNRESOLVED.test(clause) && !isNegative(fragment, candidate);
+  });
+}
+
+function evidence(fragments: SourceFragment[], pattern: RegExp): SourceFragment[] {
+  const matches = matching(fragments, pattern);
+  return matches.filter(fragment => positiveMatches(fragment, pattern).length > 0);
 }
 
 function describeEvidence(fragments: SourceFragment[]): string {
   return fragments.slice(0, 5).map(fragment => `${fragment.label}: ${fragment.text}`).join("; ");
 }
 
-function firstMatch(project: ProjectRecord, pattern: RegExp): string {
-  for (const { field, text } of sourceFragments(project)) {
-    if (field === "outOfScope") continue;
-    if (UNRESOLVED.test(text)) continue;
-    const match = text.match(pattern);
-    if (match) return match[1] ?? match[0];
+function firstPositiveMatch(fragments: SourceFragment[], pattern: RegExp): string {
+  for (const fragment of fragments) {
+    const match = positiveMatches(fragment, pattern)[0];
+    if (match) return match.value;
   }
   return "";
 }
 
-function mentionedButUnresolved(project: ProjectRecord, pattern: RegExp): boolean {
-  return matching(project, pattern).some(fragment => UNRESOLVED.test(fragment.text));
+function mentionedButUnresolved(fragments: SourceFragment[], pattern: RegExp): boolean {
+  return matching(fragments, pattern).some(fragment => candidateMatches(fragment.text, pattern)
+    .some(candidate => UNRESOLVED.test(candidateClause(fragment.text, candidate.index, candidate.length))));
 }
 
 /** Build verification only from universal commerce invariants and recorded intake evidence. */
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
-  const checkoutMode = firstMatch(project, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i).toLocaleLowerCase();
-  const currency = firstMatch(project, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/);
-  const paymentProvider = firstMatch(project, /\b([A-Z][A-Za-z0-9&.-]+)\s+(?:payments?|webhooks?)\b/);
-  const tax = evidence(project, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i, "tax");
-  const shipping = evidence(project, /\bshipping\b|\bcarrier\b/i, "shipping");
-  const pickup = evidence(project, /\bpickup\b|\bpick-up\b/i, "pickup");
-  const inventory = evidence(project, /\binventory\b|\bstock\b/i, "inventory");
-  const digital = evidence(project, /\bdigital\b|\bsoftware\b|\bdownload\b|\bentitlement\b/i, "digital");
-  const quotes = evidence(project, /\bquotes?\b|\buploads?\b|\bcustom work\b/i, "quote");
-  const lookup = evidence(project, /\border lookup\b|\border status\b|\bguest lookup\b/i, "lookup");
-  const returns = evidence(project, /\breturns?\b|\brefunds?\b|\bfinal[- ]sale\b/i, "return");
-  const roles = evidence(project, /\broles?\b|\badmin(?:istrator)?\b|\bpermissions?\b|\bprivileged\b/i, "role");
-  const mfa = firstMatch(project, /\b(admin(?:istrator)? MFA)\b/i);
+  const fragments = sourceFragments(project);
+  const checkoutMode = firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i).toLocaleLowerCase();
+  const currency = firstPositiveMatch(fragments, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/);
+  const paymentProvider = firstPositiveMatch(fragments, /\b([A-Z][A-Za-z0-9&.-]+)\s+(?:payments?|webhooks?)\b/);
+  const tax = evidence(fragments, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i);
+  const shipping = evidence(fragments, /\bshipping\b|\bcarrier\b/i);
+  const pickup = evidence(fragments, /\bpickup\b|\bpick-up\b/i);
+  const inventory = evidence(fragments, /\binventory\b|\bstock\b/i);
+  const digital = evidence(fragments, /\bdigital\b|\bsoftware\b|\bdownload\b|\bentitlement\b/i);
+  const quotes = evidence(fragments, /\bquotes?\b|\buploads?\b|\bcustom work\b/i);
+  const lookup = evidence(fragments, /\border lookup\b|\border status\b|\bguest lookup\b/i);
+  const returns = evidence(fragments, /\breturns?\b|\brefunds?\b|\bfinal[- ]sale\b/i);
+  const roles = evidence(fragments, /\broles?\b|\badmin(?:istrator)?\b|\bpermissions?\b|\bprivileged\b/i);
+  const mfa = firstPositiveMatch(fragments, /\b(admin(?:istrator)? MFA)\b/i);
   const accessibilityTarget = String(project.intake.accessibilityNotes ?? "").trim();
   const dependencies: string[] = [];
 
   if (!checkoutMode) dependencies.push("resolve the recorded checkout mode before mode-specific checkout verification");
   if (!currency) dependencies.push("resolve the recorded currency before currency-specific totals and payment verification");
   if (!paymentProvider) dependencies.push("resolve the recorded payment provider before provider-specific webhook and refund verification");
-  if (!tax.length && mentionedButUnresolved(project, /\btax(?:es|ation)?\b|\bjurisdiction\b|\bGST\b|\bHST\b|\bVAT\b/i)) dependencies.push("resolve the recorded tax jurisdiction and model before tax verification");
-  if (!shipping.length && mentionedButUnresolved(project, /\bshipping\b|\bcarrier\b/i)) dependencies.push("resolve the recorded shipping model before shipping verification");
-  if (!returns.length && mentionedButUnresolved(project, /\breturns?\b|\brefunds?\b/i)) dependencies.push("resolve the recorded return and refund policy before policy verification");
+  if (!tax.length && mentionedButUnresolved(fragments, /\btax(?:es|ation)?\b|\bjurisdiction\b|\bGST\b|\bHST\b|\bVAT\b/i)) dependencies.push("resolve the recorded tax jurisdiction and model before tax verification");
+  if (!shipping.length && mentionedButUnresolved(fragments, /\bshipping\b|\bcarrier\b/i)) dependencies.push("resolve the recorded shipping model before shipping verification");
+  if (!returns.length && mentionedButUnresolved(fragments, /\breturns?\b|\brefunds?\b/i)) dependencies.push("resolve the recorded return and refund policy before policy verification");
 
   const rows: EcommerceTestRequirement[] = [
     {
@@ -125,7 +161,7 @@ export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTest
     category: "Scope dependencies",
     expectedResult: `${dependencies.join("; ")}. Do not treat an unresolved business choice as a passing result.`
   });
-  if (paymentProvider || matching(project, /\bwebhooks?\b|\bidempoten/i).some(fragment => !UNRESOLVED.test(fragment.text))) rows.push({
+  if (paymentProvider || evidence(fragments, /\bwebhooks?\b|\bidempoten/i).length) rows.push({
     category: "Webhooks/idempotency/reconciliation",
     expectedResult: `Verify signatures and event authenticity using the recorded ${paymentProvider ? `${paymentProvider} integration` : "provider contract"}; replay valid events without duplicate charges or orders, and reconcile delayed, reordered and failed events with provider records.`
   });

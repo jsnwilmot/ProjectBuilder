@@ -44,6 +44,10 @@ The fourth PR #6 review pass makes optional ecommerce decisions visible without 
 
 Ecommerce test and acceptance generation now comes from a shared source-evidence builder. Storefront, cart, checkout integrity, accessibility, security, performance, recovery and smoke checks use provider- and locale-neutral invariants. Checkout mode, currency, payment provider, tax, shipping, pickup, inventory, digital delivery, quotes/uploads, order access, returns and role details appear only when the saved intake records them. Unresolved configuration produces explicit test dependencies instead of assumed values. The Rose & Paw fixture explicitly records its guest checkout, CAD, Square, Canadian tax, live-carrier shipping, pickup, 30-day return and administrator-MFA requirements; an independent authenticated USD/Stripe/United States fixture proves those defaults do not leak to other stores.
 
+The fifth PR #6 review pass applies the established placeholder-only vocabulary to every field returned by the ecommerce required-field contract. Intake validation, section completion, Client Review reconciliation, ecommerce decisions and reused document rendering now agree that blank, TBD, unknown, pending, unconfirmed and equivalent standalone answers remain unresolved. Meaningful prose remains valid even when a business rule contains a word such as `pending`. Optional fields do not gain implementation blockers from this required-field rule.
+
+Commerce option extraction now evaluates each matched checkout mode, currency, payment provider and MFA option in its own source clause. Explicit exclusions before or after the matched option are skipped, and matching continues to the next positive recorded choice. Negative-only and unresolved statements retain neutral scope dependencies; they never authorize a replacement choice. The same candidate-specific polarity check is also used for conditional commerce evidence such as tax, shipping, pickup and webhooks.
+
 To regenerate the deterministic review artifact in PowerShell:
 
 ```powershell

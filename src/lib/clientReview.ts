@@ -1,5 +1,5 @@
 import { isBrandingRequired } from "../data/projectTypes";
-import { ecommerceReviewItems, isEcommerce, ecommerceDecisionState } from "./ecommerceDecisions";
+import { ecommerceReviewItems, isEcommerce, ecommerceDecisionState, isEcommerceRequiredSourceFieldResolved } from "./ecommerceDecisions";
 import {
   CLIENT_REVIEW_SECTIONS,
   type ClientReviewReadiness,
@@ -13,7 +13,6 @@ import {
 } from "../types/project";
 import { validateIntake } from "./validateIntake";
 import { projectCapabilities, requiredProjectFields } from "./projectCapabilities";
-import { getProjectFieldValue } from "./projectFields";
 import { isBeforeImplementationDeferral, websiteDeferredRequirements, websiteRequirement } from "./websiteRequirements";
 import { calculatePowerPlatformReadiness, formatPowerPlatformGateStatus } from "./powerPlatform";
 
@@ -348,7 +347,7 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
     if (projectCapabilities(project).documentFamily === "website"
       && stored?.status === "Answered" && ["missing", "deferred"].includes(websiteRequirement(project, item.fieldKey).status)) return item;
     if (isEcommerce(project) && stored?.status === "Answered"
-      && requiredProjectFields(project).has(item.fieldKey) && !getProjectFieldValue(project, item.fieldKey).trim()) return item;
+      && requiredProjectFields(project).has(item.fieldKey) && !isEcommerceRequiredSourceFieldResolved(project, item.fieldKey)) return item;
     return stored
       ? {
           ...item,

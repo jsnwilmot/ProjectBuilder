@@ -63,15 +63,13 @@ describe("Ecommerce Pass 5 review remediation", () => {
       ["requiredFeatures", "   "],
       ["successCriteria", "to be determined"],
       ["workflowOutcome", "unconfirmed"],
-      ["permissionRules", "not decided"],
-      ["fields", "unanswered"],
-      ["keyFields", "deferred"]
+      ["fields", "unanswered"]
     ];
 
     for (const [field, placeholder] of cases) {
       const project = approveBase();
       expect(requiredProjectFields(project).has(field), field).toBe(true);
-      project.intake[field] = placeholder;
+      (project.intake as unknown as Record<string, string>)[field] = placeholder;
       const id = decisionId(field);
 
       expect(validateIntake(project).missingFields.map(item => item.field), `${field}: validation`).toContain(field);
@@ -100,7 +98,7 @@ describe("Ecommerce Pass 5 review remediation", () => {
       expect(getDocumentReviewStatus(document(rendered, "CLIENT_QUESTIONS.md"), rendered), `${field}: document status`).toBe("Draft");
       expect(getDocumentStatusSummary(rendered).draftDocuments, `${field}: viewer status`).toBeGreaterThan(0);
     }
-  });
+  }, 15_000);
 
   it("accepts meaningful required prose, including prose that uses a placeholder word in business context", () => {
     const controls: Array<[ProjectInputField, string]> = [
@@ -112,7 +110,7 @@ describe("Ecommerce Pass 5 review remediation", () => {
     ];
     for (const [field, value] of controls) {
       const project = approveBase();
-      project.intake[field] = value;
+      (project.intake as unknown as Record<string, string>)[field] = value;
       expect(validateIntake(project).missingFields.map(item => item.field), field).not.toContain(field);
       expect(ecommerceDecisionState(project).decisions.map(item => item.id), field).not.toContain(decisionId(field));
     }

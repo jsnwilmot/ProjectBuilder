@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-13 - PR #6 ecommerce source-semantics remediation
+
+- Added a separate tests-first commit reproducing placeholder-only required ecommerce fields passing validation and negated checkout/currency/provider/MFA choices becoming positive generated tests. The focused baseline had three intended failures and two passing controls on `9fb036a`.
+- Reused the established exact placeholder vocabulary across required-field ecommerce decisions, intake validation, section completion, Client Review reconciliation and generated document requirements. Valid descriptive prose containing words such as `pending` remains resolved; optional fields do not gain implementation blockers.
+- Replaced first-text-match selection with candidate-specific positive matching. Common prefix and postfix exclusions bind to the actual matched option within its clause, then matching continues to the next supported positive checkout mode, currency, payment provider or MFA choice. Conditional commerce evidence uses the same polarity check.
+- No merge, production deployment, saved Chrome regeneration, Draft export or ecommerce application implementation was performed.
+
 ## 2026-09-13 - PR #6 ecommerce validation-boundary remediation
 
 - Added a separate tests-first commit reproducing embedded placeholder tokens in structured ecommerce configuration, duplicate explicit decision-ID overwrite, missing required ecommerce fields disappearing from generated artifacts, and mutable Client Review controls whose edits could not resolve source-derived decisions.
