@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-15 - PR #6 ecommerce Pass 8 remediation
+
+- Added tests-first regressions in `src/tests/ecommercePass8Remediation.test.ts` against exact reviewed head `4aa36272f7`: 25 expected failures and 15 passing controls; tests-only commit `b3673c5`.
+- Updated `src/lib/ecommerceDecisions.ts` to preserve first legacy OQ imports, emit deterministic architecture-blocking duplicate records with actual source lines, and reserve their synthetic IDs. Intended explicit OQ overrides and explicit-register duplicate rejection remain separate.
+- Extended the existing shared resolution classifier with anchored uncertainty phrases and restricted deferral suffixes, preserving valid business prose and synchronized source/decision validation.
+- Updated `src/lib/ecommerceTestRequirements.ts` for case-insensitive supported currencies and uppercase selected output without altering source provenance or provider matching.
+- Updated `docs/ecommerce-draft-remediation.md` with safeguards, baseline failures/controls and focused command. Full validation and fresh exact-head review are required before Architect assessment; no merge, deployment, saved Chrome regeneration, Draft export or target implementation is authorized.
+
 ## 2026-09-15 - PR #6 ecommerce Pass 7 remediation
 
 - Committed test-first regressions against `b8119a40a6`: 25 expected failures and 16 passing controls across evidence, storefront/contract rendering and Client Review guidance.

@@ -30,6 +30,7 @@ const unresolvedResolutionPatterns = [
   /^awaiting\s+(?:approval|confirmation|decision|discovery|review|testing|(?:architecture|architect|client|stakeholder|vendor|owner)\s+(?:approval|confirmation|decision|response|review|selection))(?:\s+.*)?$/,
   /^needs?\s+(?:approval|confirmation|decision|discovery|review|testing|(?:client|stakeholder|vendor|owner)\s+(?:approval|confirmation|decision|response|review|selection))(?:\s+.*)?$/,
   /^not\s+decided(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
+  /^(?:not\s+(?:sure|certain|known)|unsure|uncertain|don\s*t\s+know|do\s+not\s+know)(?:\s+yet)?(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
   /^to\s+be\s+determined(?:\s+(?:after|until|pending|awaiting|by|during|following)\b.+)?$/,
   /^deferred\s+(?:after|until|pending|awaiting)\b.+$/,
   /^no\s+(?:decision\s+yet|approved\s+approach)$/
@@ -131,8 +132,21 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
   if (!isEcommerce(p)) return [];
   const records = new Map<string, EcommerceDecision>();
   const explicitIds = new Set<string>();
-  const matches = [...p.intake.assumptions.matchAll(/(?:^|\n)\s*(OQ-\d+)\s*:\s*([^\n]+)/g)];
-  for (const match of matches) {
+  const legacyIds = new Set<string>();
+  for (const [index, line] of p.intake.assumptions.split(/\r?\n/).entries()) {
+    const match = line.match(/^\s*(OQ-\d+)\s*:\s*([^\n]+)/);
+    if (!match) continue;
+    if (legacyIds.has(match[1])) {
+      const errorId = `EC-LEGACY-OQ-${index + 1}`;
+      records.set(errorId, {
+        id: errorId, field: "assumptions", gate: "architecture", status: "Needs answer",
+        question: `Remove duplicate legacy decision ID ${match[1]}`,
+        reason: `Duplicate ${match[1]} found in Assumptions on source line ${index + 1}; the first occurrence remains effective.`,
+        answer: ""
+      });
+      continue;
+    }
+    legacyIds.add(match[1]);
     const question = match[2].split("?")[0] + "?";
     records.set(match[1], { id: match[1], field: "assumptions", gate: /architecture|before implementation/i.test(match[2]) ? "architecture" : "launch", status: "Deferred", question, reason: match[2], answer: "" });
   }
@@ -145,7 +159,7 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
       continue;
     }
     const [id, gate, status, question, reason, answer] = parsed.fields;
-    const valid = /^[A-Z][A-Z0-9-]*$/.test(id) && !/^EC-RECORD-\d+$/.test(id) && ["architecture", "launch", "optional"].includes(gate) && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status) && Boolean(question);
+    const valid = /^[A-Z][A-Z0-9-]*$/.test(id) && !/^EC-(?:RECORD|LEGACY-OQ)-\d+$/.test(id) && ["architecture", "launch", "optional"].includes(gate) && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status) && Boolean(question);
     if (!valid) {
       const errorId = `EC-RECORD-${index + 1}`;
       records.set(errorId, { id: errorId, field: "ecommerceDecisions", gate: "architecture", status: "Needs answer", question: `Correct decision register line ${index + 1}`, reason: "Use the documented six-column format.", answer: "" });

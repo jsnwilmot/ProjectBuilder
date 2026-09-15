@@ -226,10 +226,10 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
   const fragments = sourceFragments(project);
   const checkoutEvidence = firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
-  const currencyEvidence = firstPositiveMatch(fragments, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/);
+  const currencyEvidence = firstPositiveMatch(fragments, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/i);
   const providerEvidence = firstPositiveMatch(fragments, providerCandidateMatches);
   const checkoutMode = checkoutEvidence?.value.toLocaleLowerCase() ?? "";
-  const currency = currencyEvidence?.value ?? "";
+  const currency = currencyEvidence?.value.toUpperCase() ?? "";
   const paymentProvider = providerEvidence?.value ?? "";
   const tax = evidence(fragments, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i);
   const shipping = evidence(fragments, /\bshipping\b|\bcarrier\b/i);
