@@ -1317,6 +1317,9 @@ export interface ReviewItem {
   gateId?: string;
   resolutionMode?: "review" | "source";
   sourceFieldLabel?: string;
+  resolutionFieldKey?: ProjectInputField;
+  resolutionFieldLabel?: string;
+  resolutionInstruction?: string;
   updatedAt: string;
 }
 

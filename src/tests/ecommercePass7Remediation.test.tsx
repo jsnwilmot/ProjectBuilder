@@ -90,8 +90,9 @@ describe("Ecommerce Pass 7 remediation", () => {
   ] as const)("renders rejected %s as its unresolved decision", (field, value, id) => {
     const p = configured(); p.intake[field] = value;
     const names = ["PROJECT_SCOPE.md", "CLIENT_REQUIREMENTS.md", "APP_BLUEPRINT.md", "DATA_MODEL.md", "SCREEN_MAP.md", "WORKFLOW_MAP.md", "ACCEPTANCE_CRITERIA.md", "DEPLOYMENT_NOTES.md", "PHASED_CODEX_PROMPTS.md"];
+    const documents = generateProjectPackage(p).documents;
     for (const name of names) {
-      const content = doc(p, name);
+      const content = documents.find(d => d.fileName === name)!.content;
       expect(content, name).toContain(`Unresolved: ${id}`);
       expect(content, name).not.toContain(value);
     }

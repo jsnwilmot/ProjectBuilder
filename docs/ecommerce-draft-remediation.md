@@ -24,6 +24,12 @@ Every ecommerce marker is an ID with a corresponding visible decision/source fie
 
 ## Storefront and contract fields
 
+Implementation-facing rendering consumes normalized values from the ecommerce decision engine. A rejected model, route mapping, cart scope, architecture or deployment contract displays its own `Unresolved: EC-*` decision; a nonblank rejected value never becomes an approved instruction. Valid independent fields remain visible when another field is unresolved. Raw intake stays editable and Client Questions retains the traceable decision.
+
+Client Review distinguishes provenance from the resolution target. Legacy OQs retain Assumptions as their origin, including after an explicit record overrides their status, but their read-only cards instruct the user to add or update the matching OQ in Ecommerce Decision Register. Malformed register rows point to that register; dedicated and required-field cards point to their intake field. Optional metadata is derived during synchronization, so existing saved review records need no migration.
+
+Test evidence uses one subject-relative classifier for both selected requirements and unresolved dependencies. Deferrals attached to a requirement (`VAT pending approval`, `pending approval for VAT`, `Shipping model unknown`) remain unresolved. Ordinary business states (`Charge VAT when an order is pending fulfillment`, `Refund pending payments after reconciliation`) preserve their recorded tests. Existing coordinated-negation and enumerated-option extraction use the same classifier.
+
 Foundation collects merchant/storefront model, approved architecture and deployment contract. Features collects route/brand-theme/catalog context mapping, an explicit cart decision and approved phase contracts. Security exposes the editable decision register. These fields appear only for ecommerce. Existing projects default the new fields to blank and retain all existing fields and local storage data.
 
 The Rose & Paw regression fixture selects a single merchant/shared platform with four branded contexts: `/digitaldesigns`, `/3ddesigns`, `/apps`, `/petapparel`. Its shared eligible-item cart is an explicit source requirement, not inferred from the storefront choice. Separate carts and unified storefronts remain supported choices. These defaults are not hard-coded into generic product intake.

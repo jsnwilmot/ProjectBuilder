@@ -1,4 +1,5 @@
 import type { ProjectRecord } from "../types/project";
+import { classifyResolutionValue, validatedEcommerceConfiguration } from "./ecommerceDecisions";
 
 export interface EcommerceTestRequirement {
   category: string;
@@ -32,8 +33,6 @@ const SOURCE_FIELDS: Array<[EcommerceSourceField, string]> = [
   ["ecommerceCartScope", "cart scope"]
 ];
 
-const UNRESOLVED = /\b(?:unresolved|unknown|pending|undecided|unconfirmed|TBD|to be determined|awaiting (?:decision|approval|confirmation)|needs? (?:decision|approval|confirmation))\b/i;
-
 interface SourceFragment {
   field: EcommerceSourceField;
   label: string;
@@ -41,7 +40,10 @@ interface SourceFragment {
 }
 
 function sourceFragments(project: ProjectRecord): SourceFragment[] {
-  return SOURCE_FIELDS.flatMap(([field, label]) => String(project.intake[field] ?? "")
+  const configuration = validatedEcommerceConfiguration(project);
+  return SOURCE_FIELDS.flatMap(([field, label]) => String(field in configuration
+    ? configuration[field as keyof typeof configuration].value
+    : project.intake[field] ?? "")
     .split(/\r?\n|;\s*/)
     .map(text => text.trim())
     .filter(Boolean)
@@ -139,12 +141,30 @@ function matchesFor(text: string, matcher: CandidateMatcher): CandidateMatch[] {
   return matcher instanceof RegExp ? candidateMatches(text, matcher) : matcher(text);
 }
 
+// These nouns qualify the matched requirement itself. Arbitrary prose cannot
+// bridge an option to a later order/payment/job state.
+const REQUIREMENT_QUALIFIERS = /^(?:\s*(?:handling|treatment|jurisdiction|model|provider|integration|policy|role|roles|delivery|location|method|mode|scope|configuration|contract|implementation|requirements?|setup|approach|support|rates?|thresholds?|process|rules?|payments?|webhooks?)\b){0,4}\s*(?:(?:is|are|remains?)\s+)?[:=-]?\s*/i;
+function classifyCandidateEvidence(fragment: SourceFragment, candidate: CandidateMatch): EvidencePolarity {
+  if (isNegative(fragment, candidate)) return "negative";
+  const span = candidateClauseSpan(fragment.text, candidate.index, candidate.length);
+  const relativeIndex = candidate.index - span.start;
+  const before = span.text.slice(0, relativeIndex).trim();
+  const after = span.text.slice(relativeIndex + candidate.length).trim();
+  const subjectStatus = after.replace(REQUIREMENT_QUALIFIERS, "");
+  if (classifyResolutionValue(subjectStatus) === "unresolved") return "unresolved";
+
+  // A status preceding the subject must explicitly govern it ("pending
+  // approval for VAT"), or be a standalone placeholder immediately before it.
+  const governedPrefix = before.match(/(?:^|[, :])((?:pending|awaiting|needs?|to be determined|deferred|unknown|unconfirmed|undecided|TBD)\b[^,]*?)\s+(?:for|of|on)\s*$/i)?.[1];
+  if (governedPrefix && classifyResolutionValue(governedPrefix) === "unresolved") return "unresolved";
+  if (/^(?:TBD|unknown|unconfirmed|undecided|unresolved)\s*[:=-]?$/i.test(before)) return "unresolved";
+  return "positive";
+}
+
 function optionEvidence(fragments: SourceFragment[], matcher: CandidateMatcher): OptionEvidence[] {
   return fragments.flatMap(fragment => matchesFor(fragment.text, matcher).map(candidate => {
     const clause = candidateClause(fragment.text, candidate.index, candidate.length);
-    const polarity: EvidencePolarity = UNRESOLVED.test(clause)
-      ? "unresolved"
-      : isNegative(fragment, candidate) ? "negative" : "positive";
+    const polarity = classifyCandidateEvidence(fragment, candidate);
     return { value: candidate.value, sourceField: fragment.field, sourceText: fragment.text, clause, polarity, index: candidate.index, length: candidate.length };
   }));
 }
@@ -219,7 +239,7 @@ export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTest
   const quotes = evidence(fragments, /\bquotes?\b|\buploads?\b|\bcustom work\b/i);
   const lookup = evidence(fragments, /\border lookup\b|\border status\b|\bguest lookup\b/i);
   const returns = evidence(fragments, /\breturns?\b|\brefunds?\b|\bfinal[- ]sale\b/i);
-  const roles = evidence(fragments, /\broles?\b|\badmin(?:istrator)?\b|\bpermissions?\b|\bprivileged\b/i);
+  const roles = evidence(fragments, /\broles?\b|\badmin(?:istrator)?s?\b|\bpermissions?\b|\bprivileged\b/i);
   const mfa = firstPositiveMatch(fragments, /\b(admin(?:istrator)? MFA)\b/i)?.value ?? "";
   const accessibilityTarget = String(project.intake.accessibilityNotes ?? "").trim();
   const dependencies: string[] = [];

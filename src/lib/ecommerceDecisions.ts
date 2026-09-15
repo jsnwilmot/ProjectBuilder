@@ -6,6 +6,7 @@ import { requiredProjectFields, visibleIntakeFields } from "./projectCapabilitie
 export interface EcommerceDecision {
   id: string;
   field: ProjectInputField;
+  originField?: ProjectInputField;
   gate: "architecture" | "launch" | "optional";
   status: ReviewItem["status"];
   question: string;
@@ -17,7 +18,7 @@ const open = (d: EcommerceDecision) => d.status === "Needs answer" || d.status =
 const unresolvedValues = new Set([
   "deferred", "missing", "n a", "n a pending", "needs review", "no approved approach",
   "no confirmation", "no decision yet", "none", "none yet", "not applicable", "not decided",
-  "pending", "t b d", "tbd", "to be determined", "unanswered", "unconfirmed", "unknown"
+  "pending", "t b d", "tbd", "to be determined", "unanswered", "unconfirmed", "unknown", "unresolved"
 ]);
 export type ResolutionValueClassification = "resolved" | "unresolved" | "empty";
 const unresolvedResolutionPatterns = [
@@ -168,21 +169,15 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
     }
     explicitIds.add(id);
     const resolved = status === "Answered" ? hasMeaningfulResolvedValue(answer) : status === "Not applicable" ? hasMeaningfulResolvedValue(reason) : false;
-    records.set(id, { id, field: "ecommerceDecisions", gate: gate as EcommerceDecision["gate"], status: resolved ? status as EcommerceDecision["status"] : status === "Deferred" && reason ? "Deferred" : "Needs answer", question, reason, answer });
+    const previous = records.get(id);
+    records.set(id, { id, field: "ecommerceDecisions", originField: previous?.originField ?? previous?.field ?? "ecommerceDecisions", gate: gate as EcommerceDecision["gate"], status: resolved ? status as EcommerceDecision["status"] : status === "Deferred" && reason ? "Deferred" : "Needs answer", question, reason, answer });
   }
   const require = (id: string, field: ProjectInputField, question: string, satisfied: boolean) => {
     if (!satisfied) records.set(id, { id, field, gate: "architecture", status: "Needs answer", question, reason: "Required before implementation; planning may resolve this decision.", answer: "" });
   };
-  const storefrontModel = normalizedConfigurationValue(p.intake.ecommerceStorefrontModel).toLocaleLowerCase();
-  const cartScope = normalizedConfigurationValue(p.intake.ecommerceCartScope).toLocaleLowerCase();
-  require("EC-STOREFRONTS", "ecommerceStorefrontModel", "Confirm storefront model", hasMeaningfulConfigurationValue(p.intake.ecommerceStorefrontModel)
-    && new Set(ECOMMERCE_STOREFRONT_MODELS.map(value => normalizedConfigurationValue(value).toLocaleLowerCase())).has(storefrontModel));
-  require("EC-ROUTES", "ecommerceRoutes", "Confirm unique route, brand/theme and catalog context mapping", validRoutes(p.intake.ecommerceRoutes || ""));
-  require("EC-CART", "ecommerceCartScope", "Confirm shared or separate cart scope", hasMeaningfulConfigurationValue(p.intake.ecommerceCartScope)
-    && new Set(ECOMMERCE_CART_SCOPES.map(value => normalizedConfigurationValue(value).toLocaleLowerCase())).has(cartScope));
-  require("EC-ARCHITECTURE", "ecommerceArchitecture", "Approve runtime, backend, database, integrations and repository architecture", approvedContract(p.intake.ecommerceArchitecture || "", ARCHITECTURE_KEYS));
-  require("EC-DEPLOYMENT", "ecommerceDeployment", "Approve complete web deployment contract", approvedContract(p.intake.ecommerceDeployment || "", DEPLOYMENT_KEYS));
-  require("EC-PHASES", "ecommercePhases", "Approve executable implementation phase contracts", ecommercePhases(p).length > 0);
+  for (const [field, configuration] of Object.entries(validatedEcommerceConfiguration(p))) {
+    require(configuration.decisionId, field as ConfigurationField, configuration.question, !configuration.unresolved);
+  }
   const fieldLabels = new Map(visibleIntakeFields(p).map(field => [field.name, field.label]));
   for (const field of requiredProjectFields(p)) {
     if (isEcommerceRequiredSourceFieldResolved(p, field)) continue;
@@ -213,5 +208,46 @@ export function ecommerceDecisionState(p: ProjectRecord) {
 
 export function ecommerceReviewItems(p: ProjectRecord, now: string): ReviewItem[] {
   const fieldLabels = new Map(visibleIntakeFields(p).map(field => [field.name, field.label]));
-  return ecommerceDecisions(p).map(d => ({ id: `ecommerce-${d.id}`, fieldKey: d.field, gateId: d.id, section: d.gate === "architecture" ? "Deployment" : "Foundation", label: `${d.id}: ${d.question}`, recommendedQuestion: `${d.id}: ${d.question}`, reason: d.reason, status: d.status, notApplicableReason: d.status === "Not applicable" ? d.reason : "", deferredReason: d.status === "Deferred" ? d.reason : "", blocking: d.gate !== "optional", allowDeferred: d.gate === "optional", source: "gate", resolutionMode: "source", sourceFieldLabel: fieldLabels.get(d.field) ?? d.field, updatedAt: now }));
+  return ecommerceDecisions(p).map(d => {
+    const origin = d.originField ?? d.field;
+    const resolutionFieldKey = /^OQ-/.test(d.id) || d.field === "ecommerceDecisions" ? "ecommerceDecisions" : d.field;
+    const resolutionFieldLabel = resolutionFieldKey === "ecommerceDecisions" ? "Ecommerce Decision Register"
+      : resolutionFieldKey === "workflowSteps" ? "Workflow Steps" : fieldLabels.get(resolutionFieldKey) ?? resolutionFieldKey;
+    const resolutionInstruction = /^EC-RECORD-/.test(d.id)
+      ? `Correct the indicated register line in ${resolutionFieldLabel}. ${d.question}.`
+      : resolutionFieldKey === "ecommerceDecisions"
+        ? `Add or update ${d.id} in ${resolutionFieldLabel} with its approved status, reason, and answer.`
+        : `Update ${resolutionFieldLabel} to resolve this item.`;
+    return { id: `ecommerce-${d.id}`, fieldKey: origin, gateId: d.id, section: d.gate === "architecture" ? "Deployment" : "Foundation", label: `${d.id}: ${d.question}`, recommendedQuestion: `${d.id}: ${d.question}`, reason: d.reason, status: d.status, notApplicableReason: d.status === "Not applicable" ? d.reason : "", deferredReason: d.status === "Deferred" ? d.reason : "", blocking: d.gate !== "optional", allowDeferred: d.gate === "optional", source: "gate", resolutionMode: "source", sourceFieldLabel: fieldLabels.get(origin) ?? origin, resolutionFieldKey, resolutionFieldLabel, resolutionInstruction, updatedAt: now };
+  });
+}
+
+const CONFIGURATION_DECISIONS = {
+  ecommerceStorefrontModel: ["EC-STOREFRONTS", "Confirm storefront model"],
+  ecommerceRoutes: ["EC-ROUTES", "Confirm unique route, brand/theme and catalog context mapping"],
+  ecommerceCartScope: ["EC-CART", "Confirm shared or separate cart scope"],
+  ecommerceArchitecture: ["EC-ARCHITECTURE", "Approve runtime, backend, database, integrations and repository architecture"],
+  ecommerceDeployment: ["EC-DEPLOYMENT", "Approve complete web deployment contract"],
+  ecommercePhases: ["EC-PHASES", "Approve executable implementation phase contracts"]
+} as const;
+type ConfigurationField = keyof typeof CONFIGURATION_DECISIONS;
+interface ValidatedConfigurationValue { value: string; decisionId: string; unresolved: boolean; question: string }
+const normalizedStorefrontModels = new Set(ECOMMERCE_STOREFRONT_MODELS.map(value => normalizedConfigurationValue(value).toLocaleLowerCase()));
+const normalizedCartScopes = new Set(ECOMMERCE_CART_SCOPES.map(value => normalizedConfigurationValue(value).toLocaleLowerCase()));
+/** Shared validation authority for decision records, rendering and evidence. */
+export function validatedEcommerceConfiguration(p: ProjectRecord): Record<ConfigurationField, ValidatedConfigurationValue> {
+  const approved: Record<ConfigurationField, boolean> = {
+    ecommerceStorefrontModel: hasMeaningfulConfigurationValue(p.intake.ecommerceStorefrontModel)
+      && normalizedStorefrontModels.has(normalizedConfigurationValue(p.intake.ecommerceStorefrontModel).toLocaleLowerCase()),
+    ecommerceRoutes: validRoutes(p.intake.ecommerceRoutes || ""),
+    ecommerceCartScope: hasMeaningfulConfigurationValue(p.intake.ecommerceCartScope)
+      && normalizedCartScopes.has(normalizedConfigurationValue(p.intake.ecommerceCartScope).toLocaleLowerCase()),
+    ecommerceArchitecture: approvedContract(p.intake.ecommerceArchitecture || "", ARCHITECTURE_KEYS),
+    ecommerceDeployment: approvedContract(p.intake.ecommerceDeployment || "", DEPLOYMENT_KEYS),
+    ecommercePhases: ecommercePhases(p).length > 0
+  };
+  return Object.fromEntries(Object.entries(CONFIGURATION_DECISIONS).map(([field, [decisionId, question]]) => {
+    const unresolved = !approved[field as ConfigurationField];
+    return [field, { value: unresolved ? "" : p.intake[field as ConfigurationField], decisionId, unresolved, question }];
+  })) as Record<ConfigurationField, ValidatedConfigurationValue>;
 }

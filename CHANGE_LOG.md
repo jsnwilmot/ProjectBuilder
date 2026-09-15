@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-09-15 - PR #6 ecommerce Pass 7 remediation
+
+- Committed test-first regressions against `b8119a40a6`: 25 expected failures and 16 passing controls across evidence, storefront/contract rendering and Client Review guidance.
+- Replaced clause-wide unresolved keywords with one subject-relative evidence classifier. Requirement qualifiers and governing status prefixes/postfixes keep actual deferrals unresolved while preserving rules about pending orders/payments, unknown users and deferred jobs. Positive evidence and dependency detection share this authority.
+- Added a normalized configuration rendering model sharing the ecommerce decision validation authority. Invalid model, routes, cart, architecture and deployment values render their specific unresolved decision instead of raw rejected implementation requirements. Phase output renders only validated contract keys.
+- Preserved imported OQ provenance and added compatible resolution target/instruction metadata. Source-controlled review cards remain read-only and direct OQs and malformed rows to the Ecommerce Decision Register; dedicated/required decisions direct users to their actual intake fields. Old stored cards require no migration.
+- Batched document assertions into one package generation per rendering case, including the existing cart-scope regression, to keep the checks within the normal test timeout without removing assertions.
+- Validation: Pass 7 focused 41/41; combined remediation 83/83; ecommerce suite 97/97; ecommerce/package matrix 180/180. TypeScript/build, lint, production audit (zero vulnerabilities) and diff checks pass. The first complete runner attempt passed 3,590 unit/integration tests but hit six normal 5-second timeouts in four existing non-Pass-7 files, so its UI leg did not run; the unchanged command is being retried. The production build retains its existing bundle-size warning.
+- No merge, production deployment, saved Chrome regeneration, Draft export or ecommerce application implementation was performed.
+
 ## 2026-09-14 - PR #6 ecommerce parser remediation
 
 - Added a separate tests-first commit reproducing compound decision deferrals, destructive extra-column parsing, malformed escapes, coordinated option exclusions and truncated multi-word provider names. On reviewed head `90bfd60`, six regression groups failed and the independent MFA polarity control passed.

@@ -114,14 +114,20 @@ export function ClientReviewWorkflow({
                     <dd>{item.blocking ? "Resolve before Ready for Codex." : "Confirm now or defer with a reason."}</dd>
                   </div>
                   {item.resolutionMode === "source" ? (
-                    <div>
-                      <dt>Source field</dt>
-                      <dd>{item.sourceFieldLabel ?? item.fieldKey}</dd>
-                    </div>
+                    <>
+                      <div>
+                        <dt>Source field</dt>
+                        <dd>{item.sourceFieldLabel ?? item.fieldKey}</dd>
+                      </div>
+                      {item.resolutionFieldLabel ? <div>
+                        <dt>Resolve in</dt>
+                        <dd>{item.resolutionFieldLabel}</dd>
+                      </div> : null}
+                    </>
                   ) : null}
                 </dl>
                 {item.resolutionMode === "source" ? (
-                  <p className="review-item-controls">Update the source intake field to resolve this item.</p>
+                  <p className="review-item-controls">{item.resolutionInstruction ?? "Update the source intake field to resolve this item."}</p>
                 ) : <div className="review-item-controls">
                   <div className="form-field compact-field">
                     <label htmlFor={`review-status-${item.id}`}>Status</label>

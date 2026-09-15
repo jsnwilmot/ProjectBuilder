@@ -80,8 +80,9 @@ describe("Ecommerce decisions and package consistency", () => {
   it("does not infer cart scope from a branded-context selection", () => {
     const p = createEcommerceFixture(); p.intake.ecommerceCartScope = "";
     expect(ecommerceDecisionState(p).implementationBlockers.some(d => d.id === "EC-CART")).toBe(true);
+    const documents = generated(p).generatedDocuments;
     for (const name of ["PROJECT_SCOPE.md","SCREEN_MAP.md","DATA_MODEL.md","WORKFLOW_MAP.md","ACCEPTANCE_CRITERIA.md","PHASED_CODEX_PROMPTS.md"]) {
-      const text = generated(p).generatedDocuments.find(d => d.fileName === name)!.content;
+      const text = documents.find(d => d.fileName === name)!.content;
       for (const route of ["/digitaldesigns","/3ddesigns","/apps","/petapparel"]) expect(text).toContain(route);
       expect(text).toContain("EC-CART");
     }
