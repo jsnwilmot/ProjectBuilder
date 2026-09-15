@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-15 - PR #6 ecommerce Pass 9 remediation
+
+- Tests-first commit `a6c78ec` reproduces unresolved option-prefix authorization on reviewed head `9d23070`: 48 failing cases and 44 passing controls across 92 tests in `src/tests/ecommercePass9Remediation.test.ts`.
+- Updated only `src/lib/ecommerceTestRequirements.ts` in production: shared narrow selection-subject and speculation grammar delegates uncertainty to the existing resolution classifier. Candidate-local subsequent approval and established contrast boundaries preserve valid selections; explicit negatives retain precedence and coordinated comma groups remain intact.
+- Preserved pending-payment/order and unknown-transaction business prose, including the baseline `Unknown USD transactions` edge case, without rewriting intake/evidence provenance. Added currency, supported multi-word provider, checkout, MFA, generic tax/shipping/refund and generated-document regression coverage.
+- Updated `docs/ecommerce-draft-remediation.md` with exact baseline failures and control counts. Required full validation, stable exact-head CI and fresh review precede Architect assessment. Existing local Class D timing behavior is accepted without runner changes; issue #7 remains separate dependency maintenance.
+- No merge, deployment command, saved Chrome regeneration, Draft export or target Ecommerce implementation is authorized. Existing automatic Cloudflare branch-preview behavior must be reconciled with the no-deployment instruction before push.
+
 ## 2026-09-15 - PR #6 ecommerce Pass 8 remediation
 
 - Added tests-first regressions in `src/tests/ecommercePass8Remediation.test.ts` against exact reviewed head `4aa36272f7`: 25 expected failures and 15 passing controls; tests-only commit `b3673c5`.

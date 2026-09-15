@@ -144,6 +144,41 @@ function matchesFor(text: string, matcher: CandidateMatcher): CandidateMatch[] {
 // These nouns qualify the matched requirement itself. Arbitrary prose cannot
 // bridge an option to a later order/payment/job state.
 const REQUIREMENT_QUALIFIERS = /^(?:\s*(?:handling|treatment|jurisdiction|model|provider|integration|policy|role|roles|delivery|location|method|mode|scope|configuration|contract|implementation|requirements?|setup|approach|support|rates?|thresholds?|process|rules?|payments?|webhooks?)\b){0,4}\s*(?:(?:is|are|remains?)\s+)?[:=-]?\s*/i;
+// Selection subjects, not domain-object states such as pending orders. All
+// option families use this grammar and the existing resolution classifier.
+const DECISION_SUBJECT = "(?:payment currency|payment provider|checkout mode|shipping provider|shipping model|tax jurisdiction|tax model|return policy|currency|provider|checkout|MFA|authentication|delivery|integration|option|selection|choice|decision)";
+const decisionSubjectPrefix = new RegExp(`^${DECISION_SUBJECT}\\s+(.+)$`, "i");
+const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+(decision|approval|confirmation|selection)\\b`, "i");
+const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
+const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
+const speculativePostfix = /^(?:(?:is|are)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
+const businessObjectPredicate = /^(?:payments?|transactions?|orders?|users?|customers?|jobs?|records?)\s+(?:are|remain|remains|receive|require|retry|show|include|cannot|must|will)\b/i;
+
+function unresolvedDecisionStatus(text: string): boolean {
+  // Remove only grammatical state qualifiers and value-list delimiters, never
+  // arbitrary words between an uncertainty token and a business object.
+  const status = text.split(/[:,]/, 1)[0].trim()
+    .replace(/^(?:(?:is|are|was|were|remains?|still)\s+)+/i, "")
+    .replace(/^not\s+confirmed\b/i, "unconfirmed");
+  return classifyResolutionValue(status) === "unresolved";
+}
+
+function unresolvedCandidatePrefix(before: string, after: string): boolean {
+  if (speculativePrefix.test(before)) return true;
+  if (/^(?:we\s+)?(?:considered|are\s+considering|have\s+considered)\s*$/i.test(before)) return true;
+  const question = before.match(/^(?:(?:we\s+are|i\s+am)\s+)?(.+?)\s+(?:which|whether|if|what)\b/i);
+  if (question && classifyResolutionValue(question[1]) === "unresolved") return true;
+  const subject = decisionSubjectPrefix.exec(before);
+  if (subject && unresolvedDecisionStatus(subject[1])) return true;
+  const awaiting = awaitingSubjectPrefix.exec(before);
+  if (awaiting && classifyResolutionValue(`awaiting ${awaiting[2]}`) === "unresolved") return true;
+  const approval = approvalOfSubjectPrefix.exec(before);
+  if (approval && classifyResolutionValue(approval[1]) === "unresolved") return true;
+  const governed = before.match(/(?:^|[, :])((?:pending|awaiting|needs?|to be determined|deferred|unknown|unconfirmed|undecided|TBD)\b[^,]*?)\s+(?:for|of|on)\s*$/i)?.[1];
+  if (governed && classifyResolutionValue(governed) === "unresolved") return true;
+  return !businessObjectPredicate.test(after) && classifyResolutionValue(before) === "unresolved";
+}
+
 function classifyCandidateEvidence(fragment: SourceFragment, candidate: CandidateMatch): EvidencePolarity {
   if (isNegative(fragment, candidate)) return "negative";
   const span = candidateClauseSpan(fragment.text, candidate.index, candidate.length);
@@ -151,13 +186,13 @@ function classifyCandidateEvidence(fragment: SourceFragment, candidate: Candidat
   const before = span.text.slice(0, relativeIndex).trim();
   const after = span.text.slice(relativeIndex + candidate.length).trim();
   const subjectStatus = after.replace(REQUIREMENT_QUALIFIERS, "");
-  if (classifyResolutionValue(subjectStatus) === "unresolved") return "unresolved";
-
-  // A status preceding the subject must explicitly govern it ("pending
-  // approval for VAT"), or be a standalone placeholder immediately before it.
-  const governedPrefix = before.match(/(?:^|[, :])((?:pending|awaiting|needs?|to be determined|deferred|unknown|unconfirmed|undecided|TBD)\b[^,]*?)\s+(?:for|of|on)\s*$/i)?.[1];
-  if (governedPrefix && classifyResolutionValue(governedPrefix) === "unresolved") return "unresolved";
-  if (/^(?:TBD|unknown|unconfirmed|undecided|unresolved)\s*[:=-]?$/i.test(before)) return "unresolved";
+  // An explicit subsequent approval of this candidate can supersede tentative
+  // wording. Other candidates' approvals cannot resolve this one.
+  if (/^,?\s*(?:(?:maybe|possibly|probably|likely)\s*,\s*)?(?:has\s+)?(?:now|since)\s+(?:been\s+)?(?:approved|selected|confirmed|accepted)\s*[.!]?$/i.test(subjectStatus)) return "positive";
+  if (unresolvedDecisionStatus(subjectStatus) || speculativePostfix.test(subjectStatus)) return "unresolved";
+  const laterStatus = subjectStatus.match(/^(?:approved|accepted|supported|only)\s*,\s*(.+)$/i)?.[1];
+  if (laterStatus && unresolvedDecisionStatus(laterStatus)) return "unresolved";
+  if (unresolvedCandidatePrefix(before, after)) return "unresolved";
   return "positive";
 }
 

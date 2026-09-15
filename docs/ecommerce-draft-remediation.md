@@ -38,6 +38,63 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 9 governing option context
+
+All option families share subject-relative prefix/postfix evidence classification. A narrow selection-subject grammar (currency, provider, checkout mode, shipping model, tax jurisdiction, return policy, authentication and related decision nouns) attaches unresolved values to their candidate without treating unrelated pending orders/payments, unknown transactions or customer uncertainty as a selection state. The existing resolution classifier remains the authority for uncertainty phrases. Direct speculation (`maybe`, `possibly`, `probably`, `likely`, `may be`, `being considered`) cannot authorize a mentioned option. Explicit negatives retain precedence, and existing semicolon/newline/sentence/contrast boundaries allow a later approved choice; commas do not break coordinated negation. A candidate-local subsequent `now approved`/selected confirmation can supersede tentative wording without borrowing another candidate's approval. Supported provider syntax and currency normalization remain unchanged.
+
+Tests-only commit `a6c78ec` reproduced 48 failures with 44 passing controls (92 total) on reviewed production head `9d23070f08aa923b85aeabbd7f3986cc17e13df0`. Run `npm run test:unit -- src/tests/ecommercePass9Remediation.test.ts` for focused verification. The exact baseline failed cases were:
+
+- does not authorize undecided currency: not sure which currency, maybe usd
+- does not authorize undecided currency: currency pending approval: usd
+- does not authorize undecided currency: not sure whether currency should be usd
+- does not authorize undecided currency: not sure whether to use usd
+- does not authorize undecided currency: unsure if usd should be used
+- does not authorize undecided currency: currency pending approval, likely usd
+- does not authorize undecided currency: currency undecided: cad
+- does not authorize undecided currency: currency undecided, likely cad
+- does not authorize undecided currency: currency still unknown, maybe eur
+- does not authorize undecided currency: currency not confirmed: gbp
+- does not authorize undecided currency: awaiting currency decision: usd
+- does not authorize undecided currency: awaiting currency decision: eur
+- does not authorize undecided currency: awaiting approval of currency, usd
+- does not authorize undecided currency: currency to be determined, possibly cad
+- does not authorize undecided currency: payment currency TBD: eur
+- does not authorize undecided currency: payment currency TBD: gbp
+- does not authorize undecided currency: payment currency still unknown: gbp
+- does not authorize undecided currency: usd maybe, still awaiting approval
+- does not authorize undecided currency: usd is being considered but not approved
+- does not authorize undecided currency: maybe usd
+- does not authorize undecided currency: possibly usd
+- does not authorize undecided currency: probably usd
+- does not authorize undecided currency: likely usd
+- does not authorize undecided currency: Currency may be USD; final decision pending.
+- does not authorize undecided currency: not certain whether to use usd
+- does not authorize undecided currency: don't know which currency, usd
+- does not authorize undecided currency: currency pending approval: usd, cad, or eur
+- does not authorize undecided currency: USD approved, pending approval
+- preserves selected currency and ordinary business states: Unknown USD transactions are sent to manual review.
+- respects later approval and segment boundaries: currency pending approval: USD, but CAD is approved => CAD
+- respects later approval and segment boundaries: We considered USD, but CAD is approved. => CAD
+- respects later approval and segment boundaries: Currency pending approval: USD, but CAD has since been approved. => CAD
+- respects later approval and segment boundaries: currency pending approval: usd; cad accepted => CAD
+- preserves negative precedence and coordinated groups: do not support usd; maybe cad
+- keeps generated test-plan and acceptance currency dependencies synchronized
+- does not authorize undecided supported provider syntax: not sure which payment provider, maybe Stripe Connect payments
+- does not authorize undecided supported provider syntax: payment provider pending approval: Square payments
+- does not authorize undecided supported provider syntax: awaiting payment provider decision: payments via Stripe Connect
+- does not authorize undecided supported provider syntax: payment provider still unknown: webhooks from Square
+- does not authorize undecided checkout: not sure which checkout mode, maybe guest checkout
+- does not authorize undecided checkout: checkout mode pending approval: guest checkout
+- does not authorize undecided checkout: unsure whether to use authenticated checkout
+- does not authorize uncertain MFA: not sure whether to require Admin MFA
+- does not authorize uncertain MFA: authentication pending approval: Admin MFA
+- does not authorize uncertain MFA: maybe Admin MFA
+- uses shared unresolved detection for generic evidence: tax jurisdiction pending approval: VAT
+- uses shared unresolved detection for generic evidence: shipping model still unknown: shipping
+- uses shared unresolved detection for generic evidence: return policy pending approval: refunds
+
+Passing controls cover 16 selected-currency/business-state cases, one already-unresolved currency postfix, nine established contrast/boundary or subsequent-approval cases, five negative-polarity cases, four supported-provider cases, two checkout cases, one approved MFA case and six unrelated-business-state generic-evidence cases. Generated test-plan and acceptance criteria are checked together for unresolved currency dependencies. No saved Chrome project is regenerated by these deterministic fixture tests.
+
 ### Pass 8 decision-source and currency safeguards
 
 Duplicate OQ identifiers within legacy Assumptions preserve the first imported record and generate an architecture-blocking `EC-LEGACY-OQ-n` for every later occurrence, where `n` is its actual source line (including blank/non-OQ lines). The reason identifies the duplicate OQ and source line. These synthetic IDs are reserved in the explicit register. A valid explicit matching OQ still overrides the imported compatibility question but cannot erase a duplicate-source blocker. Resolve duplicate-source cards in Assumptions; explicit-register duplicate handling remains unchanged.
