@@ -2,6 +2,8 @@
 
 ## 2026-09-15 - PR #6 ecommerce Pass 9 remediation
 
+- Follow-up correction preserves the existing Pass 7 `Pending inventory inspections prevent sale` control by recognizing the inspection object's predicate. The initial implementation commit `c3ee6d0` is retained without amendment. After correction, the Ecommerce/Client Review/package/export/document-status/website-family matrix passes 319/319, including 92/92 focused Pass 9 cases and 215/215 combined Pass 1–9 regressions.
+
 - Tests-first commit `a6c78ec` reproduces unresolved option-prefix authorization on reviewed head `9d23070`: 48 failing cases and 44 passing controls across 92 tests in `src/tests/ecommercePass9Remediation.test.ts`.
 - Updated only `src/lib/ecommerceTestRequirements.ts` in production: shared narrow selection-subject and speculation grammar delegates uncertainty to the existing resolution classifier. Candidate-local subsequent approval and established contrast boundaries preserve valid selections; explicit negatives retain precedence and coordinated comma groups remain intact.
 - Preserved pending-payment/order and unknown-transaction business prose, including the baseline `Unknown USD transactions` edge case, without rewriting intake/evidence provenance. Added currency, supported multi-word provider, checkout, MFA, generic tax/shipping/refund and generated-document regression coverage.

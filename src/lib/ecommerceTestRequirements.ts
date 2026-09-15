@@ -152,7 +152,7 @@ const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+
 const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
 const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
 const speculativePostfix = /^(?:(?:is|are)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
-const businessObjectPredicate = /^(?:payments?|transactions?|orders?|users?|customers?|jobs?|records?)\s+(?:are|remain|remains|receive|require|retry|show|include|cannot|must|will)\b/i;
+const businessObjectPredicate = /^(?:payments?|transactions?|orders?|users?|customers?|jobs?|records?|inspections?)\s+(?:are|remain|remains|receive|require|retry|show|include|prevent|cannot|must|will)\b/i;
 
 function unresolvedDecisionStatus(text: string): boolean {
   // Remove only grammatical state qualifiers and value-list delimiters, never
