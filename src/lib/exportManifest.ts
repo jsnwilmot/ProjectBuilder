@@ -1,4 +1,6 @@
 import { expectedDocumentLocations } from "./powerPlatform";
+import { ecommerceDecisionState, isEcommerce } from "./ecommerceDecisions";
+import { getClientReviewReadiness } from "./clientReview";
 import { getProjectTypeLabel } from "../data/projectTypes";
 import type { ProjectRecord } from "../types/project";
 import {
@@ -15,6 +17,7 @@ export interface ExportManifestFile {
 }
 
 export interface ExportManifest {
+  ecommerce?: { unresolvedDecisionCount: number; implementationBlockingDecisionCount: number; launchBlockingDecisionCount: number; planningReady: boolean; implementationReady: boolean; launchReady: boolean; checklistPassed: number; checklistTotal: number };
   packageSchemaVersion: number;
   activeProjectId: string;
   projectName: string;
@@ -47,7 +50,10 @@ export function createExportManifest(
   project: ProjectRecord,
   integrity: ExportIntegrityResult
 ): ExportManifest {
+  const decisions = ecommerceDecisionState(project);
+  const review = getClientReviewReadiness(project);
   return {
+    ...(isEcommerce(project) ? { ecommerce: { unresolvedDecisionCount: decisions.unresolved.length, implementationBlockingDecisionCount: decisions.implementationBlockers.length, launchBlockingDecisionCount: decisions.launchBlockers.length, planningReady: decisions.planningReady, implementationReady: decisions.implementationReady, launchReady: decisions.launchReady, checklistPassed: review.checklist.filter(c => c.passed).length, checklistTotal: review.checklist.length } } : {}),
     packageSchemaVersion: EXPORT_SCHEMA_VERSION,
     activeProjectId: project.identity.id,
     projectName: project.identity.projectName.trim() || "Untitled project",

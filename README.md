@@ -4,6 +4,8 @@ Project Builder Ai creates structured project plans, architecture instructions, 
 
 ## Included workflows
 
+- Ecommerce packages use target-store tests, web deployment contracts, explicit storefront/cart modeling and one decision register across questions/readiness. Unapproved architecture emits a resolution phase before implementation. See [ecommerce remediation and intake contracts](docs/ecommerce-draft-remediation.md).
+
 - Business Website and Static Website packages use website-specific deployment, client tests, acceptance criteria and implementation prompts. Required gaps remain explicit; optional, N/A and deferred requirements respect the recorded scope. All 19 documents are retained. See [applicability and compatibility details](docs/business-website-package-generation.md).
 
 - First-run Mission Control welcome with a plain-language product boundary, primary project-creation action, read-only example workflow, and compact eight-step path from idea to GPT Architect review.

@@ -15,7 +15,8 @@ import type {
   ValidationWarning
 } from "../types/project";
 import { getProjectFieldValue } from "./projectFields";
-import { projectCapabilities } from "./projectCapabilities";
+import { projectCapabilities, requiredProjectFields } from "./projectCapabilities";
+import { isEcommerce, isEcommerceRequiredSourceFieldResolved } from "./ecommerceDecisions";
 import { validateWebsiteIntake, websiteRequirement } from "./websiteRequirements";
 import {
   calculateCanvasDataverseSchemaGate,
@@ -605,19 +606,27 @@ function sectionWarnings(project: ProjectRecord, stageId: string): string[] {
   return [];
 }
 
+function projectFieldIsAnswered(project: ProjectRecord, field: ProjectInputField): boolean {
+  return isEcommerce(project) && requiredProjectFields(project).has(field)
+    ? isEcommerceRequiredSourceFieldResolved(project, field)
+    : Boolean(getProjectFieldValue(project, field).trim());
+}
+
 function sectionResult(project: ProjectRecord, stageIndex: number): ValidationSectionResult {
   const stage = INTAKE_STAGES[stageIndex];
-  const requiredMissing = stage.requiredFields.filter((field) => !getProjectFieldValue(project, field).trim());
-  const ruleIssues = ruleMissingFields(project, stage.id);
   const projectTypeFields = getProjectTypeFields(
     project.intake.appType,
     project.intake.audienceVisibility,
     stage.id
   ).map((field) => field.name);
+  const stageFields = new Set([...stage.fields.map((field) => field.name), ...projectTypeFields]);
+  const requiredMissing = [...requiredProjectFields(project)]
+    .filter((field) => stageFields.has(field) && !projectFieldIsAnswered(project, field));
+  const ruleIssues = ruleMissingFields(project, stage.id);
   const trackedFields = [...new Set([...stage.requiredFields, ...stage.optionalFields, ...projectTypeFields])];
   const fieldItems: AnswerCompletionItem[] = trackedFields.map((field) => ({
     id: field,
-    answered: Boolean(getProjectFieldValue(project, field).trim())
+    answered: projectFieldIsAnswered(project, field)
   }));
   const answerItems = [...fieldItems, ...powerPlatformAnswerItems(project, stage.id)];
   const completed = answerItems.filter((item) => item.answered).length;
@@ -637,15 +646,15 @@ function sectionResult(project: ProjectRecord, stageIndex: number): ValidationSe
 
 export function validateIntake(project: ProjectRecord): IntakeValidationResult {
   if (projectCapabilities(project).documentFamily === "website") return validateWebsiteIntake(project);
-  const missingFieldsFromStages: ValidationIssue[] = INTAKE_STAGES.flatMap((stage) => {
-    const fieldIssues = stage.requiredFields.flatMap((field) => {
-      const value = getProjectFieldValue(project, field).trim();
-      if (value) return [];
-      const label = fieldLabels.get(field) ?? field;
-      return [{ field, label, message: `${label} is required for stage completion.` }];
-    });
-    return [...fieldIssues, ...ruleMissingFields(project, stage.id)];
+  const fieldIssues: ValidationIssue[] = [...requiredProjectFields(project)].flatMap((field) => {
+    if (projectFieldIsAnswered(project, field)) return [];
+    const label = fieldLabels.get(field) ?? field;
+    return [{ field, label, message: `${label} is required for stage completion.` }];
   });
+  const missingFieldsFromStages: ValidationIssue[] = [
+    ...fieldIssues,
+    ...INTAKE_STAGES.flatMap((stage) => ruleMissingFields(project, stage.id))
+  ];
 
   const deduplicatedMissingFields: ValidationIssue[] = [];
   const seenMissing = new Set<string>();
@@ -688,7 +697,7 @@ export function getOutstandingFields(project: ProjectRecord): ProjectInputField[
       ).map((field) => field.name)
     ])
     .filter((field, index, fields) => fields.indexOf(field) === index)
-    .filter((field) => !getProjectFieldValue(project, field).trim());
+    .filter((field) => !projectFieldIsAnswered(project, field));
 }
 
 export function getStepCompletion(project: ProjectRecord, stepIndex: number): number {

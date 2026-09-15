@@ -1,5 +1,83 @@
 # Change Log
 
+## 2026-09-15 - PR #6 ecommerce Pass 10 remediation
+
+- Tests-first commit `625b6e7` reproduces all three fresh P1 findings on exact reviewed head `6ae326d538edf2da1232dbaef140e066ac4e3c89`: 72 failures, 68 passing controls, 140 tests. Exact failed inputs are recorded in `docs/ecommerce-draft-remediation.md`.
+- Changed only `src/lib/ecommerceTestRequirements.ts` in production. Candidate-relative outstanding approval grammar delegates canonical states to the existing resolution classifier. Bare unresolved prefixes govern completed requirement phrases, not continuing business-object noun phrases; removed the business-object noun whitelist.
+- Prioritized explicit provider relationships and restricted legacy payment/webhook shorthand to declaration subjects and established continuations, rejecting currencies and business-state/channel descriptors. Multiword names and source-relative candidate spans remain intact; discovery, polarity and selection remain separate.
+- Added `src/tests/ecommercePass10Remediation.test.ts`, updated remediation documentation and this changelog. Focused, combined, package/evidence/readiness and full validation are required before push; exact-head CI and fresh review are required before Architect assessment.
+- Local validation: Pass 10 140/140, combined Pass 1–10 355/355, Ecommerce/Client Review/package/export/readiness matrix 459/459. The first full run passed 3,865 unit/integration tests but had three existing website capability 5-second timeouts; those cases passed 3/3 in isolation, and the unchanged full retry passed 3,947/3,947 across 112 files (3,868 unit/integration plus 79 UI). No timeout, worker, threshold or CI setting was altered. Coverage remains a required gate before push; TypeScript, lint, build, production audit (zero vulnerabilities) and whitespace checks pass. The existing build-size warning remains.
+- The existing automatic non-production PR #6 Cloudflare preview is explicitly authorized. No manual deployment, production deployment, Cloudflare configuration changes, merge, saved Chrome regeneration, Draft 2 export or target implementation is permitted. Issue #7 remains separate all-dependency maintenance.
+
+## 2026-09-15 - PR #6 ecommerce Pass 9 remediation
+
+- Follow-up correction preserves the existing Pass 7 `Pending inventory inspections prevent sale` control by recognizing the inspection object's predicate. The initial implementation commit `c3ee6d0` is retained without amendment. After correction, the Ecommerce/Client Review/package/export/document-status/website-family matrix passes 319/319, including 92/92 focused Pass 9 cases and 215/215 combined Pass 1–9 regressions.
+
+- Tests-first commit `a6c78ec` reproduces unresolved option-prefix authorization on reviewed head `9d23070`: 48 failing cases and 44 passing controls across 92 tests in `src/tests/ecommercePass9Remediation.test.ts`.
+- Updated only `src/lib/ecommerceTestRequirements.ts` in production: shared narrow selection-subject and speculation grammar delegates uncertainty to the existing resolution classifier. Candidate-local subsequent approval and established contrast boundaries preserve valid selections; explicit negatives retain precedence and coordinated comma groups remain intact.
+- Preserved pending-payment/order and unknown-transaction business prose, including the baseline `Unknown USD transactions` edge case, without rewriting intake/evidence provenance. Added currency, supported multi-word provider, checkout, MFA, generic tax/shipping/refund and generated-document regression coverage.
+- Updated `docs/ecommerce-draft-remediation.md` with exact baseline failures and control counts. Required full validation, stable exact-head CI and fresh review precede Architect assessment. Existing local Class D timing behavior is accepted without runner changes; issue #7 remains separate dependency maintenance.
+- No merge, deployment command, saved Chrome regeneration, Draft export or target Ecommerce implementation is authorized. Existing automatic Cloudflare branch-preview behavior must be reconciled with the no-deployment instruction before push.
+
+## 2026-09-15 - PR #6 ecommerce Pass 8 remediation
+
+- Added tests-first regressions in `src/tests/ecommercePass8Remediation.test.ts` against exact reviewed head `4aa36272f7`: 25 expected failures and 15 passing controls; tests-only commit `b3673c5`.
+- Updated `src/lib/ecommerceDecisions.ts` to preserve first legacy OQ imports, emit deterministic architecture-blocking duplicate records with actual source lines, and reserve their synthetic IDs. Intended explicit OQ overrides and explicit-register duplicate rejection remain separate.
+- Extended the existing shared resolution classifier with anchored uncertainty phrases and restricted deferral suffixes, preserving valid business prose and synchronized source/decision validation.
+- Updated `src/lib/ecommerceTestRequirements.ts` for case-insensitive supported currencies and uppercase selected output without altering source provenance or provider matching.
+- Updated `docs/ecommerce-draft-remediation.md` with safeguards, baseline failures/controls and focused command. Full validation and fresh exact-head review are required before Architect assessment; no merge, deployment, saved Chrome regeneration, Draft export or target implementation is authorized.
+
+## 2026-09-15 - PR #6 ecommerce Pass 7 remediation
+
+- Committed test-first regressions against `b8119a40a6`: 25 expected failures and 16 passing controls across evidence, storefront/contract rendering and Client Review guidance.
+- Replaced clause-wide unresolved keywords with one subject-relative evidence classifier. Requirement qualifiers and governing status prefixes/postfixes keep actual deferrals unresolved while preserving rules about pending orders/payments, unknown users and deferred jobs. Positive evidence and dependency detection share this authority.
+- Added a normalized configuration rendering model sharing the ecommerce decision validation authority. Invalid model, routes, cart, architecture and deployment values render their specific unresolved decision instead of raw rejected implementation requirements. Phase output renders only validated contract keys.
+- Preserved imported OQ provenance and added compatible resolution target/instruction metadata. Source-controlled review cards remain read-only and direct OQs and malformed rows to the Ecommerce Decision Register; dedicated/required decisions direct users to their actual intake fields. Old stored cards require no migration.
+- Batched document assertions into one package generation per rendering case, including the existing cart-scope regression, to keep the checks within the normal test timeout without removing assertions.
+- Validation: Pass 7 focused 41/41; combined remediation 83/83; ecommerce suite 97/97; ecommerce/package matrix 180/180. TypeScript/build, lint, production audit (zero vulnerabilities) and diff checks pass. The first complete runner attempt passed 3,590 unit/integration tests but hit six normal 5-second timeouts in four existing non-Pass-7 files, so its UI leg did not run; the unchanged command is being retried. The production build retains its existing bundle-size warning.
+- No merge, production deployment, saved Chrome regeneration, Draft export or ecommerce application implementation was performed.
+
+## 2026-09-14 - PR #6 ecommerce parser remediation
+
+- Added a separate tests-first commit reproducing compound decision deferrals, destructive extra-column parsing, malformed escapes, coordinated option exclusions and truncated multi-word provider names. On reviewed head `90bfd60`, six regression groups failed and the independent MFA polarity control passed.
+- Added an explicit resolved, unresolved or empty value classifier for decision answers, not-applicable reasons and required ecommerce prose. Compound deferrals remain open while business rules about pending payments, unknown users and deferred jobs remain valid.
+- Replaced decision-register splitting with an exact six-field parser. Literal pipes use `\|`, literal backslashes use `\\`, and malformed escapes or the wrong field count create precise line-specific `EC-RECORD-n` blockers without truncating or joining source data.
+- Added typed option evidence with source and clause provenance plus positive, negative or unresolved polarity. Coordinated comma lists keep their shared negation across currencies, checkout modes and providers; hard boundaries and contrast transitions allow later approved replacements.
+- Preserved complete provider names in forward and reverse payment/webhook forms, including Stripe Connect and PayPal Commerce Platform, while negative-only and ambiguous evidence retains the provider-neutral dependency.
+- No merge, production deployment, saved Chrome regeneration, Draft export or ecommerce application implementation was performed.
+
+## 2026-09-13 - PR #6 ecommerce source-semantics remediation
+
+- Added a separate tests-first commit reproducing placeholder-only required ecommerce fields passing validation and negated checkout/currency/provider/MFA choices becoming positive generated tests. The focused baseline had three intended failures and two passing controls on `9fb036a`.
+- Reused the established exact placeholder vocabulary across required-field ecommerce decisions, intake validation, section completion, Client Review reconciliation and generated document requirements. Valid descriptive prose containing words such as `pending` remains resolved; optional fields do not gain implementation blockers.
+- Replaced first-text-match selection with candidate-specific positive matching. Common prefix and postfix exclusions bind to the actual matched option within its clause, then matching continues to the next supported positive checkout mode, currency, payment provider or MFA choice. Conditional commerce evidence uses the same polarity check.
+- No merge, production deployment, saved Chrome regeneration, Draft export or ecommerce application implementation was performed.
+
+## 2026-09-13 - PR #6 ecommerce validation-boundary remediation
+
+- Added a separate tests-first commit reproducing embedded placeholder tokens in structured ecommerce configuration, duplicate explicit decision-ID overwrite, missing required ecommerce fields disappearing from generated artifacts, and mutable Client Review controls whose edits could not resolve source-derived decisions.
+- Added strict structured-value validation for canonical storefront/cart selections, exact route/brand/catalog rows, approved architecture/deployment values and phase contracts while preserving the general answer validator's contextual behavior. Duplicate explicit IDs now preserve the first explicit record and emit a deterministic, gate-specific `EC-RECORD-n` blocker with source-line evidence.
+- Centralized required project fields for validation and reused website-family document rendering. Missing ecommerce fields now produce source-controlled decisions, Client Questions entries and traceable document markers; populated and optional fields do not gain synthetic blockers.
+- Added typed source-resolution metadata. Ecommerce review cards show their source field without status/reason controls, stored Answered overrides cannot conceal a blank required source, and ordinary stored review cards remain editable.
+- Focused verification passed 46 tests across nine files; complete validation passed 3,615 tests across 105 files (3,536 unit/integration and 79 UI). TypeScript/production build, lint, production dependency audit and diff checks pass; the existing bundle-size warning remains.
+- No merge, production deployment, live Chrome regeneration, ZIP export or ecommerce application implementation was performed.
+
+## 2026-09-13 - PR #6 automated review remediation
+
+- Added a separate failing regression commit reproducing all four automated review findings: placeholder-only decision answers, blank or duplicate contract values, launch-only decisions forcing implementation documents to Draft, and dedicated ecommerce fields failing to select storefront/cart tests. The focused baseline had four intended failures and two passing controls on `cc38b12`.
+- Added one semantic resolved-value validator with the established placeholder vocabulary and punctuation/whitespace normalization. Approved contracts now parse unique normalized key/value entries and require every named value to be meaningful.
+- Kept implementation and launch document gates separate. Ecommerce implementation documents can become Ready for Implementation or Review Required once implementation blockers clear, while deployment and package readiness remain Draft when launch decisions are unresolved.
+- Included storefront model, route mapping and cart scope in commerce-test applicability without duplicating rows. Focused verification passed 50 tests across eight files; complete validation passed 3,603 tests across 103 files (3,524 unit/integration and 79 UI). TypeScript/production build, lint, production dependency audit and diff checks pass; the existing bundle-size warning remains.
+- No merge, production deployment, live Chrome regeneration or Draft export was performed during this review-remediation pass.
+
+## 2026-09-12 - Ecommerce Draft 1 remediation
+
+- Reproduced all seven requested generator defects with committed regression tests before production changes. Baseline: 3,499 existing unit/integration tests passed; seven new tests failed as expected.
+- Added an ecommerce template route, normalized questions and architecture/launch readiness, traceable decision markers, project-type content validation, target commerce tests and web deployment contracts. Added explicit merchant/storefront contexts, routes, cart scope and approved architecture/phase fields without replacing existing browser data or changing other template families.
+- New and updated files are documented in `docs/ecommerce-draft-remediation.md`; tests cover original regressions, cross-document/manifest contradictions, malformed inputs, approved-answer provenance, route/cart mapping, labelled inputs and storage compatibility.
+- Focused regression/website/readiness tests, build/typecheck and lint pass. Both complete runners pass 3,597 tests across 102 files (3,518 unit/integration plus 79 UI). Production dependency audit reports zero vulnerabilities. The existing large-bundle warning remains.
+- No production merge or deployment performed. User approval remains required for release; afterward resume the same Chrome project and regenerate without clearing storage. The package remains Draft while real architecture and production decisions are unresolved.
+
 ## 2026-09-08 - Readiness blocker count consistency
 
 - Reproduced the production defect on main `11057eaf60b4e39cacbc334248ca29ee77801401`: a Rose-like Business Website had eight actionable Client Review blockers and zero content blockers, while generated readiness, Export diagnostics and the Export manifest counted a ninth synthetic `Client Review readiness is not complete.` blocker. The desired regression matrix failed five of seven focused tests before the source correction.
@@ -7401,3 +7479,40 @@
 ### Remaining work
 
 - Independent GPT Architect re-review is required before integration or any persistence/UI/downstream phase.
+
+## 2026-09-13 - Ecommerce PR #6 Pass 4 Review Remediation
+
+### Summary
+
+- Separated blocking architecture/launch decisions from visible, nonblocking optional ecommerce decisions.
+- Added traceable `[OPTIONAL:]` Client Questions entries that do not count as missing-information markers or block package readiness.
+- Accepted `/` as a safe canonical ecommerce route while retaining duplicate, placeholder, column and path validation.
+- Replaced the hard-coded ecommerce verification table with universal invariants plus requirements derived from recorded intake evidence.
+- Kept Rose & Paw-specific guest checkout, CAD, Square, Canadian tax, shipping, pickup, returns and security checks because the deterministic fixture records them.
+
+### Files created
+
+- `src/lib/ecommerceTestRequirements.ts` - derives ecommerce test rows and unresolved test dependencies from authoritative intake fields.
+- `src/tests/ecommercePass4Remediation.test.ts` - reproduces the three Pass 4 P1 findings and covers the required fixture matrix.
+
+### Files updated
+
+- `src/lib/ecommerceDecisions.ts` - central blocking/optional decision groups and canonical root-route validation.
+- `src/lib/clientReview.ts` - honors nonblocking source-controlled optional gates for every open status.
+- `src/templates/documents/ecommerce.ts` - renders optional records separately and consumes the source-derived test requirements.
+- `src/tests/helpers/ecommerce.ts` - records the Rose & Paw return-window evidence explicitly.
+- `docs/ecommerce-draft-remediation.md` and `CHANGE_LOG.md` - document Pass 4 behavior and validation scope.
+
+### Issues found
+
+- The reviewed generator emitted blocking markers for optional decisions, rejected `/`, and embedded Rose & Paw business choices in generic ecommerce tests.
+
+### Testing completed
+
+- Baseline Pass 4 regression run against `d9f2712`: 5 expected failures and 2 passing controls.
+- Focused Pass 4 and prior ecommerce remediation run: 40 tests passed across 5 files.
+- Ecommerce/package/export/document-status matrix: 76 tests passed across 12 files.
+
+### Remaining work
+
+- Run the complete repository, TypeScript, build, lint, production dependency audit and diff validation, then request a fresh automated Codex review. Do not merge or deploy without Architect approval.

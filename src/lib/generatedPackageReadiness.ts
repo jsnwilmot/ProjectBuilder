@@ -4,6 +4,7 @@ import { expectedDocumentLocations, calculatePowerPlatformReadiness } from "./po
 import { validateCanvasTargets } from "./canvasTargetValidation";
 import { orphanMissingMarkers } from "./canvasTraceability";
 import type { GeneratedDocument, ProjectRecord } from "../types/project";
+import { projectTypeContentViolations } from "./projectTypeContentValidation";
 
 export interface GeneratedPackageReadiness {
   status: "Draft" | "Ready for Codex";
@@ -54,7 +55,7 @@ export function evaluateGeneratedPackageReadiness(
   const missingDocumentCount = expected.filter((location) => !actualNames.has(location.fileName)).length;
   const blankDocumentCount = documents.filter((document) => document.content.trim().length === 0).length;
   const missingMarkerCount = documents.reduce((total, document) => total + countDocumentMissingMarkers(document.content), 0);
-  const prohibitedContentCount = countProhibitedContent(documents);
+  const prohibitedContentCount = countProhibitedContent(documents) + projectTypeContentViolations(project, documents).length;
   const clientReview = getClientReviewReadiness(project);
   const powerPlatform = calculatePowerPlatformReadiness(project);
   const canvasTargets = validateCanvasTargets(project);

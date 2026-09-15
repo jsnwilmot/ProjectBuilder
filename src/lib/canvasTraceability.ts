@@ -1,5 +1,6 @@
 import { INTAKE_STAGES } from "../data/intakeStages";
-import { projectCapabilities, visibleIntakeFields } from "./projectCapabilities";
+import { ecommerceDecisions } from "./ecommerceDecisions";
+import { projectCapabilities, requiredProjectFields, visibleIntakeFields } from "./projectCapabilities";
 import { websiteRequirement } from "./websiteRequirements";
 import type {
   CanvasControlTarget,
@@ -445,6 +446,24 @@ function orphanSource(): TraceSource {
 
 function markerSource(project: ProjectRecord, marker: string): TraceSource {
   const normalized = normalizeMarker(marker);
+  if (project.intake.appType === "ecommerceSite") {
+    const decision = ecommerceDecisions(project).find(d => d.id === normalized);
+    if (decision) return { stageId: decision.field === "assumptions" || decision.field === "ecommerceDecisions" ? "security" : decision.field === "ecommerceRoutes" || decision.field === "ecommerceCartScope" || decision.field === "ecommercePhases" ? "features" : "foundation", stageLabel: "Ecommerce decisions", subsection: decision.gate, fieldLabel: decision.question, storedProperty: `project.intake.${decision.field}`, editableField: decision.field, canEditSource: true, reasonRejected: decision.reason };
+    const field = visibleIntakeFields(project).find((entry) => normalizeMarker(entry.label).toLowerCase() === normalized.toLowerCase());
+    if (field && requiredProjectFields(project).has(field.name)) {
+      return {
+        stageId: field.stageId,
+        stageLabel: field.stageLabel,
+        subsection: "Ecommerce intake",
+        fieldLabel: field.label,
+        storedProperty: field.name === "appName" ? "project.identity.projectName"
+          : field.name === "clientName" || field.name === "businessName" ? `project.client.${field.name}` : `project.intake.${field.name}`,
+        editableField: field.name,
+        canEditSource: true,
+        reasonRejected: `Required ecommerce field ${field.label} is unanswered.`
+      };
+    }
+  }
   if (projectCapabilities(project).documentFamily === "website") {
     const field = visibleIntakeFields(project).find((entry) => normalizeMarker(entry.label).toLowerCase() === normalized.toLowerCase());
     if (field) {
