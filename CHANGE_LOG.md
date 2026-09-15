@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-09-15 - PR #6 ecommerce Pass 10 remediation
+
+- Tests-first commit `625b6e7` reproduces all three fresh P1 findings on exact reviewed head `6ae326d538edf2da1232dbaef140e066ac4e3c89`: 72 failures, 68 passing controls, 140 tests. Exact failed inputs are recorded in `docs/ecommerce-draft-remediation.md`.
+- Changed only `src/lib/ecommerceTestRequirements.ts` in production. Candidate-relative outstanding approval grammar delegates canonical states to the existing resolution classifier. Bare unresolved prefixes govern completed requirement phrases, not continuing business-object noun phrases; removed the business-object noun whitelist.
+- Prioritized explicit provider relationships and restricted legacy payment/webhook shorthand to declaration subjects and established continuations, rejecting currencies and business-state/channel descriptors. Multiword names and source-relative candidate spans remain intact; discovery, polarity and selection remain separate.
+- Added `src/tests/ecommercePass10Remediation.test.ts`, updated remediation documentation and this changelog. Focused, combined, package/evidence/readiness and full validation are required before push; exact-head CI and fresh review are required before Architect assessment.
+- Local validation: Pass 10 140/140, combined Pass 1–10 355/355, Ecommerce/Client Review/package/export/readiness matrix 459/459. The first full run passed 3,865 unit/integration tests but had three existing website capability 5-second timeouts; those cases passed 3/3 in isolation, and the unchanged full retry passed 3,947/3,947 across 112 files (3,868 unit/integration plus 79 UI). No timeout, worker, threshold or CI setting was altered. Coverage remains a required gate before push; TypeScript, lint, build, production audit (zero vulnerabilities) and whitespace checks pass. The existing build-size warning remains.
+- The existing automatic non-production PR #6 Cloudflare preview is explicitly authorized. No manual deployment, production deployment, Cloudflare configuration changes, merge, saved Chrome regeneration, Draft 2 export or target implementation is permitted. Issue #7 remains separate all-dependency maintenance.
+
 ## 2026-09-15 - PR #6 ecommerce Pass 9 remediation
 
 - Follow-up correction preserves the existing Pass 7 `Pending inventory inspections prevent sale` control by recognizing the inspection object's predicate. The initial implementation commit `c3ee6d0` is retained without amendment. After correction, the Ecommerce/Client Review/package/export/document-status/website-family matrix passes 319/319, including 92/92 focused Pass 9 cases and 215/215 combined Pass 1–9 regressions.

@@ -151,15 +151,15 @@ const decisionSubjectPrefix = new RegExp(`^${DECISION_SUBJECT}\\s+(.+)$`, "i");
 const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+(decision|approval|confirmation|selection)\\b`, "i");
 const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
 const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
-const speculativePostfix = /^(?:(?:is|are)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
-const businessObjectPredicate = /^(?:payments?|transactions?|orders?|users?|customers?|jobs?|records?|inspections?)\s+(?:are|remain|remains|receive|require|retry|show|include|prevent|cannot|must|will)\b/i;
-
+const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
 function unresolvedDecisionStatus(text: string): boolean {
-  // Remove only grammatical state qualifiers and value-list delimiters, never
-  // arbitrary words between an uncertainty token and a business object.
+  // Canonicalize candidate-bound approval grammar for the shared resolution
+  // authority. No arbitrary noun phrase can bridge a candidate to this state.
   const status = text.split(/[:,]/, 1)[0].trim()
     .replace(/^(?:(?:is|are|was|were|remains?|still)\s+)+/i, "")
-    .replace(/^not\s+confirmed\b/i, "unconfirmed");
+    .replace(/^(?:has\s+not\s+(?:yet\s+)?been\s+|not\s+(?:yet\s+)?)(?:approved|confirmed|selected|accepted)\b.*$/i, "unconfirmed")
+    .replace(/^unapproved\b.*$/i, "unconfirmed")
+    .replace(/^((?:pending|awaiting)\s+)final\s+(approval|confirmation|selection)\b/i, "$1$2");
   return classifyResolutionValue(status) === "unresolved";
 }
 
@@ -176,7 +176,13 @@ function unresolvedCandidatePrefix(before: string, after: string): boolean {
   if (approval && classifyResolutionValue(approval[1]) === "unresolved") return true;
   const governed = before.match(/(?:^|[, :])((?:pending|awaiting|needs?|to be determined|deferred|unknown|unconfirmed|undecided|TBD)\b[^,]*?)\s+(?:for|of|on)\s*$/i)?.[1];
   if (governed && classifyResolutionValue(governed) === "unresolved") return true;
-  return !businessObjectPredicate.test(after) && classifyResolutionValue(before) === "unresolved";
+  // A bare state adjective governs the candidate only when that candidate
+  // completes the subject/value phrase. Continuation into a noun phrase/action
+  // ("pending inventory refunds require review") describes a business object,
+  // irrespective of the object's vocabulary. Qualified requirement subjects
+  // and value-list delimiters remain supported.
+  const continuation = after.replace(REQUIREMENT_QUALIFIERS, "").split(/[:,]/, 1)[0].trim();
+  return !continuation && classifyResolutionValue(before) === "unresolved";
 }
 
 function classifyCandidateEvidence(fragment: SourceFragment, candidate: CandidateMatch): EvidencePolarity {
@@ -227,6 +233,12 @@ function mentionedButUnresolved(fragments: SourceFragment[], pattern: RegExp): b
 }
 
 const PROVIDER_LEADING_WORDS = new Set(["use", "using", "support", "supports", "supported", "recorded", "approved", "no"]);
+const CURRENCY_CODES = "CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL";
+const currencyCode = new RegExp(`\\b(?:${CURRENCY_CODES})\\b`, "i");
+// Legacy "Name payments/webhooks" is inherently less explicit. Reject state,
+// channel and geographic descriptors, not vendors; explicit relationship forms
+// are preferred and do not depend on a vendor allowlist.
+const paymentDescriptor = /\b(?:pending|failed|successful|success|unknown|deferred|unconfirmed|undecided|unapproved|online|offline|guest|authenticated|Canadian|American|European|international|domestic|local|credit|debit|card|cash|digital|mobile|recurring|manual|automatic)\b/i;
 function providerName(value: string): string {
   const words = value.trim().split(/\s+/);
   while (words.length > 1 && PROVIDER_LEADING_WORDS.has(words[0].toLocaleLowerCase())) words.shift();
@@ -234,23 +246,34 @@ function providerName(value: string): string {
 }
 
 function providerCandidateMatches(text: string): CandidateMatch[] {
-  const patterns = [
-    /\b([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*){0,4})\s+(?:payments?|webhooks?)\b/g,
-    /\b(?:payments?|webhooks?)\s+(?:through|via|from)\s+([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*){0,3})\b/g,
-    /\b([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*){0,3})\s+(?:is\s+)?not\s+(?:supported|approved|accepted|allowed|available|enabled)\b/g
+  const name = "([A-Z][A-Za-z0-9&.-]*(?:\\s+[A-Z][A-Za-z0-9&.-]*){0,4})";
+  const relationships = [
+    `\\b(?:[Pp]ayments?|[Ww]ebhooks?)\\s+(?:through|via|from)\\s+${name}\\b`,
+    `\\b[Pp]ayment\\s+provider\\s*(?::|is)\\s*${name}\\b`,
+    `\\b${name}\\s+payment\\s+(?:provider|integration)\\b`,
+    `\\b[Uu]se\\s+${name}\\s+for\\s+payments?\\b`
   ];
-  const matches = patterns.flatMap(pattern => [...text.matchAll(pattern)].map(match => {
+  const discover = (pattern: RegExp, legacy: boolean): CandidateMatch[] => [...text.matchAll(pattern)].flatMap(match => {
     const value = providerName(match[1]);
-    const captureOffset = match[0].indexOf(match[1]);
-    return { value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: match[1].length };
-  }));
-  const exclusion = text.match(/\b(?:no|do\s+not\s+use|without|exclude(?:d)?)\s+([^;.]+)/i);
-  if (exclusion) {
-    const offset = (exclusion.index ?? 0) + exclusion[0].indexOf(exclusion[1]);
-    for (const name of exclusion[1].matchAll(/\b([A-Z][A-Za-z0-9&.-]*(?:\s+[A-Z][A-Za-z0-9&.-]*)*)\b/g)) {
-      matches.push({ value: name[1], matchedText: name[0], index: offset + (name.index ?? 0), length: name[0].length });
+    if (currencyCode.test(value) || (legacy && paymentDescriptor.test(value))) return [];
+    const captureOffset = match[0].indexOf(match[1]) + match[1].lastIndexOf(value);
+    const candidate = { value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: value.length };
+    if (legacy) {
+      // The compatibility shorthand must be a declaration/command subject,
+      // never an arbitrary capitalized phrase embedded in business prose.
+      const span = candidateClauseSpan(text, candidate.index, candidate.length);
+      const prefix = text.slice(span.start, candidate.index).trim();
+      const tail = text.slice((match.index ?? 0) + match[0].length, span.end).trim();
+      const declarationPrefix = /^(?:(?:use|using|support|supports|supported|recorded|approved|no)\s*)?$/i.test(prefix)
+        || /(?:[:]|->)\s*$/.test(prefix);
+      const declarationTail = !tail || /^(?:->|and\s+webhook|reconcile\b|retry\b)/i.test(tail)
+        || /^(?:(?:is|are|has|was|were|now|since|still|remains?)\s+)*(?:been\s+)?(?:approved|selected|confirmed|accepted|supported|not\b|pending\b|awaiting\b|unapproved\b|unconfirmed\b|under\s+consideration)/i.test(tail);
+      if (!declarationPrefix || !declarationTail) return [];
     }
-  }
+    return [candidate];
+  });
+  const matches = relationships.flatMap(pattern => discover(new RegExp(pattern, "g"), false));
+  matches.push(...discover(new RegExp(`\\b${name}\\s+(?:payments?|webhooks?)\\b`, "g"), true));
   return matches
     .filter(match => Boolean(match.value))
     .sort((left, right) => left.index - right.index)
@@ -261,7 +284,7 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
   const fragments = sourceFragments(project);
   const checkoutEvidence = firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
-  const currencyEvidence = firstPositiveMatch(fragments, /\b(CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL)\b/i);
+  const currencyEvidence = firstPositiveMatch(fragments, new RegExp(`\\b(${CURRENCY_CODES})\\b`, "i"));
   const providerEvidence = firstPositiveMatch(fragments, providerCandidateMatches);
   const checkoutMode = checkoutEvidence?.value.toLocaleLowerCase() ?? "";
   const currency = currencyEvidence?.value.toUpperCase() ?? "";

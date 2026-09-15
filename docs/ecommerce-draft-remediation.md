@@ -38,6 +38,94 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 10 outstanding approvals, business grammar and provider identity
+
+Tests-only commit `625b6e7` reproduces 72 failures with 68 passing controls (140 total) against unchanged reviewed production head `6ae326d538edf2da1232dbaef140e066ac4e3c89`. Exact failed cases are recorded below; passing cases cover existing decision states, final approvals, business prose and multiword provider syntax.
+
+Candidate discovery, polarity classification and positive evidence selection remain distinct. The shared candidate-relative classifier canonicalizes outstanding approval grammar to the existing resolution authority, including final approval, not-yet/has-not-been approval and unapproved states. Genuine later approvals retain contrast boundaries and explicit-negative precedence. Bare uncertainty prefixes bind only to a completed candidate/qualified requirement phrase, not a continuing business-object noun phrase or action; no business-object noun whitelist remains.
+
+Provider discovery prioritizes explicit payment-provider/integration, via/through/from and use-for relationships. The legacy title-case `Name payments/webhooks` shorthand is restricted to declaration/command subjects and established approval/integration continuations, rejecting currency codes and state/channel/geographic descriptors. Unknown vendors can use explicit relationship syntax without a vendor allowlist. Complete names and original source spans are preserved; extraction never grants approval. Currency recognition shares a single supported-code definition but is independent of provider discovery.
+
+Run `npm run test:unit -- src/tests/ecommercePass10Remediation.test.ts`. Full repository validation, exact-head CI, automatic non-production branch preview and a fresh review precede Architect assessment. Only the existing automatic PR preview is authorized; no manual deployment command, production deployment, configuration change, merge, saved Chrome regeneration, Draft 2 export or target implementation is permitted. Issue #7 remains separate all-dependency maintenance.
+
+Local validation passes 140/140 focused, 355/355 combined Pass 1–10 and 459/459 Ecommerce/Client Review/package/export/readiness tests across 22 files. The full runner's first attempt had three existing website capability 5-second timeouts and 3,865 passing unit/integration tests; the three cases passed in isolation, and the unchanged full retry passed 3,947 tests across 112 files (3,868 unit/integration and 79 UI). No runner/coverage/CI setting was changed. TypeScript, build, lint, production audit (zero vulnerabilities) and whitespace checks pass; coverage and exact-head remote gates remain required before final approval.
+
+Baseline failures:
+
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD not yet approved
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD not yet confirmed
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD not yet selected
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD not yet accepted
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD awaiting final approval
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD pending final approval
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD remains unapproved
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD has not been approved yet
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD has not yet been confirmed
+- Ecommerce Pass 10 outstanding candidate approval keeps currency unresolved: USD has not yet been approved
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout not yet approved
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout not yet confirmed
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout not yet selected
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout not yet accepted
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout awaiting final approval
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout pending final approval
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout remains unapproved
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout has not been approved yet
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout has not yet been confirmed
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with checkout: guest checkout has not yet been approved
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments not yet approved
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments not yet confirmed
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments not yet selected
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments not yet accepted
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments awaiting final approval
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments pending final approval
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments remains unapproved
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments has not been approved yet
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments has not yet been confirmed
+- Ecommerce Pass 10 outstanding candidate approval shares outstanding state with provider: Square payments has not yet been approved
+- Ecommerce Pass 10 outstanding candidate approval selects genuinely later resolution: USD not yet approved, but CAD approved
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: Pending inventory refunds require review
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: Pending inventory transfers remain visible
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: pending inventory reconciliation runs nightly
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: deferred inventory updates retry automatically
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: unknown tax transactions enter review
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: pending refund requests require admin approval
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: pending refund requests require review
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: Pending inventory settlements complete overnight
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: Unknown shipping exceptions enter review
+- Ecommerce Pass 10 candidate-relative business grammar preserves business noun phrase without noun whitelist: Deferred refund batches resume tomorrow
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Pending USD payments remain visible to admins
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Failed CAD payments retry automatically
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Failed CAD payments are retried
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: USD payments are accepted
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Canadian payments are supported
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Online payments are required
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Guest payments are allowed
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Pending payments require review
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Successful payments trigger fulfillment
+- Ecommerce Pass 10 explicit provider discovery does not invent provider: Failed payments trigger notifications
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: CAD
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: USD
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: EUR
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: GBP
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: AUD
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: NZD
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: JPY
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: CNY
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: INR
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: CHF
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: SEK
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: NOK
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: DKK
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: MXN
+- Ecommerce Pass 10 explicit provider discovery never interprets currency as provider: BRL
+- Ecommerce Pass 10 explicit provider discovery preserves named relationship and complete name: payment provider: Square
+- Ecommerce Pass 10 explicit provider discovery preserves named relationship and complete name: payment provider is Stripe Connect
+- Ecommerce Pass 10 explicit provider discovery preserves named relationship and complete name: use Square for payments
+- Ecommerce Pass 10 explicit provider discovery preserves named relationship and complete name: USD payments through Square
+- Ecommerce Pass 10 explicit provider discovery separates ordinary currency evidence from provider identity without mutating intake
+- Ecommerce Pass 10 explicit provider discovery keeps generated acceptance and test-plan evidence synchronized
+
+
 ### Pass 9 governing option context
 
 All option families share subject-relative prefix/postfix evidence classification. A narrow selection-subject grammar (currency, provider, checkout mode, shipping model, tax jurisdiction, return policy, authentication and related decision nouns) attaches unresolved values to their candidate without treating unrelated pending orders/payments, unknown transactions or customer uncertainty as a selection state. The existing resolution classifier remains the authority for uncertainty phrases. Direct speculation (`maybe`, `possibly`, `probably`, `likely`, `may be`, `being considered`) cannot authorize a mentioned option. Explicit negatives retain precedence, and existing semicolon/newline/sentence/contrast boundaries allow a later approved choice; commas do not break coordinated negation. A candidate-local subsequent `now approved`/selected confirmation can supersede tentative wording without borrowing another candidate's approval. Supported provider syntax and currency normalization remain unchanged.
