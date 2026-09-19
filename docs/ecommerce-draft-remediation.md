@@ -38,6 +38,32 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 11 candidate decision tails and provider values
+
+Candidate context now recognizes only the narrow singular decision/status nouns approval, confirmation, selection and decision, with constrained modifiers and deployment-stage targets. A pending or awaiting prefix plus that candidate-bound tail delegates to the existing shared resolution authority. A continuing phrase such as `approval requests require review` remains business prose, so no business-object noun whitelist returns.
+
+Provider discovery remains separate from semantic validation and contextual polarity. Every captured provider value, including explicit provider/via/integration forms, must be resolved according to `classifyResolutionValue`; no second placeholder vocabulary was added. An unresolved first candidate is discarded without blocking a later independent resolved provider.
+
+Tests-only commit `d3e3be4` reproduced 17 failures and 27 passing controls (44 total) against unchanged reviewed production head `d205df68e28835e2c6edbf20def3d6672960baff`. Run `npm run test:unit -- src/tests/ecommercePass11Remediation.test.ts`. Exact baseline failures were:
+
+- Pending USD approval
+- Pending USD final approval
+- Awaiting USD confirmation
+- Pending inventory approval
+- Pending inventory confirmation
+- Awaiting inventory approval
+- Pending guest checkout selection
+- Pending shipping decision
+- Pending inventory approval for launch
+- payment provider: Pending
+- payment provider is Unknown
+- payments via TBD
+- payment provider: Unconfirmed
+- payment provider: Pending Approval
+- payment provider: Not Sure
+- payment provider: Pending; payments via Square
+- generated TEST_PLAN.md and ACCEPTANCE_CRITERIA.md for Pending USD approval plus payment provider: Unknown
+
 ### Pass 10 outstanding approvals, business grammar and provider identity
 
 Tests-only commit `625b6e7` reproduces 72 failures with 68 passing controls (140 total) against unchanged reviewed production head `6ae326d538edf2da1232dbaef140e066ac4e3c89`. Exact failed cases are recorded below; passing cases cover existing decision states, final approvals, business prose and multiword provider syntax.

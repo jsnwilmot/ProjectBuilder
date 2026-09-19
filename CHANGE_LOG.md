@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-19 - PR #6 ecommerce Pass 11 remediation
+
+- Tests-first commit `d3e3be4` reproduces the two fresh P1 findings on exact reviewed head `d205df68e28835e2c6edbf20def3d6672960baff`: 17 failures and 27 passing controls across 44 Pass 11 tests.
+- Added a narrow candidate-bound decision-tail grammar for singular approval, confirmation, selection and decision nouns, with constrained modifiers and deployment-stage targets. Continuing business-object phrases such as approval requests remain positive without reintroducing a business-noun whitelist.
+- Every syntactically discovered provider candidate now passes the shared resolution classifier before contextual polarity classification. Explicit and legacy forms reject unresolved captured values while later independent resolved providers remain eligible.
+- Updated `src/tests/ecommercePass11Remediation.test.ts`, `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full local validation, exact-head CI, automatic non-production preview and a fresh review remain required before Architect approval.
+- No manual deployment, production deployment, Cloudflare configuration change, merge, saved Chrome regeneration, Draft 2 export or target Ecommerce implementation is authorized. Issue #7 remains separate maintenance.
+
 ## 2026-09-15 - PR #6 ecommerce Pass 10 remediation
 
 - Tests-first commit `625b6e7` reproduces all three fresh P1 findings on exact reviewed head `6ae326d538edf2da1232dbaef140e066ac4e3c89`: 72 failures, 68 passing controls, 140 tests. Exact failed inputs are recorded in `docs/ecommerce-draft-remediation.md`.

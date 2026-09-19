@@ -152,6 +152,7 @@ const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+
 const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
 const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
 const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
+const candidateDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment))?$/i;
 function unresolvedDecisionStatus(text: string): boolean {
   // Canonicalize candidate-bound approval grammar for the shared resolution
   // authority. No arbitrary noun phrase can bridge a candidate to this state.
@@ -176,6 +177,8 @@ function unresolvedCandidatePrefix(before: string, after: string): boolean {
   if (approval && classifyResolutionValue(approval[1]) === "unresolved") return true;
   const governed = before.match(/(?:^|[, :])((?:pending|awaiting|needs?|to be determined|deferred|unknown|unconfirmed|undecided|TBD)\b[^,]*?)\s+(?:for|of|on)\s*$/i)?.[1];
   if (governed && classifyResolutionValue(governed) === "unresolved") return true;
+  const decisionTail = after.replace(REQUIREMENT_QUALIFIERS, "").trim().match(candidateDecisionTail);
+  if (decisionTail && classifyResolutionValue(`${before} ${decisionTail[1]}`) === "unresolved") return true;
   // A bare state adjective governs the candidate only when that candidate
   // completes the subject/value phrase. Continuation into a noun phrase/action
   // ("pending inventory refunds require review") describes a business object,
@@ -255,7 +258,7 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
   ];
   const discover = (pattern: RegExp, legacy: boolean): CandidateMatch[] => [...text.matchAll(pattern)].flatMap(match => {
     const value = providerName(match[1]);
-    if (currencyCode.test(value) || (legacy && paymentDescriptor.test(value))) return [];
+    if (classifyResolutionValue(value) !== "resolved" || currencyCode.test(value) || (legacy && paymentDescriptor.test(value))) return [];
     const captureOffset = match[0].indexOf(match[1]) + match[1].lastIndexOf(value);
     const candidate = { value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: value.length };
     if (legacy) {
