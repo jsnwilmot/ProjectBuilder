@@ -79,7 +79,10 @@ describe("Ecommerce Pass 12 attributed candidate decision tails", () => {
     expect(output(source)).toContain(`flow in ${currency}`);
   });
 
-  it.each(["USD approved", "USD confirmed", "Shipping approved"])("preserves explicit positive control: %s", source => {
-    expect(output(source)).not.toContain("resolve the recorded currency");
+  it.each([
+    ["USD approved", "currency"], ["USD confirmed", "currency"], ["Shipping approved", "Shipping"]
+  ])("preserves explicit positive control: %s", (source, expected) => {
+    if (expected === "currency") expect(output(source)).not.toContain("resolve the recorded currency");
+    else expect(categories(source)).toContain(expected);
   });
 });
