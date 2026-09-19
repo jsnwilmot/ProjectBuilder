@@ -152,7 +152,10 @@ const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+
 const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
 const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
 const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
-const candidateDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment)|\s+(?:by|from)\s+(?:the\s+)?[\p{L}\p{N}][\p{L}\p{N}'-]*(?:\s+[\p{L}\p{N}][\p{L}\p{N}'-]*){0,3})?$/iu;
+// An attribution is a terminal, short actor noun phrase. Capping that phrase at
+// two lexical words prevents a following predicate from being swallowed as an
+// actor ("by managers triggers notifications") without naming allowed actors.
+const candidateDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment)|\s+(?:by|from)\s+(?:the\s+)?[\p{L}\p{N}][\p{L}\p{N}'-]*(?:\s+[\p{L}\p{N}][\p{L}\p{N}'-]*){0,1})?$/iu;
 function unresolvedDecisionStatus(text: string): boolean {
   // Canonicalize candidate-bound approval grammar for the shared resolution
   // authority. No arbitrary noun phrase can bridge a candidate to this state.
@@ -248,6 +251,20 @@ function providerName(value: string): string {
   return words.join(" ");
 }
 
+// Explicit relationships establish that the following text starts with a
+// provider entity, but the rest of the clause can describe its status or scope.
+// Keep that continuation in the source fragment so candidate-relative polarity
+// classification can still evaluate it.
+const explicitProviderContextBoundary = /\s+(?=(?:(?:is|are|was|were|has|have|remains?|still)\b|(?:pending|awaiting|unapproved|unconfirmed|undecided|deferred)\b|(?:for|when|while)\b))/iu;
+function extractExplicitProviderCandidate(rawValue: string): { value: string; offset: number } {
+  const leadingWhitespace = rawValue.search(/\S/);
+  if (leadingWhitespace < 0) return { value: "", offset: 0 };
+  const completeValue = rawValue.trim();
+  const boundary = explicitProviderContextBoundary.exec(completeValue);
+  const value = (boundary && boundary.index > 0 ? completeValue.slice(0, boundary.index) : completeValue).trim();
+  return { value, offset: leadingWhitespace };
+}
+
 function explicitProviderCandidates(text: string): CandidateMatch[] {
   const relationships = [
     /\b(?:payments?|webhooks?)\s+(?:through|via|from)\s+([^;.\n,]+)/gi,
@@ -255,9 +272,9 @@ function explicitProviderCandidates(text: string): CandidateMatch[] {
     /\buse\s+([^;.\n,]+?)\s+for\s+payments?\b/gi
   ];
   return relationships.flatMap(pattern => [...text.matchAll(pattern)].flatMap(match => {
-    const value = match[1].trim();
+    const { value, offset } = extractExplicitProviderCandidate(match[1]);
     if (classifyResolutionValue(value) !== "resolved" || currencyCode.test(value)) return [];
-    const captureOffset = match[0].indexOf(match[1]) + match[1].indexOf(value);
+    const captureOffset = match[0].lastIndexOf(match[1]) + offset;
     return [{ value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: value.length }];
   }));
 }

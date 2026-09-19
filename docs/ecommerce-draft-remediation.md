@@ -38,6 +38,14 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 13 bounded provider entities and decision attribution
+
+Explicit provider parsing now separates relationship syntax, a bounded provider entity and its untouched trailing context. Auxiliary/status continuations such as `is pending approval` and direct pending/awaiting decision phrases start after the provider span, allowing the existing candidate-relative classifier to keep the provider unresolved. Scope continuations such as `for online orders`, `when processing refunds` and `while handling payment events` also remain outside the entity but do not make an otherwise resolved provider negative. Complete unresolved values such as `Not sure`, `Unknown` and `TBD` still reach the shared resolution classifier, and no vendor allowlist was added.
+
+Candidate decision attribution remains end-anchored and now accepts a terminal actor noun phrase of one or two lexical words after optional `the`. That preserves `approval by the finance team` and similar attributed decisions while preventing a later predicate in `approval by managers triggers notifications` from being consumed as actor text. No actor or business-action vocabulary list is used.
+
+Tests-only commit `07b7190` reproduced 12 failures and 24 passing controls (36 total) against exact reviewed head `df19da035343ff8da2eb95b903b9b6d83620eb56`. The failures were the four trailing-status provider cases (`payments via Square is pending approval`, `payments through Stripe Connect is awaiting approval`, `payment provider: Square pending approval`, `payment provider is Stripe Connect awaiting confirmation`), three trailing-scope cases (`payments via Square for online orders`, `payments through Stripe Connect for guest checkout`, `webhooks from Square for payment events`) and five attribution/action cases (`Pending refund approval by managers triggers notifications`, `creates a task`, `requires logging`; `Pending inventory confirmation by operators starts reconciliation`; `Pending shipping decision by staff generates an alert`). Run `npm run test:unit -- src/tests/ecommercePass13Remediation.test.ts` for focused verification.
+
 ### Pass 12 complete provider values and attributed decision tails
 
 Explicit provider relationships extract their complete semicolon/newline/sentence/comma-bounded value before the shared resolution classifier runs. This preserves the discovery, semantic validation, contextual polarity and evidence-selection stages while leaving legacy shorthand strict. Candidate decision tails permit an end-anchored `by` or `from` attribution with a bounded actor phrase; no actor or business-object noun whitelist was added.

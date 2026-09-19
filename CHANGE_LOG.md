@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-19 - PR #6 ecommerce Pass 13 remediation
+
+- Tests-first commit `07b7190` reproduced 12 intended failures with 24 passing controls on exact reviewed head `df19da035343ff8da2eb95b903b9b6d83620eb56`.
+- Explicit provider relationships now extract a bounded provider entity while preserving trailing status or scope prose for candidate-relative polarity classification. Pending/awaiting continuations remain unresolved, scope continuations remain positive, complete placeholder values still reach the shared resolution classifier and multiword providers remain intact.
+- Candidate decision-tail attribution is restricted to a terminal one- or two-word actor noun phrase. A later predicate therefore remains business/action prose instead of being consumed as part of the actor, without actor or action allowlists.
+- Added `src/tests/ecommercePass13Remediation.test.ts`; updated `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-19 - PR #6 ecommerce Pass 12 remediation
 
 - Tests-first commit `2bbdaf6` reproduced nine intended failures with 29 passing controls on exact reviewed head `fbebf24d4911f938a5f45332e2a48654d21bd2fc`. Separate test correction `9e6bdea` fixed an unrelated Shipping-control assertion without amending history.
