@@ -152,7 +152,7 @@ const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+
 const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
 const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
 const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
-const candidateDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment))?$/i;
+const candidateDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment)|\s+(?:by|from)\s+(?:the\s+)?[\p{L}\p{N}][\p{L}\p{N}'-]*(?:\s+[\p{L}\p{N}][\p{L}\p{N}'-]*){0,3})?$/iu;
 function unresolvedDecisionStatus(text: string): boolean {
   // Canonicalize candidate-bound approval grammar for the shared resolution
   // authority. No arbitrary noun phrase can bridge a candidate to this state.
@@ -248,13 +248,24 @@ function providerName(value: string): string {
   return words.join(" ");
 }
 
+function explicitProviderCandidates(text: string): CandidateMatch[] {
+  const relationships = [
+    /\b(?:payments?|webhooks?)\s+(?:through|via|from)\s+([^;.\n,]+)/gi,
+    /\bpayment\s+provider\s*(?::|is)\s*([^;.\n,]+)/gi,
+    /\buse\s+([^;.\n,]+?)\s+for\s+payments?\b/gi
+  ];
+  return relationships.flatMap(pattern => [...text.matchAll(pattern)].flatMap(match => {
+    const value = match[1].trim();
+    if (classifyResolutionValue(value) !== "resolved" || currencyCode.test(value)) return [];
+    const captureOffset = match[0].indexOf(match[1]) + match[1].indexOf(value);
+    return [{ value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: value.length }];
+  }));
+}
+
 function providerCandidateMatches(text: string): CandidateMatch[] {
   const name = "([A-Z][A-Za-z0-9&.-]*(?:\\s+[A-Z][A-Za-z0-9&.-]*){0,4})";
   const relationships = [
-    `\\b(?:[Pp]ayments?|[Ww]ebhooks?)\\s+(?:through|via|from)\\s+${name}\\b`,
-    `\\b[Pp]ayment\\s+provider\\s*(?::|is)\\s*${name}\\b`,
-    `\\b${name}\\s+payment\\s+(?:provider|integration)\\b`,
-    `\\b[Uu]se\\s+${name}\\s+for\\s+payments?\\b`
+    `\\b${name}\\s+payment\\s+(?:provider|integration)\\b`
   ];
   const discover = (pattern: RegExp, legacy: boolean): CandidateMatch[] => [...text.matchAll(pattern)].flatMap(match => {
     const value = providerName(match[1]);
@@ -275,7 +286,8 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
     }
     return [candidate];
   });
-  const matches = relationships.flatMap(pattern => discover(new RegExp(pattern, "g"), false));
+  const matches = explicitProviderCandidates(text);
+  matches.push(...relationships.flatMap(pattern => discover(new RegExp(pattern, "g"), false)));
   matches.push(...discover(new RegExp(`\\b${name}\\s+(?:payments?|webhooks?)\\b`, "g"), true));
   return matches
     .filter(match => Boolean(match.value))

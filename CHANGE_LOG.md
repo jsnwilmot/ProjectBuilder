@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-19 - PR #6 ecommerce Pass 12 remediation
+
+- Tests-first commit `2bbdaf6` reproduced nine intended failures with 29 passing controls on exact reviewed head `fbebf24d4911f938a5f45332e2a48654d21bd2fc`. Separate test correction `9e6bdea` fixed an unrelated Shipping-control assertion without amending history.
+- Explicit provider relationships now extract the complete structurally bounded value before shared semantic resolution validation. Sentence-case unresolved phrases are rejected, while later independent providers and multiword resolved providers remain eligible. Legacy shorthand retains its stricter false-positive protections.
+- Candidate-bound singular decision tails now accept narrow, end-anchored `by`/`from` attribution without actor-name allowlists. Approval requests, decision records and other continuing business-object phrases remain positive.
+- Added `src/tests/ecommercePass12Remediation.test.ts`; updated `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-19 - PR #6 ecommerce Pass 11 remediation
 
 - Tests-first commit `d3e3be4` reproduces the two fresh P1 findings on exact reviewed head `d205df68e28835e2c6edbf20def3d6672960baff`: 17 failures and 27 passing controls across 44 Pass 11 tests.

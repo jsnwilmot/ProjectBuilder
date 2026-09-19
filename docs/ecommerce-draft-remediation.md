@@ -38,6 +38,12 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 12 complete provider values and attributed decision tails
+
+Explicit provider relationships extract their complete semicolon/newline/sentence/comma-bounded value before the shared resolution classifier runs. This preserves the discovery, semantic validation, contextual polarity and evidence-selection stages while leaving legacy shorthand strict. Candidate decision tails permit an end-anchored `by` or `from` attribution with a bounded actor phrase; no actor or business-object noun whitelist was added.
+
+Tests-only commit `2bbdaf6` initially showed ten failures and 28 controls; one was an unrelated Shipping-control assertion and was preserved then corrected separately in `9e6bdea`. The corrected exact-head baseline is nine expected failures and 29 passing controls. Exact failures: `payment provider: Not sure`; `payment provider: Not sure; payments via Square`; `Pending USD approval by client`; `Pending USD approval by the client`; `Awaiting USD confirmation from owner`; `Pending inventory approval by stakeholder`; `Awaiting shipping decision from the owner`; `Pending guest checkout selection by client`; and `Pending USD approval by client, but CAD approved`.
+
 ### Pass 11 candidate decision tails and provider values
 
 Candidate context now recognizes only the narrow singular decision/status nouns approval, confirmation, selection and decision, with constrained modifiers and deployment-stage targets. A pending or awaiting prefix plus that candidate-bound tail delegates to the existing shared resolution authority. A continuing phrase such as `approval requests require review` remains business prose, so no business-object noun whitelist returns.
