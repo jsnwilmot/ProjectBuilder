@@ -38,6 +38,14 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 15 structural predicate boundaries and decision-relative provider state
+
+Attributed decision tails no longer maintain a list of workflow predicates. A continuing action is recognized structurally when an arbitrary-length attribution contains a nonterminal auxiliary or finite third-person predicate followed by its complement. Derivational plural noun morphology remains inside terminal actor noun phrases, preserving actors such as `business operations group`, `procurement steering committee` and `advanced systems board` without an actor allowlist or word-count cap.
+
+Provider entity extraction remains separate from context polarity. A `while ... pending` context is canonicalized as unresolved only when its grammatical subject is headed by the closed decision-status category approval, confirmation, selection, decision, authorization or review. This keeps `Square while client approval is pending` unresolved but preserves Square when refunds, orders, shipments, transactions or payment captures are pending. `subject to` and `under review` conditions, sentence-case unresolved values, scope clauses and legacy false-provider protections remain unchanged.
+
+Tests-only commit `76bbdb3` reproduced 11 failures and 38 passing controls (49 total) against exact reviewed head `ed42aecf286a54aaa97e05f8805ccde3fedd5de6`. Exact failures: six attributed action continuations (`alerts customers`, `emails customers`, `launches reconciliation`, `creates documentation`, `publishes receipts`, `escalates cases`) and five resolved providers followed by pending business objects (refunds, orders, shipments, transactions and payment captures). Run `npm run test:unit -- src/tests/ecommercePass15Remediation.test.ts` for focused verification.
+
 ### Pass 14 terminal actors and provider status conditions
 
 Attributed decision tails no longer impose a lexical word limit on the actor. A structural helper accepts the complete terminal noun phrase after `by` or `from`, but rejects it when the remainder contains a finite predicate with a following complement. This preserves long actors such as `product steering committee` and `information security review board` while keeping `approval by managers triggers notifications` as business/action prose. No actor-name allowlist is used.

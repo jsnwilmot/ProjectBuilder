@@ -155,24 +155,22 @@ const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probab
 const decisionNounTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment))?$/iu;
 const attributedDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)\s+(?:by|from)\s+(?:the\s+)?(.+)$/iu;
 const predicateAuxiliary = /^(?:is|are|was|were|has|have|had|will|would|shall|should|can|could|may|might|must|do|does|did)$/i;
-const predicateDeterminer = /^(?:a|an|the|this|that|these|those)$/i;
-const commonPredicateForms = new Set([
-  "triggers", "starts", "requires", "sends", "assigns", "queues", "records",
-  "produces", "causes", "initiates", "schedules", "notifies", "blocks",
-  "allows", "enables", "updates", "writes", "logs", "retries", "processes"
-]);
+const finitePredicateInflection = /^[\p{L}]+(?:s|es)$/iu;
+// Inflected finite predicates and plural noun modifiers can both end in `s`.
+// These derivational noun endings protect terminal actor phrases such as
+// "business operations group" and "advanced systems board" without naming
+// actors or enumerating every possible workflow verb.
+const derivedNominalPlural = /(?:tions|sions|ments|nesses|ships|ities|ics|isms|tems)$/iu;
 function hasContinuingPredicate(actorText: string): boolean {
   const words = actorText.trim().split(/\s+/).filter(Boolean);
-  // A predicate needs an attributed subject before it and a complement after
-  // it. Closed-class auxiliaries, common workflow predicates, and an inflected
-  // verb before a determiner identify that continuation without limiting the
-  // length or vocabulary of the terminal actor noun phrase.
-  return words.slice(1, -1).some((word, relativeIndex) => {
-    const normalized = word.toLocaleLowerCase();
-    const next = words[relativeIndex + 2] ?? "";
+  // A continuation requires an attributed subject before a nonterminal finite
+  // predicate and a complement after it. Closed-class auxiliaries and general
+  // third-person finite morphology identify the boundary; derived plural noun
+  // modifiers remain part of an arbitrary-length terminal actor noun phrase.
+  return words.slice(1, -1).some(word => {
+    const normalized = word.replace(/[^\p{L}]/gu, "").toLocaleLowerCase();
     return predicateAuxiliary.test(normalized)
-      || commonPredicateForms.has(normalized)
-      || (normalized.endsWith("s") && predicateDeterminer.test(next));
+      || (finitePredicateInflection.test(normalized) && !derivedNominalPlural.test(normalized));
   });
 }
 function candidateDecisionNoun(text: string): string | undefined {
@@ -189,7 +187,7 @@ function unresolvedDecisionStatus(text: string): boolean {
     .replace(/^(?:(?:is|are|was|were|remains?|still)\s+)+/i, "")
     .replace(/^subject\s+to\s+.*\b(approval|confirmation|decision|selection|review)\b.*$/i, "pending $1")
     .replace(/^under\s+(review|consideration)\b.*$/i, "awaiting $1")
-    .replace(/^while\s+.+\b(?:is|are|remains?)\s+(?:pending|awaiting|unapproved|unconfirmed|undecided)\b.*$/i, "pending approval")
+    .replace(/^while\s+(?:the\s+)?(?:[\p{L}\p{N}-]+\s+){0,4}(?:approval|confirmation|selection|decision|authorization|review)\s+(?:is|are|remains?)\s+(?:still\s+)?(?:pending|awaiting|unapproved|unconfirmed|undecided)\b.*$/iu, "pending approval")
     .replace(/^(?:has\s+not\s+(?:yet\s+)?been\s+|not\s+(?:yet\s+)?)(?:approved|confirmed|selected|accepted)\b.*$/i, "unconfirmed")
     .replace(/^unapproved\b.*$/i, "unconfirmed")
     .replace(/^((?:pending|awaiting)\s+)final\s+(approval|confirmation|selection)\b/i, "$1$2");

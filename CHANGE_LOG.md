@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-19 - PR #6 ecommerce Pass 15 remediation
+
+- Tests-first commit `76bbdb3` reproduced 11 intended failures with 38 passing controls on exact reviewed head `ed42aecf286a54aaa97e05f8805ccde3fedd5de6`.
+- Attributed decision parsing no longer depends on an enumerated workflow-verb set. A nonterminal finite-predicate boundary distinguishes continuing action prose from an arbitrary-length terminal actor noun phrase, while derivational noun morphology protects actor modifiers such as `operations` and `systems`.
+- Pending provider context is now unresolved only when the grammatical subject is headed by a closed decision-status noun such as approval, confirmation, selection, decision, authorization or review. Pending refunds, orders, shipments, transactions and other business objects no longer invalidate an already resolved provider candidate.
+- Added `src/tests/ecommercePass15Remediation.test.ts`; updated `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-19 - PR #6 ecommerce Pass 14 remediation
 
 - Tests-first commit `4adc827` reproduced ten intended failures with 24 passing controls on exact reviewed head `a1ce9bb9828f59b68db451d5f7307ad753fcd31d`.
