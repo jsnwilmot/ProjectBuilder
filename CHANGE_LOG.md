@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-19 - PR #6 ecommerce Pass 14 remediation
+
+- Tests-first commit `4adc827` reproduced ten intended failures with 24 passing controls on exact reviewed head `a1ce9bb9828f59b68db451d5f7307ad753fcd31d`.
+- Candidate decision tails now parse unbounded terminal `by`/`from` actor noun phrases and reject a continuing finite predicate rather than imposing an arbitrary actor word cap. Existing short actors and attributed business-action prose remain distinct without an actor allowlist.
+- Explicit provider extraction now finds the earliest grammatical context boundary across auxiliary/status, pending-state, condition and scope classes. `subject to`, `under review`, `not yet approved` and unresolved `while` clauses remain outside the provider entity and are canonicalized through the shared resolution classifier; positive scope clauses remain positive.
+- Added `src/tests/ecommercePass14Remediation.test.ts`; updated `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-19 - PR #6 ecommerce Pass 13 remediation
 
 - Tests-first commit `07b7190` reproduced 12 intended failures with 24 passing controls on exact reviewed head `df19da035343ff8da2eb95b903b9b6d83620eb56`.

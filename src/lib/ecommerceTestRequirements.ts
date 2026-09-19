@@ -152,15 +152,44 @@ const awaitingSubjectPrefix = new RegExp(`^awaiting\\s+(${DECISION_SUBJECT})\\s+
 const approvalOfSubjectPrefix = new RegExp(`^((?:awaiting|pending)\\s+(?:approval|confirmation|decision|selection))\\s+(?:of|for|on)\\s+${DECISION_SUBJECT}\\b`, "i");
 const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
 const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
-// An attribution is a terminal, short actor noun phrase. Capping that phrase at
-// two lexical words prevents a following predicate from being swallowed as an
-// actor ("by managers triggers notifications") without naming allowed actors.
-const candidateDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment)|\s+(?:by|from)\s+(?:the\s+)?[\p{L}\p{N}][\p{L}\p{N}'-]*(?:\s+[\p{L}\p{N}][\p{L}\p{N}'-]*){0,1})?$/iu;
+const decisionNounTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment))?$/iu;
+const attributedDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)\s+(?:by|from)\s+(?:the\s+)?(.+)$/iu;
+const predicateAuxiliary = /^(?:is|are|was|were|has|have|had|will|would|shall|should|can|could|may|might|must|do|does|did)$/i;
+const predicateDeterminer = /^(?:a|an|the|this|that|these|those)$/i;
+const commonPredicateForms = new Set([
+  "triggers", "starts", "requires", "sends", "assigns", "queues", "records",
+  "produces", "causes", "initiates", "schedules", "notifies", "blocks",
+  "allows", "enables", "updates", "writes", "logs", "retries", "processes"
+]);
+function hasContinuingPredicate(actorText: string): boolean {
+  const words = actorText.trim().split(/\s+/).filter(Boolean);
+  // A predicate needs an attributed subject before it and a complement after
+  // it. Closed-class auxiliaries, common workflow predicates, and an inflected
+  // verb before a determiner identify that continuation without limiting the
+  // length or vocabulary of the terminal actor noun phrase.
+  return words.slice(1, -1).some((word, relativeIndex) => {
+    const normalized = word.toLocaleLowerCase();
+    const next = words[relativeIndex + 2] ?? "";
+    return predicateAuxiliary.test(normalized)
+      || commonPredicateForms.has(normalized)
+      || (normalized.endsWith("s") && predicateDeterminer.test(next));
+  });
+}
+function candidateDecisionNoun(text: string): string | undefined {
+  const simple = decisionNounTail.exec(text);
+  if (simple) return simple[1];
+  const attributed = attributedDecisionTail.exec(text);
+  if (!attributed || hasContinuingPredicate(attributed[2])) return undefined;
+  return attributed[1];
+}
 function unresolvedDecisionStatus(text: string): boolean {
   // Canonicalize candidate-bound approval grammar for the shared resolution
   // authority. No arbitrary noun phrase can bridge a candidate to this state.
   const status = text.split(/[:,]/, 1)[0].trim()
     .replace(/^(?:(?:is|are|was|were|remains?|still)\s+)+/i, "")
+    .replace(/^subject\s+to\s+.*\b(approval|confirmation|decision|selection|review)\b.*$/i, "pending $1")
+    .replace(/^under\s+(review|consideration)\b.*$/i, "awaiting $1")
+    .replace(/^while\s+.+\b(?:is|are|remains?)\s+(?:pending|awaiting|unapproved|unconfirmed|undecided)\b.*$/i, "pending approval")
     .replace(/^(?:has\s+not\s+(?:yet\s+)?been\s+|not\s+(?:yet\s+)?)(?:approved|confirmed|selected|accepted)\b.*$/i, "unconfirmed")
     .replace(/^unapproved\b.*$/i, "unconfirmed")
     .replace(/^((?:pending|awaiting)\s+)final\s+(approval|confirmation|selection)\b/i, "$1$2");
@@ -180,8 +209,8 @@ function unresolvedCandidatePrefix(before: string, after: string): boolean {
   if (approval && classifyResolutionValue(approval[1]) === "unresolved") return true;
   const governed = before.match(/(?:^|[, :])((?:pending|awaiting|needs?|to be determined|deferred|unknown|unconfirmed|undecided|TBD)\b[^,]*?)\s+(?:for|of|on)\s*$/i)?.[1];
   if (governed && classifyResolutionValue(governed) === "unresolved") return true;
-  const decisionTail = after.replace(REQUIREMENT_QUALIFIERS, "").trim().match(candidateDecisionTail);
-  if (decisionTail && classifyResolutionValue(`${before} ${decisionTail[1]}`) === "unresolved") return true;
+  const decisionNoun = candidateDecisionNoun(after.replace(REQUIREMENT_QUALIFIERS, "").trim());
+  if (decisionNoun && classifyResolutionValue(`${before} ${decisionNoun}`) === "unresolved") return true;
   // A bare state adjective governs the candidate only when that candidate
   // completes the subject/value phrase. Continuation into a noun phrase/action
   // ("pending inventory refunds require review") describes a business object,
@@ -255,13 +284,24 @@ function providerName(value: string): string {
 // provider entity, but the rest of the clause can describe its status or scope.
 // Keep that continuation in the source fragment so candidate-relative polarity
 // classification can still evaluate it.
-const explicitProviderContextBoundary = /\s+(?=(?:(?:is|are|was|were|has|have|remains?|still)\b|(?:pending|awaiting|unapproved|unconfirmed|undecided|deferred)\b|(?:for|when|while)\b))/iu;
+const explicitProviderContextPatterns = [
+  /\s+(?=(?:is|are|was|were|has|have|remains?|still)\b)/iu,
+  /\s+(?=(?:pending|awaiting|unapproved|unconfirmed|undecided|deferred)\b)/iu,
+  /\s+(?=(?:subject\s+to|under\s+(?:review|consideration)|not\s+(?:yet\s+)?(?:approved|confirmed|selected|accepted))\b)/iu,
+  /\s+(?=(?:for|when|while)\b)/iu
+];
+function explicitProviderContextStart(value: string): number | undefined {
+  const boundaries = explicitProviderContextPatterns
+    .map(pattern => pattern.exec(value)?.index)
+    .filter((index): index is number => typeof index === "number" && index > 0);
+  return boundaries.length ? Math.min(...boundaries) : undefined;
+}
 function extractExplicitProviderCandidate(rawValue: string): { value: string; offset: number } {
   const leadingWhitespace = rawValue.search(/\S/);
   if (leadingWhitespace < 0) return { value: "", offset: 0 };
   const completeValue = rawValue.trim();
-  const boundary = explicitProviderContextBoundary.exec(completeValue);
-  const value = (boundary && boundary.index > 0 ? completeValue.slice(0, boundary.index) : completeValue).trim();
+  const contextStart = explicitProviderContextStart(completeValue);
+  const value = (contextStart === undefined ? completeValue : completeValue.slice(0, contextStart)).trim();
   return { value, offset: leadingWhitespace };
 }
 

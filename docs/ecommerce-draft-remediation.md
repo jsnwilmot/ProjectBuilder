@@ -38,6 +38,14 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 14 terminal actors and provider status conditions
+
+Attributed decision tails no longer impose a lexical word limit on the actor. A structural helper accepts the complete terminal noun phrase after `by` or `from`, but rejects it when the remainder contains a finite predicate with a following complement. This preserves long actors such as `product steering committee` and `information security review board` while keeping `approval by managers triggers notifications` as business/action prose. No actor-name allowlist is used.
+
+Explicit provider parsing finds the earliest boundary from small grammatical context classes instead of treating the whole relationship remainder as the provider. Auxiliary and pending states, `subject to` conditions, `under review`/`under consideration`, not-yet decisions, and `for`/`when`/`while` scopes remain in the source after the provider span. Candidate-relative status normalization delegates outstanding approval, review and condition meaning to the shared resolution classifier. Scope prose such as `for online orders` and `when processing refunds` remains positive, while `subject to client approval` and `while approval is pending` remain unresolved.
+
+Tests-only commit `4adc827` reproduced ten failures and 24 passing controls (34 total) against exact reviewed head `a1ce9bb9828f59b68db451d5f7307ad753fcd31d`. Exact failures: five long terminal actors (`product steering committee`, the same actor with `the`, `information security review board`, `senior project management team`, `ecommerce governance working group`) and five provider conditions (`subject to client approval`, `subject to security approval`, `under review`, `not yet approved`, `while approval is pending`). Run `npm run test:unit -- src/tests/ecommercePass14Remediation.test.ts` for focused verification.
+
 ### Pass 13 bounded provider entities and decision attribution
 
 Explicit provider parsing now separates relationship syntax, a bounded provider entity and its untouched trailing context. Auxiliary/status continuations such as `is pending approval` and direct pending/awaiting decision phrases start after the provider span, allowing the existing candidate-relative classifier to keep the provider unresolved. Scope continuations such as `for online orders`, `when processing refunds` and `while handling payment events` also remain outside the entity but do not make an otherwise resolved provider negative. Complete unresolved values such as `Not sure`, `Unknown` and `TBD` still reach the shared resolution classifier, and no vendor allowlist was added.
