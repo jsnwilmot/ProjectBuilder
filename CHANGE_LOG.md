@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-20 - PR #6 ecommerce Pass 18 remediation
+
+- Tests-first commit `7385390` reproduced 12 intended failures with four passing controls on exact reviewed head `3929395ad296a9751fdb1795882f208af65ac934`.
+- Effective Decision Register selections now group normalized singleton answers by semantic question context. Case-equivalent answers agree, while distinct provider, currency or checkout values create deterministic blockers at the strongest contributing gate and cannot be selected by row order.
+- Not-applicable outcomes now share a normalized requirement-domain model with generated Ecommerce verification. Positive structured or source evidence that contradicts an effective exclusion creates a deterministic source conflict; an uncontested exclusion omits that verification without adding a dependency.
+- Ecommerce base-template rendering now receives a generation-scoped project view without persisted prior document bytes. Current normalized generation context remains available, so stale missing markers or readiness actions cannot contaminate a regenerated package.
+- Added `src/tests/ecommercePass18Remediation.test.ts`; updated Ecommerce decision/evidence/rendering code, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-20 - PR #6 ecommerce Pass 17 remediation
 
 - Tests-first commit `1d633bf` reproduced 20 intended failures with 10 passing controls on exact reviewed head `edeaeec307080186d1e4d02305693643949f71a1`.

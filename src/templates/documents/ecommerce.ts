@@ -74,6 +74,14 @@ export const ecommerceDocumentTemplates = Object.fromEntries(Object.entries(webs
     const d = decisions.get(id);
     return d ? `${prefix}${id}: ${d.question} Status: ${d.status}. ${d.answer || d.reason}` : line;
   });
-  const content = base({...p, intake: {...p.intake, assumptions}});
+  // Website base templates must evaluate the source state being rendered now,
+  // never the prior persisted package. The current generation's normalized
+  // readiness remains available through generationContext.
+  const content = base({
+    ...p,
+    generatedDocuments: [],
+    generatedFileCount: 0,
+    intake: {...p.intake, assumptions}
+  });
   return `${content}\n\n${summary(p)}${modelDocs.has(name) ? `\n\n${storefronts(p)}` : ""}${name === "ACCEPTANCE_CRITERIA.md" ? `\n\n## Commerce verification\n\n${commerceChecks(p)}` : ""}${name === "CODEX_INSTRUCTIONS.md" ? "\n\nImplementation is allowed only by approved phase contracts after architecture blockers are resolved. Otherwise run the architecture-resolution phase. Do not infer technology or cross-store cart behavior." : ""}`;
 }])) as Record<string, (p: Project) => string>;

@@ -1,4 +1,4 @@
-import { ecommerceDecisions, ecommerceDecisionState, ecommerceResolvedSelections } from "../lib/ecommerceDecisions";
+import { ARCHITECTURE_KEYS, DEPLOYMENT_KEYS, ecommerceDecisions, ecommerceDecisionState, ecommerceResolvedSelections, PHASE_KEYS } from "../lib/ecommerceDecisions";
 import { ecommerceTestRequirements } from "../lib/ecommerceTestRequirements";
 import { generateProjectPackage } from "../lib/generateProjectPackage";
 import { createEcommerceFixture } from "./helpers/ecommerce";
@@ -16,6 +16,18 @@ function projectWithEvidence(text = "Recorded ecommerce behavior.") {
   project.intake.acceptanceNotes = text;
   project.intake.assumptions = "";
   project.intake.ecommerceDecisions = "";
+  return project;
+}
+
+function readyProject() {
+  const project = createEcommerceFixture();
+  project.intake.ecommerceArchitecture = `Approved: ${ARCHITECTURE_KEYS.map(key => `${key}=approved ${key}`).join(";")}`;
+  project.intake.ecommerceDeployment = `Approved: ${DEPLOYMENT_KEYS.map(key => `${key}=approved ${key}`).join(";")}`;
+  project.intake.ecommercePhases = JSON.stringify([Object.fromEntries(PHASE_KEYS.map(key => [key, `Approved ${key}`]))]);
+  project.intake.ecommerceDecisions = Array.from({ length: 20 }, (_, index) => {
+    const id = `OQ-${String(index + 1).padStart(2, "0")}`;
+    return decision(id, "launch", "Answered", `Resolved fixture question ${index + 1}?`, "Approved by fixture owner", `Approved fixture answer ${index + 1}`);
+  }).join("\n");
   return project;
 }
 
@@ -145,7 +157,7 @@ describe("Ecommerce Pass 18 Not applicable evidence reconciliation", () => {
 
 describe("Ecommerce Pass 18 current-generation rendering", () => {
   it("does not carry an obsolete regenerate blocker or stale marker into a new package", () => {
-    const project = projectWithEvidence();
+    const project = readyProject();
     project.packageGeneratedAt = "2026-09-01T00:00:00.000Z";
     project.generatedDocuments = [{
       fileName: "README.md",
@@ -163,7 +175,7 @@ describe("Ecommerce Pass 18 current-generation rendering", () => {
   });
 
   it("uses a new source blocker even when the old generated package was ready", () => {
-    const project = projectWithEvidence();
+    const project = readyProject();
     project.packageGeneratedAt = "2026-09-01T00:00:00.000Z";
     project.generatedDocuments = [{ fileName: "README.md", folder: "00_Project_Overview", content: "# Old ready package" }];
     project.generatedFileCount = 1;

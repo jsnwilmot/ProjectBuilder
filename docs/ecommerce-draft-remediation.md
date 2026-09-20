@@ -1,5 +1,15 @@
 # Ecommerce Draft 1 generation remediation
 
+## Pass 18 effective current state
+
+Pass 18 starts from exact reviewed head `3929395ad296a9751fdb1795882f208af65ac934`. The tests-only baseline commit `7385390` records 12 expected failures and four passing controls across 16 tests. Baseline failures are the three distinct singleton conflicts, provider-conflict evidence selection, case-normalized provider agreement, strongest-gate conflict severity, tax/shipping/pickup/returns Not-applicable contradictions, cross-document N/A synchronization, and stale regeneration. Passing controls are normalized currency agreement, N/A without positive evidence, unrelated N/A isolation, and a new source blocker overriding an old ready package.
+
+Singleton provider, currency and checkout choices are grouped by question-context semantics rather than decision IDs. One normalized value is effective even when repeated; distinct normalized values create deterministic `EC-SELECTION-CONFLICT-*` decisions and no selection. Conflict severity is the strongest contributing gate, original records remain untouched, and generated verification cannot choose a winner by register order.
+
+Recognized requirement domains use the same normalized Decision Register outcomes for readiness and verification. An uncontested `Not applicable` outcome excludes its domain without inventing a dependency. Positive Answered or free-form evidence against that exclusion creates a deterministic `EC-EVIDENCE-CONFLICT-*` blocker, suppresses misleading positive verification and remains visible in Client Questions and package readiness. Unrelated questions do not suppress commerce evidence, and no test-generation code reparses the raw register.
+
+During regeneration, Ecommerce website base templates receive the current source and generation context but an empty generation-scoped document collection. Persisted documents remain untouched on the saved project; they are simply not treated as evidence about the package currently being rendered. New blockers still come from current source state, while old missing markers and obsolete regeneration actions cannot survive into the new package.
+
 Ecommerce projects use nineteen web-oriented documents with commerce-specific testing, deployment and architecture-aware phases. The saved client's business requirements are never rewritten to conceal an output defect. Existing business/static website and application/Power Platform template routes remain unchanged.
 
 ## Root causes and regression evidence

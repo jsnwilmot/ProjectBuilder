@@ -1,5 +1,5 @@
 import type { ProjectRecord } from "../types/project";
-import { classifyResolutionValue, ECOMMERCE_CURRENCY_CODES, ecommerceResolvedSelections, validatedEcommerceConfiguration } from "./ecommerceDecisions";
+import { classifyResolutionValue, ECOMMERCE_CURRENCY_CODES, ecommerceRequirementOutcomes, ecommerceResolvedSelections, validatedEcommerceConfiguration, type EcommerceRequirementDomain } from "./ecommerceDecisions";
 
 export interface EcommerceTestRequirement {
   category: string;
@@ -374,21 +374,32 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
   const fragments = sourceFragments(project);
   const resolvedSelections = ecommerceResolvedSelections(project);
+  const requirementOutcomes = new Map(ecommerceRequirementOutcomes(project).map(outcome => [outcome.domain, outcome]));
+  const reconciledEvidence = (domain: EcommerceRequirementDomain, current: SourceFragment[]): SourceFragment[] => {
+    const outcome = requirementOutcomes.get(domain);
+    if (!outcome || outcome.conflict || outcome.excluded) return outcome ? [] : current;
+    if (current.length) return current;
+    return outcome.positiveDecisions.map(decision => ({
+      field: "ecommerceDecisions",
+      label: `Decision Register ${decision.id}`,
+      text: decision.answer
+    }));
+  };
   const checkoutEvidence = resolvedSelections.checkoutMode ? undefined : firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
   const currencyEvidence = resolvedSelections.currency ? undefined : firstPositiveMatch(fragments, new RegExp(`\\b(${CURRENCY_CODES})\\b`, "i"));
   const providerEvidence = resolvedSelections.paymentProvider ? undefined : firstPositiveMatch(fragments, providerCandidateMatches);
   const checkoutMode = resolvedSelections.checkoutMode?.value.toLocaleLowerCase() ?? checkoutEvidence?.value.toLocaleLowerCase() ?? "";
   const currency = resolvedSelections.currency?.value.toUpperCase() ?? currencyEvidence?.value.toUpperCase() ?? "";
   const paymentProvider = resolvedSelections.paymentProvider?.value ?? providerEvidence?.value ?? "";
-  const tax = evidence(fragments, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i);
-  const shipping = evidence(fragments, /\bshipping\b|\bcarrier\b/i);
-  const pickup = evidence(fragments, /\bpickup\b|\bpick-up\b/i);
-  const inventory = evidence(fragments, /\binventory\b|\bstock\b/i);
-  const digital = evidence(fragments, /\bdigital\b|\bsoftware\b|\bdownload\b|\bentitlement\b/i);
-  const quotes = evidence(fragments, /\bquotes?\b|\buploads?\b|\bcustom work\b/i);
-  const lookup = evidence(fragments, /\border lookup\b|\border status\b|\bguest lookup\b/i);
-  const returns = evidence(fragments, /\breturns?\b|\brefunds?\b|\bfinal[- ]sale\b/i);
-  const roles = evidence(fragments, /\broles?\b|\badmin(?:istrator)?s?\b|\bpermissions?\b|\bprivileged\b/i);
+  const tax = reconciledEvidence("tax", evidence(fragments, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i));
+  const shipping = reconciledEvidence("shipping", evidence(fragments, /\bshipping\b|\bcarrier\b/i));
+  const pickup = reconciledEvidence("pickup", evidence(fragments, /\bpickup\b|\bpick-up\b/i));
+  const inventory = reconciledEvidence("inventory", evidence(fragments, /\binventory\b|\bstock\b/i));
+  const digital = reconciledEvidence("digital", evidence(fragments, /\bdigital\b|\bsoftware\b|\bdownload\b|\bentitlement\b/i));
+  const quotes = reconciledEvidence("quotes", evidence(fragments, /\bquotes?\b|\buploads?\b|\bcustom work\b/i));
+  const lookup = reconciledEvidence("lookup", evidence(fragments, /\border lookup\b|\border status\b|\bguest lookup\b/i));
+  const returns = reconciledEvidence("returns", evidence(fragments, /\breturns?\b|\brefunds?\b|\bfinal[- ]sale\b/i));
+  const roles = reconciledEvidence("roles", evidence(fragments, /\broles?\b|\badmin(?:istrator)?s?\b|\bpermissions?\b|\bprivileged\b/i));
   const mfa = firstPositiveMatch(fragments, /\b(admin(?:istrator)? MFA)\b/i)?.value ?? "";
   const accessibilityTarget = String(project.intake.accessibilityNotes ?? "").trim();
   const dependencies: string[] = [];
@@ -396,9 +407,9 @@ export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTest
   if (!checkoutMode) dependencies.push("resolve the recorded checkout mode before mode-specific checkout verification");
   if (!currency) dependencies.push("resolve the recorded currency before currency-specific totals and payment verification");
   if (!paymentProvider) dependencies.push("resolve the recorded payment provider before provider-specific webhook and refund verification");
-  if (!tax.length && mentionedButUnresolved(fragments, /\btax(?:es|ation)?\b|\bjurisdiction\b|\bGST\b|\bHST\b|\bVAT\b/i)) dependencies.push("resolve the recorded tax jurisdiction and model before tax verification");
-  if (!shipping.length && mentionedButUnresolved(fragments, /\bshipping\b|\bcarrier\b/i)) dependencies.push("resolve the recorded shipping model before shipping verification");
-  if (!returns.length && mentionedButUnresolved(fragments, /\breturns?\b|\brefunds?\b/i)) dependencies.push("resolve the recorded return and refund policy before policy verification");
+  if (!requirementOutcomes.get("tax")?.excluded && !requirementOutcomes.get("tax")?.conflict && !tax.length && mentionedButUnresolved(fragments, /\btax(?:es|ation)?\b|\bjurisdiction\b|\bGST\b|\bHST\b|\bVAT\b/i)) dependencies.push("resolve the recorded tax jurisdiction and model before tax verification");
+  if (!requirementOutcomes.get("shipping")?.excluded && !requirementOutcomes.get("shipping")?.conflict && !shipping.length && mentionedButUnresolved(fragments, /\bshipping\b|\bcarrier\b/i)) dependencies.push("resolve the recorded shipping model before shipping verification");
+  if (!requirementOutcomes.get("returns")?.excluded && !requirementOutcomes.get("returns")?.conflict && !returns.length && mentionedButUnresolved(fragments, /\breturns?\b|\brefunds?\b/i)) dependencies.push("resolve the recorded return and refund policy before policy verification");
 
   const rows: EcommerceTestRequirement[] = [
     {

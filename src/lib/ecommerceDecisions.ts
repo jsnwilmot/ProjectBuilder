@@ -55,6 +55,20 @@ export interface EcommerceResolvedSelection {
   value: string;
   decision: EcommerceDecision;
 }
+export type EcommerceRequirementDomain = "tax" | "shipping" | "pickup" | "inventory" | "digital" | "quotes" | "lookup" | "returns" | "roles" | "webhooks";
+export interface EcommerceRequirementEvidence {
+  field: ProjectInputField;
+  label: string;
+  text: string;
+}
+export interface EcommerceRequirementOutcome {
+  domain: EcommerceRequirementDomain;
+  notApplicableDecisions: EcommerceDecision[];
+  positiveDecisions: EcommerceDecision[];
+  positiveEvidence: EcommerceRequirementEvidence[];
+  conflict: boolean;
+  excluded: boolean;
+}
 export const ECOMMERCE_CURRENCY_CODES = ["CAD", "USD", "EUR", "GBP", "AUD", "NZD", "JPY", "CNY", "INR", "CHF", "SEK", "NOK", "DKK", "MXN", "BRL"] as const;
 const currencySelection = new RegExp(`\\b(${ECOMMERCE_CURRENCY_CODES.join("|")})\\b`, "iu");
 const checkoutSelection = /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/iu;
@@ -72,6 +86,95 @@ export function normalizedEcommerceSelectionAnswer(kind: EcommerceSelectionKind,
   if (kind === "currency") return currencySelection.exec(value)?.[1].toUpperCase();
   if (kind === "checkoutMode") return checkoutSelection.exec(value)?.[1];
   return value;
+}
+const selectionConflictIds: Record<EcommerceSelectionKind, string> = {
+  paymentProvider: "EC-SELECTION-CONFLICT-PAYMENT-PROVIDER",
+  currency: "EC-SELECTION-CONFLICT-CURRENCY",
+  checkoutMode: "EC-SELECTION-CONFLICT-CHECKOUT"
+};
+const selectionLabels: Record<EcommerceSelectionKind, string> = {
+  paymentProvider: "payment provider",
+  currency: "checkout currency",
+  checkoutMode: "checkout mode"
+};
+function strongestGate(decisions: EcommerceDecision[]): EcommerceDecision["gate"] {
+  if (decisions.some(decision => decision.gate === "architecture")) return "architecture";
+  if (decisions.some(decision => decision.gate === "launch")) return "launch";
+  return "optional";
+}
+function selectionComparisonValue(kind: EcommerceSelectionKind, value: string): string {
+  return kind === "currency" ? value.toUpperCase() : value.normalize("NFKC").toLocaleLowerCase().replace(/\s+/g, " ").trim();
+}
+function resolvedSelectionGroups(decisions: EcommerceDecision[]): Map<EcommerceSelectionKind, Map<string, EcommerceResolvedSelection[]>> {
+  const groups = new Map<EcommerceSelectionKind, Map<string, EcommerceResolvedSelection[]>>();
+  for (const decision of decisions) {
+    if (decision.status !== "Answered") continue;
+    const kind = ecommerceSelectionKind(decision.question);
+    if (!kind) continue;
+    const value = normalizedEcommerceSelectionAnswer(kind, decision.answer);
+    if (!value) continue;
+    const byValue = groups.get(kind) ?? new Map<string, EcommerceResolvedSelection[]>();
+    const comparisonValue = selectionComparisonValue(kind, value);
+    byValue.set(comparisonValue, [...(byValue.get(comparisonValue) ?? []), { kind, value, decision }]);
+    groups.set(kind, byValue);
+  }
+  return groups;
+}
+
+const requirementDomainDefinitions: Record<EcommerceRequirementDomain, { label: string; question: RegExp; evidence: RegExp; conflictId: string }> = {
+  tax: { label: "tax", question: /\b(?:tax|taxes|taxation|GST|HST|VAT)\b/iu, evidence: /\b(?:tax|taxes|taxation|GST|HST|VAT)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-TAX" },
+  shipping: { label: "shipping", question: /\b(?:shipping|carrier)\b/iu, evidence: /\b(?:shipping|carrier)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-SHIPPING" },
+  pickup: { label: "pickup", question: /\bpick-?up\b/iu, evidence: /\bpick-?up\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-PICKUP" },
+  inventory: { label: "inventory", question: /\b(?:inventory|stock)\b/iu, evidence: /\b(?:inventory|stock)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-INVENTORY" },
+  digital: { label: "digital or software delivery", question: /\b(?:digital (?:product|delivery)|software delivery|download|entitlement)\b/iu, evidence: /\b(?:digital|software|download|entitlement)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-DIGITAL" },
+  quotes: { label: "quotes or custom work", question: /\b(?:quotes?|custom work|uploads?)\b/iu, evidence: /\b(?:quotes?|custom work|uploads?)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-QUOTES" },
+  lookup: { label: "order lookup", question: /\b(?:order|guest) (?:lookup|status)\b/iu, evidence: /\b(?:order|guest) (?:lookup|status)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-ORDER-LOOKUP" },
+  returns: { label: "returns and refunds", question: /\b(?:returns?|refunds?|final[- ]sale)\b/iu, evidence: /\b(?:returns?|refunds?|final[- ]sale)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-RETURNS" },
+  roles: { label: "roles and permissions", question: /\b(?:roles?|permissions?|privileged access|administrators?)\b/iu, evidence: /\b(?:roles?|permissions?|privileged|administrators?)\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-ROLES" },
+  webhooks: { label: "webhooks and integration behavior", question: /\b(?:webhooks?|idempoten(?:cy|t)|integration behavior)\b/iu, evidence: /\b(?:webhooks?|idempoten(?:cy|t))\b/iu, conflictId: "EC-EVIDENCE-CONFLICT-WEBHOOKS" }
+};
+const requirementEvidenceFields: Array<[ProjectInputField, string]> = [
+  ["requiredFeatures", "required features"], ["featureDescription", "feature description"], ["workflows", "workflows"],
+  ["workflowTrigger", "workflow trigger"], ["workflowSteps", "workflow steps"], ["screens", "screens"],
+  ["websitePages", "pages"], ["dataEntities", "data entities"], ["dataCollections", "data collections"], ["fields", "fields"],
+  ["integrations", "integrations"], ["rolePermissionsSummary", "role permissions"], ["authenticationExpectation", "authentication"],
+  ["permissionRules", "permission rules"], ["constraints", "constraints"], ["acceptanceNotes", "acceptance notes"],
+  ["successCriteria", "success criteria"], ["accessibilityNotes", "accessibility"]
+];
+const negativeRequirementAnswer = /^(?:no|not\s+(?:required|applicable|included|supported)|none|without|exclude(?:d)?)\b/iu;
+function positiveRequirementMention(text: string, pattern: RegExp): boolean {
+  const match = pattern.exec(text);
+  if (!match) return false;
+  const before = text.slice(0, match.index);
+  const after = text.slice(match.index + match[0].length);
+  if (/(?:^|\b)(?:no|without|exclude(?:d)?|do(?:es)?\s+not\s+(?:require|include|support)|not\s+(?:requiring|including|supporting))\s+(?:[\p{L}\p{N}-]+\s+){0,4}$/iu.test(before)) return false;
+  if (/^(?:\s+[\p{L}\p{N}-]+){0,4}\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|applicable|included|supported|in scope)|excluded|disabled|out of scope)\b/iu.test(after)) return false;
+  if (/\b(?:pending|awaiting|unknown|unconfirmed|undecided|TBD|not sure|to be determined)\b/iu.test(text)
+    && /\b(?:decision|approval|confirmation|selection|model|scope|requirement)\b/iu.test(text)) return false;
+  return true;
+}
+export function ecommerceRequirementDomain(question: string): EcommerceRequirementDomain | undefined {
+  return (Object.entries(requirementDomainDefinitions) as Array<[EcommerceRequirementDomain, typeof requirementDomainDefinitions[EcommerceRequirementDomain]]>)
+    .find(([, definition]) => definition.question.test(question))?.[0];
+}
+function requirementSourceEvidence(project: ProjectRecord, domain: EcommerceRequirementDomain): EcommerceRequirementEvidence[] {
+  const pattern = requirementDomainDefinitions[domain].evidence;
+  return requirementEvidenceFields.flatMap(([field, label]) => String(getProjectFieldValue(project, field) ?? "")
+    .split(/\r?\n|;\s*/)
+    .map(text => text.trim())
+    .filter(text => Boolean(text) && positiveRequirementMention(text, pattern))
+    .map(text => ({ field, label, text })));
+}
+function normalizedRequirementOutcomes(project: ProjectRecord, decisions: EcommerceDecision[]): EcommerceRequirementOutcome[] {
+  return (Object.keys(requirementDomainDefinitions) as EcommerceRequirementDomain[]).map(domain => {
+    const related = decisions.filter(decision => ecommerceRequirementDomain(decision.question) === domain);
+    const notApplicableDecisions = related.filter(decision => decision.status === "Not applicable");
+    const positiveDecisions = related.filter(decision => decision.status === "Answered"
+      && hasMeaningfulResolvedValue(decision.answer) && !negativeRequirementAnswer.test(decision.answer.trim()));
+    const positiveEvidence = requirementSourceEvidence(project, domain);
+    const conflict = notApplicableDecisions.length > 0 && (positiveDecisions.length > 0 || positiveEvidence.length > 0);
+    return { domain, notApplicableDecisions, positiveDecisions, positiveEvidence, conflict, excluded: notApplicableDecisions.length > 0 && !conflict };
+  });
 }
 export function isEcommerceRequiredSourceFieldResolved(project: ProjectRecord, field: ProjectInputField): boolean {
   return hasMeaningfulResolvedValue(getProjectFieldValue(project, field));
@@ -183,7 +286,12 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
       continue;
     }
     const [id, gate, status, question, reason, answer] = parsed.fields;
-    const valid = /^[A-Z][A-Z0-9-]*$/.test(id) && !/^EC-(?:RECORD|LEGACY-OQ)-\d+$/.test(id) && ["architecture", "launch", "optional"].includes(gate) && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status) && Boolean(question);
+    const valid = /^[A-Z][A-Z0-9-]*$/.test(id)
+      && !/^EC-(?:RECORD|LEGACY-OQ)-\d+$/.test(id)
+      && !/^EC-(?:SELECTION-CONFLICT|EVIDENCE-CONFLICT)-/.test(id)
+      && ["architecture", "launch", "optional"].includes(gate)
+      && ["Needs answer", "Deferred", "Answered", "Not applicable"].includes(status)
+      && Boolean(question);
     if (!valid) {
       const errorId = `EC-RECORD-${index + 1}`;
       records.set(errorId, { id: errorId, field: "ecommerceDecisions", gate: "architecture", status: "Needs answer", question: `Correct decision register line ${index + 1}`, reason: "Use the documented six-column format.", answer: "" });
@@ -213,6 +321,38 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
     const previous = records.get(id);
     records.set(id, { id, field: "ecommerceDecisions", originField: previous?.originField ?? previous?.field ?? "ecommerceDecisions", gate: gate as EcommerceDecision["gate"], status: resolved ? status as EcommerceDecision["status"] : status === "Deferred" && reason ? "Deferred" : "Needs answer", question, reason, answer });
   }
+  const sourceDecisions = [...records.values()];
+  for (const [kind, byValue] of resolvedSelectionGroups(sourceDecisions)) {
+    if (byValue.size < 2) continue;
+    const selections = [...byValue.values()].flat();
+    const id = selectionConflictIds[kind];
+    const details = selections.map(selection => `${selection.decision.id}=${selection.value}`).join(", ");
+    records.set(id, {
+      id,
+      field: "ecommerceDecisions",
+      gate: strongestGate(selections.map(selection => selection.decision)),
+      status: "Needs answer",
+      question: `Resolve conflicting ${selectionLabels[kind]} Decision Register answers`,
+      reason: `Conflicting ${selectionLabels[kind]} answers (${details}) are all currently effective. Reconcile the identified source records; register order cannot select a winner.`,
+      answer: ""
+    });
+  }
+  for (const outcome of normalizedRequirementOutcomes(p, sourceDecisions)) {
+    if (!outcome.conflict) continue;
+    const definition = requirementDomainDefinitions[outcome.domain];
+    const excludedBy = outcome.notApplicableDecisions.map(decision => decision.id).join(", ");
+    const structured = outcome.positiveDecisions.map(decision => `${decision.id}: ${decision.answer}`);
+    const source = outcome.positiveEvidence.map(item => `${item.label}: ${item.text}`);
+    records.set(definition.conflictId, {
+      id: definition.conflictId,
+      field: "ecommerceDecisions",
+      gate: strongestGate([...outcome.notApplicableDecisions, ...outcome.positiveDecisions]),
+      status: "Needs answer",
+      question: `Reconcile conflicting ${definition.label} requirements`,
+      reason: `${definition.label} is marked Not applicable by ${excludedBy}, but positive evidence remains (${[...structured, ...source].join("; ")}). Reconcile the Decision Register and source intake before generating verification.`,
+      answer: ""
+    });
+  }
   const require = (id: string, field: ProjectInputField, question: string, satisfied: boolean) => {
     if (!satisfied) records.set(id, { id, field, gate: "architecture", status: "Needs answer", question, reason: "Required before implementation; planning may resolve this decision.", answer: "" });
   };
@@ -239,14 +379,16 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
 
 export function ecommerceResolvedSelections(p: ProjectRecord): Partial<Record<EcommerceSelectionKind, EcommerceResolvedSelection>> {
   const selections: Partial<Record<EcommerceSelectionKind, EcommerceResolvedSelection>> = {};
-  for (const decision of ecommerceDecisions(p)) {
-    if (decision.status !== "Answered") continue;
-    const kind = ecommerceSelectionKind(decision.question);
-    if (!kind) continue;
-    const value = normalizedEcommerceSelectionAnswer(kind, decision.answer);
-    if (value) selections[kind] = { kind, value, decision };
+  for (const [kind, byValue] of resolvedSelectionGroups(ecommerceDecisions(p))) {
+    if (byValue.size !== 1) continue;
+    const selected = [...byValue.values()][0][0];
+    selections[kind] = selected;
   }
   return selections;
+}
+
+export function ecommerceRequirementOutcomes(p: ProjectRecord): EcommerceRequirementOutcome[] {
+  return normalizedRequirementOutcomes(p, ecommerceDecisions(p));
 }
 
 export function ecommerceDecisionState(p: ProjectRecord) {
