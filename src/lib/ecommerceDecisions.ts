@@ -49,6 +49,30 @@ export function classifyResolutionValue(value: unknown): ResolutionValueClassifi
 export function hasMeaningfulResolvedValue(value: unknown): value is string {
   return typeof value === "string" && classifyResolutionValue(value) === "resolved";
 }
+export type EcommerceSelectionKind = "paymentProvider" | "currency" | "checkoutMode";
+export interface EcommerceResolvedSelection {
+  kind: EcommerceSelectionKind;
+  value: string;
+  decision: EcommerceDecision;
+}
+export const ECOMMERCE_CURRENCY_CODES = ["CAD", "USD", "EUR", "GBP", "AUD", "NZD", "JPY", "CNY", "INR", "CHF", "SEK", "NOK", "DKK", "MXN", "BRL"] as const;
+const currencySelection = new RegExp(`\\b(${ECOMMERCE_CURRENCY_CODES.join("|")})\\b`, "iu");
+const checkoutSelection = /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/iu;
+const negativeOnlySelection = /^(?:(?:not|no|without|excluded?)\b|do\s+not\s+(?:use|support|allow|accept|select|choose)\b)/iu;
+export function ecommerceSelectionKind(question: string): EcommerceSelectionKind | undefined {
+  if (/\bpayment\s+provider\b/iu.test(question)) return "paymentProvider";
+  if (/\b(?:checkout|payment)\s+currency\b|\bwhich\s+currency\b/iu.test(question)) return "currency";
+  if (/\bcheckout\s+mode\b|\bwhich\s+(?:type\s+of\s+)?checkout\b/iu.test(question)) return "checkoutMode";
+  return undefined;
+}
+export function normalizedEcommerceSelectionAnswer(kind: EcommerceSelectionKind, answer: unknown): string | undefined {
+  if (!hasMeaningfulResolvedValue(answer)) return undefined;
+  const value = String(answer).trim().replace(/[.;]+$/u, "").trim();
+  if (!value || negativeOnlySelection.test(value)) return undefined;
+  if (kind === "currency") return currencySelection.exec(value)?.[1].toUpperCase();
+  if (kind === "checkoutMode") return checkoutSelection.exec(value)?.[1];
+  return value;
+}
 export function isEcommerceRequiredSourceFieldResolved(project: ProjectRecord, field: ProjectInputField): boolean {
   return hasMeaningfulResolvedValue(getProjectFieldValue(project, field));
 }
@@ -182,7 +206,10 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
       continue;
     }
     explicitIds.add(id);
-    const resolved = status === "Answered" ? hasMeaningfulResolvedValue(answer) : status === "Not applicable" ? hasMeaningfulResolvedValue(reason) : false;
+    const selectionKind = ecommerceSelectionKind(question);
+    const resolved = status === "Answered"
+      ? selectionKind ? Boolean(normalizedEcommerceSelectionAnswer(selectionKind, answer)) : hasMeaningfulResolvedValue(answer)
+      : status === "Not applicable" ? !selectionKind && hasMeaningfulResolvedValue(reason) : false;
     const previous = records.get(id);
     records.set(id, { id, field: "ecommerceDecisions", originField: previous?.originField ?? previous?.field ?? "ecommerceDecisions", gate: gate as EcommerceDecision["gate"], status: resolved ? status as EcommerceDecision["status"] : status === "Deferred" && reason ? "Deferred" : "Needs answer", question, reason, answer });
   }
@@ -208,6 +235,18 @@ export function ecommerceDecisions(p: ProjectRecord): EcommerceDecision[] {
     });
   }
   return [...records.values()];
+}
+
+export function ecommerceResolvedSelections(p: ProjectRecord): Partial<Record<EcommerceSelectionKind, EcommerceResolvedSelection>> {
+  const selections: Partial<Record<EcommerceSelectionKind, EcommerceResolvedSelection>> = {};
+  for (const decision of ecommerceDecisions(p)) {
+    if (decision.status !== "Answered") continue;
+    const kind = ecommerceSelectionKind(decision.question);
+    if (!kind) continue;
+    const value = normalizedEcommerceSelectionAnswer(kind, decision.answer);
+    if (value) selections[kind] = { kind, value, decision };
+  }
+  return selections;
 }
 
 export function ecommerceDecisionState(p: ProjectRecord) {

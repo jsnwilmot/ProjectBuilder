@@ -38,6 +38,14 @@ Architecture contracts begin `Approved:` and require named runtime, backend, dat
 
 ## Verification and release
 
+### Pass 17 effective structured choices and provider negation
+
+The normalized Ecommerce decision authority now identifies payment-provider, checkout-currency and checkout-mode selection questions from their question context rather than their IDs. An effective Answered record contributes a normalized selection only when its answer is semantically resolved, positively selected and supported by that selection category. Negative-only selection answers fail closed as `Needs answer`, so decision readiness and generated verification cannot disagree. Generated requirements consume these effective selections before narrative evidence and never parse the raw six-column register independently.
+
+Explicit provider discovery validates the complete structurally bounded value before direct-negation handling. For a resolved phrase beginning with `not` or `no`, the prefix remains outside the provider candidate span and candidate-relative polarity classifies the underlying complete provider name as negative. `Not sure` and other placeholders are rejected before this normalization, while a later independent positive provider remains selectable. Multiword names such as `Stripe Connect` remain intact.
+
+Tests-only commit `1d633bf` reproduced 20 failures and 10 passing controls (30 total) against exact reviewed head `edeaeec307080186d1e4d02305693643949f71a1`. Exact failures: provider-only, currency-only, checkout-only and combined Decision Register evidence; three arbitrary-ID/question-context cases; four structured-over-narrative precedence cases; synchronized `TEST_PLAN.md` and `ACCEPTANCE_CRITERIA.md`; negative-only structured answers `not Stripe` and `no Stripe Connect`; negative-only explicit `not Stripe`; and four negative-then-positive explicit provider forms covering colon/`is`, `not`/`no` and multiword providers. Run `npm run test:unit -- src/tests/ecommercePass17Remediation.test.ts` for focused verification.
+
 ### Pass 16 conservative attribution and provider-decision subjects
 
 Attributed decision tails no longer treat `s`/`es` morphology as proof of a finite predicate. A business/action continuation requires a completed grammatical actor head followed by a predicate-sized token and complement. When a collective head such as a team, group, board, committee or staff occurs, its structural position governs the boundary. This keeps terminal actors such as `global business operations group` unresolved while preserving both base-form and inflected action prose such as `managers alert customers` and `managers alerts customers`, without a workflow-verb dictionary or actor identity allowlist.

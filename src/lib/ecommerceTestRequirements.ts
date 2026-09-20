@@ -1,5 +1,5 @@
 import type { ProjectRecord } from "../types/project";
-import { classifyResolutionValue, validatedEcommerceConfiguration } from "./ecommerceDecisions";
+import { classifyResolutionValue, ECOMMERCE_CURRENCY_CODES, ecommerceResolvedSelections, validatedEcommerceConfiguration } from "./ecommerceDecisions";
 
 export interface EcommerceTestRequirement {
   category: string;
@@ -121,7 +121,7 @@ function isNegative(fragment: SourceFragment, candidate: CandidateMatch): boolea
   const localStart = leftComma + 1;
   const localEnd = nextComma >= 0 ? relativeIndex + candidate.length + nextComma : clause.length;
   const local = clause.slice(localStart, localEnd).trim();
-  const directPrefix = new RegExp(`(?:^|\\b)(?:(?:no|without|exclude(?:d)?)\\s+(?:(?!but\\b|and\\b|or\\b)[\\p{L}\\p{N}-]+\\s+){0,3}|do\\s+not\\s+(?:support|use|allow|accept|require|include|enable)\\s+(?:the\\s+)?|not\\s+(?:supporting|using|allowing|accepting|requiring|including|enabling)\\s+(?:the\\s+)?|rather\\s+than\\s+)${escaped}\\b`, "iu");
+  const directPrefix = new RegExp(`(?:^|\\b)(?:(?:no|without|exclude(?:d)?)\\s+(?:(?!but\\b|and\\b|or\\b)[\\p{L}\\p{N}-]+\\s+){0,3}|not\\s+|do\\s+not\\s+(?:support|use|allow|accept|require|include|enable)\\s+(?:the\\s+)?|not\\s+(?:supporting|using|allowing|accepting|requiring|including|enabling)\\s+(?:the\\s+)?|rather\\s+than\\s+)${escaped}\\b`, "iu");
   const directPostfix = new RegExp(`\\b${escaped}\\b(?:\\s+[\\p{L}\\p{N}-]+){0,3}\\s+(?:(?:is|are)\\s+)?(?:not\\s+(?:approved|required|supported|in\\s+scope|accepted|available|allowed|enabled)|disabled|excluded|unsupported|unavailable)\\b`, "iu");
   if (directPrefix.test(local) || directPostfix.test(local)) return true;
 
@@ -282,7 +282,7 @@ function mentionedButUnresolved(fragments: SourceFragment[], pattern: RegExp): b
 }
 
 const PROVIDER_LEADING_WORDS = new Set(["use", "using", "support", "supports", "supported", "recorded", "approved", "no"]);
-const CURRENCY_CODES = "CAD|USD|EUR|GBP|AUD|NZD|JPY|CNY|INR|CHF|SEK|NOK|DKK|MXN|BRL";
+const CURRENCY_CODES = ECOMMERCE_CURRENCY_CODES.join("|");
 const currencyCode = new RegExp(`\\b(?:${CURRENCY_CODES})\\b`, "i");
 // Legacy "Name payments/webhooks" is inherently less explicit. Reject state,
 // channel and geographic descriptors, not vendors; explicit relationship forms
@@ -328,8 +328,12 @@ function explicitProviderCandidates(text: string): CandidateMatch[] {
   return relationships.flatMap(pattern => [...text.matchAll(pattern)].flatMap(match => {
     const { value, offset } = extractExplicitProviderCandidate(match[1]);
     if (classifyResolutionValue(value) !== "resolved" || currencyCode.test(value)) return [];
+    const directNegation = /^(?:not|no)\s+(.+)$/iu.exec(value);
+    const candidateValue = directNegation?.[1].trim() ?? value;
+    if (classifyResolutionValue(candidateValue) !== "resolved" || currencyCode.test(candidateValue)) return [];
     const captureOffset = match[0].lastIndexOf(match[1]) + offset;
-    return [{ value, matchedText: match[0], index: (match.index ?? 0) + captureOffset, length: value.length }];
+    const valueOffset = directNegation ? value.lastIndexOf(candidateValue) : 0;
+    return [{ value: candidateValue, matchedText: match[0], index: (match.index ?? 0) + captureOffset + valueOffset, length: candidateValue.length }];
   }));
 }
 
@@ -369,12 +373,13 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
 /** Build verification only from universal commerce invariants and recorded intake evidence. */
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
   const fragments = sourceFragments(project);
-  const checkoutEvidence = firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
-  const currencyEvidence = firstPositiveMatch(fragments, new RegExp(`\\b(${CURRENCY_CODES})\\b`, "i"));
-  const providerEvidence = firstPositiveMatch(fragments, providerCandidateMatches);
-  const checkoutMode = checkoutEvidence?.value.toLocaleLowerCase() ?? "";
-  const currency = currencyEvidence?.value.toUpperCase() ?? "";
-  const paymentProvider = providerEvidence?.value ?? "";
+  const resolvedSelections = ecommerceResolvedSelections(project);
+  const checkoutEvidence = resolvedSelections.checkoutMode ? undefined : firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
+  const currencyEvidence = resolvedSelections.currency ? undefined : firstPositiveMatch(fragments, new RegExp(`\\b(${CURRENCY_CODES})\\b`, "i"));
+  const providerEvidence = resolvedSelections.paymentProvider ? undefined : firstPositiveMatch(fragments, providerCandidateMatches);
+  const checkoutMode = resolvedSelections.checkoutMode?.value.toLocaleLowerCase() ?? checkoutEvidence?.value.toLocaleLowerCase() ?? "";
+  const currency = resolvedSelections.currency?.value.toUpperCase() ?? currencyEvidence?.value.toUpperCase() ?? "";
+  const paymentProvider = resolvedSelections.paymentProvider?.value ?? providerEvidence?.value ?? "";
   const tax = evidence(fragments, /\btax(?:es|ation)?\b|\bGST\b|\bHST\b|\bVAT\b/i);
   const shipping = evidence(fragments, /\bshipping\b|\bcarrier\b/i);
   const pickup = evidence(fragments, /\bpickup\b|\bpick-up\b/i);

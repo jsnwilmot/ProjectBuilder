@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-20 - PR #6 ecommerce Pass 17 remediation
+
+- Tests-first commit `1d633bf` reproduced 20 intended failures with 10 passing controls on exact reviewed head `edeaeec307080186d1e4d02305693643949f71a1`.
+- Effective Answered Decision Register records now use shared question-context and answer normalization for payment provider, checkout currency and checkout mode. Recognized selection answers must contain a positive supported choice; negative-only answers fail closed in both decision readiness and generated evidence.
+- Generated Ecommerce requirements give normalized structured selections precedence over narrative evidence without reparsing the raw register. Explicit provider extraction validates the complete phrase before moving direct `not`/`no` outside the provider span for candidate-relative negative polarity, preserving placeholders and multiword providers.
+- Added `src/tests/ecommercePass17Remediation.test.ts`; updated `src/lib/ecommerceDecisions.ts`, `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-20 - PR #6 ecommerce Pass 16 remediation
 
 - Tests-first commit `6f07d78` reproduced 16 intended failures with 41 passing controls on exact reviewed head `d90892e12266adc83f8abefaa8bad2f621aeb531`.
