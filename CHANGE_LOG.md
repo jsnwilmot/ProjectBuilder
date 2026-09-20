@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-09-20 - PR #6 ecommerce Pass 16 remediation
+
+- Tests-first commit `6f07d78` reproduced 16 intended failures with 41 passing controls on exact reviewed head `d90892e12266adc83f8abefaa8bad2f621aeb531`.
+- Attributed decision parsing no longer uses `s`/`es` spelling as evidence that a token is a predicate. A completed grammatical actor head plus two-part continuation distinguishes business/action prose from terminal actor noun phrases; terminal collective heads take precedence inside longer actor phrases.
+- Pending `while` context now extracts and classifies its decision subject. Bare, provider-qualified, established actor-qualified and structurally possessive approval/confirmation/selection subjects keep provider evidence unresolved, while refund, return, order, shipment and other workflow approvals do not invalidate the provider.
+- Added `src/tests/ecommercePass16Remediation.test.ts`; updated `src/lib/ecommerceTestRequirements.ts`, remediation documentation and this changelog. Full validation, exact-head CI, automatic non-production preview and fresh review remain required.
+
 ## 2026-09-19 - PR #6 ecommerce Pass 15 remediation
 
 - Tests-first commit `76bbdb3` reproduced 11 intended failures with 38 passing controls on exact reviewed head `ed42aecf286a54aaa97e05f8805ccde3fedd5de6`.

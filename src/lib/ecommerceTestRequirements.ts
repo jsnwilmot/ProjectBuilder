@@ -154,40 +154,56 @@ const speculativePrefix = /\b(?:maybe|possibly|probably|likely|may\s+be)\s*$/i;
 const speculativePostfix = /^(?:(?:is|are|remains?)\s+)?(?:maybe|possibly|probably|likely|(?:being\s+)?considered|under\s+consideration)\b/i;
 const decisionNounTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)(?:\s+for\s+(?:launch|implementation|release|deployment))?$/iu;
 const attributedDecisionTail = /^(?:(?:final|client|stakeholder|vendor)\s+)*(approval|confirmation|selection|decision)\s+(?:by|from)\s+(?:the\s+)?(.+)$/iu;
-const predicateAuxiliary = /^(?:is|are|was|were|has|have|had|will|would|shall|should|can|could|may|might|must|do|does|did)$/i;
-const finitePredicateInflection = /^[\p{L}]+(?:s|es)$/iu;
-// Inflected finite predicates and plural noun modifiers can both end in `s`.
-// These derivational noun endings protect terminal actor phrases such as
-// "business operations group" and "advanced systems board" without naming
-// actors or enumerating every possible workflow verb.
-const derivedNominalPlural = /(?:tions|sions|ments|nesses|ships|ities|ics|isms|tems)$/iu;
-function hasContinuingPredicate(actorText: string): boolean {
-  const words = actorText.trim().split(/\s+/).filter(Boolean);
-  // A continuation requires an attributed subject before a nonterminal finite
-  // predicate and a complement after it. Closed-class auxiliaries and general
-  // third-person finite morphology identify the boundary; derived plural noun
-  // modifiers remain part of an arbitrary-length terminal actor noun phrase.
-  return words.slice(1, -1).some(word => {
-    const normalized = word.replace(/[^\p{L}]/gu, "").toLocaleLowerCase();
-    return predicateAuxiliary.test(normalized)
-      || (finitePredicateInflection.test(normalized) && !derivedNominalPlural.test(normalized));
-  });
+// An attributed action has a completed actor subject plus a predicate and its
+// complement. Actor heads use grammatical role/collective shapes; predicate
+// spelling and s/es morphology are deliberately not semantic authorities.
+const attributedCollectiveHead = /^(?:committee|board|group|team|staff)$/iu;
+const attributedRoleHead = /^[\p{L}-]+(?:er|ers|or|ors|ist|ists|yst|ysts|ant|ants|ent|ents)$/iu;
+function hasAttributedActionContinuation(actorText: string): boolean {
+  const words = actorText.trim().split(/\s+/)
+    .map(word => word.replace(/[^\p{L}-]/gu, ""))
+    .filter(Boolean);
+  let collectiveIndex = -1;
+  for (let index = words.length - 1; index >= 0; index -= 1) {
+    if (attributedCollectiveHead.test(words[index])) {
+      collectiveIndex = index;
+      break;
+    }
+  }
+  if (collectiveIndex >= 0) return words.length - collectiveIndex - 1 >= 2;
+  return words.some((word, index) => attributedRoleHead.test(word) && words.length - index - 1 >= 2);
 }
 function candidateDecisionNoun(text: string): string | undefined {
   const simple = decisionNounTail.exec(text);
   if (simple) return simple[1];
   const attributed = attributedDecisionTail.exec(text);
-  if (!attributed || hasContinuingPredicate(attributed[2])) return undefined;
+  if (!attributed || hasAttributedActionContinuation(attributed[2])) return undefined;
   return attributed[1];
+}
+
+const pendingWhileStatus = /^while\s+(.+?)\s+(?:is|are|remains?)\s+(?:still\s+)?(?:pending|awaiting|unapproved|unconfirmed|undecided)\b.*$/iu;
+const providerDecisionSubject = /^(?:(.+?)\s+)?(approval|confirmation|selection|decision|authorization|review)$/iu;
+const possessiveDecisionActor = /^(?:[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+){0,4})['’]s$/iu;
+function isProviderSelectionDecisionSubject(rawSubject: string): boolean {
+  const subject = rawSubject.trim().replace(/^the\s+/iu, "").trim();
+  const decision = providerDecisionSubject.exec(subject);
+  if (!decision) return false;
+  const qualifier = (decision[1] ?? "").trim();
+  if (!qualifier) return true;
+  if (/^(?:payment\s+)?provider$/iu.test(qualifier)) return true;
+  if (/^(?:client|stakeholder|vendor)$/iu.test(qualifier)) return true;
+  return possessiveDecisionActor.test(qualifier);
 }
 function unresolvedDecisionStatus(text: string): boolean {
   // Canonicalize candidate-bound approval grammar for the shared resolution
   // authority. No arbitrary noun phrase can bridge a candidate to this state.
-  const status = text.split(/[:,]/, 1)[0].trim()
+  let status = text.split(/[:,]/, 1)[0].trim()
     .replace(/^(?:(?:is|are|was|were|remains?|still)\s+)+/i, "")
     .replace(/^subject\s+to\s+.*\b(approval|confirmation|decision|selection|review)\b.*$/i, "pending $1")
-    .replace(/^under\s+(review|consideration)\b.*$/i, "awaiting $1")
-    .replace(/^while\s+(?:the\s+)?(?:[\p{L}\p{N}-]+\s+){0,4}(?:approval|confirmation|selection|decision|authorization|review)\s+(?:is|are|remains?)\s+(?:still\s+)?(?:pending|awaiting|unapproved|unconfirmed|undecided)\b.*$/iu, "pending approval")
+    .replace(/^under\s+(review|consideration)\b.*$/i, "awaiting $1");
+  const pendingWhile = pendingWhileStatus.exec(status);
+  if (pendingWhile && isProviderSelectionDecisionSubject(pendingWhile[1])) status = "pending approval";
+  status = status
     .replace(/^(?:has\s+not\s+(?:yet\s+)?been\s+|not\s+(?:yet\s+)?)(?:approved|confirmed|selected|accepted)\b.*$/i, "unconfirmed")
     .replace(/^unapproved\b.*$/i, "unconfirmed")
     .replace(/^((?:pending|awaiting)\s+)final\s+(approval|confirmation|selection)\b/i, "$1$2");
