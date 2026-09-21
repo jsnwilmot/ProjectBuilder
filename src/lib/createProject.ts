@@ -36,6 +36,13 @@ export interface CreateProjectOptions {
 }
 
 export const EMPTY_PROJECT_INTAKE: ProjectIntake = {
+  ecommerceStorefrontModel: "",
+  ecommerceRoutes: "",
+  ecommerceCartScope: "",
+  ecommerceDecisions: "",
+  ecommerceArchitecture: "",
+  ecommerceDeployment: "",
+  ecommercePhases: "",
   appType: "",
   appPurpose: "",
   problemStatement: "",

@@ -1,4 +1,5 @@
 import { isBrandingRequired } from "../data/projectTypes";
+import { ecommerceReviewItems, isEcommerce, ecommerceDecisionState, isEcommerceRequiredSourceFieldResolved } from "./ecommerceDecisions";
 import {
   CLIENT_REVIEW_SECTIONS,
   type ClientReviewReadiness,
@@ -11,7 +12,7 @@ import {
   type ReviewItemStatus
 } from "../types/project";
 import { validateIntake } from "./validateIntake";
-import { projectCapabilities } from "./projectCapabilities";
+import { projectCapabilities, requiredProjectFields } from "./projectCapabilities";
 import { isBeforeImplementationDeferral, websiteDeferredRequirements, websiteRequirement } from "./websiteRequirements";
 import { calculatePowerPlatformReadiness, formatPowerPlatformGateStatus } from "./powerPlatform";
 
@@ -345,6 +346,8 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
     const stored = previous.get(item.id);
     if (projectCapabilities(project).documentFamily === "website"
       && stored?.status === "Answered" && ["missing", "deferred"].includes(websiteRequirement(project, item.fieldKey).status)) return item;
+    if (isEcommerce(project) && stored?.status === "Answered"
+      && requiredProjectFields(project).has(item.fieldKey) && !isEcommerceRequiredSourceFieldResolved(project, item.fieldKey)) return item;
     return stored
       ? {
           ...item,
@@ -357,6 +360,7 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
   });
 
   for (const stored of previous.values()) {
+    if (stored.id.startsWith("ecommerce-")) continue;
     if (derived.has(stored.id)) continue;
     reconciled.push({
       ...stored,
@@ -365,13 +369,15 @@ export function deriveReviewItems(project: ProjectRecord, now = new Date().toISO
     });
   }
 
-  return reconciled.sort((a, b) => {
+  const normalized = isEcommerce(project) ? reconciled.filter(item => !item.id.startsWith("ecommerce-")).concat(ecommerceReviewItems(project, now)) : reconciled;
+  return normalized.sort((a, b) => {
     const sectionDifference = CLIENT_REVIEW_SECTIONS.indexOf(a.section) - CLIENT_REVIEW_SECTIONS.indexOf(b.section);
     return sectionDifference || a.label.localeCompare(b.label);
   });
 }
 
 export function reviewItemBlocksReadiness(item: ReviewItem): boolean {
+  if (item.source === "gate" && item.resolutionMode === "source" && !item.blocking) return false;
   if (item.status === "Answered") return false;
   if (item.status === "Not applicable") return !item.notApplicableReason.trim();
   if (item.status === "Deferred") {
@@ -491,11 +497,12 @@ export function getClientReviewReadiness(project: ProjectRecord): ClientReviewRe
     {
       id: "codexInstructionsReady",
       label: "Codex instructions ready",
-      passed: Boolean(project.packageGeneratedAt),
+      passed: Boolean(project.packageGeneratedAt) && (!isEcommerce(project) || (ecommerceDecisionState(project).launchReady && !project.generatedDocuments.some(d => /\[MISSING:/.test(d.content)))),
       manual: false,
       reason: "Regenerate the package after the final review decisions."
     }
   ];
+  if (isEcommerce(project)) checklist.splice(checklist.findIndex(item => item.id === "powerPlatformGatesConfirmed"), 1);
   const checklistBlockers = checklist.filter((item) => !item.passed);
   const blockers = [...new Set([
     ...unresolvedItems.map((item) => `${item.section}: ${item.label}`),
@@ -537,6 +544,7 @@ export function updateReviewItemDecision(
   changes: Partial<Pick<ReviewItem, "status" | "notApplicableReason" | "deferredReason">>,
   now = new Date().toISOString()
 ): ReviewItem {
+  if (item.resolutionMode === "source") return item;
   const status: ReviewItemStatus = changes.status ?? item.status;
   return {
     ...item,

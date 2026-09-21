@@ -1147,6 +1147,13 @@ export interface ClientDetails {
 }
 
 export interface ProjectIntake {
+  ecommerceStorefrontModel: string;
+  ecommerceRoutes: string;
+  ecommerceCartScope: string;
+  ecommerceDecisions: string;
+  ecommerceArchitecture: string;
+  ecommerceDeployment: string;
+  ecommercePhases: string;
   appType: ProjectType | "";
   appPurpose: string;
   problemStatement: string;
@@ -1308,6 +1315,11 @@ export interface ReviewItem {
   allowDeferred: boolean;
   source: "missing" | "warning" | "weak" | "gate";
   gateId?: string;
+  resolutionMode?: "review" | "source";
+  sourceFieldLabel?: string;
+  resolutionFieldKey?: ProjectInputField;
+  resolutionFieldLabel?: string;
+  resolutionInstruction?: string;
   updatedAt: string;
 }
 
