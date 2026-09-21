@@ -23,7 +23,7 @@ const unresolvedValues = new Set([
 export type ResolutionValueClassification = "resolved" | "unresolved" | "empty";
 const unresolvedResolutionPatterns = [
   /^(?:still\s+)?not\s+(?:yet\s+)?(?:decided|confirmed|selected|approved)(?:\s+yet)?$/,
-  /^decision\s+not\s+yet\s+made$/,
+  /^(?:(?:a|the)\s+)?decision\s+(?:not\s+yet\s+made|(?:has\s+)?not\s+yet\s+been\s+made)(?:\s+(?:by|from)\s+(?:the\s+)?[\p{L}\p{N}-]+(?:\s+[\p{L}\p{N}-]+)*)?$/u,
   /^t\s*b\s*[dc](?:\s+(?:after|until|pending|awaiting|by|during|following)\b.+)?$/,
   /^pending(?:\s+(?:client|stakeholder|architecture|architect|vendor|owner|business|security|technical))*\s+(?:approval|confirmation|decision|discovery|selection|review|response|testing)(?:\s+.*)?$/,
   /^unknown(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
@@ -75,7 +75,7 @@ export const ECOMMERCE_CURRENCY_CODES = ["CAD", "USD", "EUR", "GBP", "AUD", "NZD
 const currencySelection = new RegExp(`^(${ECOMMERCE_CURRENCY_CODES.join("|")})$`, "iu");
 const checkoutSelection = /^(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)$/iu;
 const negativeOnlySelection = /^(?:(?:not|no|without|excluded?)\b|do\s+not\s+(?:use|support|allow|accept|select|choose)\b)/iu;
-const unsettledSelection = /^(?:maybe|probably|perhaps|possibly|likely)\b|\b(?:pending|awaiting)\s+(?:approval|confirmation|decision|selection)\b|\bsubject\s+to\s+(?:approval|confirmation|decision|selection)\b|\bif\s+(?:approved|confirmed|decided|selected)\b/iu;
+const unsettledSelection = /^(?:maybe|probably|perhaps|possibly|likely)\b|\bnot\s+(?:yet\s+)?(?:approved|confirmed|selected|accepted)\b|\b(?:pending|awaiting)\s+(?:(?:the\s+)?[\p{L}\p{N}'’.-]+\s+){0,4}(?:approval|confirmation|decision|selection|review)\b|\bsubject\s+to\s+(?:approval|confirmation|decision|selection|review)\b|\bif\s+(?:approved|confirmed|decided|selected)\b/iu;
 const alternativeSelection = /\s+or\s+|\s*\/\s*/iu;
 export function ecommerceSelectionKind(question: string): EcommerceSelectionKind | undefined {
   if (/\bpayment\s+provider\b/iu.test(question)) return "paymentProvider";
@@ -146,15 +146,35 @@ const requirementEvidenceFields: Array<[ProjectInputField, string]> = [
   ["successCriteria", "success criteria"], ["accessibilityNotes", "accessibility"]
 ];
 const negativeRequirementAnswer = /^(?:no|not\s+(?:required|applicable|included|supported)|none|without|exclude(?:d)?)\b/iu;
+function requirementMentionClause(text: string, index: number, length: number): { start: number; text: string } {
+  let leftBoundary = 0;
+  let rightBoundary = text.length;
+  const boundaries = /[;\n.]|,\s*(?:but|however|instead)\b|\b(?:but|however|instead)\b/giu;
+  for (const boundary of text.matchAll(boundaries)) {
+    const start = boundary.index ?? 0;
+    const end = start + boundary[0].length;
+    if (end <= index) leftBoundary = end;
+    else if (start >= index + length) {
+      rightBoundary = start;
+      break;
+    }
+  }
+  const raw = text.slice(leftBoundary, rightBoundary);
+  const leadingWhitespace = raw.length - raw.trimStart().length;
+  return { start: leftBoundary + leadingWhitespace, text: raw.trim() };
+}
 function positiveRequirementMention(text: string, pattern: RegExp): boolean {
   const matcher = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
   for (const match of text.matchAll(matcher)) {
-    const before = text.slice(0, match.index);
-    const after = text.slice((match.index ?? 0) + match[0].length);
+    const matchIndex = match.index ?? 0;
+    const clause = requirementMentionClause(text, matchIndex, match[0].length);
+    const relativeIndex = Math.max(0, matchIndex - clause.start);
+    const before = clause.text.slice(0, relativeIndex);
+    const after = clause.text.slice(relativeIndex + match[0].length);
     if (/(?:^|\b)(?:no|without|exclude(?:d)?|do(?:es)?\s+not\s+(?:require|include|support)|not\s+(?:requiring|including|supporting))\s+(?:[\p{L}\p{N}-]+\s+){0,4}$/iu.test(before)) continue;
     if (/^(?:\s+[\p{L}\p{N}-]+){0,4}\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|applicable|included|supported|offered|in scope)|excluded|disabled|out of scope)\b/iu.test(after)) continue;
-    if (/\b(?:pending|awaiting|unknown|unconfirmed|undecided|TBD|not sure|to be determined)\b/iu.test(text)
-      && /\b(?:decision|approval|confirmation|selection|model|scope|requirement)\b/iu.test(text)) continue;
+    if (/\b(?:pending|awaiting|unknown|unconfirmed|undecided|TBD|not sure|to be determined)\b/iu.test(clause.text)
+      && /\b(?:decision|approval|confirmation|selection|model|scope|requirement)\b/iu.test(clause.text)) continue;
     return true;
   }
   return false;
