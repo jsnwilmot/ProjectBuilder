@@ -1,5 +1,13 @@
 # Change Log
 
+## 2026-09-20 - PR #6 ecommerce Pass 19 remediation
+
+- Tests-first commit `cc0118a` reproduced 37 intended failures with 18 passing controls on exact reviewed head `29f7bb702f08f0c7b790ff9b8085d8b683d299ca`.
+- Structured Decision Register selections now validate the complete authoritative answer. Currency and checkout choices require one exact supported value, while provider values remain brand-agnostic but reject negative, speculative, conditional, pending and alternative-choice structures.
+- Not-applicable reconciliation now evaluates every relevant domain mention with the existing candidate-relative polarity rules, so an early negative exception cannot hide later positive evidence. Negative-only evidence, including unavailable returns, remains non-conflicting.
+- Shared resolution classification now keeps narrow decision/configuration phrases such as `Not yet decided`, `Not yet confirmed` and `Decision not yet made` unresolved without rejecting ordinary workflow states such as `Order not yet shipped`.
+- Added `src/tests/ecommercePass19Remediation.test.ts`; updated Ecommerce decision/evidence validation, remediation documentation and this changelog. Full CI, coverage, preview verification and fresh review are delegated to ChatGPT Architect after the push.
+
 ## 2026-09-20 - PR #6 ecommerce Pass 18 remediation
 
 - Tests-first commit `7385390` reproduced 12 intended failures with four passing controls on exact reviewed head `3929395ad296a9751fdb1795882f208af65ac934`.

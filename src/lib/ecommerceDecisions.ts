@@ -22,6 +22,8 @@ const unresolvedValues = new Set([
 ]);
 export type ResolutionValueClassification = "resolved" | "unresolved" | "empty";
 const unresolvedResolutionPatterns = [
+  /^(?:still\s+)?not\s+(?:yet\s+)?(?:decided|confirmed|selected|approved)(?:\s+yet)?$/,
+  /^decision\s+not\s+yet\s+made$/,
   /^t\s*b\s*[dc](?:\s+(?:after|until|pending|awaiting|by|during|following)\b.+)?$/,
   /^pending(?:\s+(?:client|stakeholder|architecture|architect|vendor|owner|business|security|technical))*\s+(?:approval|confirmation|decision|discovery|selection|review|response|testing)(?:\s+.*)?$/,
   /^unknown(?:\s+(?:after|until|pending|awaiting)\b.+)?$/,
@@ -70,9 +72,11 @@ export interface EcommerceRequirementOutcome {
   excluded: boolean;
 }
 export const ECOMMERCE_CURRENCY_CODES = ["CAD", "USD", "EUR", "GBP", "AUD", "NZD", "JPY", "CNY", "INR", "CHF", "SEK", "NOK", "DKK", "MXN", "BRL"] as const;
-const currencySelection = new RegExp(`\\b(${ECOMMERCE_CURRENCY_CODES.join("|")})\\b`, "iu");
-const checkoutSelection = /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/iu;
+const currencySelection = new RegExp(`^(${ECOMMERCE_CURRENCY_CODES.join("|")})$`, "iu");
+const checkoutSelection = /^(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)$/iu;
 const negativeOnlySelection = /^(?:(?:not|no|without|excluded?)\b|do\s+not\s+(?:use|support|allow|accept|select|choose)\b)/iu;
+const unsettledSelection = /^(?:maybe|probably|perhaps|possibly|likely)\b|\b(?:pending|awaiting)\s+(?:approval|confirmation|decision|selection)\b|\bsubject\s+to\s+(?:approval|confirmation|decision|selection)\b|\bif\s+(?:approved|confirmed|decided|selected)\b/iu;
+const alternativeSelection = /\s+or\s+|\s*\/\s*/iu;
 export function ecommerceSelectionKind(question: string): EcommerceSelectionKind | undefined {
   if (/\bpayment\s+provider\b/iu.test(question)) return "paymentProvider";
   if (/\b(?:checkout|payment)\s+currency\b|\bwhich\s+currency\b/iu.test(question)) return "currency";
@@ -82,7 +86,7 @@ export function ecommerceSelectionKind(question: string): EcommerceSelectionKind
 export function normalizedEcommerceSelectionAnswer(kind: EcommerceSelectionKind, answer: unknown): string | undefined {
   if (!hasMeaningfulResolvedValue(answer)) return undefined;
   const value = String(answer).trim().replace(/[.;]+$/u, "").trim();
-  if (!value || negativeOnlySelection.test(value)) return undefined;
+  if (!value || negativeOnlySelection.test(value) || unsettledSelection.test(value) || alternativeSelection.test(value)) return undefined;
   if (kind === "currency") return currencySelection.exec(value)?.[1].toUpperCase();
   if (kind === "checkoutMode") return checkoutSelection.exec(value)?.[1];
   return value;
@@ -143,15 +147,17 @@ const requirementEvidenceFields: Array<[ProjectInputField, string]> = [
 ];
 const negativeRequirementAnswer = /^(?:no|not\s+(?:required|applicable|included|supported)|none|without|exclude(?:d)?)\b/iu;
 function positiveRequirementMention(text: string, pattern: RegExp): boolean {
-  const match = pattern.exec(text);
-  if (!match) return false;
-  const before = text.slice(0, match.index);
-  const after = text.slice(match.index + match[0].length);
-  if (/(?:^|\b)(?:no|without|exclude(?:d)?|do(?:es)?\s+not\s+(?:require|include|support)|not\s+(?:requiring|including|supporting))\s+(?:[\p{L}\p{N}-]+\s+){0,4}$/iu.test(before)) return false;
-  if (/^(?:\s+[\p{L}\p{N}-]+){0,4}\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|applicable|included|supported|in scope)|excluded|disabled|out of scope)\b/iu.test(after)) return false;
-  if (/\b(?:pending|awaiting|unknown|unconfirmed|undecided|TBD|not sure|to be determined)\b/iu.test(text)
-    && /\b(?:decision|approval|confirmation|selection|model|scope|requirement)\b/iu.test(text)) return false;
-  return true;
+  const matcher = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  for (const match of text.matchAll(matcher)) {
+    const before = text.slice(0, match.index);
+    const after = text.slice((match.index ?? 0) + match[0].length);
+    if (/(?:^|\b)(?:no|without|exclude(?:d)?|do(?:es)?\s+not\s+(?:require|include|support)|not\s+(?:requiring|including|supporting))\s+(?:[\p{L}\p{N}-]+\s+){0,4}$/iu.test(before)) continue;
+    if (/^(?:\s+[\p{L}\p{N}-]+){0,4}\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|applicable|included|supported|offered|in scope)|excluded|disabled|out of scope)\b/iu.test(after)) continue;
+    if (/\b(?:pending|awaiting|unknown|unconfirmed|undecided|TBD|not sure|to be determined)\b/iu.test(text)
+      && /\b(?:decision|approval|confirmation|selection|model|scope|requirement)\b/iu.test(text)) continue;
+    return true;
+  }
+  return false;
 }
 export function ecommerceRequirementDomain(question: string): EcommerceRequirementDomain | undefined {
   return (Object.entries(requirementDomainDefinitions) as Array<[EcommerceRequirementDomain, typeof requirementDomainDefinitions[EcommerceRequirementDomain]]>)

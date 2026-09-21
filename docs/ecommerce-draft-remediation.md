@@ -208,6 +208,14 @@ Baseline failures:
 - Ecommerce Pass 10 explicit provider discovery keeps generated acceptance and test-plan evidence synchronized
 
 
+### Pass 19 complete authoritative values and multi-clause exclusions
+
+Structured Decision Register singleton choices resolve only when the complete answer expresses one settled result. Currency and checkout answers use exact normalized matching; provider answers remain open to arbitrary brand names but reject negative-only, speculative, conditional, pending and alternative-choice structures. Partial text can no longer authorize the first matching currency or checkout token.
+
+Not-applicable evidence reconciliation evaluates every matching domain mention using the shared candidate-relative polarity rules. Negative exceptions remain negative, but they cannot suppress later positive requirements in the same source fragment. The shared resolution authority also recognizes narrow `not yet` decision/configuration phrases while preserving ordinary business workflow states.
+
+Tests-only commit `cc0118a` reproduced 37 failures with 18 passing controls on exact reviewed head `29f7bb702f08f0c7b790ff9b8085d8b683d299ca`. Run `npm run test:unit -- src/tests/ecommercePass19Remediation.test.ts` for focused verification. Full repository CI, coverage, audit, automatic preview verification and the fresh review are performed by ChatGPT Architect after the Pass 19 push.
+
 ### Pass 9 governing option context
 
 All option families share subject-relative prefix/postfix evidence classification. A narrow selection-subject grammar (currency, provider, checkout mode, shipping model, tax jurisdiction, return policy, authentication and related decision nouns) attaches unresolved values to their candidate without treating unrelated pending orders/payments, unknown transactions or customer uncertainty as a selection state. The existing resolution classifier remains the authority for uncertainty phrases. Direct speculation (`maybe`, `possibly`, `probably`, `likely`, `may be`, `being considered`) cannot authorize a mentioned option. Explicit negatives retain precedence, and existing semicolon/newline/sentence/contrast boundaries allow a later approved choice; commas do not break coordinated negation. A candidate-local subsequent `now approved`/selected confirmation can supersede tentative wording without borrowing another candidate's approval. Supported provider syntax and currency normalization remain unchanged.
