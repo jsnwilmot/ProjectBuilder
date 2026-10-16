@@ -62,7 +62,6 @@ export const operators: readonly OperatorContract[] = [
 ];
 
 export const unrelatedClause = "Stock records remain visible while orders are pending.";
-const noVerification = { requiredFragments: [], forbiddenPatterns: [] } as const;
 
 function failPrecondition(message: string): never {
   throw new Error(`Transformation not applicable: ${message}`);
@@ -105,7 +104,7 @@ export function transform(seed: DefectSeed, family: Family, parameters: Readonly
         singleton: family === "equivalent"
           ? { outcome: "equivalentDuplicate", contributingRecordIds: ["CHOICE-1", "CHOICE-2"], acceptableSelectedValues: profile.equivalentDisplays, conflictIds: [] }
           : { outcome: "conflicting", contributingRecordIds: ["CHOICE-1", "CHOICE-2"], conflictIds: [profile.conflictId] },
-        verification: family === "equivalent" ? noVerification : profile.unresolved,
+        verification: family === "equivalent" ? profile.resolved : profile.unresolved,
         requiredPatterns: family === "equivalent" ? [profile.selectedPattern] : [],
         records: [{ id: "CHOICE-1", status: "Answered" }, { id: "CHOICE-2", status: "Answered" }]
       };
@@ -113,7 +112,7 @@ export function transform(seed: DefectSeed, family: Family, parameters: Readonly
       source = { ...original, records: [{ id: "CHOICE-1", answer: parameters.answer }] };
       expected = {
         singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: profile.alternateDisplays, conflictIds: [] },
-        verification: { requiredFragments: [], forbiddenPatterns: [profile.selectedPattern] }, requiredPatterns: [profile.alternatePattern],
+        verification: { ...profile.resolved, forbiddenPatterns: [...profile.resolved.forbiddenPatterns, profile.selectedPattern] }, requiredPatterns: [profile.alternatePattern],
         records: [{ id: "CHOICE-1", status: "Answered" }]
       };
     } else {

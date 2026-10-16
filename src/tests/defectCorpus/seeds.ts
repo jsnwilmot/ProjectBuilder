@@ -9,12 +9,14 @@ export const profiles = {
     conflictId: "EC-SELECTION-CONFLICT-PAYMENT-PROVIDER",
     selectedPattern: /using the recorded Square payment integration/iu,
     alternatePattern: /using the recorded Stripe payment integration/iu,
+    resolved: { requiredFragments: [], forbiddenPatterns: [/resolve the recorded payment provider/iu] },
     unresolved: { requiredFragments: ["resolve the recorded payment provider"], forbiddenPatterns: [/using the recorded .+ payment integration/iu, /using the recorded .+ integration; replay/iu] }
   },
   currency: {
     equivalent: "USD", alternate: "CAD", equivalentDisplays: ["USD"], alternateDisplays: ["CAD"],
     conflictId: "EC-SELECTION-CONFLICT-CURRENCY",
     selectedPattern: /flow in USD/iu, alternatePattern: /flow in CAD/iu,
+    resolved: { requiredFragments: [], forbiddenPatterns: [/resolve the recorded currency/iu] },
     unresolved: { requiredFragments: ["resolve the recorded currency"], forbiddenPatterns: [/flow in [a-z]{3}\b/iu] }
   },
   checkoutMode: {
@@ -22,6 +24,7 @@ export const profiles = {
     equivalentDisplays: ["Guest checkout", "guest checkout", "GUEST CHECKOUT"], alternateDisplays: ["authenticated checkout"],
     conflictId: "EC-SELECTION-CONFLICT-CHECKOUT",
     selectedPattern: /recorded Guest checkout flow/iu, alternatePattern: /recorded authenticated checkout flow/iu,
+    resolved: { requiredFragments: [], forbiddenPatterns: [/resolve the recorded checkout mode/iu] },
     unresolved: { requiredFragments: ["resolve the recorded checkout mode"], forbiddenPatterns: [/recorded (?:guest checkout|authenticated checkout) flow/iu] }
   }
 } as const satisfies Record<string, ChoiceProfile>;
@@ -53,22 +56,22 @@ export const defectSeeds: readonly DefectSeed[] = [
   seed("PB-CORPUS-EC-001", pass(17, "uses a provider resolved only by an effective Answered decision"), "3929395ad296a9751fdb1795882f208af65ac934",
     "Structured-only provider selection did not drive verification.",
     { choiceId: "paymentProvider", question: "Which payment provider?", records: [{ id: "CHOICE-1", answer: "Square" }], narrative: "" },
-    { singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: profiles.paymentProvider.equivalentDisplays, conflictIds: [] }, verification: noVerification, requiredPatterns: [profiles.paymentProvider.selectedPattern], records: [{ id: "CHOICE-1", status: "Answered" }] },
+    { singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: profiles.paymentProvider.equivalentDisplays, conflictIds: [] }, verification: profiles.paymentProvider.resolved, requiredPatterns: [profiles.paymentProvider.selectedPattern], records: [{ id: "CHOICE-1", status: "Answered" }] },
     { propertyRefs: allFamilies, choiceProfile: profiles.paymentProvider }),
   seed("PB-CORPUS-EC-002", pass(17, "uses a lowercase currency resolved only by an effective Answered decision"), "3929395ad296a9751fdb1795882f208af65ac934",
     "A lowercase structured currency did not supply canonical selected evidence.",
     { choiceId: "currency", question: "Which checkout currency?", records: [{ id: "CHOICE-1", answer: "usd" }], narrative: "" },
-    { singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: ["USD"], conflictIds: [] }, verification: noVerification, requiredPatterns: [/flow in USD/iu], records: [{ id: "CHOICE-1", status: "Answered" }] },
+    { singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: ["USD"], conflictIds: [] }, verification: profiles.currency.resolved, requiredPatterns: [/flow in USD/iu], records: [{ id: "CHOICE-1", status: "Answered" }] },
     { propertyRefs: allFamilies, choiceProfile: profiles.currency }),
   seed("PB-CORPUS-EC-003", pass(17, "uses a checkout mode resolved only by an effective Answered decision"), "3929395ad296a9751fdb1795882f208af65ac934",
     "Structured-only checkout selection did not drive verification.",
     { choiceId: "checkoutMode", question: "Which checkout mode?", records: [{ id: "CHOICE-1", answer: "Guest checkout" }], narrative: "" },
-    { singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: profiles.checkoutMode.equivalentDisplays, conflictIds: [] }, verification: noVerification, requiredPatterns: [profiles.checkoutMode.selectedPattern], records: [{ id: "CHOICE-1", status: "Answered" }] },
+    { singleton: { outcome: "resolved", contributingRecordIds: ["CHOICE-1"], acceptableSelectedValues: profiles.checkoutMode.equivalentDisplays, conflictIds: [] }, verification: profiles.checkoutMode.resolved, requiredPatterns: [profiles.checkoutMode.selectedPattern], records: [{ id: "CHOICE-1", status: "Answered" }] },
     { propertyRefs: allFamilies, choiceProfile: profiles.checkoutMode }),
   seed("PB-CORPUS-EC-004", pass(18, "treats normalized currency duplicates as agreement"), "29f7bb702f08f0c7b790ff9b8085d8b683d299ca",
     "Singleton agreement and conflicts were not reconciled as explicit group outcomes.",
     { choiceId: "currency", question: "Which checkout currency?", records: [{ id: "CHOICE-1", answer: "usd" }, { id: "CHOICE-2", answer: "USD" }], narrative: "" },
-    { singleton: { outcome: "equivalentDuplicate", contributingRecordIds: ["CHOICE-1", "CHOICE-2"], acceptableSelectedValues: ["USD"], conflictIds: [] }, verification: noVerification, requiredPatterns: [/flow in USD/iu], records: [{ id: "CHOICE-1", status: "Answered" }, { id: "CHOICE-2", status: "Answered" }] },
+    { singleton: { outcome: "equivalentDuplicate", contributingRecordIds: ["CHOICE-1", "CHOICE-2"], acceptableSelectedValues: ["USD"], conflictIds: [] }, verification: profiles.currency.resolved, requiredPatterns: [/flow in USD/iu], records: [{ id: "CHOICE-1", status: "Answered" }, { id: "CHOICE-2", status: "Answered" }] },
     { propertyRefs: ["case-space", "permutation", "unrelated"], classification: ["generic", "domain"] }),
   seed("PB-DEFECT-6D2-001", { file: "src/tests/systemSingletonKnownDefect.test.ts", case: "PB-DEFECT-6D2-001 [known production defect]: conflicting structured providers cannot select a narrative winner" }, "fdb2a80b6b7e9bd9fb4cab906807c005f31f814f",
     conflictingProviderNarrativeDefect.historicalFailure,

@@ -71,6 +71,39 @@ set review approvals, calculate or alter readiness, generate/export a package, o
 write storage. An oracle sensitivity control rejects the historical wrong selected
 winner, missing dependency and provider-specific instruction.
 
+## Architect review correction — resolved dependencies
+
+The reviewed revision `e5502c86564853602492953301643001549b9d3c` could accept
+both selected-value verification and a contradictory unresolved dependency for
+the same structured choice. Resolved profiles now independently forbid
+`resolve the recorded payment provider`, `resolve the recorded currency`, or
+`resolve the recorded checkout mode`, respectively. EC-001/002/003 and the
+equivalent-duplicate currency seed EC-004 use these expectations. Dependencies
+for other choices remain permitted; unresolved/conflicting expectations are
+unchanged.
+
+Case-space, permutation and unrelated-clause cases retain their seed expectations.
+Equivalent insertions explicitly reuse the resolved profile. Replacement targets
+retain the resolved profile's dependency exclusion alongside the existing ban on
+the previous selected value. Existing selection, status, conflict, required-output
+and prior-value assertions remain intact, as do all original 6D.2 contracts.
+
+Thirty-one sensitivity cases check four original resolved expectations plus all
+27 relevant derived targets: 16 case-space, three equivalent insertions, one
+permutation, three replacements and four unrelated clauses. Each starts with an
+independently authored valid selection and both other-choice dependencies, then
+adds only the contradictory same-choice dependency and requires exactly one
+forbidden-verification violation. Coverage is eight provider cases, 15 currency
+cases (including EC-004) and eight checkout cases. No sensitivity input is read
+from production output or manufactured from the oracle's expected patterns.
+
+Before the correction, all 31 negative controls exposed the gap by receiving no
+violation. After the correction, the full focused corpus/property run passes
+126 tests without skips: the original 94 plus 31 sensitivities and one coverage
+budget control. The original 12 seeds and 74 transformation inputs are unchanged.
+Current full repository validation and remote CI status are recorded in
+[PR #10](https://github.com/jsnwilmot/ProjectBuilder/pull/10).
+
 ## Bounded transformation contracts
 
 [transformations.ts](./transformations.ts) declares version, applicability,
@@ -120,7 +153,9 @@ two corpus/oracle controls and six operator-budget/precondition controls. Vitest
 wall time includes worker startup and varies; these measurements are a bounded
 cost estimate, not a performance guarantee.
 
-Final local CI validation (unchanged repository commands):
+Initial implementation validation at reviewed revision `e5502c8`
+(unchanged repository commands; review-correction results are recorded above and
+in PR #10):
 
 | Check | Result |
 | --- | --- |

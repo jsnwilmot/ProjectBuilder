@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-10-16 - Phase 6D.3 Architect review: resolved dependency oracle
+
+- Continued PR #10 on `codex/phase-6d3-defect-corpus` from reviewed SHA `e5502c86564853602492953301643001549b9d3c`; no new PR or phase.
+- Added independently authored resolved verification profiles for payment provider, currency and checkout mode. Each rejects its own `resolve the recorded ...` dependency while permitting dependencies for other choices. Applied to EC-001/002/003 and equivalent currency EC-004; preserved through case-space, permutation and unrelated-clause targets and explicitly carried into equivalent insertion and replacement expectations.
+- Added 31 sensitivity cases covering all four original resolved expectations and all 27 relevant derived targets. Each verifies that the selected choice plus both other-choice dependencies passes, then that adding only the contradictory dependency fails with exactly one verification violation. Added one budget control; the original 12 seeds and 74 transformations remain unchanged.
+- Tests-first evidence: all 31 negative controls failed against the reviewed oracle because the contradiction produced no violation. After correction, all 126 corpus/property tests and TypeScript pass. Complete required validation results and remote CI status are reported in PR #10.
+- Files updated: `src/tests/defectCorpus/{types.ts,seeds.ts,transformations.ts,README.md}`, `src/tests/defectCorpus.test.ts`, and this changelog. No files created or removed. Preserved existing positive, prior-value, unresolved/conflict, 6D.2 and historical assertions. No production, persistence, repository, readiness, authority, CI or dependency modifications.
+- Issue addressed: test-oracle false acceptance of selected-plus-unresolved output; no production remediation. Required full validation and current remote CI results are recorded in PR #10. Next step: final independent GPT Architect review. Do not merge or begin Phase 6D.4.
+
 ## 2026-10-16 - Phase 6D.3 permanent defect corpus and bounded properties
 
 - Verified remote/local main at authorized baseline `b78499a7e637e795af2ff34700ecd681069f30fb`, with PR #8 and PR #9 integrated. Reported the stale local main before fast-forwarding; created separate branch `codex/phase-6d3-defect-corpus` from the verified baseline.

@@ -26,6 +26,7 @@ export interface ChoiceProfile {
   readonly conflictId: string;
   readonly selectedPattern: RegExp;
   readonly alternatePattern: RegExp;
+  readonly resolved: VerificationExpectation;
   readonly unresolved: VerificationExpectation;
 }
 export interface DefectSeed {
