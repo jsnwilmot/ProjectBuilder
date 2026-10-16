@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-10-16 - PB-DEFECT-6D2-001 singleton conflict fallback remediation
+
+- Prevented existing authoritative payment-provider, currency and checkout-mode conflicts from selecting narrative winners in generated verification. Only the conflicted singleton loses fallback; legitimate absent/unresolved fallback and equivalent/structured selections retain their existing behavior.
+- Reused existing normalized conflict records and question-context classification. No decision-engine, public interface, gate, source authority, Storage, migration, repository, UI, dependency or deployment changes.
+- Added `src/tests/ecommerceSingletonConflictFallback.test.ts` with 46 cases; the starting baseline reproduced 31 intended failures and 15 passing controls. Updated `src/lib/ecommerceTestRequirements.ts`, `docs/ecommerce-draft-remediation.md` and this changelog.
+- Preserved PR #8 and its six files; its 26 unchanged tests passed against the production patch in a separate detached verification worktree, with all six original file blob hashes unchanged.
+- Verification passed: 873 focused tests; full tests and coverage each passed 4,369 tests across 123 files. Coverage statements/branches/functions/lines: 89.24%/82.25%/93.44%/92.38%. Lint, TypeScript, build and production audit passed; no dependency remediation was performed.
+- Eight fixed-clock baseline/fix comparisons preserved all decision, readiness, manifest and integrity results. Non-conflict documents were byte-identical; conflict cases changed only generated testing and acceptance verification.
+- Remaining work: independent GPT Architect review and authorized merge, then update/reverify PR #8 against corrected main. Separate Preview/launchReady findings and Phase 6D.3 are not addressed.
+
 ## 2026-09-20 - PR #6 ecommerce Pass 19 remediation
 
 - Tests-first commit `cc0118a` reproduced 37 intended failures with 18 passing controls on exact reviewed head `29f7bb702f08f0c7b790ff9b8085d8b683d299ca`.
