@@ -1,5 +1,54 @@
 # Ecommerce Draft 1 generation remediation
 
+## PB-DEFECT-6D2-001: structured conflicts and narrative fallback
+
+Starting baseline: `0495f52e20c8e962014b969ee435224fd6347f66`.
+
+An absent resolved singleton selection could previously mean either no effective
+structured choice or conflicting current Answered choices. Verification treated
+both as permission to use narrative evidence. Two structured provider answers
+(`Stripe` and `Square`) plus `payments via Square` therefore produced a conflict
+record while still generating Square-specific checkout and webhook instructions.
+Currency and checkout-mode conflicts had the same fallback defect.
+
+Verification now reads the existing selection-conflict records and their existing
+question-context classification. A conflict suppresses narrative fallback only
+for its own singleton. The established neutral verification and resolution
+dependency are emitted instead. Missing structured choices retain permitted
+narrative fallback, equivalent normalized answers still agree, and an effective
+structured answer still takes precedence. No raw register parser, public API,
+source authority, conflict severity, readiness gate or saved source is changed.
+Optional conflicts retain their existing optional gate while producing no winner.
+
+`ecommerceSingletonConflictFallback.test.ts` contains 46 cases: competing and third
+narrative candidates for all three singleton categories, both record orders,
+equivalent answers, legitimate absent/unresolved fallback, structured precedence,
+gate-strength preservation, independent choices and simultaneous conflicts.
+The unmodified baseline reproduced 31 failures with 15 passing controls. Tests
+also inspect generated testing/acceptance documents and source immutability.
+
+The six test-only files from PR #8 remain unchanged and are not included in the
+production remediation branch. Their existing defect assertion is verified in a
+detached PR #8 worktree with only the production patch applied. PR #8 must not be
+updated until this separate remediation is independently reviewed and merged.
+Preview blocker counts, decision-only launch readiness and Phase 6D.3 remain
+outside this fix.
+
+Verification passed 873 focused tests across 27 files, including all 46 new
+regressions, existing Ecommerce suites, Canvas golden tests and Storage 7 tests.
+PR #8's 26 original tests passed with the production patch; all six original file
+blob hashes were verified unchanged. Full `npm test` and `npm run test:coverage`
+each passed 4,369 tests across 123 files, including all seven UI legs. Coverage
+passed the existing thresholds: statements 89.24%, branches 82.25%, functions
+93.44%, lines 92.38%. Lint, TypeScript, build and production audit passed. The
+advisory development dependency audit remains unchanged at 34 findings.
+
+A fixed-clock baseline-versus-fix comparison of eight synthetic scenarios found
+byte-identical documents for original, narrative-only, structured, equivalent
+and unresolved controls. The three singleton conflict scenarios changed only
+`TEST_PLAN.md` and `ACCEPTANCE_CRITERIA.md`. Decision states, generated readiness,
+export integrity and manifests were identical in all eight scenarios.
+
 ## Pass 18 effective current state
 
 Pass 18 starts from exact reviewed head `3929395ad296a9751fdb1795882f208af65ac934`. The tests-only baseline commit `7385390` records 12 expected failures and four passing controls across 16 tests. Baseline failures are the three distinct singleton conflicts, provider-conflict evidence selection, case-normalized provider agreement, strongest-gate conflict severity, tax/shipping/pickup/returns Not-applicable contradictions, cross-document N/A synchronization, and stale regeneration. Passing controls are normalized currency agreement, N/A without positive evidence, unrelated N/A isolation, and a new source blocker overriding an old ready package.
