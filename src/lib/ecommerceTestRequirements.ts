@@ -1,5 +1,5 @@
 import type { ProjectRecord } from "../types/project";
-import { classifyResolutionValue, ECOMMERCE_CURRENCY_CODES, ecommerceRequirementOutcomes, ecommerceResolvedSelections, validatedEcommerceConfiguration, type EcommerceRequirementDomain } from "./ecommerceDecisions";
+import { classifyResolutionValue, ECOMMERCE_CURRENCY_CODES, ecommerceDecisions, ecommerceRequirementOutcomes, ecommerceResolvedSelections, ecommerceSelectionKind, validatedEcommerceConfiguration, type EcommerceRequirementDomain } from "./ecommerceDecisions";
 
 export interface EcommerceTestRequirement {
   category: string;
@@ -374,6 +374,11 @@ function providerCandidateMatches(text: string): CandidateMatch[] {
 export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTestRequirement[] {
   const fragments = sourceFragments(project);
   const resolvedSelections = ecommerceResolvedSelections(project);
+  // No resolved selection can mean either absence or conflict. Existing conflict
+  // records suppress fallback for that choice without changing its gate.
+  const conflictingSelections = new Set(ecommerceDecisions(project)
+    .filter(decision => decision.id.startsWith("EC-SELECTION-CONFLICT-"))
+    .map(decision => ecommerceSelectionKind(decision.question)));
   const requirementOutcomes = new Map(ecommerceRequirementOutcomes(project).map(outcome => [outcome.domain, outcome]));
   const reconciledEvidence = (domain: EcommerceRequirementDomain, current: SourceFragment[]): SourceFragment[] => {
     const outcome = requirementOutcomes.get(domain);
@@ -385,9 +390,9 @@ export function ecommerceTestRequirements(project: ProjectRecord): EcommerceTest
       text: decision.answer
     }));
   };
-  const checkoutEvidence = resolvedSelections.checkoutMode ? undefined : firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
-  const currencyEvidence = resolvedSelections.currency ? undefined : firstPositiveMatch(fragments, new RegExp(`\\b(${CURRENCY_CODES})\\b`, "i"));
-  const providerEvidence = resolvedSelections.paymentProvider ? undefined : firstPositiveMatch(fragments, providerCandidateMatches);
+  const checkoutEvidence = resolvedSelections.checkoutMode || conflictingSelections.has("checkoutMode") ? undefined : firstPositiveMatch(fragments, /\b(guest checkout|authenticated customer checkout|authenticated checkout|account checkout|mixed checkout)\b/i);
+  const currencyEvidence = resolvedSelections.currency || conflictingSelections.has("currency") ? undefined : firstPositiveMatch(fragments, new RegExp(`\\b(${CURRENCY_CODES})\\b`, "i"));
+  const providerEvidence = resolvedSelections.paymentProvider || conflictingSelections.has("paymentProvider") ? undefined : firstPositiveMatch(fragments, providerCandidateMatches);
   const checkoutMode = resolvedSelections.checkoutMode?.value.toLocaleLowerCase() ?? checkoutEvidence?.value.toLocaleLowerCase() ?? "";
   const currency = resolvedSelections.currency?.value.toUpperCase() ?? currencyEvidence?.value.toUpperCase() ?? "";
   const paymentProvider = resolvedSelections.paymentProvider?.value ?? providerEvidence?.value ?? "";
