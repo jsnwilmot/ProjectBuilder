@@ -5,6 +5,9 @@ Authorized baseline: `7e35b477871ba378cf28c3320581a3cf53b98666`.
 This implements the approved design addendum as three explicit traces, with at
 most two projects, injected in-memory Storage 7, a controlled Date clock and a
 controlled duplicate UUID. It adds no production transition engine or policy.
+The single 27-event setup hook has a local 60-second wall-time budget for slower
+CI runners and coverage instrumentation. No global timeout or CI setting changes;
+all controlled project timestamps and every assertion stay unchanged.
 The initial run has 27 events, 96 applicable contract applications and 7,487
 passing primitive comparisons. These are comparisons, not 7,487 Vitest cases.
 There are 46 Vitest cases: 27 checkpoints, five metadata/characterization/scope/

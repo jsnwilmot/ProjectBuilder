@@ -19,7 +19,7 @@ beforeAll(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   }
-});
+}, 60_000); // One bounded 27-event setup; CI runners/coverage exceed the default 10s hook budget.
 
 function observation(id: string): LifecycleObservation {
   const found = observations.find(candidate => candidate.checkpoint === id);
