@@ -47,6 +47,7 @@ These labels are **tracking labels**, not new authorized implementation phases.
 - Golden-reference, 6D.2 singleton, 6D.3 corpus, 6D.4 lifecycle, 6D.5 package-coherence and historical generation/export regressions must remain green.
 - No universal permissions, automatic confirmation, client approval, readiness, canonicalization or output authority may emerge from a metadata contract.
 - No second-domain wiring, `confirmedIntake` materialization, generic registry or adapter, UI, migration, external integration or deployment is authorized by read-only discovery.
+- Historical Core review notes recorded TTI as Draft with 15 project-specific blockers. Those are not presumed resolved by the shared SHA/UUID primitives or by any future authority-free descriptor; TTI's approved project-specific Architect source controls its readiness and scope.
 
 ## Deliverable for next Codex task (not yet dispatched)
 
