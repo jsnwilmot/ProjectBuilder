@@ -1,5 +1,8 @@
 # Project Builder Ai
 
+> **Current delivery status (2026-10-18):** Phase 6D.2–6D.5 is merged; future 6D.6–6D.8 and broader Project Builder Core extraction are **not authorized for implementation**. The latest known merged baseline is `b595e561f7236a76ea5c26921634957987cecbce`. Consult [Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md), [Core Reconciliation](docs/CORE_ARCHITECTURE_RECONCILIATION.md), and [PoC Readiness](docs/POC_READINESS_AND_ACCEPTANCE.md) for current evidence, unresolved findings, and phase gates. Older release results are historical snapshots; they are not proof the latest baseline is deployed.
+
+
 Project Builder Ai creates structured project plans, architecture instructions, developer instructions, and phased handoff prompts for AI-assisted project delivery. It is a project launcher and handoff generator, not an AI app builder, built-in AI assistant, or automatic software developer.
 
 ## Included workflows
