@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-10-18 — Core architecture reconciliation assessment and phased follow-up (documentation only)
+
+- Received and independently reviewed Codex's **read-only** Core reconciliation report against merged `main` `b595e561f7236a76ea5c26921634957987cecbce` and the unmerged 6C.8R head `e8af49b4cfca940c692a73188a7c9066155485e5`. Codex reported no repository writes, test/coverage/build or CI run during its source assessment; those are **not** being claimed as passed.
+- Confirmed the original 6C.2/2R/3/4/6 work is merged, whereas 6C.8/6C.8R remains unmerged (2 unique commits, 70 main commits since the fork) and has no runtime consumer. Independently reproduced **`PB-CORE-001` Medium/P2**: a getter-backed project-type array may pass validation yet return a copied descriptor containing `undefined`, because array values are read repeatedly; this affects unmerged code only. Integration deferred unless justified, corrected and revalidated under separate authorization.
+- Captured the strongest maintenance candidate: seven copies each of stable object sorting, JSON serialization and FNV-1a checksum helpers across seven generation modules. Recorded separate lower-priority candidates, six large modules, two static import cycles, exact byte/policy preservation constraints, and why general Evidence/Confirmation Core or domain adapter frameworks are not yet justified.
+- Updated `docs/PROJECT_DELIVERY_ROADMAP.md`, `docs/CORE_ARCHITECTURE_RECONCILIATION.md` and `NEXT_STEPS.md` to mark **CORE-REC complete**, document the unmerged descriptor defect, and route the next task to **read-only CORE-CHECKSUM design**, not implementation. Added no production code, tests, dependencies, schemas, authority or CI configuration.
+- **Validation performed:** inspected GitHub `main`, PR #13, 6C.8R source and its existing tests; reproduced the getter validation/copy defect with the branch helper's algorithm; reviewed the supplied Codex assessment against the current repository baseline. PR #13 exact-head CI #141 **passed on prior head** `4d76ffaa8fbe4be37fca19d6e7ba7d0c87332ab4`. That run does **not** validate the subsequently revised documentation head; no separate manual browser test or deployment was performed.
+- **Next gates:** exact-head CI and independent review for the documentation PR, explicit owner approval before any main merge that can trigger deployment, and a separately authorized implementation phase only after the checksum literal design/oracle matrix passes Architect review. 6D.6 and the separate High findings remain unauthorized/open.
+
 ## 2026-10-18 — Documentation-only phased roadmap reconciliation (proposed PR)
 
 - Verified `main` at `b595e561f7236a76ea5c26921634957987cecbce`, with Phase 6D.5 PR #12 merged after exact-head CI #137 and the prior P2 review finding resolved.
