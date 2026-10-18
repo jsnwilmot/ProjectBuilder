@@ -1,5 +1,8 @@
 # Release Readiness Report
 
+> **Historical release verification snapshot — not current PoC or release sign-off.** This report records an earlier MVP/production validation and may say there were no known High defects at that time. As of 2026-10-18, separate High findings for Preview blocker counting and Ecommerce decision-layer `launchReady` remain open; their resolution, the latest `main` deployment, and updated PoC acceptance are **not** proven by this report. See [Project Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md), [PoC Readiness](docs/POC_READINESS_AND_ACCEPTANCE.md), and [Release Operations Checklist](RELEASE_OPERATIONS_CHECKLIST.md). Preserve the historical test evidence below without rewriting its earlier conclusions.
+
+
 ## Summary
 
 Project Builder Ai completed deployment-operations lockdown on top of MVP release readiness. The production mechanism, Worker details, physical-keyboard behavior, and Windows Explorer ZIP result are now documented. Firefox remains unavailable and the production release owner remains unassigned.

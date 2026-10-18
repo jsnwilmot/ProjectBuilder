@@ -1,5 +1,8 @@
 # Release Operations Checklist
 
+> **2026-10-18 coordination note:** This document retains its existing **blocking** `npm.cmd audit` release gate. Current GitHub CI runs the all-dependency advisory audit as **non-blocking**, and CI #137 showed 13 such findings while production dependencies showed zero vulnerabilities. This is an unresolved release-policy discrepancy (`PB-OPEN-006`), **not** an automatic exception. Obtain the release owner's explicit disposition before claiming these release gates passed or changing the checklist. Current phase status: [Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md); proposed PoC evidence: [PoC Acceptance](docs/POC_READINESS_AND_ACCEPTANCE.md).
+
+
 ## Release owner
 
 Jason Wilmot, Rose & Paw Digital Designs

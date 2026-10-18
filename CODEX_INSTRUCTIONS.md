@@ -1,5 +1,18 @@
 # Codex Instructions
 
+## Current phase authorization boundary (2026-10-18)
+
+The coordination documents are [Project Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md), [Core Architecture Reconciliation](docs/CORE_ARCHITECTURE_RECONCILIATION.md), and [PoC Readiness](docs/POC_READINESS_AND_ACCEPTANCE.md). Their tracking labels and proposed acceptance scenarios **do not authorize implementation**.
+
+- Current verified merged baseline: `b595e561f7236a76ea5c26921634957987cecbce` (PR #12, Phase 6D.5).
+- Phase 6D.2–6D.5: merged. Phase 6D.6–6D.8: not authorized.
+- Project Builder Core 6C.2/3/4/6: merged; 6C.8/6C.8R: unmerged review branch, not authorized for blind integration.
+- Next agreed Core task is **read-only reconciliation**; its Codex instruction has not yet been dispatched. Do not infer an implementation authorization.
+- Open High findings: Preview blocker counting and Ecommerce decision-layer `launchReady`; no remediation authorization.
+- For any authorized development: exact baseline, approved scope and independent literal oracle where applicable, separate PR, focused and full regression evidence, exact-head CI, and separate GPT Architect review/merge authorization. Never merge or deploy just because CI passes.
+- Storage 7 is canonical; do not introduce Storage 8, overwrite persistence, change user/business permissions, derive approval from generated documents, or alter project-type authority absent explicit approval.
+
+
 ## Website generation maintenance
 
 Use `websiteCapabilitySelected` for optional capability activation, never `status === "answered"`. Its typed fields and exclusion grammar live in `websiteCapabilityIntent.ts`; requirement text remains the original recorded answer. Keep structured N/A/Deferred decisions ahead of free-text interpretation. Add negative-prose and positive-replacement regressions whenever changing these rules. Do not infer services from descriptive content sources or create a general natural-language contradiction scanner.
