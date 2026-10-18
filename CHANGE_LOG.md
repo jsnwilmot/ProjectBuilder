@@ -1,5 +1,16 @@
 # Change Log
 
+## 2026-10-18 — Documentation-only phased roadmap reconciliation (proposed PR)
+
+- Verified `main` at `b595e561f7236a76ea5c26921634957987cecbce`, with Phase 6D.5 PR #12 merged after exact-head CI #137 and the prior P2 review finding resolved.
+- Added `docs/PROJECT_DELIVERY_ROADMAP.md` as a dated coordination source for phase status, open findings, architecture decisions, readiness gates, and explicit next actions.
+- Added `docs/CORE_ARCHITECTURE_RECONCILIATION.md` to track merged 6C.2/3/4/6 and unmerged 6C.8/6C.8R, with a proposed read-only phased Core assessment and no new implementation authority.
+- Added `docs/POC_READINESS_AND_ACCEPTANCE.md` to separate **proposed** PoC acceptance evidence from historical MVP release verification and future Core/6D scope.
+- Replaced stale active tasks in `NEXT_STEPS.md`, linked current status from README, Blueprint, Codex instructions and release-readiness documentation. Documented that historical Business Website PR #4 is merged, though client package regeneration/review is not automatic.
+- Explicitly preserved open Preview blocker-count and Ecommerce `launchReady` findings, development dependency advisory maintenance, Storage 7 and scope/authority boundaries. No app code, storage, CI, dependency or production behavior changed; no new implementation, merge, deployment, or PoC sign-off is authorized by these documents.
+- Next gate: independent review of this docs-only PR; later Codex Core reconciliation is read-only and must be dispatched separately.
+
+
 ## 2026-10-18 - Phase 6D.5 Architect review: complete verification-row oracle
 
 - Continued existing PR #12 on `codex/phase-6d5-package-coherence` from reviewed SHA `d753f957c98cfba635799b5d6538eed2409994d7`; no new branch, PR, production remediation or phase.
