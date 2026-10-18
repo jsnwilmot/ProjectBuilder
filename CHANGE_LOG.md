@@ -1,5 +1,14 @@
 # Change Log
 
+## 2026-10-18 — CORE-CHECKSUM read-only compatibility design accepted (documentation only)
+
+- Received Codex's completed checksum-design assessment against `main` `b595e561f7236a76ea5c26921634957987cecbce`. No production code, branches, commits, test suites or CI runs were created by Codex for the read-only design.
+- **Independent Architect review:** inspected and compared the full implementations of `stableSortObject`, `stableStringify`, and `fnv1a` in all seven reported production modules; verified exact matching helper bodies after whitespace normalization. Independently recalculated all **18** original structured serialization/checksum vectors, all **9** raw UTF-16 FNV-1a vectors, and the independently specified implementation-asset checksum payload plus three altered-field digests. All examined expected digests matched.
+- Added one additional independently calculated whitespace-preservation case `S19` (`fnv1a-39c0ce84`) to close the small literal coverage gap noted in the original design. Recorded all **19** structured inputs, **9** raw inputs, full asset payload, mutation expectations, exceptional-edge behavior, minimum extraction interface, sensitivity controls and regression/authority gates in new `docs/CORE_CHECKSUM_COMPATIBILITY_DESIGN.md`.
+- Updated `docs/PROJECT_DELIVERY_ROADMAP.md`, `docs/CORE_ARCHITECTURE_RECONCILIATION.md`, and `NEXT_STEPS.md` to mark the **design completed and accepted** while keeping implementation, 6C.8 descriptor correction/integration, generic Core abstractions and 6D.6 explicitly unauthorized. All files changed for this follow-up are Markdown only.
+- **Validation scope:** literal checksum calculations and existing-source comparison were performed without running application tests, build, browser tests or local production CI. Previous GitHub PR #13 **CI #145 passed on older head** `60cd292df4a1438f57cf12897df5853b388207f4`; the present documentation head still requires its own exact-head CI and independent review. Any development advisory/release audit-policy discrepancy remains open.
+- **Next gates:** review/approve the documentation PR's final exact head, obtain explicit owner/release permission before any main merge, then separately authorize a narrowly bounded implementation only against a freshly confirmed `main` baseline with immutable literals and no domain or authority changes.
+
 ## 2026-10-18 — Core architecture reconciliation assessment and phased follow-up (documentation only)
 
 - Received and independently reviewed Codex's **read-only** Core reconciliation report against merged `main` `b595e561f7236a76ea5c26921634957987cecbce` and the unmerged 6C.8R head `e8af49b4cfca940c692a73188a7c9066155485e5`. Codex reported no repository writes, test/coverage/build or CI run during its source assessment; those are **not** being claimed as passed.
