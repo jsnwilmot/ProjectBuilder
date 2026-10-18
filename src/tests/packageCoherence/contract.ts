@@ -7,6 +7,7 @@ import {
   AUTHENTICATION, CONSTRAINTS, OUT_OF_SCOPE, PAGES, DEPENDENCIES, UNRESOLVED_PREFIXES, CATEGORIES, SELECTED, CONFLICT_FORBIDDEN
 } from "./projections";
 import type { AssertionResult, InvariantId, PackageObservation } from "./types";
+import { VERIFICATION_RESULTS } from "./verificationExpectations";
 
 export const PACKAGE_CONTRACTS = [
   { id: "PB-INV-PACKAGE-001", statement: "Literal core inventory, folders, export integrity and manifest facts.", cases: ["PC-001", "PC-002", "PC-003", "PC-004", "PC-005", "PC-006", "PC-007", "PC-008", "PC-009"] },
@@ -156,6 +157,11 @@ export function assertPackage(invariantId: InvariantId, o: PackageObservation): 
       if (e.id === "PC-004") categories.splice(3, 0, "Scope dependencies");
       check(`${name}:verification:categories`, rows.map(row => row[1]), categories);
       check(`${name}:verification:ids`, rows.map(row => row[0]), categories.map((_, index) => `EC-TEST-${index + 1}`));
+      // Every expected-result cell has its own independent oracle. Cross-artifact
+      // equality below remains an additional relationship, never the content oracle.
+      for (const [category, expectedResult] of Object.entries(VERIFICATION_RESULTS[e.id])) {
+        check(`${name}:verification:row:${category}:expectedResult`, rows.find(row => row[1] === category)?.[2], expectedResult);
+      }
       const instructions = rows.filter(row => ["Checkout/payment", "Webhooks/idempotency/reconciliation", "Scope dependencies"].includes(row[1])).map(row => row[2]).join("\n");
       if (e.id === "PC-004") {
         for (const required of ["Test the recorded checkout flow;", "using the recorded provider contract; replay", ...DEPENDENCIES]) contains(`${name}:verification`, instructions, required);

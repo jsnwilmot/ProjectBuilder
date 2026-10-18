@@ -2,8 +2,10 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { assertPackage, PACKAGE_CONTRACTS } from "./packageCoherence/contract";
 import { EXPECTATIONS, PATHS, FOLDERS } from "./packageCoherence/expectations";
 import { observeApprovedPackages } from "./packageCoherence/observe";
-import { NEGATIVE_CONTROLS } from "./packageCoherence/sensitivity";
+import { NEGATIVE_CONTROLS, SHARED_ROW_CONTROLS } from "./packageCoherence/sensitivity";
 import type { PackageObservation } from "./packageCoherence/types";
+import { VERIFICATION_RESULTS } from "./packageCoherence/verificationExpectations";
+import { CATEGORIES } from "./packageCoherence/projections";
 
 let observations: PackageObservation[];
 beforeAll(() => {
@@ -47,6 +49,17 @@ describe("Phase 6D.5 bounded package coherence v1.0.0", () => {
     expect(FOLDERS.filter(f => f.expectedFileCount > 0)).toHaveLength(11);
   });
 
+  it("pins complete literal row coverage in both artifacts for all nine cases", () => {
+    expect(Object.keys(VERIFICATION_RESULTS)).toEqual(["PC-001", "PC-002", "PC-003", "PC-004", "PC-005", "PC-006", "PC-007", "PC-008", "PC-009"]);
+    for (const e of EXPECTATIONS) {
+      expect(Object.keys(VERIFICATION_RESULTS[e.id]).sort()).toEqual([...CATEGORIES, ...(e.id === "PC-004" ? ["Scope dependencies"] : [])].sort());
+      expect(Object.values(VERIFICATION_RESULTS[e.id]).every(value => value.trim().length > 0)).toBe(true);
+    }
+    expect(Object.values(VERIFICATION_RESULTS).reduce((total, rows) => total + Object.keys(rows).length * 2, 0)).toBe(218);
+    expect(NEGATIVE_CONTROLS).toHaveLength(47);
+    expect(SHARED_ROW_CONTROLS).toHaveLength(15);
+  });
+
   it("pins the exact approved operation clocks and linked sequence", () => {
     const draft = [
       { operation: "create", time: "2026-10-17T12:00:00.000Z" }, { operation: "fields", time: "2026-10-17T12:01:00.000Z" },
@@ -66,13 +79,37 @@ describe("Phase 6D.5 bounded package coherence v1.0.0", () => {
   });
 
   it("keeps oracle results deterministic and both observations and expectations unchanged", () => {
-    const before = JSON.stringify({ observations, EXPECTATIONS, PACKAGE_CONTRACTS });
+    const before = JSON.stringify({ observations, EXPECTATIONS, PACKAGE_CONTRACTS, VERIFICATION_RESULTS });
     const results = observations.flatMap(o => PACKAGE_CONTRACTS.filter(c => c.cases.includes(o.caseId)).map(c => {
       const first = assertPackage(c.id, o); expect(assertPackage(c.id, o)).toEqual(first); return first;
     }));
-    expect(JSON.stringify({ observations, EXPECTATIONS, PACKAGE_CONTRACTS })).toBe(before);
+    expect(JSON.stringify({ observations, EXPECTATIONS, PACKAGE_CONTRACTS, VERIFICATION_RESULTS })).toBe(before);
     expect(results).toHaveLength(47);
-    console.info(`[package coherence] 9 cases; ${results.length} applicable contracts; ${results.reduce((n, r) => n + r.checks, 0)} independent comparisons; ${NEGATIVE_CONTROLS.length} corruptions`);
+    console.info(`[package coherence] 9 cases; ${results.length} applicable contracts; ${results.reduce((n, r) => n + r.checks, 0)} independent comparisons; ${NEGATIVE_CONTROLS.length} original corruptions; ${SHARED_ROW_CONTROLS.length} shared-row corruptions; 218 independent row expectations`);
+  });
+});
+
+describe("PB-INV-PACKAGE-003 shared non-singleton instruction sensitivity", () => {
+  it.each(SHARED_ROW_CONTROLS)("$caseId / both artifacts contain incorrect $category", control => {
+    const original = observed(control.caseId);
+    expect(assertPackage("PB-INV-PACKAGE-003", original).status).toBe("satisfied");
+    const corrupted = structuredClone(original);
+    control.corrupt(corrupted);
+    const result = assertPackage("PB-INV-PACKAGE-003", corrupted);
+    expect(result.invariantId).toBe("PB-INV-PACKAGE-003");
+    // Replacing equal rows in both artifacts preserves their mutual agreement.
+    expect(result.violations.some(v => v.location === "verification.crossArtifactRows")).toBe(false);
+    expect(result.status).toBe("violated");
+    expect(result.violations.map(v => v.location)).toEqual([
+      `TEST_PLAN.md:verification:row:${control.category}:expectedResult`,
+      `ACCEPTANCE_CRITERIA.md:verification:row:${control.category}:expectedResult`
+    ]);
+    for (const name of ["TEST_PLAN.md", "ACCEPTANCE_CRITERIA.md"]) {
+      const location = `${name}:verification:row:${control.category}:expectedResult`;
+      expect(result.violations.filter(v => v.location === location)).toEqual([
+        expect.objectContaining({ location, actual: control.incorrect, expected: expect.any(String) })
+      ]);
+    }
   });
 });
 

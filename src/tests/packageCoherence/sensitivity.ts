@@ -67,3 +67,30 @@ export const NEGATIVE_CONTROLS: NegativeControl[] = [
   control("NEG-015", "supported document duplicated section", "PC-002", verification, ["ACCEPTANCE_CRITERIA.md:section:## Commerce verification:count"], o => { o.documents.find(d => d.fileName === "ACCEPTANCE_CRITERIA.md")!.content += "\n\n## Commerce verification\n\nDuplicate."; }),
   control("NEG-015", "supported table duplicated", "PC-002", verification, ["TEST_PLAN.md:table:| ID | Category | Expected result |:count"], o => edit(o, "TEST_PLAN.md", "| ID | Category | Expected result |", "| ID | Category | Expected result |\n\n| ID | Category | Expected result |"))
 ];
+
+/** Review remediation: keep the original 47 controls above intact. Both artifacts
+ * receive the same incorrect instruction without altering IDs, categories or evidence. */
+export const SHARED_ROW_CONTROLS = [
+  ...(["PC-001", "PC-002", "PC-003", "PC-004", "PC-005", "PC-006", "PC-007", "PC-008", "PC-009"] as const).map(caseId => ({
+    caseId, category: "Digital delivery", incorrect: "Create delivery or entitlements before verified payment; allow access across orders."
+  })),
+  ...(["PC-002", "PC-004"] as const).flatMap(caseId => [
+    { caseId, category: "Cart", incorrect: "Allow ineligible items, calculate totals from client-supplied prices and ignore the recorded cart scope." },
+    { caseId, category: "Security", incorrect: "Skip request authentication, expose secrets in client output and permit unrestricted privileged sessions." },
+    { caseId, category: "Backup/restore", incorrect: "Restore production data without isolation or reconciliation and omit recovery evidence." }
+  ])
+].map(control => ({
+  ...control,
+  corrupt(o: PackageObservation) {
+    for (const name of both) {
+      const document = o.documents.find(d => d.fileName === name)!;
+      const lines = document.content.split("\n");
+      const matches = lines.flatMap((line, index) => line.startsWith("| EC-TEST-") && line.includes(`| ${control.category} |`) ? [index] : []);
+      if (matches.length !== 1) throw new Error(`Shared-row sensitivity prerequisite missing or duplicated: ${name}: ${control.category}`);
+      const index = matches[0];
+      const prefix = lines[index].match(/^(\| EC-TEST-\d+ \| [^|]+ \| )/)![1];
+      lines[index] = `${prefix}${control.incorrect} |`;
+      document.content = lines.join("\n");
+    }
+  }
+}));
