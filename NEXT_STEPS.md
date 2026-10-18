@@ -14,7 +14,7 @@
 ## Exact next Architect/Codex sequence
 
 1. **Current state:** no new implementation phase is approved or underway by this roadmap. Verify current `origin/main` before beginning any task.
-2. **Next bounded Core action:** the **read-only Core reconciliation report has been received and accepted as design evidence**. Conduct a separate, read-only **checksum-mechanics compatibility design** for seven reported copies: exact payload and checksum invariants, literal test oracles, sensitivity controls, risks and proposed minimum diff. **No implementation, branch changes or Core merge are authorized.** See [Core findings and design gate](docs/CORE_ARCHITECTURE_RECONCILIATION.md).
+2. **Current Core gate:** both the **read-only reconciliation** and **checksum compatibility design** are completed and Architect-reviewed. All seven duplicate mechanics, 19 structured/9 raw literal vectors, asset checksum conditions, and excluded authority are recorded in [Checksum Compatibility Design](docs/CORE_CHECKSUM_COMPATIBILITY_DESIGN.md). **No Core implementation or 6C.8 integration is authorized.** The next prerequisite is resolving PR #13's exact-head CI and owner/release merge gate; then request a fresh-baseline bounded checksum implementation authorization.
 3. **Separate quality workstream:** scope 6D.6 determinism/source isolation in a read-only design assessment **only after explicit Architect authorization**; do not import assumptions from the Core work.
 4. **Defect follow-up:** obtain exact reproductions and a disposition for `PB-OPEN-001`/`PB-OPEN-002`; remediation is not approved by their inclusion in this document.
 5. **PoC:** approve or revise the candidate acceptance scenarios, identify required current-build evidence and open-finding treatment, then perform a controlled verification and record owner sign-off.
@@ -40,4 +40,4 @@
 
 The previous `NEXT_STEPS.md` mixed historical review-branch handoffs with current actions (including now-merged Core/Website work). Historic exact-SHA evidence remains in `CHANGE_LOG.md`, `TEST_PLAN.md`, GitHub PRs, and dated reports. This summary **does not override** newer explicit approved architecture or a Codex phase contract. If evidence conflicts, verify and report it before implementation.
 
-**Next authorized action:** maintain documentation PR #13 under independent review/release-owner gates and issue the separate **read-only CORE-CHECKSUM design assessment** when ready. No production Core extraction, 6C.8 integration, deployment or 6D.6 implementation is authorized.
+**Next authorized action:** review documentation PR #13, verify exact-head CI, and obtain explicit owner/release authorization before merging to `main`. **CORE-CHECKSUM design is complete; implementation is not yet authorized.** No production Core extraction, 6C.8 integration, deployment or 6D.6 implementation is authorized.
