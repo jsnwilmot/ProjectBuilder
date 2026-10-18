@@ -1,6 +1,6 @@
 # Project Builder Ai — Delivery Roadmap and Decision Register
 
-**Status snapshot:** 2026-10-18. **Verified repository baseline:** `b595e561f7236a76ea5c26921634957987cecbce` (merged PR #12). **Document owner:** GPT Architect; Codex is the Developer.
+**Status snapshot:** 2026-10-18. **Verified implementation baseline:** `831b2b455d19c2f67d4296ef980887a4ad383be9` (merged documentation PR #13). **Document owner:** GPT Architect; Codex is the Developer.
 
 > This document coordinates existing decisions, completed evidence, open findings, and the next review gates. It does **not** approve new functionality, change the application's authority model, or supersede an explicitly approved phase specification. Verify GitHub state before acting; this is a dated snapshot.
 
@@ -32,7 +32,7 @@
 | Reusable Project Builder Core | 6C.6 SHA-256 hex predicate | **Merged** | `src/core/sha256Fingerprint.ts` |
 | Reusable Project Builder Core | 6C.8 / 6C.8R domain fact descriptor | **Unmerged; integration blocked by Medium/P2 validation gap** | `review/phase-5c3c3j6c8-domain-fact-descriptor-foundation`; variable getter-backed applicability can return invalid metadata; no runtime consumers. Defer integration unless justified by a separately approved consumer and correction. |
 | Reusable Project Builder Core | CORE-REC read-only architecture reconciliation | **Completed; accepted as design evidence only** | Codex report on main `b595e561f7236a76ea5c26921634957987cecbce`; no code/CI run in that assessment. See Core reconciliation record. |
-| Reusable Project Builder Core | CORE-CHECKSUM bounded extraction design | **Completed; design accepted, no implementation** | [Checksum Compatibility Design](CORE_CHECKSUM_COMPATIBILITY_DESIGN.md) pins 7 locations, 19 structured / 9 raw literal cases and asset checksum invariants. Integration awaits docs PR #13 owner/release gate and new exact-baseline authorization. |
+| Reusable Project Builder Core | CORE-CHECKSUM bounded extraction | **Implemented on `codex/core-checksum-extraction`; UNMERGED, pending independent review** | [Issue #14](https://github.com/jsnwilmot/ProjectBuilder/issues/14) authorizes the exact-baseline implementation. [Approved design](CORE_CHECKSUM_COMPATIBILITY_DESIGN.md) remains unchanged. Three mechanical helpers are shared by seven existing consumers; domain payloads, wrappers, versions, persistence and authority remain unchanged. Validation and release gates below. |
 | Reusable Project Builder Core | Evidence/Confirmation Core, registries, adapters, broader extraction | **Not implemented / not authorized** | See `docs/CORE_ARCHITECTURE_RECONCILIATION.md`; do not infer phase numbering |
 | Functional Proof of Concept | End-to-end demonstration, current-build verification and acceptance | **Not yet approved / signed off** | Proposed evidence in `docs/POC_READINESS_AND_ACCEPTANCE.md` |
 | Production release | Promotion of a newly approved `main` build | **Not authorized by this roadmap** | Separate owner decision; follow `RELEASE_OPERATIONS_CHECKLIST.md` |
@@ -57,15 +57,24 @@ The deployed MVP described in older release reports is historical evidence, **no
 
 ## Next phase gates (no implicit implementation approval)
 
-**Gate 0 — Maintain the verified baseline.** The latest integration is PR #12 on `main`. Any next Codex assignment must inspect the then-current remote SHA, identify new changes and confirm there is no competing incompatible work.
+**Gate 0 — Maintain the verified baseline.** PR #13 is merged at `831b2b455d19c2f67d4296ef980887a4ad383be9`; CORE-CHECKSUM branches from that exact main SHA. Any next assignment must verify the then-current remote SHA. This implementation does not certify the active Cloudflare version or production smoke evidence.
 
-**Gate 1 — Separate read-only work.** Codex has **completed** both CORE-REC and the bounded CORE-CHECKSUM compatibility design against `b595e561f7236a76ea5c26921634957987cecbce`; Architect independently verified the design's vectors and restricted interface. The design and expectations are preserved in `docs/CORE_CHECKSUM_COMPATIBILITY_DESIGN.md`. **No Core production extraction or 6C.8 descriptor integration is approved.** Next gate: integrate documentation PR #13 after exact-head CI/independent review and explicit owner-release merge authorization; only then consider a fresh-baseline checksum implementation instruction. The 6D.6 workstream is distinct and not implicitly authorized.
+**Gate 1 — Review the bounded implementation.** The prior read-only CORE-REC and checksum design remain accepted historical evidence on `b595e561f7236a76ea5c26921634957987cecbce`. Issue #14 separately authorizes checksum implementation from `831b2b4`; the immutable design was not rewritten. The implementation is unmerged and requires exact-head CI and independent GPT Architect review. No 6C.8 integration or 6D.6 work is authorized.
 
 **Gate 2 — Review documented open High findings.** Reproduce `PB-OPEN-001` and `PB-OPEN-002`; record impact, proposed scope, compatibility constraints, and Architect remediation disposition. Do not silently claim either resolved.
 
 **Gate 3 — Decide what PoC actually requires.** A proposed, unapproved PoC checklist exists in `docs/POC_READINESS_AND_ACCEPTANCE.md`. Architect and release/business owner must decide mandatory cases, allowed limitations, and sign-off criteria. Completion of every speculative Core or 6D phase is **not automatically** a PoC prerequisite.
 
-**Gate 4 — Authorize one bounded implementation at a time.** Before any 6D.6, Core extraction, or defect fix: provide exact fixture/input/output authority, out-of-scope list, expected regressions, source changes, test method, and stop conditions. Implement in an unmerged PR; independent review precedes merge. Keep deployment a separate owner gate. The Core checksum design may be assessed read-only now; **no implementation** follows without an explicit Architect design-gate disposition.
+**Gate 4 — Authorize one bounded implementation at a time.** Before any additional Core extraction, 6D.6, or defect fix: provide exact fixture/input/output authority, exclusions, regressions, source changes, test method, and stop conditions. Issue #14 applies only to checksum mechanics. Independent review and explicit merge authorization remain required; deployment is a separate owner gate.
+
+## CORE-CHECKSUM implementation evidence and remaining gates
+
+- Test-first baseline: 61 new public-wrapper/oracle-sensitivity tests passed before production extraction. A temporary red probe intentionally asserted that 29 synthetic corruptions should be accepted; all 29 failed at the expected comparison boundaries. The probe was removed; permanent sensitivity tests require rejection, with no skips or expected-failure tests.
+- New focused suite: 109 tests covering S01–S19, R01–R09, full literal payload P and field mutations/exclusions, legacy exceptions, input nonmutation, and 29 sensitivity controls. Expected bytes and digests are test-local literals; no production result constructs an expectation.
+- The seven consumer edits remove duplicated mechanics and import Core. The now-unused navigation-only object predicate is removed; other domain predicates remain. Payload construction, hash invocations, wrappers and all other consumer logic are preserved.
+- Full local tests and coverage each passed 4,753 tests / 132 files; coverage is 89.66% statements, 82.51% branches, 93.77% functions and 92.71% lines. Lint, standalone TypeScript, build and whitespace checks passed. The exact feature SHA and exact-head CI are recorded in the implementation PR/completion report; prior documentation CI is not implementation evidence.
+- Current audits: zero production vulnerabilities; the same 13 development findings (four moderate, nine high), with no added advisory IDs relative to PR #13. **PR #13's one-time exception does not cover this implementation.** Issue #7 maintenance and PB-OPEN-006 release-policy disposition remain open; a new owner disposition is required before release.
+- Next authorized action: independent GPT Architect review of the unmerged implementation and its validation evidence. No merge, deployment, PoC sign-off, descriptor integration, or broader Core/6D work is authorized.
 
 ## Handoff / update procedure
 
