@@ -1,5 +1,8 @@
 # App Blueprint
 
+> **Current architecture/workstream coordination (2026-10-18):** This document describes established runtime boundaries; it does not itself authorize further extraction or new authority. Track phase completion and open decisions in [Project Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md), unfinished Project Builder Core in [Core Architecture Reconciliation](docs/CORE_ARCHITECTURE_RECONCILIATION.md), and proposed PoC gates in [PoC Readiness](docs/POC_READINESS_AND_ACCEPTANCE.md). 6C.8/6C.8R Domain Fact Descriptor remains only on an unmerged branch; 6D.2–6D.5 are merged; 6D.6–6D.8 are not authorized.
+
+
 ## Website package applicability
 
 Optional capability activation is separate from answered requirement state. `websiteCapabilitySelected` in `websiteRequirements.ts` uses the typed field registry and bounded legacy exclusion rules in `websiteCapabilityIntent.ts`. Data/access dependency validation, DATA_MODEL applicability, optional test/acceptance rows and the services phase share that selector. Descriptive `dataSources` content does not activate services. Negative prose remains recorded as Answered; no storage or review-state rewrite is performed.
