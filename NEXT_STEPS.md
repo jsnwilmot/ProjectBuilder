@@ -1,6 +1,6 @@
 # Next Steps — Current Project Delivery Gates
 
-**Updated:** 2026-10-18. **Baseline:** `b595e561f7236a76ea5c26921634957987cecbce` (PR #12 merged). This page is a routing summary, not approval to implement. For the dated authoritative **tracking snapshot**, phase statuses, open findings, and decisions, see [Project Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md).
+**Updated:** 2026-10-18. **Implementation baseline:** `831b2b455d19c2f67d4296ef980887a4ad383be9` (PR #13 merged). This routing summary does not grant additional scope. See [Project Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md) and the separate [Issue #14 authorization](https://github.com/jsnwilmot/ProjectBuilder/issues/14).
 
 ## Immediate project position
 
@@ -13,8 +13,8 @@
 
 ## Exact next Architect/Codex sequence
 
-1. **Current state:** no new implementation phase is approved or underway by this roadmap. Verify current `origin/main` before beginning any task.
-2. **Current Core gate:** both the **read-only reconciliation** and **checksum compatibility design** are completed and Architect-reviewed. All seven duplicate mechanics, 19 structured/9 raw literal vectors, asset checksum conditions, and excluded authority are recorded in [Checksum Compatibility Design](docs/CORE_CHECKSUM_COMPATIBILITY_DESIGN.md). **No Core implementation or 6C.8 integration is authorized.** The next prerequisite is resolving PR #13's exact-head CI and owner/release merge gate; then request a fresh-baseline bounded checksum implementation authorization.
+1. **Current state:** Issue #14 authorizes only CORE-CHECKSUM implementation from exact main `831b2b4`. It is implemented on `codex/core-checksum-extraction`, **unmerged** and awaiting independent review; no other implementation is authorized.
+2. **Current Core gate:** review the extracted three helpers, seven consumers, 109 new focused tests and complete validation/CI evidence. The [Checksum Compatibility Design](docs/CORE_CHECKSUM_COMPATIBILITY_DESIGN.md) is preserved unchanged. All payloads, public wrappers, versions, approval and authority behavior must remain equivalent. Descriptor integration remains deferred.
 3. **Separate quality workstream:** scope 6D.6 determinism/source isolation in a read-only design assessment **only after explicit Architect authorization**; do not import assumptions from the Core work.
 4. **Defect follow-up:** obtain exact reproductions and a disposition for `PB-OPEN-001`/`PB-OPEN-002`; remediation is not approved by their inclusion in this document.
 5. **PoC:** approve or revise the candidate acceptance scenarios, identify required current-build evidence and open-finding treatment, then perform a controlled verification and record owner sign-off.
@@ -40,4 +40,4 @@
 
 The previous `NEXT_STEPS.md` mixed historical review-branch handoffs with current actions (including now-merged Core/Website work). Historic exact-SHA evidence remains in `CHANGE_LOG.md`, `TEST_PLAN.md`, GitHub PRs, and dated reports. This summary **does not override** newer explicit approved architecture or a Codex phase contract. If evidence conflicts, verify and report it before implementation.
 
-**Next authorized action:** review documentation PR #13, verify exact-head CI, and obtain explicit owner/release authorization before merging to `main`. **CORE-CHECKSUM design is complete; implementation is not yet authorized.** No production Core extraction, 6C.8 integration, deployment or 6D.6 implementation is authorized.
+**Next authorized action:** independent GPT Architect review of the unmerged CORE-CHECKSUM PR and exact-head test/CI evidence. Current audits retain zero production vulnerabilities and 13 development findings (four moderate, nine high); PR #13's one-time advisory exception has expired for this work. Separate merge and release-owner advisory disposition are required. No deployment, 6C.8 integration, broader Core work or 6D.6 implementation is authorized.

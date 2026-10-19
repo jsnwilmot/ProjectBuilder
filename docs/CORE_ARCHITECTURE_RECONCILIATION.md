@@ -1,6 +1,6 @@
 # Project Builder Core — Reconciliation and Phased Architecture Backlog
 
-**Status:** 2026-10-18 read-only architecture tracking. **Baseline:** `b595e561f7236a76ea5c26921634957987cecbce`. **No new Core implementation approved.**
+**Status:** 2026-10-18 architecture tracking plus the separately authorized, **unmerged** CORE-CHECKSUM implementation. **Implementation baseline:** `831b2b455d19c2f67d4296ef980887a4ad383be9`; historical assessment baseline: `b595e561f7236a76ea5c26921634957987cecbce`. [Issue #14](https://github.com/jsnwilmot/ProjectBuilder/issues/14) grants implementation/testing only, not merge or deployment.
 
 ## Original objective
 
@@ -18,11 +18,21 @@ Extract **proven reusable mechanisms**, not all project-type behavior, so Projec
 
 Current `src/core/` on `main` contains **two** files: `canonicalUuid.ts` and `sha256Fingerprint.ts`. The broader Core extraction has **not** been implemented, as `APP_BLUEPRINT.md` expressly states.
 
+## CORE-CHECKSUM — implemented on a feature branch, not integrated
+
+`codex/core-checksum-extraction` adds `src/core/stableChecksum.ts` with exactly `stableSortObject`, `stableStringify` and `fnv1a`. Seven existing consumers import the mechanics; their payload expressions, invocations, wrappers, version strings, approval checks and result semantics are unchanged. The navigation-only object predicate became unused and was removed; other domain predicates remain local. Core uses the exact broad object predicate privately and imports no domain or authority code.
+
+The third Core file exists only on this unmerged candidate, not the authorized main baseline. UTF-16 arithmetic, raw formula hashing, stable string-value newline normalization, native JSON behavior and exceptions are retained. No canonical-JSON framework, SHA replacement, registry, adapter, evidence/confirmation extraction, Storage change or new authority is introduced.
+
+The immutable [approved design](CORE_CHECKSUM_COMPATIBILITY_DESIGN.md) supplies S01–S19, R01–R09, payload P and mutation/exclusion digests. New focused validation has 109 tests, including 29 synthetic corruption controls and legacy/nonmutation cases. The baseline passed 61 wrapper/sensitivity tests before extraction; a removed temporary probe showed all 29 corruptions fail ordinary acceptance assertions. Historical regressions remain unchanged. Full validation and exact-head CI are recorded in the candidate PR/completion report; integration requires GPT Architect review and explicit authorization.
+
+The unchanged 13 development audit findings have **no current exception**: PR #13's waiver applied only to that documentation release. Zero production vulnerabilities and no new advisory IDs were observed. Release disposition remains separate from code review. Production deployment correlation and smoke evidence remain unverified by this phase.
+
 ## Unmerged branch and reconciliation gate
 
 Branch: `review/phase-5c3c3j6c8-domain-fact-descriptor-foundation`.
 
-As of this snapshot it has **2 commits unique to the branch and is 70 commits behind `main`**. Files proposed there include `src/core/domainFactDescriptor.ts`, `src/tests/domainFactDescriptor.test.ts`, and older documentation changes. Its 6C.8R correction rejects sparse or inherited project-type array entries.
+At the original `b595e56` assessment snapshot it had **2 commits unique to the branch and was 70 commits behind `main`**. This historical count is not a refreshed comparison against the implementation baseline. Files proposed there include `src/core/domainFactDescriptor.ts`, `src/tests/domainFactDescriptor.test.ts`, and older documentation changes. Its 6C.8R correction rejects sparse or inherited project-type array entries.
 
 **Do not merge, rebase, or cherry-pick simply because historical tests passed.** First compare the contract to current source registries, Storage 7 invariants, Canvas golden suite, and the completed Ecommerce/Website behavior. Old branch documentation must not overwrite newer main documentation. Obtain independent Architect review and exact-head testing on an approved integration candidate before merging.
 
@@ -33,8 +43,8 @@ As of this snapshot it has **2 commits unique to the branch and is 70 commits be
 | Candidate gate | Bounded question / deliverable | Gate before implementation |
 | --- | --- | --- |
 | **CORE-REC** Read-only source inventory | **Completed** on `b595e561f7236a76ea5c26921634957987cecbce`; recorded verified primitives, candidates, cycles and unmerged branch hazard | Accepted for planning; no runtime changes or authority granted |
-| **CORE-DESC** Domain descriptor integration decision | Does the closed text-only 6C.8 contract remain correct and compatible after 70 new main commits? | Explicit Architect contract approval and separate integration plan |
-| **CORE-CHECKSUM** Read-only extraction design | **Completed and accepted as compatibility design**, with 19 structured vectors, 9 raw FNV vectors, independent asset payload/mutation checks and constrained extraction boundary | See [Checksum Compatibility Design](CORE_CHECKSUM_COMPATIBILITY_DESIGN.md). **Implementation not authorized**; requires docs PR #13 integration and a fresh Architect phase gate. |
+| **CORE-DESC** Domain descriptor integration decision | Does the closed text-only 6C.8 contract remain correct and compatible with then-current main? The original assessment recorded 70 main-only commits. | Explicit Architect contract approval and separate integration plan |
+| **CORE-CHECKSUM** Bounded implementation | Design accepted; Issue #14 separately authorizes implementation, now present on an **unmerged feature branch** | Preserve the immutable design, complete exact-head tests/CI, return for independent review and separate merge authorization; advisory/release gates remain open. |
 | **CORE-REUSE** Reuse/complexity evidence | Where are concrete duplicated logic, unwanted dependencies, module size, or maintainability hazards? What must remain domain-owned? | Initial inspection found repeated helpers and cycles; any further extraction needs a per-call-site matrix |
 | **CORE-DESIGN** Shared mechanism proposals | Are Evidence Core, Confirmation Core, domain registries/adapters, or narrower utilities justified? | Individually approved specification, explicit authority/persistence boundaries and independent tests |
 | **CORE-IMPL** Incremental extraction | One approved mechanism and its existing consumers at a time | Exact baseline, golden/Storage/regression matrix, unmerged PR, Architect review |
@@ -62,7 +72,9 @@ The Codex assessment was **read-only**; it did not run fresh full tests, coverag
 - No second-domain wiring, `confirmedIntake` materialization, generic registry or adapter, UI, migration, external integration or deployment is authorized by read-only discovery.
 - Historical Core review notes recorded TTI as Draft with 15 project-specific blockers. Those are not presumed resolved by the shared SHA/UUID primitives or by any future authority-free descriptor; TTI's approved project-specific Architect source controls its readiness and scope.
 
-## CORE-CHECKSUM design completed — implementation gated
+## Historical CORE-CHECKSUM design gate — retained for traceability
+
+The following records the earlier read-only decision, before PR #13 merged. Its implementation prerequisite was subsequently satisfied by the separate Issue #14 authorization from `831b2b4`; current candidate status is recorded above. These historical restrictions do not authorize additional work.
 
 **CORE-REC is completed.** Codex delivered the bounded read-only compatibility addendum for all seven helpers; GPT Architect independently verified identical mechanics, 18 structured literal digests, 9 raw hashes and the independent asset payload/mutations. One additional explicit whitespace-preservation vector (S19) was accepted. The complete design and immutable expectations are now recorded in [Checksum Compatibility Design](CORE_CHECKSUM_COMPATIBILITY_DESIGN.md). **Production implementation remains blocked** until documentation PR #13 integration under applicable owner/release controls and a refreshed exact-main implementation authorization.
 

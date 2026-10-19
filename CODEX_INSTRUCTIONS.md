@@ -4,10 +4,10 @@
 
 The coordination documents are [Project Delivery Roadmap](docs/PROJECT_DELIVERY_ROADMAP.md), [Core Architecture Reconciliation](docs/CORE_ARCHITECTURE_RECONCILIATION.md), and [PoC Readiness](docs/POC_READINESS_AND_ACCEPTANCE.md). Their tracking labels and proposed acceptance scenarios **do not authorize implementation**.
 
-- Current verified merged baseline: `b595e561f7236a76ea5c26921634957987cecbce` (PR #12, Phase 6D.5).
+- Current implementation baseline: `831b2b455d19c2f67d4296ef980887a4ad383be9` (PR #13 merged).
 - Phase 6D.2–6D.5: merged. Phase 6D.6–6D.8: not authorized.
 - Project Builder Core 6C.2/3/4/6: merged; 6C.8/6C.8R: unmerged review branch, not authorized for blind integration.
-- Next agreed Core task is **read-only reconciliation**; its Codex instruction has not yet been dispatched. Do not infer an implementation authorization.
+- CORE-REC and checksum design are complete. [Issue #14](https://github.com/jsnwilmot/ProjectBuilder/issues/14) separately authorizes only the bounded checksum implementation, now an unmerged review candidate. Do not infer merge, deployment or further Core authorization.
 - Open High findings: Preview blocker counting and Ecommerce decision-layer `launchReady`; no remediation authorization.
 - For any authorized development: exact baseline, approved scope and independent literal oracle where applicable, separate PR, focused and full regression evidence, exact-head CI, and separate GPT Architect review/merge authorization. Never merge or deploy just because CI passes.
 - Storage 7 is canonical; do not introduce Storage 8, overwrite persistence, change user/business permissions, derive approval from generated documents, or alter project-type authority absent explicit approval.
@@ -51,6 +51,8 @@ Do not add authentication, a database, analytics, billing, paid services, or ext
 - After Storage 7 production adoption, do not deploy a Storage-6-only rollback or hotfix against the production key; rollback code must remain Storage-7-aware.
 
 ## Core extraction golden guardrail
+
+- `src/core/stableChecksum.ts` may own only the three exact legacy sorting/serialization/FNV-1a mechanics authorized by Issue #14. Preserve UTF-16 units, raw-versus-serialized hashing, native edge behavior and the legacy signatures. Domain payloads, wrappers, versions, approvals, staleness, Storage and authority remain caller-owned. Keep the approved compatibility design and historical regressions unchanged. The PR #13 advisory exception does not transfer to this implementation.
 
 - Keep `src/core/sha256Fingerprint.ts` domain-neutral. It may own only UTF-8 encoding, Web Crypto SHA-256 digesting, and lowercase hex formatting, and it must not import Planning, Confirmation, Canvas, Power Platform, repository, registry, adapter, persistence, authority, canonical-fact, readiness, projection, Apply, YAML, package, or generated-output modules.
 - Preserve `computePlanningSha256Fingerprint` as the Planning compatibility wrapper around the core primitive. Confirmation value serialization remains in the Confirmation boundary, and Confirmation value fingerprinting must not depend on the Planning helper.
